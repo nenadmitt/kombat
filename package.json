@@ -1,0 +1,24 @@
+{
+  "name": "gaming-platform",
+  "version": "0.0.1",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "mobile": "npm run start --workspace @gaming-platform/mobile",
+    "mobile:ios": "npm run ios --workspace @gaming-platform/mobile",
+    "mobile:android": "npm run android --workspace @gaming-platform/mobile"
+  },
+  "devDependencies": {
+    "turbo": "^2.10.2",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">= 22.11.0"
+  },
+  "packageManager": "npm@11.7.0"
+}

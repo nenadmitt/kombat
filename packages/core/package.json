@@ -1,0 +1,15 @@
+{
+  "name": "@gaming-platform/core",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Platform-agnostic shared code (no react-native / DOM). Consumable by mobile and a future web app.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}
