@@ -13,7 +13,7 @@ export default function LoginScreen({ navigation }: Props) {
   const setName = useCurrentUserStore(state => state.setName);
 
   const handleContinue = () => {
-    // Mock auth for now — swap for the real Privy flow later.
+    // Mock auth for now — swap for the real auth flow later.
     setName('Player');
     navigation.navigate('Home');
   };
@@ -57,12 +57,12 @@ export default function LoginScreen({ navigation }: Props) {
                 end={{ x: 1, y: 0 }}
                 style={styles.button}
               >
-                <Text style={styles.buttonText}>Continue with Privy</Text>
+                <Text style={styles.buttonText}>Continue</Text>
               </GradientView>
             </Pressable>
 
             <Text style={styles.disclaimer}>
-              An embedded wallet will be automatically created for you.
+              By continuing you agree to the Terms of Service.
             </Text>
           </View>
         </View>
