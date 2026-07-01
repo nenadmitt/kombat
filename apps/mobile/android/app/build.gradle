@@ -1,6 +1,8 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+// react-native-config: expose .env values (resolved via node for monorepo hoisting)
+apply from: new File(["node", "--print", "require.resolve('react-native-config/package.json')"].execute(null, rootDir).text.trim(), "../dotenv.gradle")
 
 /**
  * This is the configuration block to customize your React Native Android app.

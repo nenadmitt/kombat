@@ -1,55 +1,32 @@
 /**
  * Gaming Platform — app root.
- * Wraps the navigation container; screens live in src/.
+ * Wraps Privy auth + navigation; screens live in src/.
  *
  * @format
  */
 
-import React, { useEffect } from 'react';
-import {
-  ActivityIndicator,
-  StatusBar,
-  StyleSheet,
-  useColorScheme,
-  View,
-} from 'react-native';
+import React from 'react';
+import { StatusBar, useColorScheme } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { PrivyProvider } from '@privy-io/expo';
 
+import { env } from './src/config/env';
 import RootNavigator from './src/navigation/RootNavigator';
-import { useCurrentUserStore } from './src/store/currentUser.store';
 
 function App(): React.JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
-  const status = useCurrentUserStore(state => state.status);
-
-  // Load the current user once when the app starts.
-  useEffect(() => {
-    useCurrentUserStore.getState().load();
-  }, []);
 
   return (
-    <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      {status === 'loading' ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" />
-        </View>
-      ) : (
+    <PrivyProvider appId={env.privyAppId} clientId={env.privyClientId}>
+      <SafeAreaProvider>
+        <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
         <NavigationContainer>
           <RootNavigator />
         </NavigationContainer>
-      )}
-    </SafeAreaProvider>
+      </SafeAreaProvider>
+    </PrivyProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
 
 export default App;
