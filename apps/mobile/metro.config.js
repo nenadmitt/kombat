@@ -15,7 +15,9 @@ const config = {
       path.resolve(projectRoot, 'node_modules'),
       path.resolve(workspaceRoot, 'node_modules'),
     ],
-    disableHierarchicalLookup: true,
+    // NOTE: keep hierarchical lookup enabled (default). Disabling it breaks
+    // packages that rely on a *nested* dep version (e.g. reanimated needs
+    // semver@7 nested under its own node_modules, while root has v6 hoisted).
   },
 };
 

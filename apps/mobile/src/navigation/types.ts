@@ -2,4 +2,6 @@
 export type RootStackParamList = {
   Home: undefined;
   Details: undefined;
+  Battleship: undefined;
+  Login: undefined;
 };
