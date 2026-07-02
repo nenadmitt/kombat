@@ -4,5 +4,4 @@ export type RootStackParamList = {
   Details: undefined;
   Battleship: undefined;
   Login: undefined;
-  Wallet: undefined;
 };

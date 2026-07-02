@@ -17,7 +17,7 @@ export default function HomeScreen({ navigation }: Props) {
       <Text style={styles.greeting}>
         {name ? `Welcome, ${name}!` : 'Not logged in'}
       </Text>
-      <Button title="Wallet" onPress={() => navigation.navigate('Wallet')} />
+      <Button title="Login" onPress={() => navigation.navigate('Login')} />
       <Button title="Play Battleship" onPress={() => navigation.navigate('Battleship')} />
       <Button title="Go to Screen 2" onPress={() => navigation.navigate('Details')} />
     </View>
