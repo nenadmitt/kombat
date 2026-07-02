@@ -1,6 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-import { WalletNetwork, type WalletSummary } from '@gaming-platform/core';
+import {
+  ApiError,
+  ErrorCode,
+  WalletNetwork,
+  type WalletSummary,
+} from '@gaming-platform/core';
 
 import { apiClient } from '../api/client';
 import { ACCESS_TOKEN_STORAGE_KEY } from '../storage/storage-keys';
@@ -11,11 +16,26 @@ type AuthStatus = 'loading' | 'unauthenticated' | 'authenticated';
 type WalletStatus = 'idle' | 'checking' | 'creating' | 'ready' | 'error';
 type ProfileStatus = 'idle' | 'loading' | 'ready' | 'error';
 
+export type LoadError = {
+  message: string;
+  code: string;
+};
+
+function toLoadError(err: unknown, fallbackMessage: string): LoadError {
+  if (err instanceof ApiError) {
+    return { message: err.message, code: err.code };
+  }
+  return {
+    message: err instanceof Error ? err.message : fallbackMessage,
+    code: ErrorCode.Unknown,
+  };
+}
+
 /**
  * Everything about the current user: auth (JWT persisted in AsyncStorage),
  * profile (email/username), and wallet (mnemonic/private key persisted in
  * Keychain). Kept as one store since they're tightly coupled — logging out
- * clears profile + wallet too, and neither can be loaded until authenticated.
+ * clears auth + profile, but not the wallet (see `logout` below).
  */
 type CurrentUserState = {
   authStatus: AuthStatus;
@@ -24,17 +44,17 @@ type CurrentUserState = {
   profileStatus: ProfileStatus;
   email: string | null;
   username: string | null;
-  profileError: string | null;
+  profileError: LoadError | null;
 
   walletStatus: WalletStatus;
   wallet: WalletSummary | null;
-  walletError: string | null;
+  walletError: LoadError | null;
 
   /** Reads the persisted JWT on app start. */
   load: () => Promise<void>;
   /** Persists the JWT after a successful login and marks the user authenticated. */
   loginWithToken: (accessToken: string) => Promise<void>;
-  /** Clears the persisted JWT, profile, and wallet state. */
+  /** Clears the persisted JWT and profile state (wallet is left intact — see below). */
   logout: () => Promise<void>;
   /** Fetches the user's email/username. */
   loadProfile: () => Promise<void>;
@@ -58,6 +78,9 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
   walletError: null,
 
   load: async () => {
+    // TODO: this only checks whether a token is present, not whether it's
+    // expired — a stale JWT is currently only caught the first time an API
+    // call 401s, not here. Revisit once refresh tokens are implemented.
     const accessToken = await AsyncStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
     set({
       accessToken,
@@ -72,6 +95,9 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
 
   logout: async () => {
     await AsyncStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+    // Wallet state (and its Keychain-backed secret) is intentionally left
+    // alone — the wallet persists across logout so logging back in as the
+    // same user doesn't need to re-fetch/re-create it.
     set({
       accessToken: null,
       authStatus: 'unauthenticated',
@@ -79,9 +105,6 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
       username: null,
       profileStatus: 'idle',
       profileError: null,
-      wallet: null,
-      walletStatus: 'idle',
-      walletError: null,
     });
   },
 
@@ -96,7 +119,7 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
     } catch (err) {
       set({
         profileStatus: 'error',
-        profileError: err instanceof Error ? err.message : 'Failed to load profile',
+        profileError: toLoadError(err, 'Failed to load profile'),
       });
     }
   },
@@ -133,7 +156,7 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
     } catch (err) {
       set({
         walletStatus: 'error',
-        walletError: err instanceof Error ? err.message : 'Failed to set up wallet',
+        walletError: toLoadError(err, 'Failed to set up wallet'),
       });
     }
   },

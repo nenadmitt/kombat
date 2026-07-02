@@ -6,16 +6,19 @@ import { brandGradient, colors, radius, spacing } from '../theme/colors';
 
 type Props = {
   message: string;
+  /** Backend/network error code (ErrorCode enum) — shown as fine print for support reference. */
+  code: string;
   onRetry: () => void;
 };
 
-export default function ErrorScreen({ message, onRetry }: Props) {
+export default function ErrorScreen({ message, code, onRetry }: Props) {
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.content}>
         <Text style={styles.icon}>📡</Text>
         <Text style={styles.title}>Connection trouble</Text>
         <Text style={styles.message}>{message}</Text>
+        <Text style={styles.code}>Error code: {code}</Text>
 
         <Pressable
           onPress={onRetry}
@@ -65,6 +68,11 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: 'center',
     color: colors.textMuted,
+  },
+  code: {
+    fontSize: 12,
+    color: colors.textFaint,
+    fontFamily: 'Menlo',
     marginBottom: spacing.sm,
   },
   buttonWrapper: {

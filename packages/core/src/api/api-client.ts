@@ -7,6 +7,7 @@ import type {
   WalletNetwork,
   WalletSummary,
 } from '../wallets/wallet.types';
+import { ErrorCode } from './error-codes';
 
 export type ApiClientOptions = {
   baseUrl: string;
@@ -21,6 +22,8 @@ export class ApiError extends Error {
     /** HTTP status, or 0 for a network failure/timeout (no response was received at all). */
     public readonly status: number,
     message: string,
+    /** Backend-provided error code, or ErrorCode.Unknown/.NetworkFailed when none applies. */
+    public readonly code: string = ErrorCode.Unknown,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -107,6 +110,7 @@ export class ApiClient {
         timedOut
           ? 'The request timed out. Check your connection and try again.'
           : 'Could not reach the server. Check your connection and try again.',
+        ErrorCode.NetworkFailed,
       );
     } finally {
       clearTimeout(timeout);
@@ -120,13 +124,15 @@ export class ApiClient {
     if (!response.ok) {
       const errorBody =
         data && typeof data === 'object'
-          ? (data as { message?: unknown; error?: unknown })
+          ? (data as { message?: unknown; error?: unknown; code?: unknown })
           : undefined;
       const message =
         errorBody?.message?.toString() ??
         errorBody?.error?.toString() ??
         response.statusText;
-      throw new ApiError(response.status, message);
+      // Backend doesn't send `code` yet — falls back to Unknown until it does.
+      const code = errorBody?.code?.toString() ?? ErrorCode.Unknown;
+      throw new ApiError(response.status, message, code);
     }
 
     return data as T;

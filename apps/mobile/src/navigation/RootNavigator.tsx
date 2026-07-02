@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { ErrorCode } from '@gaming-platform/core';
 
 import ErrorScreen from '../screens/ErrorScreen';
 import LoginScreen from '../screens/LoginScreen';
@@ -84,12 +85,14 @@ export default function RootNavigator() {
 
   if (profileStatus !== 'ready' || walletStatus !== 'ready') {
     if (hasError && showErrorScreen) {
-      const message =
-        (profileStatus === 'error' ? profileError : walletError) ??
-        'Something went wrong.';
+      const error = (profileStatus === 'error' ? profileError : walletError) ?? {
+        message: 'Something went wrong.',
+        code: ErrorCode.Unknown,
+      };
       return (
         <ErrorScreen
-          message={message}
+          message={error.message}
+          code={error.code}
           onRetry={() => {
             setShowErrorScreen(false);
             if (profileStatus === 'error') {
