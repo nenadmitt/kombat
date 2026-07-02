@@ -1,14 +1,14 @@
 import { Column, CreateDateColumn, Entity } from 'typeorm';
-import { UuidV7Entity } from './base.entity';
+import { BaseEntity } from './base.entity';
 
 @Entity('users')
-export class UserEntity extends UuidV7Entity {
-  @Column({ type: 'varchar', unique: true, nullable: true })
-  email: string | null;
+export class UserEntity extends BaseEntity {
+  @Column({ name: 'email', type: 'varchar', unique: true, nullable: false })
+  email: string;
 
-  @Column({ type: 'varchar', unique: true, nullable: false })
-  username: string;
+  @Column({ name: 'username', type: 'varchar', unique: true, nullable: true })
+  username: string | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

@@ -1,25 +1,26 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
-import { WalletType } from '../types/wallet';
+import { Column, CreateDateColumn, Entity } from 'typeorm';
+import { BaseEntity } from './base.entity';
+import { WalletNetwork, WalletOrigin } from '../types/wallet';
 
-@Entity('users')
-export class WalletEntity {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+@Entity('wallets')
+export class WalletEntity extends BaseEntity {
+  // Plain column, no FK relation to users — intentionally not referencing
+  // each other at the DB level.
+  @Column({ name: 'user_id', type: 'uuid' })
+  userId: string;
 
-  @Column({ type: "varchar", unique: true, nullable: false })
-  address: string
+  @Column({ name: 'address', type: 'varchar', unique: true, nullable: false })
+  address: string;
 
-  @Column({ type: "varchar", unique: true, nullable: false})
-  key: string
+  @Column({ name: 'key', type: 'varchar', unique: true, nullable: false })
+  key: string;
 
-  @Column({ type: "integer", nullable: false })
-  type: WalletType
+  @Column({ name: 'type', type: 'smallint', default: WalletOrigin.Platform })
+  type: WalletOrigin;
 
-  @CreateDateColumn()
+  @Column({ name: 'network', type: 'smallint', nullable: false })
+  network: WalletNetwork;
+
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

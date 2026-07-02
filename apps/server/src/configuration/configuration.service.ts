@@ -9,7 +9,13 @@ export class ConfigurationService {
   public readonly POSTGRES_DB: string;
   public readonly POSTGRES_USER: string;
   public readonly POSTGRES_PASSWORD: string;
-  public readonly WALLET_ENCRYPTION_KEY: string
+  public readonly WALLET_ENCRYPTION_KEY: string;
+  public readonly JWT_SECRET: string;
+  public readonly JWT_EXPIRES_IN: string;
+  /** Optional — when unset, EmailService logs tokens instead of sending them. */
+  public readonly RESEND_API_KEY: string | undefined;
+  public readonly EMAIL_FROM: string;
+  public readonly IS_PRODUCTION: boolean;
 
   constructor(private readonly configService: ConfigService) {
     this.PORT = parseInt(this.configService.get('PORT') ?? '3000', 10);
@@ -22,6 +28,15 @@ export class ConfigurationService {
     this.POSTGRES_USER = this.configService.getOrThrow('POSTGRES_USER');
     this.POSTGRES_PASSWORD =
       this.configService.getOrThrow('POSTGRES_PASSWORD');
-    this.WALLET_ENCRYPTION_KEY = this.configService.getOrThrow("WALLET_ENCRYPTION_KEY")
+    this.WALLET_ENCRYPTION_KEY = this.configService.getOrThrow(
+      'WALLET_ENCRYPTION_KEY',
+    );
+    this.JWT_SECRET = this.configService.getOrThrow('JWT_SECRET');
+    this.JWT_EXPIRES_IN = this.configService.get('JWT_EXPIRES_IN') ?? '30d';
+    this.RESEND_API_KEY = this.configService.get('RESEND_API_KEY');
+    this.EMAIL_FROM =
+      this.configService.get('EMAIL_FROM') ?? 'login@gaming-platform.local';
+    this.IS_PRODUCTION =
+      (this.configService.get('NODE_ENV') ?? 'development') === 'production';
   }
 }

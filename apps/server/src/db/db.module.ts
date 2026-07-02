@@ -4,7 +4,9 @@ import { join } from 'path';
 
 import { ConfigurationModule } from '../configuration/configuration.module';
 import { ConfigurationService } from '../configuration/configuration.service';
+import { EmailLoginTokenEntity } from './entities/email-login-token.entity';
 import { UserEntity } from './entities/user.entity';
+import { WalletEntity } from './entities/wallet.entity';
 import { MigrationService } from './migration.service';
 
 @Module({
@@ -18,7 +20,7 @@ import { MigrationService } from './migration.service';
         username: configService.POSTGRES_USER,
         password: configService.POSTGRES_PASSWORD,
         database: configService.POSTGRES_DB,
-        entities: [UserEntity],
+        entities: [UserEntity, EmailLoginTokenEntity, WalletEntity],
         synchronize: false,
         // Migrations are applied explicitly by MigrationService on boot, not
         // by TypeORM's own connection setup — see the comment there.
@@ -28,7 +30,7 @@ import { MigrationService } from './migration.service';
       }),
       inject: [ConfigurationService],
     }),
-    TypeOrmModule.forFeature([UserEntity]),
+    TypeOrmModule.forFeature([UserEntity, EmailLoginTokenEntity]),
   ],
   providers: [MigrationService],
   exports: [TypeOrmModule],

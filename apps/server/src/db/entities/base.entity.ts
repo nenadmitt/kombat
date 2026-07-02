@@ -5,7 +5,7 @@ import { PrimaryColumn } from 'typeorm';
  * 18+'s built-in `uuidv7()` function (no app-side generation, no extension
  * needed — unlike v4's `uuid_generate_v4()`). IDs stay time-sortable.
  */
-export abstract class UuidV7Entity {
-  @PrimaryColumn('uuid', { default: () => 'uuidv7()' })
+export abstract class BaseEntity {
+  @PrimaryColumn('uuid', { name: 'id', default: () => 'uuidv7()' })
   id: string;
 }
