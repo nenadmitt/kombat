@@ -16,6 +16,8 @@ export const colors = {
   textPrimary: '#ffffff',
   /** Secondary / helper text. */
   textMuted: '#94a3b8',
+  /** Faint text (input placeholders, fine print). */
+  textFaint: '#475569',
   /** Brand gradient stops. */
   brandStart: '#8b5cf6',
   brandEnd: '#3b82f6',
