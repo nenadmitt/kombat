@@ -17,6 +17,7 @@ import type { RootStackParamList } from '../navigation/types';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import { apiClient } from '../api/client';
 import { GradientView } from '../components/GradientView';
+import Icon from '../components/Icon';
 import { brandGradient, colors, radius, spacing } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
@@ -86,14 +87,14 @@ export default function LoginScreen(_props: Props) {
             positions={brandGradient.positions}
             style={styles.logoIcon}
           >
-            <Text style={styles.logoGem}>💎</Text>
+            <Icon type="gem" color={colors.textPrimary} size={40} />
           </GradientView>
           <Text style={styles.wordmark}>KRYPTOKOMBAT</Text>
         </View>
 
         {/* Hero visual */}
         <View style={styles.hero}>
-          <Text style={styles.heroEmoji}>⚔️</Text>
+          <Icon type="swords" color={colors.brandStart} size={96} />
         </View>
 
         {/* Footer: headline + CTA */}
@@ -275,9 +276,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoGem: {
-    fontSize: 40,
-  },
   wordmark: {
     fontSize: 32,
     fontWeight: '800',
@@ -293,9 +291,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(139, 92, 246, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  heroEmoji: {
-    fontSize: 96,
   },
   footer: {
     width: '100%',

@@ -12,6 +12,7 @@ import {
 import { Canvas, Group, Line, Rect, RoundedRect, vec } from '@shopify/react-native-skia';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import Icon from '../../components/Icon';
 import type { GamesStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<GamesStackParamList, 'Battleship'>;
@@ -216,7 +217,12 @@ export default function GameScreen(_props: Props) {
             onCancel={() => setPreview(null)}
           />
         ))}
-        {unplaced.length === 0 && <Text style={styles.allPlaced}>All ships placed 🎉</Text>}
+        {unplaced.length === 0 && (
+          <View style={styles.allPlacedRow}>
+            <Icon type="party" color="#16a34a" size={16} />
+            <Text style={styles.allPlaced}>All ships placed</Text>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -298,5 +304,6 @@ const styles = StyleSheet.create({
   trayItem: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   dragging: { zIndex: 10, opacity: 0.9 },
   trayLabel: { fontSize: 14, color: '#1e293b' },
+  allPlacedRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   allPlaced: { fontSize: 15, color: '#16a34a', textAlign: 'center' },
 });

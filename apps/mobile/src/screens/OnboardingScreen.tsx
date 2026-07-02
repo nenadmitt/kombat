@@ -14,6 +14,7 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import { ApiError } from '@gaming-platform/core';
 
 import { GradientView } from '../components/GradientView';
+import Icon from '../components/Icon';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import { getWalletSecret } from '../wallet/wallet-keychain';
 import { brandGradient, colors, radius, spacing } from '../theme/colors';
@@ -115,7 +116,7 @@ export default function OnboardingScreen() {
           {/* Username */}
           <View style={styles.section}>
             <View style={styles.labelRow}>
-              <Text style={styles.labelIcon}>👤</Text>
+              <Icon type="user" color={colors.textMuted} size={13} />
               <Text style={styles.label}>USERNAME</Text>
             </View>
             <View style={styles.input}>
@@ -131,7 +132,7 @@ export default function OnboardingScreen() {
                 editable={!busy}
               />
               <View style={styles.atBadge}>
-                <Text style={styles.atBadgeText}>@</Text>
+                <Icon type="at-sign" color={colors.brandStart} size={16} />
               </View>
             </View>
             <Text style={styles.hint}>
@@ -146,7 +147,7 @@ export default function OnboardingScreen() {
           <View style={styles.section}>
             <View style={styles.recoveryHeaderRow}>
               <View style={styles.labelRow}>
-                <Text style={styles.labelIcon}>🔑</Text>
+                <Icon type="key" color={colors.textMuted} size={13} />
                 <Text style={styles.label}>RECOVERY PHRASE</Text>
               </View>
               <View style={styles.keepSecretBadge}>
@@ -171,20 +172,26 @@ export default function OnboardingScreen() {
                 </View>
                 {!revealed ? (
                   <View style={styles.lockOverlay}>
-                    <Text style={styles.lockIcon}>🔒</Text>
+                    <View style={styles.lockCircle}>
+                      <Icon type="lock" color={colors.textPrimary} size={22} />
+                    </View>
                   </View>
                 ) : null}
               </View>
 
               <View style={styles.recoveryActions}>
                 <Pressable onPress={handleReveal} style={styles.revealButton}>
-                  <Text style={styles.revealIcon}>👁</Text>
+                  {revealed ? (
+                    <Icon type="eye-off" color="#a78bfa" size={16} />
+                  ) : (
+                    <Icon type="eye" color="#a78bfa" size={16} />
+                  )}
                   <Text style={styles.revealText}>
                     {revealed ? 'Hide' : 'Reveal'}
                   </Text>
                 </Pressable>
                 <Pressable onPress={handleCopy} style={styles.copyButton}>
-                  <Text style={styles.copyIcon}>⧉</Text>
+                  <Icon type="copy" color={colors.textMuted} size={16} />
                   <Text style={styles.copyText}>
                     {copied ? 'Copied!' : 'Copy'}
                   </Text>
@@ -197,7 +204,7 @@ export default function OnboardingScreen() {
             ) : null}
 
             <View style={styles.warningBox}>
-              <Text style={styles.warningIcon}>⚠️</Text>
+              <Icon type="warning" color={colors.kombatAccent} size={16} />
               <Text style={styles.warningText}>
                 Never share your recovery phrase. Anyone with it has full
                 access to your wallet.
@@ -223,7 +230,7 @@ export default function OnboardingScreen() {
               <Text style={styles.continueText}>
                 {busy ? 'Saving…' : 'Continue'}
               </Text>
-              <Text style={styles.continueArrow}>→</Text>
+              <Icon type="arrow-right" color={colors.textPrimary} size={18} />
             </GradientView>
           </Pressable>
         </ScrollView>
@@ -282,9 +289,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs - 2,
   },
-  labelIcon: {
-    fontSize: 13,
-  },
   label: {
     fontSize: 13,
     fontWeight: '600',
@@ -314,11 +318,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(139, 92, 246, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  atBadgeText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.brandStart,
   },
   hint: {
     fontSize: 12,
@@ -383,15 +382,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  lockIcon: {
-    fontSize: 22,
-    backgroundColor: 'rgba(11, 11, 14, 0.8)',
+  lockCircle: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    overflow: 'hidden',
+    backgroundColor: 'rgba(11, 11, 14, 0.8)',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
   },
@@ -411,9 +408,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: spacing.sm - 2,
   },
-  revealIcon: {
-    fontSize: 14,
-  },
   revealText: {
     fontSize: 14,
     fontWeight: '600',
@@ -431,10 +425,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: spacing.sm - 2,
   },
-  copyIcon: {
-    fontSize: 14,
-    color: colors.textMuted,
-  },
   copyText: {
     fontSize: 14,
     fontWeight: '600',
@@ -449,9 +439,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(245, 158, 11, 0.15)',
     borderRadius: 12,
     padding: spacing.sm - 2,
-  },
-  warningIcon: {
-    fontSize: 14,
   },
   warningText: {
     flex: 1,
@@ -480,10 +467,6 @@ const styles = StyleSheet.create({
   continueText: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  continueArrow: {
-    fontSize: 18,
     color: colors.textPrimary,
   },
 });

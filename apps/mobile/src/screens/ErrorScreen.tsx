@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GradientView } from '../components/GradientView';
+import Icon from '../components/Icon';
 import { brandGradient, colors, radius, spacing } from '../theme/colors';
 
 type Props = {
@@ -15,7 +16,7 @@ export default function ErrorScreen({ message, code, onRetry }: Props) {
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.content}>
-        <Text style={styles.icon}>📡</Text>
+        <Icon type="wifi-off" color={colors.textMuted} size={48} style={styles.icon} />
         <Text style={styles.title}>Connection trouble</Text>
         <Text style={styles.message}>{message}</Text>
         <Text style={styles.code}>Error code: {code}</Text>
@@ -55,7 +56,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   icon: {
-    fontSize: 48,
     marginBottom: spacing.xs,
   },
   title: {

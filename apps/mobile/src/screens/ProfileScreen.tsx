@@ -2,6 +2,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GradientView } from '../components/GradientView';
+import Icon, { type IconName } from '../components/Icon';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import { truncateAddress } from '../wallet/format-address';
 import { brandGradient, colors, radius, spacing } from '../theme/colors';
@@ -14,17 +15,17 @@ const MOCK_STATS = [
   { label: '$4,240 Total' },
 ] as const;
 const MOCK_ACHIEVEMENTS = [
-  { icon: '🏆', label: 'Top Gun' },
-  { icon: '🔥', label: '10 Streak' },
-  { icon: '👑', label: 'Whale' },
-  { icon: '⚡', label: 'Fast Hand' },
+  { icon: 'trophy' as IconName, label: 'Top Gun' },
+  { icon: 'flame' as IconName, label: '10 Streak' },
+  { icon: 'crown' as IconName, label: 'Whale' },
+  { icon: 'zap' as IconName, label: 'Fast Hand' },
 ] as const;
 
 const SETTINGS_ROWS = [
-  { key: 'notifications', icon: '🔔', label: 'Notifications' },
-  { key: 'security', icon: '🔒', label: 'Security & Wallet' },
-  { key: 'help', icon: '❓', label: 'Help & Support' },
-  { key: 'terms', icon: '📄', label: 'Terms of Service' },
+  { key: 'notifications', icon: 'bell' as IconName, label: 'Notifications' },
+  { key: 'security', icon: 'lock' as IconName, label: 'Security & Wallet' },
+  { key: 'help', icon: 'help' as IconName, label: 'Help & Support' },
+  { key: 'terms', icon: 'file-text' as IconName, label: 'Terms of Service' },
 ] as const;
 
 export default function ProfileScreen() {
@@ -58,7 +59,7 @@ export default function ProfileScreen() {
               <Text style={styles.addressText}>
                 {truncateAddress(wallet.address)}
               </Text>
-              <Text style={styles.copyIcon}>⧉</Text>
+              <Icon type="copy" color={colors.textMuted} size={14} />
             </View>
           ) : null}
         </View>
@@ -82,7 +83,7 @@ export default function ProfileScreen() {
             {MOCK_ACHIEVEMENTS.map(achievement => (
               <View key={achievement.label} style={styles.achievementCard}>
                 <View style={styles.achievementIconCircle}>
-                  <Text style={styles.achievementIcon}>{achievement.icon}</Text>
+                  <Icon type={achievement.icon} color={colors.textPrimary} size={18} />
                 </View>
                 <Text style={styles.achievementLabel}>{achievement.label}</Text>
               </View>
@@ -99,10 +100,10 @@ export default function ProfileScreen() {
           <View style={styles.referralRow}>
             <View style={styles.referralCodeBox}>
               <Text style={styles.referralCode}>{referralCode}</Text>
-              <Text style={styles.copyIcon}>⧉</Text>
+              <Icon type="copy" color={colors.textMuted} size={14} />
             </View>
             <Pressable style={styles.shareButton}>
-              <Text style={styles.shareIcon}>⇪</Text>
+              <Icon type="share" color={colors.textPrimary} size={18} />
             </Pressable>
           </View>
         </View>
@@ -112,14 +113,14 @@ export default function ProfileScreen() {
           {SETTINGS_ROWS.map(row => (
             <Pressable key={row.key} style={styles.settingsRow}>
               <View style={styles.settingsRowLeft}>
-                <Text style={styles.settingsIcon}>{row.icon}</Text>
+                <Icon type={row.icon} color={colors.textPrimary} size={18} />
                 <Text style={styles.settingsLabel}>{row.label}</Text>
               </View>
-              <Text style={styles.chevron}>›</Text>
+              <Icon type="chevron-right" color={colors.textMuted} size={18} />
             </Pressable>
           ))}
           <Pressable style={styles.signOutRow} onPress={() => logout()}>
-            <Text style={styles.signOutIcon}>⇥</Text>
+            <Icon type="log-out" color={colors.danger} size={18} />
             <Text style={styles.signOutLabel}>Sign Out</Text>
           </Pressable>
         </View>
@@ -196,10 +197,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: 'Menlo',
   },
-  copyIcon: {
-    fontSize: 14,
-    color: colors.textMuted,
-  },
   statsRow: {
     flexDirection: 'row',
     gap: spacing.xs,
@@ -259,9 +256,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  achievementIcon: {
-    fontSize: 18,
-  },
   achievementLabel: {
     fontSize: 11,
     fontWeight: '600',
@@ -312,10 +306,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  shareIcon: {
-    fontSize: 18,
-    color: colors.textPrimary,
-  },
   settingsList: {
     width: '100%',
     gap: spacing.xs - 2,
@@ -335,27 +325,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  settingsIcon: {
-    fontSize: 18,
-  },
   settingsLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.textPrimary,
-  },
-  chevron: {
-    fontSize: 18,
-    color: colors.textMuted,
   },
   signOutRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     padding: spacing.sm,
-  },
-  signOutIcon: {
-    fontSize: 18,
-    color: colors.danger,
   },
   signOutLabel: {
     fontSize: 14,

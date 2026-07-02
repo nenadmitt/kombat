@@ -1,20 +1,20 @@
-import { Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import GamesNavigator from './GamesNavigator';
 import WalletScreen from '../screens/WalletScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import Icon, { type IconName } from '../components/Icon';
 import { colors } from '../theme/colors';
 import type { MainTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-const TAB_ICONS: Record<keyof MainTabParamList, string> = {
-  Games: '🎮',
-  Wallet: '💳',
-  History: '🕓',
-  Profile: '👤',
+const TAB_ICONS: Record<keyof MainTabParamList, IconName> = {
+  Games: 'games',
+  Wallet: 'wallet',
+  History: 'history',
+  Profile: 'user',
 };
 
 export default function MainTabNavigator() {
@@ -28,8 +28,8 @@ export default function MainTabNavigator() {
           backgroundColor: colors.surface,
           borderTopColor: colors.cardBorder,
         },
-        tabBarIcon: ({ size }) => (
-          <Text style={{ fontSize: size }}>{TAB_ICONS[route.name]}</Text>
+        tabBarIcon: ({ color, size }) => (
+          <Icon type={TAB_ICONS[route.name]} color={color} size={size} />
         ),
       })}
     >

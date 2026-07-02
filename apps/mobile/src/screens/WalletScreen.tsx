@@ -1,22 +1,23 @@
 import { StyleSheet, Text, View, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import Icon, { type IconName } from '../components/Icon';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import { truncateAddress } from '../wallet/format-address';
 import { colors, radius, spacing } from '../theme/colors';
 
 /** Mocked — no balance-fetching endpoint yet. Values match the Figma design. */
 const MOCK_ASSETS = [
-  { symbol: 'USDC', icon: '💵', balance: '1,240.50', usd: '$1,240.50' },
-  { symbol: 'USDT', icon: '💵', balance: '450.00', usd: '$450.00' },
-  { symbol: 'ETH', icon: 'Ξ', balance: '0.45', usd: '$1,320.12' },
-  { symbol: 'KOMBAT', icon: '💎', balance: '12,500', usd: '$3,125.00' },
+  { symbol: 'USDC', icon: 'banknote' as IconName, balance: '1,240.50', usd: '$1,240.50' },
+  { symbol: 'USDT', icon: 'banknote' as IconName, balance: '450.00', usd: '$450.00' },
+  { symbol: 'ETH', icon: null, label: 'Ξ', balance: '0.45', usd: '$1,320.12' },
+  { symbol: 'KOMBAT', icon: 'gem' as IconName, balance: '12,500', usd: '$3,125.00' },
 ] as const;
 
 const ACTIONS = [
-  { key: 'receive', label: 'Receive', icon: '↓' },
-  { key: 'deposit', label: 'Deposit', icon: '+' },
-  { key: 'withdraw', label: 'Withdraw', icon: '↑' },
+  { key: 'receive', label: 'Receive', icon: 'arrow-down' as IconName },
+  { key: 'deposit', label: 'Deposit', icon: 'plus' as IconName },
+  { key: 'withdraw', label: 'Withdraw', icon: 'arrow-up' as IconName },
 ] as const;
 
 export default function WalletScreen() {
@@ -34,7 +35,7 @@ export default function WalletScreen() {
               <Text style={styles.addressText}>
                 {truncateAddress(wallet.address)}
               </Text>
-              <Text style={styles.copyIcon}>⧉</Text>
+              <Icon type="copy" color={colors.textMuted} size={14} />
             </Pressable>
           ) : null}
         </View>
@@ -44,7 +45,7 @@ export default function WalletScreen() {
           {ACTIONS.map(action => (
             <Pressable key={action.key} style={styles.actionButton}>
               <View style={styles.actionIconCircle}>
-                <Text style={styles.actionIcon}>{action.icon}</Text>
+                <Icon type={action.icon} color={colors.textPrimary} size={18} />
               </View>
               <Text style={styles.actionLabel}>{action.label}</Text>
             </Pressable>
@@ -70,7 +71,11 @@ export default function WalletScreen() {
                       asset.symbol === 'KOMBAT' && styles.assetIconCircleHighlight,
                     ]}
                   >
-                    <Text style={styles.assetIcon}>{asset.icon}</Text>
+                    {asset.icon ? (
+                      <Icon type={asset.icon} color={colors.textPrimary} size={20} />
+                    ) : (
+                      <Text style={styles.assetIcon}>{asset.label}</Text>
+                    )}
                   </View>
                   <View>
                     <Text style={styles.assetSymbol}>{asset.symbol}</Text>
@@ -124,10 +129,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: 'Menlo',
   },
-  copyIcon: {
-    fontSize: 14,
-    color: colors.textMuted,
-  },
   actionRow: {
     flexDirection: 'row',
     gap: spacing.xs + 6,
@@ -149,10 +150,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  actionIcon: {
-    fontSize: 18,
-    color: colors.textPrimary,
   },
   actionLabel: {
     fontSize: 12,

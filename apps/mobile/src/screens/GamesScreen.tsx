@@ -2,12 +2,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import Icon from '../components/Icon';
 import type { GamesStackParamList } from '../navigation/types';
 import { colors, radius, spacing } from '../theme/colors';
 
 type Props = NativeStackScreenProps<GamesStackParamList, 'GamesList'>;
 
-const GAMES = [{ key: 'battleship', title: 'Battleship', icon: '⚔️' }] as const;
+const GAMES = [{ key: 'battleship', title: 'Battleship' }] as const;
 
 export default function GamesScreen({ navigation }: Props) {
   return (
@@ -20,7 +21,7 @@ export default function GamesScreen({ navigation }: Props) {
             style={styles.card}
             onPress={() => navigation.navigate('Battleship')}
           >
-            <Text style={styles.icon}>{game.icon}</Text>
+            <Icon type="swords" color={colors.textPrimary} size={28} />
             <Text style={styles.cardTitle}>{game.title}</Text>
           </Pressable>
         ))}
@@ -52,9 +53,6 @@ const styles = StyleSheet.create({
     borderColor: colors.cardBorder,
     borderRadius: radius.card,
     padding: spacing.sm + 4,
-  },
-  icon: {
-    fontSize: 28,
   },
   cardTitle: {
     fontSize: 16,
