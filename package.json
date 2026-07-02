@@ -12,10 +12,11 @@
     "mobile": "npm run start --workspace @gaming-platform/mobile",
     "mobile:ios": "npm run ios --workspace @gaming-platform/mobile",
     "mobile:android": "npm run android --workspace @gaming-platform/mobile",
-    "postinstall": "patch-package"
+    "server": "npm run start:dev --workspace @gaming-platform/server",
+    "server:migration:generate": "npm run migration:generate --workspace @gaming-platform/server --",
+    "server:migration:run": "npm run migration:run --workspace @gaming-platform/server"
   },
   "devDependencies": {
-    "patch-package": "^8.0.1",
     "turbo": "^2.10.2",
     "typescript": "^5.8.3"
   },

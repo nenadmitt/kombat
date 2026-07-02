@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: gaming-platform-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: gaming_platform
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    ports:
+      - '5433:5432'
+    volumes:
+      # Postgres 18's image expects a single mount at /var/lib/postgresql
+      # (it manages the version-specific subdirectory itself) rather than
+      # the old .../data mount point.
+      - postgres_data:/var/lib/postgresql
+
+volumes:
+  postgres_data:
