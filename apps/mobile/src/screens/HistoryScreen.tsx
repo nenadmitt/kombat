@@ -1,0 +1,49 @@
+import { StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { colors, spacing } from '../theme/colors';
+
+/** No transaction data exists yet — same reason the wallet screen dropped its transactions section. */
+export default function HistoryScreen() {
+  return (
+    <SafeAreaView style={styles.screen}>
+      <View style={styles.content}>
+        <Text style={styles.title}>History</Text>
+        <View style={styles.empty}>
+          <Text style={styles.emptyIcon}>🕓</Text>
+          <Text style={styles.emptyText}>No activity yet</Text>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  content: {
+    flex: 1,
+    padding: spacing.md,
+    gap: spacing.lg,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  empty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  emptyIcon: {
+    fontSize: 40,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: colors.textMuted,
+  },
+});

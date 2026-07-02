@@ -4,7 +4,7 @@ import Config from 'react-native-config';
  * Typed, validated access to build-time env vars (from `.env` via
  * react-native-config). Client-safe values only — secrets never live here.
  */
-export function required(key: keyof typeof Config): string {
+function required(key: keyof typeof Config): string {
   const value = Config[key];
   if (!value) {
     throw new Error(
@@ -15,6 +15,5 @@ export function required(key: keyof typeof Config): string {
 }
 
 export const env = {
-  // Add client-safe build-time env vars here, e.g.:
-  // apiUrl: required('API_URL'),
+  apiBaseUrl: required('API_BASE_URL'),
 };

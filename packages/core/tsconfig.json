@@ -2,7 +2,13 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    // CommonJS output — consumed via require() by apps/server (NestJS/CJS)
+    // as well as bundled by Metro for mobile; CJS is compatible with both,
+    // ESM (the base config's default) is not compatible with plain Node
+    // require().
+    "module": "CommonJS",
+    "moduleResolution": "Node10"
   },
   "include": ["src/**/*.ts"]
 }

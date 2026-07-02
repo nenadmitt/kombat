@@ -12,9 +12,9 @@ import {
 import { Canvas, Group, Line, Rect, RoundedRect, vec } from '@shopify/react-native-skia';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import type { RootStackParamList } from '../../navigation/types';
+import type { GamesStackParamList } from '../../navigation/types';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Battleship'>;
+type Props = NativeStackScreenProps<GamesStackParamList, 'Battleship'>;
 
 const GRID = 10;
 const LABEL = 22; // gutter for the 1-10 axis labels
