@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+import ErrorScreen from '../screens/ErrorScreen';
 import LoginScreen from '../screens/LoginScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import { useCurrentUserStore } from '../store/currentUser.store';
@@ -11,13 +12,19 @@ import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+/** Grace period before a load failure turns into a full error screen — avoids
+ *  flashing an alarming UI for a request that's simply a little slow. */
+const ERROR_SCREEN_DELAY_MS = 6000;
+
 /**
  * Auth-gated navigation:
  * - Auth still loading (reading the persisted JWT) -> spinner.
  * - Logged out -> Login only.
  * - Logged in -> load profile + ensure a wallet exist together (spinner
- *   while either is in flight); once both are ready, route to Onboarding
- *   (username not set yet) or the main tabs.
+ *   while either is in flight); if either fails, keep spinning for a short
+ *   grace period, then show a full error screen with a retry button.
+ * - Once both are ready, route to Onboarding (username not set yet) or the
+ *   main tabs.
  */
 export default function RootNavigator() {
   const authStatus = useCurrentUserStore(state => state.authStatus);
@@ -31,6 +38,9 @@ export default function RootNavigator() {
   const walletStatus = useCurrentUserStore(state => state.walletStatus);
   const walletError = useCurrentUserStore(state => state.walletError);
   const ensureWallet = useCurrentUserStore(state => state.ensureWallet);
+
+  const hasError = profileStatus === 'error' || walletStatus === 'error';
+  const [showErrorScreen, setShowErrorScreen] = useState(false);
 
   useEffect(() => {
     loadAuth();
@@ -48,6 +58,18 @@ export default function RootNavigator() {
     }
   }, [authStatus, profileStatus, walletStatus, loadProfile, ensureWallet]);
 
+  useEffect(() => {
+    if (!hasError) {
+      setShowErrorScreen(false);
+      return;
+    }
+    const timer = setTimeout(
+      () => setShowErrorScreen(true),
+      ERROR_SCREEN_DELAY_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [hasError]);
+
   if (authStatus === 'loading') {
     return <Spinner />;
   }
@@ -61,13 +83,26 @@ export default function RootNavigator() {
   }
 
   if (profileStatus !== 'ready' || walletStatus !== 'ready') {
-    const errorMessage =
-      profileStatus === 'error'
-        ? profileError
-        : walletStatus === 'error'
-          ? walletError
-          : undefined;
-    return <Spinner message={errorMessage} />;
+    if (hasError && showErrorScreen) {
+      const message =
+        (profileStatus === 'error' ? profileError : walletError) ??
+        'Something went wrong.';
+      return (
+        <ErrorScreen
+          message={message}
+          onRetry={() => {
+            setShowErrorScreen(false);
+            if (profileStatus === 'error') {
+              loadProfile();
+            }
+            if (walletStatus === 'error') {
+              ensureWallet();
+            }
+          }}
+        />
+      );
+    }
+    return <Spinner />;
   }
 
   return (
@@ -81,11 +116,10 @@ export default function RootNavigator() {
   );
 }
 
-function Spinner({ message }: { message?: string | null }) {
+function Spinner() {
   return (
     <View style={styles.center}>
       <ActivityIndicator size="large" color={colors.brandStart} />
-      {message ? <Text style={styles.errorText}>{message}</Text> : null}
     </View>
   );
 }
@@ -96,12 +130,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.background,
-    gap: 12,
-  },
-  errorText: {
-    color: '#f87171',
-    fontSize: 14,
-    textAlign: 'center',
-    paddingHorizontal: 32,
   },
 });

@@ -12,15 +12,23 @@ export type ApiClientOptions = {
   baseUrl: string;
   /** Injected by the consumer — core stays platform-agnostic (no AsyncStorage/Keychain here). */
   getAccessToken?: () => Promise<string | null>;
+  /** Request timeout in ms before it's treated as a network failure. Defaults to 10000. */
+  timeoutMs?: number;
 };
 
 export class ApiError extends Error {
   constructor(
+    /** HTTP status, or 0 for a network failure/timeout (no response was received at all). */
     public readonly status: number,
     message: string,
   ) {
     super(message);
     this.name = 'ApiError';
+  }
+
+  /** True when the request never reached the server (offline, unreachable, timed out). */
+  get isNetworkError(): boolean {
+    return this.status === 0;
   }
 }
 
@@ -76,11 +84,33 @@ export class ApiClient {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${this.options.baseUrl}${path}`, {
-      method,
-      headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(),
+      this.options.timeoutMs ?? 10000,
+    );
+
+    let response: Response;
+    try {
+      response = await fetch(`${this.options.baseUrl}${path}`, {
+        method,
+        headers,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+      });
+    } catch (err) {
+      // Connection refused/unreachable (thrown by fetch itself) and our own
+      // abort-on-timeout both land here — neither ever got a response.
+      const timedOut = err instanceof Error && err.name === 'AbortError';
+      throw new ApiError(
+        0,
+        timedOut
+          ? 'The request timed out. Check your connection and try again.'
+          : 'Could not reach the server. Check your connection and try again.',
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
 
     const isJson = response.headers
       .get('content-type')
