@@ -127,3 +127,87 @@ dependency added this session.
   Keychain actually holds the mnemonic/key (not just that the call
   succeeded).
 - Real `npm run ios` build + launch, not just `tsc`.
+
+---
+
+# Phase 2 — Onboarding, Profile, bottom tab navigation
+
+Figma: `profile-screen` (node `2:531`, same file as before).
+
+## Assumptions
+
+1. **Onboarding gate = `username === null`.** No separate "hasOnboarded" flag
+   — `UserEntity.username` is already nullable and unset at signup, so
+   reusing it as the gate avoids new state. Once set, onboarding never
+   shows again.
+2. **Avatar/level/stats/achievements are mocked** (no avatar upload, XP, or
+   stats system exists). Using Figma's exact placeholder values, same
+   precedent as the wallet screen's mocked balances. Referral code is
+   derived from the real username (`{username}_REF`) rather than fully
+   fake, since that data actually exists.
+3. **Settings rows** (Notifications/Security & Wallet/Help & Support/Terms)
+   are visually present but non-functional (`Pressable` no-ops) — no
+   destination screens were requested. **Sign Out is real** (calls the
+   existing `logout()`).
+4. **HomeScreen and DetailsScreen are deleted**, not kept around — Profile
+   fully replaces Home's purpose, and Details had no remaining purpose
+   once Home is gone. Battleship becomes reachable via a new Games tab.
+5. **Games tab** gets a small nested stack (list → Battleship) since it's
+   the only tab that needs more than one screen; everything else is a
+   single flat screen per tab.
+6. **History tab** is a new minimal empty-state placeholder — no
+   transaction data exists yet (same reason the wallet screen dropped its
+   transactions section).
+
+## 1. Server — username endpoint
+
+- New `UsersModule` (`src/users/`): `users.controller.ts`, `users.service.ts`,
+  `dto/update-username.dto.ts`.
+- `GET /users/me` (JWT-guarded) → `{ id, email, username }`.
+- `PATCH /users/me/username` (JWT-guarded) → body `{ username }`, validated
+  (`^[a-zA-Z0-9_]{3,20}$`), checked for uniqueness (app-level pre-check for a
+  clean error message + the existing DB unique constraint as the real guard
+  against races), returns the updated user or 409 if taken.
+
+## 2. Shared (`packages/core`)
+
+- `UserProfile` type (`{ id, email, username: string | null }`).
+- `ApiClient.getCurrentUser()` / `ApiClient.updateUsername(username)`.
+
+## 3. Mobile state
+
+- `currentUser.store.ts` gains `profileStatus`, `username`, `email`,
+  `loadProfile()`, `updateUsername()`. `RootNavigator` triggers
+  `loadProfile()` + `ensureWallet()` together once authenticated; once both
+  are ready, routes to Onboarding (`username === null`) or the main tabs.
+
+## 4. New screens
+
+- `OnboardingScreen` — username input (client-side mirrors the server
+  regex) + submit; shows the freshly-created wallet address; "Backup your
+  wallet" reveal-on-tap for the mnemonic (read from Keychain via
+  `getWalletSecret()`, never shown by default). Submitting a valid,
+  available username updates the store, which reactively routes away from
+  Onboarding — no manual `navigation.navigate()` needed.
+- `ProfileScreen` (replaces `HomeScreen`) — matches Figma exactly: avatar
+  ring + level badge, username + address chip, stats row, achievements
+  row, referral card, settings list, Sign Out.
+- `GamesScreen` — minimal list, currently just "Battleship".
+- `HistoryScreen` — minimal empty state.
+
+## 5. Navigation
+
+- `@react-navigation/bottom-tabs` (new dependency).
+- Root stack: `Login` | `Onboarding` | `MainTabs`, all `headerShown: false`
+  (removing top/stack headers entirely, per the request).
+- `MainTabs`: Games (own nested stack: list → Battleship) / Wallet /
+  History / Profile.
+
+## 6. Verification
+
+- `tsc --noEmit` across core/server/mobile.
+- Live: create a fresh user, confirm Onboarding shows, set a username,
+  confirm the *same* username is rejected (409) from a second account,
+  confirm Onboarding never reappears after relaunch, confirm the Keychain
+  mnemonic reveal shows the real stored value.
+- Real `npm run ios` build + launch + screenshot verification.
