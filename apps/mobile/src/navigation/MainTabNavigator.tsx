@@ -1,42 +1,139 @@
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { StyleSheet, TouchableOpacity } from 'react-native';
+import { CurvedBottomBar } from 'react-native-curved-bottom-bar';
 
 import GamesNavigator from './GamesNavigator';
 import WalletScreen from '../screens/WalletScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import Icon, { type IconName } from '../components/Icon';
-import { colors } from '../theme/colors';
-import type { MainTabParamList } from './types';
+import { GradientView } from '../components/GradientView';
+import { brandGradient, colors } from '../theme/colors';
 
-const Tab = createBottomTabNavigator<MainTabParamList>();
-
-const TAB_ICONS: Record<keyof MainTabParamList, IconName> = {
+const TAB_ICONS: Record<string, IconName> = {
   Games: 'games',
   Wallet: 'wallet',
   History: 'history',
   Profile: 'user',
 };
 
+/** Args passed to the library's `renderCircle` / `tabBar` render props. */
+type BarSlot = {
+  routeName: string;
+  selectedTab: string;
+  navigate: (routeName: string) => void;
+};
+
+// The library ships types built against an older @react-navigation, so its
+// Navigator prop type is out of sync with v7. Relax it to unblock — the Screen
+// children below stay fully typed.
+const Navigator = CurvedBottomBar.Navigator as unknown as React.ComponentType<
+  Record<string, unknown>
+>;
+
+/**
+ * Curved bottom bar (react-native-curved-bottom-bar): a floating gradient
+ * "Play" circle sits in an upward notch at the center, with two tabs on each
+ * side. The circle is a shortcut into the Games tab.
+ */
 export default function MainTabNavigator() {
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: colors.brandStart,
-        tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.cardBorder,
-        },
-        tabBarIcon: ({ color, size }) => (
-          <Icon type={TAB_ICONS[route.name]} color={color} size={size} />
-        ),
-      })}
+    <Navigator
+      type="UP"
+      circlePosition="CENTER"
+      bgColor={colors.surface}
+      borderColor={colors.cardBorder}
+      borderWidth={1}
+      height={64}
+      circleWidth={56}
+      borderTopLeftRight
+      initialRouteName="Profile"
+      shadowStyle={styles.shadow}
+      screenOptions={{ headerShown: false }}
+      renderCircle={({ navigate }: BarSlot) => (
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Play"
+          activeOpacity={0.9}
+          style={styles.circle}
+          onPress={() => navigate('Games')}
+        >
+          <GradientView
+            colors={brandGradient.colors}
+            positions={brandGradient.positions}
+            style={styles.circleFill}
+          >
+            <Icon type="swords" color={colors.textPrimary} size={26} />
+          </GradientView>
+        </TouchableOpacity>
+      )}
+      tabBar={({ routeName, selectedTab, navigate }: BarSlot) => {
+        const focused = routeName === selectedTab;
+        return (
+          <TouchableOpacity
+            accessibilityRole="tab"
+            accessibilityState={{ selected: focused }}
+            accessibilityLabel={routeName}
+            onPress={() => navigate(routeName)}
+            style={styles.tab}
+          >
+            <Icon
+              type={TAB_ICONS[routeName] ?? 'games'}
+              color={focused ? colors.textPrimary : colors.textMuted}
+              size={24}
+            />
+          </TouchableOpacity>
+        );
+      }}
     >
-      <Tab.Screen name="Games" component={GamesNavigator} />
-      <Tab.Screen name="Wallet" component={WalletScreen} />
-      <Tab.Screen name="History" component={HistoryScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
-    </Tab.Navigator>
+      <CurvedBottomBar.Screen
+        name="Games"
+        position="LEFT"
+        component={GamesNavigator}
+      />
+      <CurvedBottomBar.Screen
+        name="Wallet"
+        position="LEFT"
+        component={WalletScreen}
+      />
+      <CurvedBottomBar.Screen
+        name="History"
+        position="RIGHT"
+        component={HistoryScreen}
+      />
+      <CurvedBottomBar.Screen
+        name="Profile"
+        position="RIGHT"
+        component={ProfileScreen}
+      />
+    </Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  shadow: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  circle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    // Ring the FAB with the screen background so it reads as a raised notch.
+    borderWidth: 4,
+    borderColor: colors.background,
+  },
+  circleFill: {
+    flex: 1,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

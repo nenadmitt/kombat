@@ -4,8 +4,10 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AuthenticationModule } from './authentication';
 import { DbModule } from './db';
+import { TestModule } from './test/test.module';
 import { UsersModule } from './users/users.module';
 import { WalletsModule } from './wallets/wallets.module';
+import { WebsocketsModule } from './websockets';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { WalletsModule } from './wallets/wallets.module';
     AuthenticationModule,
     UsersModule,
     WalletsModule,
+    TestModule,
+    WebsocketsModule,
   ],
   controllers: [AppController],
 })
