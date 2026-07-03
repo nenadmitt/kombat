@@ -1,11 +1,8 @@
 import { Module } from '@nestjs/common';
 import { JwtModule, JwtSignOptions } from '@nestjs/jwt';
-import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { ConfigurationModule } from '../configuration/configuration.module';
 import { ConfigurationService } from '../configuration/configuration.service';
-import { EmailLoginTokenEntity } from '../db/entities/email-login-token.entity';
-import { UserEntity } from '../db/entities/user.entity';
 import { EmailModule } from '../emails';
 import { AuthenticationController } from './authentication.controller';
 import { AuthenticationService } from './authentication.service';
@@ -25,7 +22,7 @@ const jwtModule = JwtModule.registerAsync({
 });
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserEntity, EmailLoginTokenEntity]), EmailModule, jwtModule],
+  imports: [EmailModule, jwtModule],
   controllers: [AuthenticationController],
   providers: [AuthenticationService, JwtTokenGuard],
   // Re-export JwtModule too — JwtTokenGuard depends on JwtService, and other

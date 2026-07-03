@@ -1,10 +1,10 @@
-interface BattleshipPlayerState {
+export interface BattleshipPlayerState {
     userId: string
     board: number[][]
 }
 
-enum BattleshipFieldStatus {
-    Default = 0, // field 
+export enum BattleshipFieldStatus {
+    Default = 0, // field
     Taken = 1,
     Mint = 2
 }

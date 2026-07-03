@@ -19,6 +19,7 @@ import { apiClient } from '../api/client';
 import { GradientView } from '../components/GradientView';
 import Icon from '../components/Icon';
 import { brandGradient, colors, radius, spacing } from '../theme/colors';
+import { fonts } from '../theme/typography';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
@@ -279,6 +280,7 @@ const styles = StyleSheet.create({
   wordmark: {
     fontSize: 32,
     fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: colors.textPrimary,
     letterSpacing: 1,
   },
@@ -302,6 +304,7 @@ const styles = StyleSheet.create({
     fontSize: 40,
     lineHeight: 44,
     fontWeight: '800',
+    fontFamily: fonts.extraBold,
     textAlign: 'center',
     color: colors.textPrimary,
   },
@@ -327,6 +330,7 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 18,
     fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.textPrimary,
   },
   disclaimer: {
@@ -354,6 +358,7 @@ const styles = StyleSheet.create({
   sheetTitle: {
     fontSize: 20,
     fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.textPrimary,
   },
   methodRow: {
@@ -372,11 +377,13 @@ const styles = StyleSheet.create({
   methodLabel: {
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: colors.textPrimary,
   },
   methodLabelDisabled: {
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: colors.textMuted,
   },
   comingSoon: {

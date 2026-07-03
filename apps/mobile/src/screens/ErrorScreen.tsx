@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { GradientView } from '../components/GradientView';
 import Icon from '../components/Icon';
 import { brandGradient, colors, radius, spacing } from '../theme/colors';
+import { fonts } from '../theme/typography';
 
 type Props = {
   message: string;
@@ -61,6 +62,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: colors.textPrimary,
   },
   message: {
@@ -92,6 +94,7 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 16,
     fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.textPrimary,
   },
 });

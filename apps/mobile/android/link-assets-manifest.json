@@ -1,0 +1,21 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "assets/fonts/Sora-Bold.ttf",
+      "sha1": "530a1c37292ea334a0a090fd8292cedf914e630c"
+    },
+    {
+      "path": "assets/fonts/Sora-ExtraBold.ttf",
+      "sha1": "03f3cd8c07d7e3f6a389b5a6236bbd099937e47f"
+    },
+    {
+      "path": "assets/fonts/Sora-Regular.ttf",
+      "sha1": "b24137765625b6a1fa48978b472891bcf063dd65"
+    },
+    {
+      "path": "assets/fonts/Sora-SemiBold.ttf",
+      "sha1": "dadfac88eb00b8ad89b44652529f94f5a6121de1"
+    }
+  ]
+}

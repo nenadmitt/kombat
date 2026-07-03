@@ -5,6 +5,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import Icon from '../components/Icon';
 import type { GamesStackParamList } from '../navigation/types';
 import { colors, radius, spacing } from '../theme/colors';
+import { fonts } from '../theme/typography';
 
 type Props = NativeStackScreenProps<GamesStackParamList, 'GamesList'>;
 
@@ -42,6 +43,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.textPrimary,
   },
   card: {
@@ -57,6 +59,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.textPrimary,
   },
 });

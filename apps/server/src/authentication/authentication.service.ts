@@ -1,11 +1,8 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 
 import { ConfigurationService } from '../configuration/configuration.service';
-import { EmailLoginTokenEntity } from '../db/entities/email-login-token.entity';
-import { UserEntity } from '../db/entities/user.entity';
+import { DbService } from '../db';
 import { EmailService } from '../emails/email.service';
 import { generateLoginToken } from './token.util';
 
@@ -14,10 +11,7 @@ const TOKEN_TTL_MS = 15 * 60 * 1000;
 @Injectable()
 export class AuthenticationService {
   constructor(
-    @InjectRepository(UserEntity)
-    private readonly userRepository: Repository<UserEntity>,
-    @InjectRepository(EmailLoginTokenEntity)
-    private readonly tokenRepository: Repository<EmailLoginTokenEntity>,
+    private readonly dbService: DbService,
     private readonly emailService: EmailService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigurationService,
@@ -40,24 +34,20 @@ export class AuthenticationService {
   }
 
   private async createLoginToken(email: string): Promise<string> {
-    let user = await this.userRepository.findOneBy({ email });
+    let user = await this.dbService.findUserByEmail(email);
     if (!user) {
-      user = await this.userRepository.save(
-        this.userRepository.create({ email, username: null }),
-      );
+      user = await this.dbService.createUser(email);
     }
 
     // Invalidate any previously issued tokens for this user.
-    await this.tokenRepository.delete({ userId: user.id });
+    await this.dbService.deleteLoginTokensForUser(user.id);
 
     const token = generateLoginToken();
-    await this.tokenRepository.save(
-      this.tokenRepository.create({
-        userId: user.id,
-        token,
-        expiresAt: new Date(Date.now() + TOKEN_TTL_MS),
-      }),
-    );
+    await this.dbService.createLoginToken({
+      userId: user.id,
+      token,
+      expiresAt: new Date(Date.now() + TOKEN_TTL_MS),
+    });
 
     return token;
   }
@@ -66,21 +56,18 @@ export class AuthenticationService {
     email: string,
     token: string,
   ): Promise<{ accessToken: string }> {
-    const user = await this.userRepository.findOneBy({ email });
+    const user = await this.dbService.findUserByEmail(email);
     if (!user) {
       throw new UnauthorizedException('Invalid or expired token');
     }
 
-    const tokenEntity = await this.tokenRepository.findOneBy({
-      userId: user.id,
-      token,
-    });
+    const tokenEntity = await this.dbService.findLoginToken(user.id, token);
     if (!tokenEntity || tokenEntity.expiresAt < new Date()) {
       throw new UnauthorizedException('Invalid or expired token');
     }
 
     // Single-use: delete once exchanged, regardless of outcome below.
-    await this.tokenRepository.delete({ id: tokenEntity.id });
+    await this.dbService.deleteLoginToken(tokenEntity.id);
 
     const accessToken = await this.jwtService.signAsync({ sub: user.id });
     return { accessToken };

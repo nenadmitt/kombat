@@ -1,18 +1,14 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 
+import { DbService } from '../db';
 import { UserEntity } from '../db/entities/user.entity';
 
 @Injectable()
 export class UsersService {
-  constructor(
-    @InjectRepository(UserEntity)
-    private readonly userRepository: Repository<UserEntity>,
-  ) {}
+  constructor(private readonly dbService: DbService) {}
 
   async getMe(userId: string): Promise<UserEntity> {
-    const user = await this.userRepository.findOneBy({ id: userId });
+    const user = await this.dbService.findUserById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -20,7 +16,7 @@ export class UsersService {
   }
 
   async updateUsername(userId: string, username: string): Promise<UserEntity> {
-    const existing = await this.userRepository.findOneBy({ username });
+    const existing = await this.dbService.findUserByUsername(username);
     if (existing && existing.id !== userId) {
       throw new ConflictException('Username is already taken');
     }
@@ -29,7 +25,7 @@ export class UsersService {
     user.username = username;
 
     try {
-      return await this.userRepository.save(user);
+      return await this.dbService.saveUser(user);
     } catch (err) {
       // Postgres unique_violation — the app-level check above is just a
       // friendly pre-check; this is the real guard against a race.

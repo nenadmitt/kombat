@@ -37,6 +37,9 @@ export class ApiError extends Error {
 
 /** Thin fetch wrapper for the gaming-platform server API, shared between mobile and (later) web. */
 export class ApiClient {
+  /** All server routes are versioned under this prefix except `/health`. */
+  private static readonly API_PREFIX = '/api/v1';
+
   constructor(private readonly options: ApiClientOptions) {}
 
   requestLoginToken(email: string): Promise<void> {
@@ -54,11 +57,11 @@ export class ApiClient {
   }
 
   createWallet(network: WalletNetwork): Promise<CreateWalletResponse> {
-    return this.request('POST', '/api/v1/wallets', { network }, true);
+    return this.request('POST', '/wallets', { network }, true);
   }
 
   listWallets(): Promise<WalletSummary[]> {
-    return this.request('GET', '/api/v1/wallets', undefined, true);
+    return this.request('GET', '/wallets', undefined, true);
   }
 
   getCurrentUser(): Promise<UserProfile> {
@@ -95,7 +98,7 @@ export class ApiClient {
 
     let response: Response;
     try {
-      response = await fetch(`${this.options.baseUrl}${path}`, {
+      response = await fetch(`${this.options.baseUrl}${ApiClient.API_PREFIX}${path}`, {
         method,
         headers,
         body: body !== undefined ? JSON.stringify(body) : undefined,

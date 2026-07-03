@@ -7,7 +7,7 @@ import { WalletNetwork } from '../db/types/wallet';
 import { CreateWalletDto } from './dto/create-wallet.dto';
 import { WalletsService } from './wallets.service';
 
-@Controller('api/v1/wallets')
+@Controller('wallets')
 @UseGuards(JwtTokenGuard)
 export class WalletsController {
   constructor(private readonly walletsService: WalletsService) {}

@@ -6,6 +6,7 @@ import Icon, { type IconName } from '../components/Icon';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import { truncateAddress } from '../wallet/format-address';
 import { brandGradient, colors, radius, spacing } from '../theme/colors';
+import { fonts } from '../theme/typography';
 
 /** Mocked — no XP/stats/achievements system exists yet. Values match the Figma design. */
 const MOCK_LEVEL = 24;
@@ -162,6 +163,7 @@ const styles = StyleSheet.create({
   avatarInitial: {
     fontSize: 36,
     fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: colors.textPrimary,
   },
   levelBadge: {
@@ -176,11 +178,13 @@ const styles = StyleSheet.create({
   levelText: {
     fontSize: 11,
     fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: colors.textPrimary,
   },
   username: {
     fontSize: 28,
     fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.textPrimary,
   },
   addressChip: {
@@ -215,6 +219,7 @@ const styles = StyleSheet.create({
   statText: {
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: colors.textPrimary,
   },
   section: {
@@ -229,11 +234,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.textPrimary,
   },
   seeAll: {
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: colors.brandStart,
   },
   achievementsRow: {
@@ -259,6 +266,7 @@ const styles = StyleSheet.create({
   achievementLabel: {
     fontSize: 11,
     fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: colors.textPrimary,
     textAlign: 'center',
   },
@@ -274,6 +282,7 @@ const styles = StyleSheet.create({
   referralTitle: {
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: colors.textPrimary,
   },
   referralSubtitle: {
@@ -328,6 +337,7 @@ const styles = StyleSheet.create({
   settingsLabel: {
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: colors.textPrimary,
   },
   signOutRow: {
@@ -339,6 +349,7 @@ const styles = StyleSheet.create({
   signOutLabel: {
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: colors.danger,
   },
 });

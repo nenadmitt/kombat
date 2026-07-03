@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Icon from '../components/Icon';
 import { colors, spacing } from '../theme/colors';
+import { fonts } from '../theme/typography';
 
 /** No transaction data exists yet — same reason the wallet screen dropped its transactions section. */
 export default function HistoryScreen() {
@@ -32,6 +33,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.textPrimary,
   },
   empty: {

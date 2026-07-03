@@ -5,6 +5,7 @@ import Icon, { type IconName } from '../components/Icon';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import { truncateAddress } from '../wallet/format-address';
 import { colors, radius, spacing } from '../theme/colors';
+import { fonts } from '../theme/typography';
 
 /** Mocked — no balance-fetching endpoint yet. Values match the Figma design. */
 const MOCK_ASSETS = [
@@ -113,6 +114,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.textPrimary,
   },
   addressPill: {
@@ -154,6 +156,7 @@ const styles = StyleSheet.create({
   actionLabel: {
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: colors.textPrimary,
   },
   assetsSection: {
@@ -162,6 +165,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.textPrimary,
   },
   assetsList: {
@@ -203,6 +207,7 @@ const styles = StyleSheet.create({
   assetSymbol: {
     fontSize: 16,
     fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.textPrimary,
   },
   assetSubtitle: {
@@ -216,6 +221,7 @@ const styles = StyleSheet.create({
   assetBalance: {
     fontSize: 18,
     fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.textPrimary,
   },
   assetUsd: {

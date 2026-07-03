@@ -14,6 +14,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import Icon from '../../components/Icon';
 import type { GamesStackParamList } from '../../navigation/types';
+import { fonts } from '../../theme/typography';
 
 type Props = NativeStackScreenProps<GamesStackParamList, 'Battleship'>;
 
@@ -299,7 +300,7 @@ const styles = StyleSheet.create({
   axisLabel: { fontSize: 11, color: '#64748b', textAlign: 'center' },
   controls: { flexDirection: 'row', gap: 12 },
   btn: { backgroundColor: '#e2e8f0', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
-  btnText: { fontSize: 15, fontWeight: '600', color: '#1e293b' },
+  btnText: { fontSize: 15, fontWeight: '600', fontFamily: fonts.semiBold, color: '#1e293b' },
   tray: { alignSelf: 'stretch', gap: 10, marginTop: 4 },
   trayItem: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   dragging: { zIndex: 10, opacity: 0.9 },

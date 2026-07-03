@@ -18,6 +18,7 @@ import Icon from '../components/Icon';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import { getWalletSecret } from '../wallet/wallet-keychain';
 import { brandGradient, colors, radius, spacing } from '../theme/colors';
+import { fonts } from '../theme/typography';
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,20}$/;
 // Placeholder word lengths for the masked grid before the real mnemonic is loaded.
@@ -274,6 +275,7 @@ const styles = StyleSheet.create({
     fontSize: 36,
     lineHeight: 40,
     fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: colors.textPrimary,
   },
   subtitle: {
@@ -292,6 +294,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: colors.textMuted,
     letterSpacing: 0.5,
   },
@@ -339,6 +342,7 @@ const styles = StyleSheet.create({
   keepSecretText: {
     fontSize: 11,
     fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: colors.kombatAccent,
   },
   recoveryCard: {
@@ -411,6 +415,7 @@ const styles = StyleSheet.create({
   revealText: {
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: '#a78bfa',
   },
   copyButton: {
@@ -428,6 +433,7 @@ const styles = StyleSheet.create({
   copyText: {
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: colors.textMuted,
   },
   warningBox: {
@@ -467,6 +473,7 @@ const styles = StyleSheet.create({
   continueText: {
     fontSize: 18,
     fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.textPrimary,
   },
 });
