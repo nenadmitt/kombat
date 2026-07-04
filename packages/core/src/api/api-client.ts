@@ -2,6 +2,7 @@ import type {
   ExchangeTokenResponse,
   UserProfile,
 } from '../authentication/authentication.types';
+import type { GameRoomSummary, GameType } from '../games/game-room.types';
 import type {
   CreateWalletResponse,
   WalletNetwork,
@@ -72,8 +73,24 @@ export class ApiClient {
     return this.request('PATCH', '/users/me/username', { username }, true);
   }
 
+  createGameRoom(gameType: GameType): Promise<GameRoomSummary> {
+    return this.request('POST', '/games/rooms', { gameType }, true);
+  }
+
+  listPendingGameRooms(options?: {
+    /** Leave out rooms created by the requesting user. */
+    excludeOwn?: boolean;
+  }): Promise<GameRoomSummary[]> {
+    const query = options?.excludeOwn ? '?excludeOwn=true' : '';
+    return this.request('GET', `/games/rooms${query}`, undefined, true);
+  }
+
+  closeGameRoom(id: string): Promise<{ success: true }> {
+    return this.request('DELETE', `/games/rooms/${id}`, undefined, true);
+  }
+
   private async request<T>(
-    method: 'GET' | 'POST' | 'PATCH',
+    method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
     path: string,
     body?: unknown,
     authenticated = false,

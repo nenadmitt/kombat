@@ -50,8 +50,8 @@ export class GamesService {
     await this.dbService.deleteGameRoom(roomId);
   }
 
-  async listPendingRooms(): Promise<GameRoomSummary[]> {
-    const rooms = await this.dbService.findPendingGameRooms();
+  async listPendingRooms(excludeUserId?: string): Promise<GameRoomSummary[]> {
+    const rooms = await this.dbService.findPendingGameRooms(excludeUserId);
     return rooms.map(toGameRoomSummary);
   }
 }

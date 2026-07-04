@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { GameRoomSummary } from '@gaming-platform/core';
@@ -13,6 +14,7 @@ import { ISecurityContext } from '../authentication/authentication.types';
 import { SecurityContext } from '../authentication/decorators/security-context.decorator';
 import { JwtTokenGuard } from '../authentication/guards/jwt-token.guard';
 import { CreateGameRoomDto } from './dto/create-game-room.dto';
+import { ListGameRoomsDto } from './dto/list-game-rooms.dto';
 import { GamesService } from './games.service';
 
 @Controller('games/rooms')
@@ -39,7 +41,12 @@ export class GamesController {
 
   /** Pending rooms, visible to any authenticated user (joining comes later). */
   @Get()
-  async listPendingRooms(): Promise<GameRoomSummary[]> {
-    return this.gamesService.listPendingRooms();
+  async listPendingRooms(
+    @Query() query: ListGameRoomsDto,
+    @SecurityContext() securityContext: ISecurityContext,
+  ): Promise<GameRoomSummary[]> {
+    return this.gamesService.listPendingRooms(
+      query.excludeOwn ? securityContext.userId : undefined,
+    );
   }
 }

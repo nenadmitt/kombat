@@ -1,8 +1,12 @@
-import { Column, CreateDateColumn, Entity } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { GameRoomStatus, GameType } from '../types/game';
 
 @Entity('game_rooms')
+// Serves the lobby listing: filter by status, already in createdAt order.
+@Index(['status', 'createdAt'])
+// Serves the 1-open-room-per-user checks (create/close) keyed on userId + status.
+@Index(['userId', 'status'])
 export class GameRoomEntity extends BaseEntity {
   // Plain column, no FK relation to users — same choice as WalletEntity.
   @Column({ name: 'user_id', type: 'uuid' })

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, In, Not, Repository } from 'typeorm';
 
 import { EmailLoginTokenEntity } from './entities/email-login-token.entity';
 import { GameRoomEntity } from './entities/game-room.entity';
@@ -134,9 +134,12 @@ export class DbService {
     await this.gameRoomRepository.delete({ id });
   }
 
-  findPendingGameRooms(): Promise<GameRoomEntity[]> {
+  findPendingGameRooms(excludeUserId?: string): Promise<GameRoomEntity[]> {
     return this.gameRoomRepository.find({
-      where: { status: GameRoomStatus.Pending },
+      where: {
+        status: GameRoomStatus.Pending,
+        ...(excludeUserId ? { userId: Not(excludeUserId) } : {}),
+      },
       order: { createdAt: 'ASC' },
     });
   }
