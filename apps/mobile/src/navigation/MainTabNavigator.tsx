@@ -5,6 +5,7 @@ import GamesNavigator from './GamesNavigator';
 import WalletScreen from '../screens/WalletScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import DemoGamesScreen from '../screens/DemoGamesScreen';
 import Icon, { type IconName } from '../components/Icon';
 import { GradientView } from '../components/GradientView';
 import { brandGradient, colors } from '../theme/colors';
@@ -14,6 +15,7 @@ const TAB_ICONS: Record<string, IconName> = {
   Wallet: 'wallet',
   History: 'history',
   Profile: 'user',
+  DemoGames: 'grid',
 };
 
 /** Args passed to the library's `renderCircle` / `tabBar` render props. */
@@ -104,6 +106,11 @@ export default function MainTabNavigator() {
         name="Profile"
         position="RIGHT"
         component={ProfileScreen}
+      />
+      <CurvedBottomBar.Screen
+        name="DemoGames"
+        position="RIGHT"
+        component={DemoGamesScreen}
       />
     </Navigator>
   );

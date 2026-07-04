@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ErrorCode } from '@gaming-platform/core';
 
+import BattleshipScreen from '../games/battleship/BattleshipScreen';
 import ErrorScreen from '../screens/ErrorScreen';
 import LoginScreen from '../screens/LoginScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
@@ -127,7 +128,10 @@ export default function RootNavigator() {
       {username === null ? (
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       ) : (
-        <Stack.Screen name="MainTabs" component={MainTabsWithGameOverlay} />
+        <>
+          <Stack.Screen name="MainTabs" component={MainTabsWithGameOverlay} />
+          <Stack.Screen name="Battleship" component={BattleshipScreen} />
+        </>
       )}
     </Stack.Navigator>
   );

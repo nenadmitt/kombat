@@ -130,6 +130,18 @@ export class DbService {
     return this.gameRoomRepository.findOneBy({ id, userId });
   }
 
+  /** Generic lookup, regardless of owner — joining checks a room someone else created. */
+  findGameRoomById(id: string): Promise<GameRoomEntity | null> {
+    return this.gameRoomRepository.findOneBy({ id });
+  }
+
+  async joinGameRoom(id: string, opponentId: string): Promise<void> {
+    await this.gameRoomRepository.update(
+      { id },
+      { opponentId, status: GameRoomStatus.InProgress },
+    );
+  }
+
   async deleteGameRoom(id: string): Promise<void> {
     await this.gameRoomRepository.delete({ id });
   }

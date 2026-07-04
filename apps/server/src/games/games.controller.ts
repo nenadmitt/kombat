@@ -30,6 +30,14 @@ export class GamesController {
     return this.gamesService.createRoom(securityContext.userId, dto.gameType);
   }
 
+  @Post(':id/join')
+  async joinRoom(
+    @Param('id') id: string,
+    @SecurityContext() securityContext: ISecurityContext,
+  ): Promise<GameRoomSummary> {
+    return this.gamesService.joinRoom(securityContext.userId, id);
+  }
+
   @Delete(':id')
   async closeRoom(
     @Param('id') id: string,

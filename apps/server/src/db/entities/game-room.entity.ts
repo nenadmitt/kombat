@@ -27,6 +27,11 @@ export class GameRoomEntity extends BaseEntity {
   @Column({ name: 'player_count', type: 'smallint' })
   playerCount: number;
 
+  // Set once a second player joins — same "no FK" choice as userId above.
+  // Naval Battle is exactly 2 players, so one nullable column is enough for now.
+  @Column({ name: 'opponent_id', type: 'uuid', nullable: true })
+  opponentId: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

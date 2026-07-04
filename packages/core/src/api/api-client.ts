@@ -89,6 +89,10 @@ export class ApiClient {
     return this.request('DELETE', `/games/rooms/${id}`, undefined, true);
   }
 
+  joinGameRoom(id: string): Promise<GameRoomSummary> {
+    return this.request('POST', `/games/rooms/${id}/join`, undefined, true);
+  }
+
   /** The current user's own open room, if any — null when they don't have one. */
   getMyActiveGameRoom(): Promise<GameRoomSummary | null> {
     return this.request('GET', '/games/rooms/mine', undefined, true);

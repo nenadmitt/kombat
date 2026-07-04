@@ -4,11 +4,15 @@ import { GameRoomSummary } from '@gaming-platform/core';
 import { DbService } from '../db';
 import { GameRoomEntity } from '../db/entities/game-room.entity';
 import { GameRoomStatus, GameType } from '../db/types/game';
+import { WebsocketsService } from '../websockets';
 import { getPlayerCountForGameType } from './game-type.util';
 
 @Injectable()
 export class GamesService {
-  constructor(private readonly dbService: DbService) {}
+  constructor(
+    private readonly dbService: DbService,
+    private readonly websocketsService: WebsocketsService,
+  ) {}
 
   async createRoom(
     userId: string,
@@ -48,6 +52,39 @@ export class GamesService {
     }
 
     await this.dbService.deleteGameRoom(roomId);
+  }
+
+  /**
+   * Naval Battle is exactly 2 players, so joining immediately fills the
+   * room — flips it to InProgress and notifies the creator so their app can
+   * leave the "waiting" state automatically.
+   */
+  async joinRoom(userId: string, roomId: string): Promise<GameRoomSummary> {
+    const room = await this.dbService.findGameRoomById(roomId);
+    if (!room) {
+      throw new NotFoundException('Game room not found');
+    }
+
+    if (room.userId === userId) {
+      throw new ConflictException('You cannot join your own game room.');
+    }
+
+    if (room.status !== GameRoomStatus.Pending) {
+      throw new ConflictException(
+        'This room is no longer accepting players.',
+      );
+    }
+
+    await this.dbService.joinGameRoom(roomId, userId);
+    this.websocketsService.sendToUser(room.userId, 'game:opponent-joined', {
+      roomId,
+    });
+
+    return toGameRoomSummary({
+      ...room,
+      opponentId: userId,
+      status: GameRoomStatus.InProgress,
+    });
   }
 
   async listPendingRooms(excludeUserId?: string): Promise<GameRoomSummary[]> {
