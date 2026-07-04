@@ -4,6 +4,7 @@ import {
   ConnectedSocket,
   MessageBody,
   OnGatewayConnection,
+  OnGatewayDisconnect,
   OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
@@ -38,7 +39,9 @@ type AuthenticatedSocket = Socket<
  * via `channel:join` / `channel:leave`.
  */
 @WebSocketGateway({ cors: true })
-export class WebsocketsGateway implements OnGatewayInit, OnGatewayConnection {
+export class WebsocketsGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
   private readonly logger = new Logger(WebsocketsGateway.name);
 
   @WebSocketServer()
@@ -56,6 +59,7 @@ export class WebsocketsGateway implements OnGatewayInit, OnGatewayConnection {
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
     const token = this.extractToken(client);
     if (!token) {
+      this.logger.warn(`Rejected socket ${client.id}: missing bearer token`);
       client.disconnect(true);
       return;
     }
@@ -66,9 +70,22 @@ export class WebsocketsGateway implements OnGatewayInit, OnGatewayConnection {
       );
       client.data.userId = payload.sub;
       await client.join(userRoom(payload.sub));
+      this.logger.log(`User ${payload.sub} connected (socket ${client.id})`);
     } catch {
+      this.logger.warn(
+        `Rejected socket ${client.id}: invalid or expired token`,
+      );
       client.disconnect(true);
     }
+  }
+
+  handleDisconnect(client: AuthenticatedSocket): void {
+    const userId = client.data.userId;
+    this.logger.log(
+      userId
+        ? `User ${userId} disconnected (socket ${client.id})`
+        : `Socket ${client.id} disconnected (never authenticated)`,
+    );
   }
 
   @UsePipes(new ValidationPipe({ whitelist: true }))

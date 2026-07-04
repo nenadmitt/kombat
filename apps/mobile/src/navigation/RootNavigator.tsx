@@ -7,6 +7,7 @@ import ErrorScreen from '../screens/ErrorScreen';
 import LoginScreen from '../screens/LoginScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import { useCurrentUserStore } from '../store/currentUser.store';
+import { useWebsocketStore } from '../store/websocket.store';
 import { colors } from '../theme/colors';
 import MainTabsWithGameOverlay from './MainTabsWithGameOverlay';
 import type { RootStackParamList } from './types';
@@ -43,6 +44,9 @@ export default function RootNavigator() {
   const hasError = profileStatus === 'error' || walletStatus === 'error';
   const [showErrorScreen, setShowErrorScreen] = useState(false);
 
+  const connectSocket = useWebsocketStore(state => state.connect);
+  const disconnectSocket = useWebsocketStore(state => state.disconnect);
+
   useEffect(() => {
     loadAuth();
   }, [loadAuth]);
@@ -58,6 +62,16 @@ export default function RootNavigator() {
       ensureWallet();
     }
   }, [authStatus, profileStatus, walletStatus, loadProfile, ensureWallet]);
+
+  // One socket connection per logged-in session, reused everywhere (games
+  // etc.) — connect once authenticated, tear down on logout.
+  useEffect(() => {
+    if (authStatus === 'authenticated') {
+      connectSocket();
+    } else {
+      disconnectSocket();
+    }
+  }, [authStatus, connectSocket, disconnectSocket]);
 
   useEffect(() => {
     if (!hasError) {
