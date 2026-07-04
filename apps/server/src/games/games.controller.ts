@@ -49,4 +49,12 @@ export class GamesController {
       query.excludeOwn ? securityContext.userId : undefined,
     );
   }
+
+  /** The requesting user's own open room, if any — lets the client resume a "waiting" state on app start. */
+  @Get('mine')
+  async getMyRoom(
+    @SecurityContext() securityContext: ISecurityContext,
+  ): Promise<GameRoomSummary | null> {
+    return this.gamesService.getMyActiveRoom(securityContext.userId);
+  }
 }

@@ -11,6 +11,7 @@ import { apiClient } from '../api/client';
 import { ACCESS_TOKEN_STORAGE_KEY } from '../storage/storage-keys';
 import { derivePrivateKeyFromMnemonic } from '../wallet/derive-wallet';
 import { saveWalletSecret } from '../wallet/wallet-keychain';
+import { useGameStore } from './game.store';
 
 type AuthStatus = 'loading' | 'unauthenticated' | 'authenticated';
 type WalletStatus = 'idle' | 'checking' | 'creating' | 'ready' | 'error';
@@ -106,6 +107,9 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
       profileStatus: 'idle',
       profileError: null,
     });
+    // A "waiting for players" popup shouldn't survive into a different
+    // logged-in session.
+    useGameStore.getState().clear();
   },
 
   loadProfile: async () => {

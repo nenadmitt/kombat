@@ -13,8 +13,7 @@ export type MainTabParamList = {
   Profile: undefined;
 };
 
-/** Nested stack behind the Games tab — the only tab with more than one screen. */
+/** Nested stack behind the Games tab. */
 export type GamesStackParamList = {
   GamesList: undefined;
-  Battleship: undefined;
 };

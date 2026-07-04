@@ -8,18 +8,18 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ApiError, GameType, type GameRoomSummary } from '@gaming-platform/core';
+import { ApiError, GameType } from '@gaming-platform/core';
 
 import { apiClient } from '../api/client';
 import { GradientView } from '../components/GradientView';
 import Icon from '../components/Icon';
+import { useGameStore } from '../store/game.store';
 import { brandGradient, colors, radius, spacing } from '../theme/colors';
 import { fonts } from '../theme/typography';
 
 type Props = {
   visible: boolean;
   onClose: () => void;
-  onCreated: (room: GameRoomSummary) => void;
 };
 
 /**
@@ -28,20 +28,18 @@ type Props = {
  * backed by anything server-side yet, so they're left out rather than
  * shipping controls that don't do anything.
  */
-export default function CreateGameRoomModal({
-  visible,
-  onClose,
-  onCreated,
-}: Props) {
+export default function CreateGameRoomModal({ visible, onClose }: Props) {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const setWaitingRoom = useGameStore(state => state.setWaitingRoom);
 
   const handleCreate = async () => {
     setIsCreating(true);
     setError(null);
     try {
       const room = await apiClient.createGameRoom(GameType.NavalBattle);
-      onCreated(room);
+      setWaitingRoom(room);
+      onClose();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong.');
     } finally {

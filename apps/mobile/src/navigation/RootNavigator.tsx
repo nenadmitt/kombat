@@ -8,7 +8,7 @@ import LoginScreen from '../screens/LoginScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import { colors } from '../theme/colors';
-import MainTabNavigator from './MainTabNavigator';
+import MainTabsWithGameOverlay from './MainTabsWithGameOverlay';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -113,7 +113,7 @@ export default function RootNavigator() {
       {username === null ? (
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       ) : (
-        <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+        <Stack.Screen name="MainTabs" component={MainTabsWithGameOverlay} />
       )}
     </Stack.Navigator>
   );

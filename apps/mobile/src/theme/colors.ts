@@ -25,6 +25,8 @@ export const colors = {
   kombatAccent: '#f59e0b',
   /** Destructive actions (sign out). */
   danger: '#ef4444',
+  /** Positive/stake values, "your turn" status text. */
+  success: '#10b981',
 } as const;
 
 /** Brand gradient (purple → blue), matching the auth-screen design. */

@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -15,6 +16,8 @@ import { apiClient } from '../api/client';
 import { GradientView } from '../components/GradientView';
 import Icon from '../components/Icon';
 import CreateGameRoomModal from '../games/CreateGameRoomModal';
+import { GAME_ICONS } from '../games/game-icons';
+import { GAME_TYPE_LABELS } from '../games/game-type-labels';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import { brandGradient, colors, radius, spacing } from '../theme/colors';
 import { fonts } from '../theme/typography';
@@ -22,10 +25,9 @@ import { fonts } from '../theme/typography';
 type Status = 'loading' | 'ready' | 'error';
 type Filter = 'all' | GameType;
 
-/** Only real game types get a filter chip / label — no invented games. */
-const GAME_TYPE_LABELS: Record<GameType, string> = {
-  [GameType.NavalBattle]: 'Battleships',
-};
+/** No staking/prize backend yet — shown for visual parity with the Figma
+ *  design until real stakes exist. */
+const HARDCODED_STAKE = '50 USDC';
 
 const FILTERS: { key: Filter; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -49,11 +51,6 @@ export default function GameLobyScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
-  // The list endpoint excludes the user's own room (excludeOwn=true), so it
-  // never shows up there — kept separately, from the create response, and
-  // only for the current session (no "list my rooms" endpoint exists yet).
-  const [myRoom, setMyRoom] = useState<GameRoomSummary | null>(null);
-  const [isCancelling, setIsCancelling] = useState(false);
 
   const fetchRooms = useCallback(async () => {
     setStatus('loading');
@@ -77,23 +74,6 @@ export default function GameLobyScreen() {
       fetchRooms();
     }, [fetchRooms]),
   );
-
-  const handleCancelMyRoom = async () => {
-    if (!myRoom) {
-      return;
-    }
-    setIsCancelling(true);
-    try {
-      await apiClient.closeGameRoom(myRoom.id);
-      setMyRoom(null);
-    } catch {
-      // Room may have already started/closed elsewhere — drop the local
-      // guess either way so the UI doesn't offer to cancel a stale room.
-      setMyRoom(null);
-    } finally {
-      setIsCancelling(false);
-    }
-  };
 
   const filteredRooms =
     filter === 'all' ? rooms : rooms.filter(room => room.gameType === filter);
@@ -140,41 +120,6 @@ export default function GameLobyScreen() {
               <Icon type="search" color={colors.textMuted} size={20} />
               <Text style={styles.searchPlaceholder}>Find a game room...</Text>
             </View>
-
-            {myRoom ? (
-              <View style={[styles.roomCard, styles.roomCardMine]}>
-                <View style={styles.roomRow}>
-                  <View style={styles.roomLeft}>
-                    <View style={styles.roomIcon}>
-                      <Icon type="ship" color={colors.textPrimary} size={22} />
-                    </View>
-                    <View>
-                      <Text style={styles.roomName}>
-                        {GAME_TYPE_LABELS[myRoom.gameType]} (Yours)
-                      </Text>
-                      <Text style={styles.roomSubtext}>
-                        Waiting for players · {timeAgo(myRoom.createdAt)}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.roomPlayers}>
-                    <Text style={styles.playersLabel}>Players</Text>
-                    <Text style={styles.playersValue}>
-                      {myRoom.playerCount}
-                    </Text>
-                  </View>
-                </View>
-                <Pressable
-                  onPress={handleCancelMyRoom}
-                  disabled={isCancelling}
-                  style={styles.cancelRoomButton}
-                >
-                  <Text style={styles.cancelRoomText}>
-                    {isCancelling ? 'Cancelling…' : 'Cancel Room'}
-                  </Text>
-                </Pressable>
-              </View>
-            ) : null}
 
             <View style={styles.filterRow}>
               {FILTERS.map(f => {
@@ -230,9 +175,10 @@ export default function GameLobyScreen() {
           <View style={styles.roomCard}>
             <View style={styles.roomRow}>
               <View style={styles.roomLeft}>
-                <View style={styles.roomIcon}>
-                  <Icon type="ship" color={colors.textPrimary} size={22} />
-                </View>
+                <Image
+                  source={GAME_ICONS[item.gameType]}
+                  style={styles.roomIcon}
+                />
                 <View>
                   <Text style={styles.roomName}>
                     {GAME_TYPE_LABELS[item.gameType]}
@@ -247,6 +193,12 @@ export default function GameLobyScreen() {
                 <Text style={styles.playersValue}>{item.playerCount}</Text>
               </View>
             </View>
+            <View style={styles.roomStatsRow}>
+              <View>
+                <Text style={styles.statLabel}>Stake</Text>
+                <Text style={styles.statValue}>{HARDCODED_STAKE}</Text>
+              </View>
+            </View>
           </View>
         )}
       />
@@ -254,11 +206,6 @@ export default function GameLobyScreen() {
       <CreateGameRoomModal
         visible={isCreateModalVisible}
         onClose={() => setIsCreateModalVisible(false)}
-        onCreated={room => {
-          setMyRoom(room);
-          setIsCreateModalVisible(false);
-          fetchRooms();
-        }}
       />
     </SafeAreaView>
   );
@@ -384,17 +331,6 @@ const styles = StyleSheet.create({
     padding: spacing.sm + 4,
     gap: spacing.sm,
   },
-  roomCardMine: {
-    borderColor: colors.kombatAccent,
-  },
-  cancelRoomButton: {
-    alignSelf: 'flex-start',
-  },
-  cancelRoomText: {
-    fontSize: 13,
-    fontFamily: fonts.semiBold,
-    color: colors.danger,
-  },
   roomRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -409,10 +345,8 @@ const styles = StyleSheet.create({
   roomIcon: {
     width: 48,
     height: 48,
-    borderRadius: radius.chip,
+    borderRadius: 12,
     backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   roomName: {
     fontSize: 16,
@@ -435,6 +369,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: fonts.bold,
     color: colors.textPrimary,
+    marginTop: 2,
+  },
+  roomStatsRow: {
+    flexDirection: 'row',
+  },
+  statLabel: {
+    fontSize: 11,
+    color: colors.textMuted,
+  },
+  statValue: {
+    fontSize: 14,
+    fontFamily: fonts.bold,
+    color: colors.success,
     marginTop: 2,
   },
   createButtonWrapper: {

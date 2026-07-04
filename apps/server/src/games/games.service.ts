@@ -54,6 +54,12 @@ export class GamesService {
     const rooms = await this.dbService.findPendingGameRooms(excludeUserId);
     return rooms.map(toGameRoomSummary);
   }
+
+  /** The user's own open (Pending/InProgress) room, if any — used to resume a "waiting" state on app start. */
+  async getMyActiveRoom(userId: string): Promise<GameRoomSummary | null> {
+    const room = await this.dbService.findOpenGameRoomForUser(userId);
+    return room ? toGameRoomSummary(room) : null;
+  }
 }
 
 function toGameRoomSummary(room: GameRoomEntity): GameRoomSummary {
