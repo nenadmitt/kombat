@@ -1,25 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  Canvas,
-  Group,
-  Line,
-  Rect,
-  RoundedRect,
-  vec,
-} from '@shopify/react-native-skia';
+import { Canvas, Fill, RadialGradient, vec } from '@shopify/react-native-skia';
 
 import Icon from '../../../components/Icon';
 import { GradientView } from '../../../components/GradientView';
 import { brandGradient, colors, radius, spacing } from '../../../theme/colors';
 import { fonts } from '../../../theme/typography';
+import BattleshipGrid from '../BattleshipGrid';
 import ShipCard from './ShipCard';
 import {
   COLUMN_LABELS,
@@ -30,7 +18,7 @@ import {
   SHIPS,
   SHIP_BY_ID,
 } from './ship-placement.constants';
-import type { Orientation, Placement, Preview, ShipDef } from './ship-placement.types';
+import type { Orientation, Placement } from './ship-placement.types';
 import {
   buildOccupied,
   canPlace,
@@ -44,7 +32,11 @@ type Props = {
   onExit: () => void;
 };
 
-/** "Deploy Your Fleet" — drag each ship onto the grid before the countdown runs out. */
+// colors.brandStart at reduced opacity, for the top glow behind the header.
+const GLOW_COLOR = 'rgba(139, 92, 246, 0.35)';
+const GLOW_HEIGHT = 480;
+
+/** "Deploy Your Fleet" — select a ship, then tap the grid to place it. */
 export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
   const { width } = useWindowDimensions();
   const boardSize = Math.min(width - spacing.md * 2 - LABEL_GUTTER, 340);
@@ -54,20 +46,8 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
   const [pendingOrientation, setPendingOrientation] = useState<
     Record<string, Orientation>
   >(Object.fromEntries(SHIPS.map(s => [s.id, 'h' as Orientation])));
-  const [preview, setPreview] = useState<Preview | null>(null);
+  const [selectedShipId, setSelectedShipId] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(SETUP_DURATION_SECONDS);
-
-  const placementsRef = useRef(placements);
-  placementsRef.current = placements;
-  const pendingOrientationRef = useRef(pendingOrientation);
-  pendingOrientationRef.current = pendingOrientation;
-
-  const boardRef = useRef<View>(null);
-  const boardOrigin = useRef({ x: 0, y: 0 });
-  const measureBoard = () =>
-    boardRef.current?.measureInWindow((x, y) => {
-      boardOrigin.current = { x, y };
-    });
 
   useEffect(() => {
     if (secondsLeft <= 0) {
@@ -79,36 +59,11 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
     return () => clearInterval(timer);
   }, [secondsLeft]);
 
-  const candidateAt = (ship: ShipDef, pageX: number, pageY: number) => {
-    const { x, y } = boardOrigin.current;
-    const col = Math.floor((pageX - x) / cell);
-    const row = Math.floor((pageY - y) / cell);
-    const orientation = pendingOrientationRef.current[ship.id]!;
-    const cells = cellsFor({ row, col, orientation }, ship.size);
-    const occupied = buildOccupied(placementsRef.current);
-    const inside =
-      pageX >= x && pageX <= x + boardSize && pageY >= y && pageY <= y + boardSize;
-    return { row, col, orientation, cells, valid: canPlace(cells, occupied), inside };
-  };
+  const nextShipId = SHIPS.find(s => !placements[s.id])?.id;
+  const activeShipId = selectedShipId ?? nextShipId;
 
-  const handleDragMove = (ship: ShipDef, pageX: number, pageY: number) => {
-    const { cells, valid, inside } = candidateAt(ship, pageX, pageY);
-    setPreview(inside ? { cells, valid } : null);
-  };
-
-  const handleDrop = (
-    ship: ShipDef,
-    pageX: number,
-    pageY: number,
-    snapBack: () => void,
-  ) => {
-    const { row, col, orientation, valid, inside } = candidateAt(ship, pageX, pageY);
-    if (inside && valid) {
-      setPlacements(prev => ({ ...prev, [ship.id]: { row, col, orientation } }));
-    } else {
-      snapBack();
-    }
-    setPreview(null);
+  const handleSelect = (shipId: string) => {
+    setSelectedShipId(shipId);
   };
 
   const handleRotate = (shipId: string) => {
@@ -118,23 +73,52 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
     }));
   };
 
-  const handleRemoveAt = (row: number, col: number) => {
+  const handleRemove = (shipId: string) => {
     setPlacements(prev => {
-      const hitId = Object.keys(prev).find(id =>
-        cellsFor(prev[id]!, SHIP_BY_ID[id]!.size).some(
-          c => c.r === row && c.c === col,
-        ),
-      );
-      if (!hitId) {
-        return prev;
-      }
-      const { [hitId]: _removed, ...rest } = prev;
+      const { [shipId]: _removed, ...rest } = prev;
       return rest;
     });
   };
 
+  const handlePlaceActive = (row: number, col: number) => {
+    if (!activeShipId) {
+      return;
+    }
+    const ship = SHIP_BY_ID[activeShipId]!;
+    const orientation = pendingOrientation[activeShipId]!;
+    const cells = cellsFor({ row, col, orientation }, ship.size);
+    if (!canPlace(cells, buildOccupied(placements))) {
+      return;
+    }
+    setPlacements(prev => ({ ...prev, [activeShipId]: { row, col, orientation } }));
+    setSelectedShipId(null);
+  };
+
+  const getPreview = (row: number, col: number) => {
+    if (!activeShipId) {
+      return null;
+    }
+    const ship = SHIP_BY_ID[activeShipId]!;
+    const orientation = pendingOrientation[activeShipId]!;
+    const cells = cellsFor({ row, col, orientation }, ship.size);
+    return { cells, valid: canPlace(cells, buildOccupied(placements)) };
+  };
+
+  const handleGridTap = (row: number, col: number) => {
+    const occupantId = Object.keys(placements).find(id =>
+      cellsFor(placements[id]!, SHIP_BY_ID[id]!.size).some(
+        c => c.r === row && c.c === col,
+      ),
+    );
+    if (occupantId) {
+      handleRemove(occupantId);
+    } else {
+      handlePlaceActive(row, col);
+    }
+  };
+
   const handleAutoPlace = () => {
-    let next = { ...placementsRef.current };
+    let next = { ...placements };
     for (const ship of SHIPS) {
       if (next[ship.id]) {
         continue;
@@ -149,22 +133,25 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
       }
     }
     setPlacements(next);
-  };
-
-  const handleGridTap = (locationX: number, locationY: number) => {
-    handleRemoveAt(Math.floor(locationY / cell), Math.floor(locationX / cell));
+    setSelectedShipId(null);
   };
 
   const placedCount = Object.keys(placements).length;
   const allPlaced = placedCount === SHIPS.length;
-  const nextShipId = SHIPS.find(s => !placements[s.id])?.id;
-  const gridLines = Array.from({ length: GRID + 1 }, (_, i) => i * cell);
-  const previewColor = preview?.valid
-    ? 'rgba(34,197,94,0.55)'
-    : 'rgba(239,68,68,0.55)';
+  const occupied = buildOccupied(placements);
 
   return (
     <SafeAreaView style={styles.screen}>
+      <Canvas style={styles.glow} pointerEvents="none">
+        <Fill>
+          <RadialGradient
+            c={vec(width / 2, 0)}
+            r={GLOW_HEIGHT}
+            colors={[GLOW_COLOR, 'rgba(139, 92, 246, 0)']}
+          />
+        </Fill>
+      </Canvas>
+
       <View style={styles.header}>
         <Pressable style={styles.headerButton} onPress={onExit}>
           <Icon type="chevron-left" color={colors.textPrimary} size={20} />
@@ -181,7 +168,7 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
       <View style={styles.content}>
         <Text style={styles.title}>Deploy Your Fleet</Text>
         <Text style={styles.subtitle}>
-          Drag ships onto the grid. Double-tap a ship to rotate it.
+          Select a ship below, then tap or drag on the grid to place it.
         </Text>
 
         <View style={styles.progressRow}>
@@ -220,77 +207,14 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
             ))}
           </View>
 
-          <View
-            ref={boardRef}
-            onLayout={measureBoard}
-            style={{ width: boardSize, height: boardSize }}
-          >
-            <Canvas style={StyleSheet.absoluteFill}>
-              <Rect
-                x={0}
-                y={0}
-                width={boardSize}
-                height={boardSize}
-                color={colors.surfaceMuted}
-              />
-              <Group>
-                {gridLines.map(pos => (
-                  <Line
-                    key={`v${pos}`}
-                    p1={vec(pos, 0)}
-                    p2={vec(pos, boardSize)}
-                    color={colors.cardBorder}
-                    strokeWidth={1}
-                  />
-                ))}
-                {gridLines.map(pos => (
-                  <Line
-                    key={`h${pos}`}
-                    p1={vec(0, pos)}
-                    p2={vec(boardSize, pos)}
-                    color={colors.cardBorder}
-                    strokeWidth={1}
-                  />
-                ))}
-              </Group>
-
-              {Object.entries(placements).map(([id, p]) => {
-                const size = SHIP_BY_ID[id]!.size;
-                const w = (p.orientation === 'h' ? size : 1) * cell;
-                const h = (p.orientation === 'v' ? size : 1) * cell;
-                return (
-                  <RoundedRect
-                    key={id}
-                    x={p.col * cell + 2}
-                    y={p.row * cell + 2}
-                    width={w - 4}
-                    height={h - 4}
-                    r={6}
-                    color={colors.brandStart}
-                  />
-                );
-              })}
-
-              {preview?.cells
-                .filter(({ r, c }) => r >= 0 && r < GRID && c >= 0 && c < GRID)
-                .map(({ r, c }) => (
-                  <Rect
-                    key={`p${r}-${c}`}
-                    x={c * cell + 1}
-                    y={r * cell + 1}
-                    width={cell - 2}
-                    height={cell - 2}
-                    color={previewColor}
-                  />
-                ))}
-            </Canvas>
-            <Pressable
-              style={StyleSheet.absoluteFill}
-              onPress={e =>
-                handleGridTap(e.nativeEvent.locationX, e.nativeEvent.locationY)
-              }
-            />
-          </View>
+          <BattleshipGrid
+            boardSize={boardSize}
+            cell={cell}
+            occupied={occupied}
+            active={Boolean(activeShipId)}
+            getPreview={getPreview}
+            onCommit={handleGridTap}
+          />
         </View>
 
         <Text style={styles.sectionLabel}>YOUR SHIPS</Text>
@@ -300,13 +224,11 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
               key={ship.id}
               ship={ship}
               placed={Boolean(placements[ship.id])}
-              isNext={ship.id === nextShipId}
+              selected={ship.id === activeShipId}
               orientation={pendingOrientation[ship.id]!}
-              onDragStart={measureBoard}
-              onDragMove={handleDragMove}
-              onDrop={handleDrop}
+              onSelect={() => handleSelect(ship.id)}
               onRotate={() => handleRotate(ship.id)}
-              onCancel={() => setPreview(null)}
+              onRemove={() => handleRemove(ship.id)}
             />
           ))}
         </View>
@@ -339,6 +261,13 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  glow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: GLOW_HEIGHT,
   },
   header: {
     flexDirection: 'row',

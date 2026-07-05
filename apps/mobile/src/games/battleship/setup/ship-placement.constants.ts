@@ -9,8 +9,6 @@ export const COLUMN_LABELS = Array.from({ length: GRID }, (_, i) =>
 export const ROW_LABELS = Array.from({ length: GRID }, (_, i) => i + 1);
 
 export const SETUP_DURATION_SECONDS = 90;
-export const DOUBLE_TAP_MS = 300;
-export const DRAG_THRESHOLD = 6;
 
 // No existing theme token fits this specific ship class, and it isn't
 // reused anywhere else, so it stays local rather than in the shared theme.

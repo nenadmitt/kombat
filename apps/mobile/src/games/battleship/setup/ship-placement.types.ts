@@ -14,8 +14,3 @@ export type Placement = {
   col: number;
   orientation: Orientation;
 };
-
-export type Preview = {
-  cells: Cell[];
-  valid: boolean;
-};

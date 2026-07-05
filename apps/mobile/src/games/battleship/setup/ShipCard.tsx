@@ -1,116 +1,55 @@
-import { useRef, useState } from 'react';
-import { Animated, PanResponder, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Icon from '../../../components/Icon';
 import { colors, radius, spacing } from '../../../theme/colors';
 import { fonts } from '../../../theme/typography';
-import { DOUBLE_TAP_MS, DRAG_THRESHOLD } from './ship-placement.constants';
 import type { Orientation, ShipDef } from './ship-placement.types';
 
-const CARD_SHIP_WIDTH = 44;
+const SHIP_GRAPHIC_SPAN = 44;
 
 type Props = {
   ship: ShipDef;
   placed: boolean;
-  isNext: boolean;
+  selected: boolean;
   orientation: Orientation;
-  onDragStart: () => void;
-  onDragMove: (ship: ShipDef, pageX: number, pageY: number) => void;
-  onDrop: (
-    ship: ShipDef,
-    pageX: number,
-    pageY: number,
-    snapBack: () => void,
-  ) => void;
+  onSelect: () => void;
   onRotate: () => void;
-  onCancel: () => void;
+  onRemove: () => void;
 };
 
-/** One draggable ship in the "YOUR SHIPS" tray — drag onto the grid to place,
- *  double-tap to rotate before dragging. */
+/** One ship in the "YOUR SHIPS" tray. Tap to select it for placement, tap the
+ *  bottom button to rotate it, or (once placed) tap the top button to remove it. */
 export default function ShipCard({
   ship,
   placed,
-  isNext,
+  selected,
   orientation,
-  onDragStart,
-  onDragMove,
-  onDrop,
+  onSelect,
   onRotate,
-  onCancel,
+  onRemove,
 }: Props) {
-  const pan = useRef(new Animated.ValueXY()).current;
-  const [dragging, setDragging] = useState(false);
-  const moved = useRef(false);
-  const lastReleaseAt = useRef<number | null>(null);
-
-  const snapBack = () =>
-    Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
-
-  const responder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => !placed,
-      onPanResponderGrant: () => {
-        moved.current = false;
-        setDragging(true);
-        pan.setValue({ x: 0, y: 0 });
-        onDragStart();
-      },
-      onPanResponderMove: (_e, g) => {
-        if (Math.abs(g.dx) + Math.abs(g.dy) > DRAG_THRESHOLD) {
-          moved.current = true;
-        }
-        pan.setValue({ x: g.dx, y: g.dy });
-        onDragMove(ship, g.moveX, g.moveY);
-      },
-      onPanResponderRelease: (_e, g) => {
-        setDragging(false);
-        if (!moved.current) {
-          snapBack();
-          const now = Date.now();
-          if (lastReleaseAt.current && now - lastReleaseAt.current < DOUBLE_TAP_MS) {
-            lastReleaseAt.current = null;
-            onRotate();
-          } else {
-            lastReleaseAt.current = now;
-          }
-          return;
-        }
-        lastReleaseAt.current = null;
-        onDrop(ship, g.moveX, g.moveY, snapBack);
-      },
-      onPanResponderTerminate: () => {
-        snapBack();
-        onCancel();
-        setDragging(false);
-      },
-    }),
-  ).current;
-
   const graphicSize =
     orientation === 'h'
-      ? { width: CARD_SHIP_WIDTH, height: CARD_SHIP_WIDTH / ship.size }
-      : { width: CARD_SHIP_WIDTH / ship.size, height: CARD_SHIP_WIDTH };
+      ? { width: SHIP_GRAPHIC_SPAN, height: SHIP_GRAPHIC_SPAN / ship.size }
+      : { width: SHIP_GRAPHIC_SPAN / ship.size, height: SHIP_GRAPHIC_SPAN };
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, selected && !placed && styles.cardSelected]}>
       {placed ? (
-        <View style={styles.badgePlaced}>
-          <Icon type="check" color={colors.textPrimary} size={12} />
-        </View>
-      ) : isNext ? (
+        <Pressable style={styles.removeButton} onPress={onRemove} hitSlop={8}>
+          <Icon type="trash" color={colors.textPrimary} size={12} />
+        </Pressable>
+      ) : selected ? (
         <View style={styles.badgeNext}>
           <Text style={styles.badgeNextText}>PLACE</Text>
         </View>
       ) : null}
 
-      <Animated.View
-        {...(placed ? {} : responder.panHandlers)}
-        style={[
-          styles.shipWrapper,
-          dragging && styles.dragging,
-          { transform: pan.getTranslateTransform() },
-        ]}
+      <Pressable
+        disabled={placed}
+        onPress={onSelect}
+        style={styles.shipWrapper}
+        hitSlop={4}
       >
         <View
           style={[
@@ -120,9 +59,16 @@ export default function ShipCard({
             placed && styles.shipPlaced,
           ]}
         />
-      </Animated.View>
+      </Pressable>
+
       <Text style={styles.label}>{ship.label}</Text>
       <Text style={styles.cells}>{ship.size} cells</Text>
+
+      {!placed && (
+        <Pressable style={styles.rotateButton} onPress={onRotate} hitSlop={8}>
+          <Icon type="rotate-cw" color={colors.textMuted} size={12} />
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -139,14 +85,17 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.xs,
   },
-  badgePlaced: {
+  cardSelected: {
+    borderColor: colors.brandStart,
+  },
+  removeButton: {
     position: 'absolute',
     top: 6,
     right: 6,
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: colors.success,
+    backgroundColor: colors.danger,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -166,13 +115,9 @@ const styles = StyleSheet.create({
     color: colors.brandStart,
   },
   shipWrapper: {
-    height: CARD_SHIP_WIDTH,
+    height: SHIP_GRAPHIC_SPAN,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  dragging: {
-    zIndex: 10,
-    opacity: 0.9,
   },
   ship: {
     borderRadius: 6,
@@ -188,5 +133,13 @@ const styles = StyleSheet.create({
   cells: {
     fontSize: 10,
     color: colors.textMuted,
+  },
+  rotateButton: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
