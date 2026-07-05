@@ -3,41 +3,35 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Icon from '../../../components/Icon';
 import { colors, radius, spacing } from '../../../theme/colors';
 import { fonts } from '../../../theme/typography';
-import type { Orientation, ShipDef } from './ship-placement.types';
-
-const SHIP_GRAPHIC_SPAN = 44;
+import ShipGraphic from '../ShipGraphic';
+import type { ShipDef } from './ship-placement.types';
 
 type Props = {
   ship: ShipDef;
   placed: boolean;
   selected: boolean;
-  orientation: Orientation;
   onSelect: () => void;
-  onRotate: () => void;
   onRemove: () => void;
 };
 
-/** One ship in the "YOUR SHIPS" tray. Tap to select it for placement, tap the
- *  bottom button to rotate it, or (once placed) tap the top button to remove it. */
+/** One ship in the "YOUR SHIPS" tray. Tap the card to select it for placement;
+ *  once placed, the trash button sends it back to the tray. */
 export default function ShipCard({
   ship,
   placed,
   selected,
-  orientation,
   onSelect,
-  onRotate,
   onRemove,
 }: Props) {
-  const graphicSize =
-    orientation === 'h'
-      ? { width: SHIP_GRAPHIC_SPAN, height: SHIP_GRAPHIC_SPAN / ship.size }
-      : { width: SHIP_GRAPHIC_SPAN / ship.size, height: SHIP_GRAPHIC_SPAN };
-
   return (
-    <View style={[styles.card, selected && !placed && styles.cardSelected]}>
+    <Pressable
+      disabled={placed}
+      onPress={onSelect}
+      style={[styles.card, selected && !placed && styles.cardSelected]}
+    >
       {placed ? (
         <Pressable style={styles.removeButton} onPress={onRemove} hitSlop={8}>
-          <Icon type="trash" color={colors.textPrimary} size={12} />
+          <Icon type="trash" color={colors.textPrimary} size={11} />
         </Pressable>
       ) : selected ? (
         <View style={styles.badgeNext}>
@@ -45,31 +39,23 @@ export default function ShipCard({
         </View>
       ) : null}
 
-      <Pressable
-        disabled={placed}
-        onPress={onSelect}
-        style={styles.shipWrapper}
-        hitSlop={4}
-      >
-        <View
-          style={[
-            styles.ship,
-            graphicSize,
-            { backgroundColor: ship.color },
-            placed && styles.shipPlaced,
-          ]}
-        />
-      </Pressable>
-
+      <View style={[styles.shipWrapper, placed && styles.placedDim]}>
+        <ShipGraphic cells={ship.size} color={ship.color} />
+      </View>
       <Text style={styles.label}>{ship.label}</Text>
-      <Text style={styles.cells}>{ship.size} cells</Text>
-
-      {!placed && (
-        <Pressable style={styles.rotateButton} onPress={onRotate} hitSlop={8}>
-          <Icon type="rotate-cw" color={colors.textMuted} size={12} />
-        </Pressable>
-      )}
-    </View>
+      <View style={styles.dotsRow}>
+        {Array.from({ length: ship.size }, (_, i) => (
+          <View
+            key={i}
+            style={[
+              styles.dot,
+              { backgroundColor: ship.color },
+              placed && styles.placedDim,
+            ]}
+          />
+        ))}
+      </View>
+    </Pressable>
   );
 }
 
@@ -82,11 +68,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.cardBorder,
     borderRadius: radius.chip,
-    paddingVertical: spacing.sm,
+    paddingTop: 22,
+    paddingBottom: 12,
     paddingHorizontal: spacing.xs,
   },
   cardSelected: {
     borderColor: colors.brandStart,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
   },
   removeButton: {
     position: 'absolute',
@@ -115,31 +103,24 @@ const styles = StyleSheet.create({
     color: colors.brandStart,
   },
   shipWrapper: {
-    height: SHIP_GRAPHIC_SPAN,
-    alignItems: 'center',
+    height: 20,
     justifyContent: 'center',
   },
-  ship: {
-    borderRadius: 6,
-  },
-  shipPlaced: {
-    opacity: 0.4,
+  placedDim: {
+    opacity: 0.35,
   },
   label: {
     fontSize: 11,
     fontFamily: fonts.semiBold,
     color: colors.textPrimary,
   },
-  cells: {
-    fontSize: 10,
-    color: colors.textMuted,
+  dotsRow: {
+    flexDirection: 'row',
+    gap: 3,
   },
-  rotateButton: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
+  dot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
   },
 });

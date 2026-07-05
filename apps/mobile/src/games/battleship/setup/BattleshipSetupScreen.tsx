@@ -43,9 +43,8 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
   const cell = boardSize / GRID;
 
   const [placements, setPlacements] = useState<Record<string, Placement>>({});
-  const [pendingOrientation, setPendingOrientation] = useState<
-    Record<string, Orientation>
-  >(Object.fromEntries(SHIPS.map(s => [s.id, 'h' as Orientation])));
+  // A single orientation shared by every ship, toggled from the "Placing" row.
+  const [orientation, setOrientation] = useState<Orientation>('h');
   const [selectedShipId, setSelectedShipId] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(SETUP_DURATION_SECONDS);
 
@@ -66,11 +65,8 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
     setSelectedShipId(shipId);
   };
 
-  const handleRotate = (shipId: string) => {
-    setPendingOrientation(prev => ({
-      ...prev,
-      [shipId]: prev[shipId] === 'h' ? 'v' : 'h',
-    }));
+  const handleRotate = () => {
+    setOrientation(prev => (prev === 'h' ? 'v' : 'h'));
   };
 
   const handleRemove = (shipId: string) => {
@@ -85,7 +81,6 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
       return;
     }
     const ship = SHIP_BY_ID[activeShipId]!;
-    const orientation = pendingOrientation[activeShipId]!;
     const cells = cellsFor({ row, col, orientation }, ship.size);
     if (!canPlace(cells, buildOccupied(placements))) {
       return;
@@ -94,27 +89,31 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
     setSelectedShipId(null);
   };
 
-  const getPreview = (row: number, col: number) => {
+  const isValidPlacement = (row: number, col: number) => {
     if (!activeShipId) {
-      return null;
+      return false;
     }
     const ship = SHIP_BY_ID[activeShipId]!;
-    const orientation = pendingOrientation[activeShipId]!;
     const cells = cellsFor({ row, col, orientation }, ship.size);
-    return { cells, valid: canPlace(cells, buildOccupied(placements)) };
+    return canPlace(cells, buildOccupied(placements));
   };
 
-  const handleGridTap = (row: number, col: number) => {
-    const occupantId = Object.keys(placements).find(id =>
-      cellsFor(placements[id]!, SHIP_BY_ID[id]!.size).some(
-        c => c.r === row && c.c === col,
-      ),
-    );
-    if (occupantId) {
-      handleRemove(occupantId);
-    } else {
-      handlePlaceActive(row, col);
+  const handleGridCommit = (row: number, col: number, isTap: boolean) => {
+    // Only a deliberate tap removes a placed ship — releasing a drag over an
+    // occupied cell is just an invalid drop and should do nothing, otherwise
+    // a missed drop silently deletes a ship the player already placed.
+    if (isTap) {
+      const occupantId = Object.keys(placements).find(id =>
+        cellsFor(placements[id]!, SHIP_BY_ID[id]!.size).some(
+          c => c.r === row && c.c === col,
+        ),
+      );
+      if (occupantId) {
+        handleRemove(occupantId);
+        return;
+      }
     }
+    handlePlaceActive(row, col);
   };
 
   const handleAutoPlace = () => {
@@ -138,11 +137,17 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
 
   const placedCount = Object.keys(placements).length;
   const allPlaced = placedCount === SHIPS.length;
-  const occupied = buildOccupied(placements);
+  const activeShip = activeShipId ? SHIP_BY_ID[activeShipId] : undefined;
+  const placedShips = SHIPS.filter(s => placements[s.id]).map(s => ({
+    id: s.id,
+    size: s.size,
+    color: s.color,
+    placement: placements[s.id]!,
+  }));
 
   return (
     <SafeAreaView style={styles.screen}>
-      <Canvas style={styles.glow} pointerEvents="none">
+      <Canvas style={styles.glow}>
         <Fill>
           <RadialGradient
             c={vec(width / 2, 0)}
@@ -210,27 +215,52 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
           <BattleshipGrid
             boardSize={boardSize}
             cell={cell}
-            occupied={occupied}
-            active={Boolean(activeShipId)}
-            getPreview={getPreview}
-            onCommit={handleGridTap}
+            placedShips={placedShips}
+            activeShip={activeShip ?? null}
+            orientation={orientation}
+            isValidPlacement={isValidPlacement}
+            onCommit={handleGridCommit}
           />
         </View>
 
-        <Text style={styles.sectionLabel}>YOUR SHIPS</Text>
-        <View style={styles.tray}>
-          {SHIPS.map(ship => (
-            <ShipCard
-              key={ship.id}
-              ship={ship}
-              placed={Boolean(placements[ship.id])}
-              selected={ship.id === activeShipId}
-              orientation={pendingOrientation[ship.id]!}
-              onSelect={() => handleSelect(ship.id)}
-              onRotate={() => handleRotate(ship.id)}
-              onRemove={() => handleRemove(ship.id)}
-            />
-          ))}
+        {activeShip ? (
+          <View style={styles.placingRow}>
+            <Text style={styles.placingText}>
+              Placing{' '}
+              <Text style={[styles.placingName, { color: activeShip.color }]}>
+                {activeShip.label}
+              </Text>
+            </Text>
+            <Pressable style={styles.rotatePill} onPress={handleRotate}>
+              <Icon type="rotate-cw" color={colors.textPrimary} size={13} />
+              <Text style={styles.rotatePillText}>
+                {orientation === 'h' ? 'Horizontal' : 'Vertical'}
+              </Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.placingRow}>
+            <View style={styles.deployedRow}>
+              <Icon type="check" color={colors.success} size={14} />
+              <Text style={styles.deployedText}>All ships deployed</Text>
+            </View>
+          </View>
+        )}
+
+        <View style={styles.fleetPanel}>
+          <Text style={styles.sectionLabel}>YOUR SHIPS</Text>
+          <View style={styles.tray}>
+            {SHIPS.map(ship => (
+              <ShipCard
+                key={ship.id}
+                ship={ship}
+                placed={Boolean(placements[ship.id])}
+                selected={ship.id === activeShipId}
+                onSelect={() => handleSelect(ship.id)}
+                onRemove={() => handleRemove(ship.id)}
+              />
+            ))}
+          </View>
         </View>
 
         <View style={styles.actionsRow}>
@@ -268,6 +298,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: GLOW_HEIGHT,
+    pointerEvents: 'none',
   },
   header: {
     flexDirection: 'row',
@@ -304,7 +335,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+    paddingTop: spacing.sm,
   },
   title: {
     fontSize: 26,
@@ -321,7 +352,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
     marginBottom: spacing.sm,
   },
   progressTrack: {
@@ -348,12 +379,59 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
   },
+  placingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+    minHeight: 30,
+  },
+  placingText: {
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  placingName: {
+    fontFamily: fonts.bold,
+  },
+  rotatePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  rotatePillText: {
+    fontSize: 11,
+    fontFamily: fonts.semiBold,
+    color: colors.textPrimary,
+  },
+  deployedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  deployedText: {
+    fontSize: 12,
+    fontFamily: fonts.semiBold,
+    color: colors.success,
+  },
+  fleetPanel: {
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    borderRadius: radius.card,
+    padding: spacing.sm,
+    marginTop: spacing.sm,
+  },
   sectionLabel: {
     fontSize: 11,
     fontFamily: fonts.semiBold,
     color: colors.textMuted,
     letterSpacing: 0.5,
-    marginTop: spacing.md,
     marginBottom: spacing.sm,
   },
   tray: {
@@ -363,7 +441,7 @@ const styles = StyleSheet.create({
   actionsRow: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
     marginBottom: spacing.md,
   },
   autoPlaceButton: {

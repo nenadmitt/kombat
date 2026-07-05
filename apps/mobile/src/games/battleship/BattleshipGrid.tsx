@@ -9,111 +9,162 @@ import {
 } from '@shopify/react-native-skia';
 
 import { colors } from '../../theme/colors';
+import ShipHull from './ShipHull';
 import { GRID } from './setup/ship-placement.constants';
-import type { Cell } from './setup/ship-placement.types';
+import type { Orientation, Placement } from './setup/ship-placement.types';
+import { cellsFor } from './setup/ship-placement.utils';
 
 // Gap between grid cells and their corner rounding — matches the design's
 // spaced, rounded-square grid rather than a continuous ruled grid.
 const CELL_GAP = 4;
 const CELL_RADIUS = 6;
-
-function lighten(hex: string, amount: number): string {
-  const value = parseInt(hex.slice(1), 16);
-  const r = Math.min(255, (value >> 16) + amount);
-  const g = Math.min(255, ((value >> 8) & 0xff) + amount);
-  const b = Math.min(255, (value & 0xff) + amount);
-  return `rgb(${r}, ${g}, ${b})`;
-}
+/** Inset of a ship hull from its cells' outer edge. */
+const HULL_PAD = 3;
 
 // Empty cells are a translucent white overlay (like colors.cardBackground)
 // rather than an opaque fill, so the screen's background glow shows through —
 // matching the design instead of a flat grey grid.
 const EMPTY_CELL_GRADIENT = ['rgba(255, 255, 255, 0.07)', 'rgba(255, 255, 255, 0.03)'];
-const OCCUPIED_CELL_GRADIENT = [lighten(colors.brandStart, 30), colors.brandStart];
 const CELL_BORDER = colors.cardBorder;
 // Brighter border on empty cells while a ship is selected, inviting a tap.
 const ACTIVE_CELL_BORDER = 'rgba(139, 92, 246, 0.55)';
-const VALID_PREVIEW_COLOR = 'rgba(34, 197, 94, 0.55)';
-const INVALID_PREVIEW_COLOR = 'rgba(239, 68, 68, 0.55)';
 
-type Preview = { cells: Cell[]; valid: boolean } | null;
+/** Finger movement below this (px) still counts as a tap, not a drag. */
+const TAP_SLOP = 8;
+
+export type PlacedShip = {
+  id: string;
+  size: number;
+  color: string;
+  placement: Placement;
+};
+
+type Hover = { row: number; col: number; valid: boolean };
 
 type Props = {
   boardSize: number;
   cell: number;
-  occupied: Set<string>;
-  /** Highlights empty cells to invite a tap — true while a ship is selected for placement. */
-  active: boolean;
-  /** Cells + validity the active ship would occupy if placed anchored at (row, col). */
-  getPreview: (row: number, col: number) => Preview;
-  /** Fired on touch release — places the active ship, or removes whatever occupies the cell. */
-  onCommit: (row: number, col: number) => void;
+  /** Ships already on the board, drawn as full hull silhouettes. */
+  placedShips: PlacedShip[];
+  /** Ship currently selected for placement — drawn hovering under the finger. */
+  activeShip: { size: number; color: string } | null;
+  orientation: Orientation;
+  /** Whether the active ship may be placed anchored at (row, col). */
+  isValidPlacement: (row: number, col: number) => boolean;
+  /** Fired on touch release. `isTap` is true for a stationary press (no drag),
+   *  letting the owner treat taps (remove) and drops (place) differently. */
+  onCommit: (row: number, col: number, isTap: boolean) => void;
 };
 
-/** The 10x10 placement board: gradient/bordered cells, occupied-cell fill, and a
- *  live green/red preview while a finger is down over the grid. Releasing commits
- *  the placement (or removes whatever ship occupies the released-on cell). */
+/** The 10x10 board. Placed ships render as hull silhouettes across their
+ *  cells. While a finger (or mouse hover) moves over the grid with a ship
+ *  selected, that ship's silhouette follows — its own color when the spot is
+ *  valid, red when not. Releasing commits; a stationary tap on a placed ship
+ *  removes it. */
 export default function BattleshipGrid({
   boardSize,
   cell,
-  occupied,
-  active,
-  getPreview,
+  placedShips,
+  activeShip,
+  orientation,
+  isValidPlacement,
   onCommit,
 }: Props) {
-  const [preview, setPreview] = useState<Preview>(null);
+  const [hover, setHover] = useState<Hover | null>(null);
 
   // PanResponder is created once, so these keep its handlers reading the
   // latest props/callbacks instead of the ones captured at first render.
-  const getPreviewRef = useRef(getPreview);
-  getPreviewRef.current = getPreview;
+  const activeShipRef = useRef(activeShip);
+  activeShipRef.current = activeShip;
+  const isValidRef = useRef(isValidPlacement);
+  isValidRef.current = isValidPlacement;
   const onCommitRef = useRef(onCommit);
   onCommitRef.current = onCommit;
+  const movedRef = useRef(false);
 
   const toCell = (locationX: number, locationY: number) => ({
     row: Math.floor(locationY / cell),
     col: Math.floor(locationX / cell),
   });
 
+  const updateHover = (locationX: number, locationY: number) => {
+    if (!activeShipRef.current) {
+      setHover(null);
+      return;
+    }
+    const { row, col } = toCell(locationX, locationY);
+    setHover({ row, col, valid: isValidRef.current(row, col) });
+  };
+
   const responder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: e => {
-        const { row, col } = toCell(e.nativeEvent.locationX, e.nativeEvent.locationY);
-        setPreview(getPreviewRef.current(row, col));
+        movedRef.current = false;
+        updateHover(e.nativeEvent.locationX, e.nativeEvent.locationY);
       },
-      onPanResponderMove: e => {
-        const { row, col } = toCell(e.nativeEvent.locationX, e.nativeEvent.locationY);
-        setPreview(getPreviewRef.current(row, col));
+      onPanResponderMove: (e, g) => {
+        if (Math.abs(g.dx) + Math.abs(g.dy) > TAP_SLOP) {
+          movedRef.current = true;
+        }
+        updateHover(e.nativeEvent.locationX, e.nativeEvent.locationY);
       },
       onPanResponderRelease: e => {
         const { row, col } = toCell(e.nativeEvent.locationX, e.nativeEvent.locationY);
-        onCommitRef.current(row, col);
-        setPreview(null);
+        onCommitRef.current(row, col, !movedRef.current);
+        setHover(null);
       },
-      onPanResponderTerminate: () => setPreview(null),
+      onPanResponderTerminate: () => setHover(null),
     }),
   ).current;
+
+  const occupied = new Set<string>();
+  for (const ship of placedShips) {
+    for (const { r, c } of cellsFor(ship.placement, ship.size)) {
+      occupied.add(`${r},${c}`);
+    }
+  }
+  const active = activeShip !== null;
 
   const gridCells = Array.from({ length: GRID * GRID }, (_, i) => {
     const r = Math.floor(i / GRID);
     const c = i % GRID;
     return { r, c, occupied: occupied.has(`${r},${c}`) };
   });
-  const previewColor = preview?.valid ? VALID_PREVIEW_COLOR : INVALID_PREVIEW_COLOR;
-  const previewCells =
-    preview?.cells.filter(({ r, c }) => r >= 0 && r < GRID && c >= 0 && c < GRID) ?? [];
+
+  const renderShip = (
+    key: string,
+    row: number,
+    col: number,
+    size: number,
+    color: string,
+    shipOrientation: Orientation,
+    opacity?: number,
+  ) => {
+    const thickness = cell - HULL_PAD * 2;
+    const length = size * cell - HULL_PAD * 2;
+    const x = col * cell + HULL_PAD;
+    const y = row * cell + HULL_PAD;
+    // Hulls are drawn horizontally at the origin; vertical ships are the same
+    // hull rotated -90° (bow pointing up) into the cells' bounding box.
+    const transform =
+      shipOrientation === 'h'
+        ? [{ translateX: x }, { translateY: y }]
+        : [{ translateX: x }, { translateY: y + length }, { rotate: -Math.PI / 2 }];
+    return (
+      <Group key={key} transform={transform} opacity={opacity}>
+        <ShipHull length={length} thickness={thickness} cells={size} color={color} />
+      </Group>
+    );
+  };
 
   return (
     <View
       style={{ width: boardSize, height: boardSize }}
       {...responder.panHandlers}
-      onPointerMove={e => {
-        const { row, col } = toCell(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
-        setPreview(getPreviewRef.current(row, col));
-      }}
-      onPointerLeave={() => setPreview(null)}
+      onPointerMove={e => updateHover(e.nativeEvent.offsetX, e.nativeEvent.offsetY)}
+      onPointerLeave={() => setHover(null)}
     >
       <Canvas style={StyleSheet.absoluteFill}>
         {gridCells.map(({ r, c, occupied: isOccupied }) => {
@@ -126,7 +177,7 @@ export default function BattleshipGrid({
                 <LinearGradient
                   start={vec(0, y)}
                   end={vec(0, y + size)}
-                  colors={isOccupied ? OCCUPIED_CELL_GRADIENT : EMPTY_CELL_GRADIENT}
+                  colors={EMPTY_CELL_GRADIENT}
                 />
               </RoundedRect>
               <RoundedRect
@@ -143,17 +194,28 @@ export default function BattleshipGrid({
           );
         })}
 
-        {previewCells.map(({ r, c }) => (
-          <RoundedRect
-            key={`preview-${r}-${c}`}
-            x={c * cell + CELL_GAP / 2}
-            y={r * cell + CELL_GAP / 2}
-            width={cell - CELL_GAP}
-            height={cell - CELL_GAP}
-            r={CELL_RADIUS}
-            color={previewColor}
-          />
-        ))}
+        {placedShips.map(ship =>
+          renderShip(
+            ship.id,
+            ship.placement.row,
+            ship.placement.col,
+            ship.size,
+            ship.color,
+            ship.placement.orientation,
+          ),
+        )}
+
+        {hover &&
+          activeShip &&
+          renderShip(
+            'hover',
+            hover.row,
+            hover.col,
+            activeShip.size,
+            hover.valid ? activeShip.color : colors.danger,
+            orientation,
+            0.85,
+          )}
       </Canvas>
     </View>
   );
