@@ -1,9 +1,13 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { GameType } from '@gaming-platform/core';
 
 import { GAME_ICONS } from '../games/game-icons';
+import { GAME_TYPE_DEMO_SCREENS } from '../games/game-type-demo-screens';
 import { GAME_TYPE_LABELS } from '../games/game-type-labels';
+import type { RootStackParamList } from '../navigation/types';
 import { colors, radius, spacing } from '../theme/colors';
 import { fonts } from '../theme/typography';
 
@@ -12,8 +16,13 @@ const ALL_GAME_TYPES = Object.values(GameType).filter(
   (value): value is GameType => typeof value === 'number',
 );
 
-/** Showcase of every game the platform supports. Not wired up yet — browsing only. */
+/** Showcase of every game the platform supports — tap a tile to preview its UI. */
 export default function DemoGamesScreen() {
+  // Same pragmatic cast as GameLobyScreen — this screen's own nav type
+  // doesn't know about root-level screens like BattleshipSetup.
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.content}>
@@ -23,10 +32,21 @@ export default function DemoGamesScreen() {
         </Text>
         <View style={styles.grid}>
           {ALL_GAME_TYPES.map(gameType => (
-            <View key={gameType} style={styles.tile}>
+            <Pressable
+              key={gameType}
+              style={styles.tile}
+              onPress={() =>
+                (
+                  navigation.navigate as (
+                    screen: string,
+                    params?: unknown,
+                  ) => void
+                )(GAME_TYPE_DEMO_SCREENS[gameType])
+              }
+            >
               <Image source={GAME_ICONS[gameType]} style={styles.icon} />
               <Text style={styles.label}>{GAME_TYPE_LABELS[gameType]}</Text>
-            </View>
+            </Pressable>
           ))}
         </View>
       </View>
