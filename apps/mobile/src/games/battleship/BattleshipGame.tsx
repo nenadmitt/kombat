@@ -14,7 +14,12 @@ export default function BattleshipGame() {
   const [placements, setPlacements] = useState<Record<string, Placement>>({});
 
   if (phase === 'game') {
-    return <BattleshipPlayScreen placements={placements} />;
+    return (
+      <BattleshipPlayScreen
+        placements={placements}
+        onExit={() => setPhase('setup')}
+      />
+    );
   }
 
   return (

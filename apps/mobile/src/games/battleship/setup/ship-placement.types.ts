@@ -14,3 +14,11 @@ export type Placement = {
   col: number;
   orientation: Orientation;
 };
+
+export type ShotResult = 'hit' | 'miss';
+
+export type Shot = {
+  row: number;
+  col: number;
+  result: ShotResult;
+};

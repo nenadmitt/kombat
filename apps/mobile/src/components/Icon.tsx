@@ -1,5 +1,6 @@
 import type { LucideProps } from 'lucide-react-native';
 import {
+  Anchor,
   ArrowDownToLine,
   ArrowRight,
   ArrowUpFromLine,
@@ -34,6 +35,7 @@ import {
   Share2,
   Ship,
   Swords,
+  Target,
   TriangleAlert,
   Trash2,
   Trophy,
@@ -45,6 +47,7 @@ import {
 } from 'lucide-react-native';
 
 const ICONS = {
+  anchor: Anchor,
   'arrow-down': ArrowDownToLine,
   'arrow-right': ArrowRight,
   'arrow-up': ArrowUpFromLine,
@@ -80,6 +83,7 @@ const ICONS = {
   share: Share2,
   ship: Ship,
   swords: Swords,
+  target: Target,
   trash: Trash2,
   trophy: Trophy,
   user: User,
