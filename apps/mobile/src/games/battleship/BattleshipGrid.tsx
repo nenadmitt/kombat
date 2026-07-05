@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PanResponder, StyleSheet, View } from 'react-native';
 import {
   BlurMask,
@@ -10,8 +10,15 @@ import {
   RoundedRect,
   vec,
 } from '@shopify/react-native-skia';
+import { useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { colors } from '../../theme/colors';
+import {
+  AnimatedShot,
+  BombBlast,
+  TorpedoProjectile,
+  type MarkerKind,
+} from './battleship-markers';
 import ShipHull from './ShipHull';
 import { GRID } from './setup/ship-placement.constants';
 import type { Orientation, Placement, Shot } from './setup/ship-placement.types';
@@ -45,7 +52,23 @@ export type PlacedShip = {
   placement: Placement;
 };
 
+/** The most recent shot batch, replayed as an entrance animation. `id` bumps
+ *  every action so repeats still animate. Torpedo cells reveal left→right with
+ *  a projectile; single/bomb cells pop in together. */
+export type GridAction = {
+  id: number;
+  kind: 'single' | 'torpedo' | 'bomb';
+  cells: Shot[];
+};
+
+const ENTRY_MS = 300;
+const TORPEDO_PER_CELL_MS = 90;
+const SINK_PER_CELL_MS = 150;
+
 type Hover = { row: number; col: number; valid: boolean };
+type ActiveBatch = { keys: Set<string>; cells: Shot[]; kind: GridAction['kind'] };
+type SinkBatch = { keys: string[] };
+type Projectile = { row: number; fromCol: number; toCol: number };
 
 type Props = {
   boardSize: number;
@@ -56,6 +79,10 @@ type Props = {
   shots?: Shot[];
   /** Highlighted target cell (attack mode). */
   selectedCell?: { row: number; col: number } | null;
+  /** Cells a queued power-up would strike, outlined as a preview. */
+  previewCells?: { row: number; col: number }[];
+  /** Most recent shot batch to animate in (gameplay). */
+  action?: GridAction | null;
   /** Ship currently selected for placement — drawn hovering under the finger. */
   activeShip?: { size: number; color: string } | null;
   orientation?: Orientation;
@@ -78,6 +105,8 @@ export default function BattleshipGrid({
   placedShips = [],
   shots = [],
   selectedCell = null,
+  previewCells,
+  action = null,
   activeShip = null,
   orientation = 'h',
   isValidPlacement,
@@ -140,6 +169,77 @@ export default function BattleshipGrid({
   const active = activeShip !== null;
   // Only wire up touch handlers when the board is interactive.
   const touchHandlers = onCommit ? responder.panHandlers : {};
+
+  // --- entrance / sink / torpedo animations --------------------------------
+  const entry = useSharedValue(1);
+  const sink = useSharedValue(1);
+  const torpedo = useSharedValue(0);
+
+  const [batch, setBatch] = useState<ActiveBatch | null>(null);
+  const [sinkBatch, setSinkBatch] = useState<SinkBatch | null>(null);
+  const [projectile, setProjectile] = useState<Projectile | null>(null);
+
+  // Play the entrance animation for the newest action (single/bomb pop in
+  // together; a torpedo reveals left→right behind a moving projectile).
+  useEffect(() => {
+    if (!action || action.cells.length === 0) {
+      return;
+    }
+    const keys = new Set(action.cells.map(c => `${c.row},${c.col}`));
+    setBatch({ keys, cells: action.cells, kind: action.kind });
+
+    let duration = ENTRY_MS;
+    if (action.kind === 'torpedo') {
+      const cols = action.cells.map(c => c.col);
+      setProjectile({
+        row: action.cells[0]!.row,
+        fromCol: Math.min(...cols),
+        toCol: Math.max(...cols),
+      });
+      const sweep = action.cells.length * TORPEDO_PER_CELL_MS;
+      duration = sweep + ENTRY_MS;
+      torpedo.value = 0;
+      torpedo.value = withTiming(1, { duration: sweep });
+    }
+    entry.value = 0;
+    entry.value = withTiming(1, { duration });
+
+    const clear = setTimeout(() => {
+      setBatch(null);
+      setProjectile(null);
+    }, duration + 40);
+    return () => clearTimeout(clear);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [action?.id]);
+
+  // Animate ships as they sink: their cells form X squares left→right.
+  const sunkIds = placedShips.map(s => s.id).sort().join(',');
+  const prevSunkRef = useRef<string | null>(null);
+  useEffect(() => {
+    const prev = prevSunkRef.current;
+    prevSunkRef.current = sunkIds;
+    if (prev === null || sunkIds === prev) {
+      return;
+    }
+    const prevSet = new Set(prev ? prev.split(',') : []);
+    const newlySunk = placedShips.filter(s => !prevSet.has(s.id));
+    if (newlySunk.length === 0) {
+      return;
+    }
+    const keys: string[] = [];
+    for (const s of newlySunk) {
+      for (const { r, c } of cellsFor(s.placement, s.size)) {
+        keys.push(`${r},${c}`);
+      }
+    }
+    setSinkBatch({ keys });
+    const duration = keys.length * SINK_PER_CELL_MS;
+    sink.value = 0;
+    sink.value = withTiming(1, { duration });
+    const clear = setTimeout(() => setSinkBatch(null), duration + 40);
+    return () => clearTimeout(clear);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sunkIds]);
 
   const gridCells = Array.from({ length: GRID * GRID }, (_, i) => {
     const r = Math.floor(i / GRID);
@@ -220,16 +320,66 @@ export default function BattleshipGrid({
         )}
 
         {shots.map(shot => {
-          const key = `s${shot.row}-${shot.col}`;
+          const cellKey = `${shot.row},${shot.col}`;
+          const key = `s${cellKey}`;
           const cx = shot.col * cell + cell / 2;
           const cy = shot.row * cell + cell / 2;
+          const cellX = shot.col * cell + CELL_GAP / 2;
+          const cellY = shot.row * cell + CELL_GAP / 2;
+          const size = cell - CELL_GAP;
+          const isSunkCell = occupied.has(cellKey);
+          // A sinking ship's cells animate their X formation left→right.
+          const sinkIdx = sinkBatch ? sinkBatch.keys.indexOf(cellKey) : -1;
+          if (sinkIdx !== -1) {
+            const n = sinkBatch!.keys.length;
+            return (
+              <AnimatedShot
+                key={key}
+                kind="sunk"
+                cellX={cellX}
+                cellY={cellY}
+                cellSize={size}
+                cx={cx}
+                cy={cy}
+                progress={sink}
+                windowStart={sinkIdx / n}
+                windowEnd={(sinkIdx + 1) / n}
+              />
+            );
+          }
+          // A freshly-fired cell plays its entrance animation.
+          if (batch && batch.keys.has(cellKey)) {
+            const markerKind: MarkerKind = isSunkCell
+              ? 'sunk'
+              : shot.result === 'hit'
+                ? 'hit'
+                : 'miss';
+            const stagger = batch.kind === 'torpedo';
+            const idx = stagger
+              ? batch.cells.findIndex(c => `${c.row},${c.col}` === cellKey)
+              : 0;
+            const n = stagger ? batch.cells.length : 1;
+            return (
+              <AnimatedShot
+                key={key}
+                kind={markerKind}
+                cellX={cellX}
+                cellY={cellY}
+                cellSize={size}
+                cx={cx}
+                cy={cy}
+                progress={entry}
+                windowStart={stagger ? idx / n : 0}
+                windowEnd={stagger ? (idx + 1) / n : 1}
+              />
+            );
+          }
+          // Settled markers render statically.
           if (shot.result === 'miss') {
             return <Circle key={key} cx={cx} cy={cy} r={cell * 0.12} color={MISS_DOT} />;
           }
-          // A hit on a cell belonging to a fully-sunk ship (revealed via
-          // placedShips → occupied) becomes a red X; a hit on a ship still
+          // A hit on a fully-sunk ship becomes a red X; a hit on a ship still
           // afloat shows a glowing red circle.
-          const isSunkCell = occupied.has(`${shot.row},${shot.col}`);
           if (!isSunkCell) {
             return (
               <Group key={key}>
@@ -240,18 +390,36 @@ export default function BattleshipGrid({
               </Group>
             );
           }
-          const x = shot.col * cell + CELL_GAP / 2;
-          const y = shot.row * cell + CELL_GAP / 2;
-          const size = cell - CELL_GAP;
           const m = size * 0.28; // X arm inset from the cell edge
           return (
             <Group key={key}>
-              <RoundedRect x={x} y={y} width={size} height={size} r={CELL_RADIUS} color={HIT_FILL} />
-              <Line p1={vec(x + m, y + m)} p2={vec(x + size - m, y + size - m)} color="white" strokeWidth={2} />
-              <Line p1={vec(x + size - m, y + m)} p2={vec(x + m, y + size - m)} color="white" strokeWidth={2} />
+              <RoundedRect x={cellX} y={cellY} width={size} height={size} r={CELL_RADIUS} color={HIT_FILL} />
+              <Line p1={vec(cellX + m, cellY + m)} p2={vec(cellX + size - m, cellY + size - m)} color="white" strokeWidth={2} />
+              <Line p1={vec(cellX + size - m, cellY + m)} p2={vec(cellX + m, cellY + size - m)} color="white" strokeWidth={2} />
             </Group>
           );
         })}
+
+        {batch?.kind === 'bomb' &&
+          batch.cells.map(c => (
+            <BombBlast
+              key={`blast${c.row}-${c.col}`}
+              cx={c.col * cell + cell / 2}
+              cy={c.row * cell + cell / 2}
+              cellSize={cell - CELL_GAP}
+              progress={entry}
+            />
+          ))}
+
+        {projectile && (
+          <TorpedoProjectile
+            row={projectile.row}
+            fromCol={projectile.fromCol}
+            toCol={projectile.toCol}
+            cell={cell}
+            progress={torpedo}
+          />
+        )}
 
         {selectedCell && (
           <RoundedRect
@@ -265,6 +433,20 @@ export default function BattleshipGrid({
             color={colors.brandStart}
           />
         )}
+
+        {previewCells?.map(pc => (
+          <RoundedRect
+            key={`pv${pc.row}-${pc.col}`}
+            x={pc.col * cell + CELL_GAP / 2}
+            y={pc.row * cell + CELL_GAP / 2}
+            width={cell - CELL_GAP}
+            height={cell - CELL_GAP}
+            r={CELL_RADIUS}
+            style="stroke"
+            strokeWidth={2}
+            color={ACTIVE_CELL_BORDER}
+          />
+        ))}
 
         {hover &&
           activeShip &&

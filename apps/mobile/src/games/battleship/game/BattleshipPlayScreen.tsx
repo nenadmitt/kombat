@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -14,7 +14,10 @@ import Icon from '../../../components/Icon';
 import { GradientView } from '../../../components/GradientView';
 import { brandGradient, colors, radius, spacing } from '../../../theme/colors';
 import { fonts } from '../../../theme/typography';
-import BattleshipGrid, { type PlacedShip } from '../BattleshipGrid';
+import BattleshipGrid, {
+  type GridAction,
+  type PlacedShip,
+} from '../BattleshipGrid';
 import ShipGraphic from '../ShipGraphic';
 import {
   COLUMN_LABELS,
@@ -26,6 +29,14 @@ import {
 import type { Placement, Shot } from '../setup/ship-placement.types';
 import { formatCountdown } from '../setup/ship-placement.utils';
 import { OPPONENT_FLEET, resolveShot, sunkShipIds } from './opponent-fleet';
+import PowerupBar from './PowerupBar';
+import {
+  bombCells,
+  POINTS_PER_HIT,
+  POWERUP_COST,
+  type PowerupKind,
+  torpedoCells,
+} from './powerups';
 
 type Props = {
   placements: Record<string, Placement>;
@@ -50,6 +61,17 @@ export default function BattleshipPlayScreen({ placements, onExit }: Props) {
   const [shots, setShots] = useState<Shot[]>([]);
   const [selected, setSelected] = useState<{ row: number; col: number } | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(TURN_SECONDS);
+  const [points, setPoints] = useState(0);
+  const [armed, setArmed] = useState<PowerupKind | null>(null);
+  // Where an armed power-up will strike once FIRE is pressed.
+  const [powerupTarget, setPowerupTarget] = useState<{
+    row: number;
+    col: number;
+  } | null>(null);
+  // The most recent shot batch, handed to the grid to animate. The id bumps
+  // on every action so the grid replays even when the same cells repeat.
+  const [action, setAction] = useState<GridAction | null>(null);
+  const actionId = useRef(0);
 
   useEffect(() => {
     if (secondsLeft <= 0) {
@@ -82,23 +104,86 @@ export default function BattleshipPlayScreen({ placements, onExit }: Props) {
     placement: placements[s.id]!,
   }));
 
-  const handleTarget = (row: number, col: number) => {
+  // Commit a batch of shots (single, torpedo, or bomb), skipping cells already
+  // fired at, and hand the newly-added cells to the grid to animate.
+  // Commit a batch of shots, skip cells already fired at, hand the newly-added
+  // cells to the grid to animate, and award a point per fresh hit.
+  const applyShots = (batch: Shot[], kind: GridAction['kind']) => {
+    const added = batch.filter(s => !shotAt.has(`${s.row},${s.col}`));
+    if (added.length === 0) {
+      return;
+    }
+    const earned = added.filter(s => s.result === 'hit').length * POINTS_PER_HIT;
+    setShots(prev => [...prev, ...added]);
+    setPoints(p => p + earned);
+    actionId.current += 1;
+    setAction({ id: actionId.current, kind, cells: added });
+    setSecondsLeft(TURN_SECONDS);
+  };
+
+  const handleArm = (kind: PowerupKind) => {
+    if (points < POWERUP_COST) {
+      return;
+    }
+    setArmed(prev => (prev === kind ? null : kind));
+    setSelected(null);
+    setPowerupTarget(null);
+  };
+
+  // A grid tap only *selects* a target — firing happens via the FIRE button.
+  const handleGridCommit = (row: number, col: number) => {
+    if (armed) {
+      setPowerupTarget({ row, col });
+      return;
+    }
     if (shotAt.has(`${row},${col}`)) {
       return;
     }
     setSelected({ row, col });
   };
 
-  const canFire = mode === 'attack' && selected !== null;
+  // Cells an armed power-up would strike (row for torpedo, 3x3 for bomb). The
+  // torpedo previews the whole row so the enemy's position stays hidden.
+  const previewCells = useMemo(() => {
+    if (!armed || !powerupTarget) {
+      return undefined;
+    }
+    if (armed === 'torpedo') {
+      return Array.from({ length: GRID }, (_, c) => ({
+        row: powerupTarget.row,
+        col: c,
+      }));
+    }
+    return bombCells(powerupTarget.row, powerupTarget.col, OPPONENT_FLEET).map(
+      s => ({ row: s.row, col: s.col }),
+    );
+  }, [armed, powerupTarget]);
+
+  const canFire =
+    mode === 'attack' &&
+    (armed ? powerupTarget !== null && points >= POWERUP_COST : selected !== null);
 
   const handleFire = () => {
+    if (armed && powerupTarget) {
+      if (points < POWERUP_COST) {
+        return;
+      }
+      const batch =
+        armed === 'torpedo'
+          ? torpedoCells(powerupTarget.row, OPPONENT_FLEET)
+          : bombCells(powerupTarget.row, powerupTarget.col, OPPONENT_FLEET);
+      applyShots(batch, armed);
+      setPoints(p => p - POWERUP_COST);
+      setArmed(null);
+      setPowerupTarget(null);
+      return;
+    }
     if (!selected) {
       return;
     }
     const result = resolveShot(selected.row, selected.col, OPPONENT_FLEET);
-    setShots(prev => [...prev, { row: selected.row, col: selected.col, result }]);
+    applyShots([{ row: selected.row, col: selected.col, result }], 'single');
     setSelected(null);
-    setSecondsLeft(TURN_SECONDS);
   };
 
   const enemySunkCount = sunk.size;
@@ -209,8 +294,14 @@ export default function BattleshipPlayScreen({ placements, onExit }: Props) {
           <Text style={styles.gridTitle}>
             {isAttack ? 'ENEMY WATERS' : 'YOUR FLEET'}
           </Text>
-          <Text style={styles.gridHint}>
-            {isAttack ? 'Tap a cell to target' : 'Your deployed ships'}
+          <Text style={[styles.gridHint, armed && styles.gridHintArmed]}>
+            {!isAttack
+              ? 'Your deployed ships'
+              : armed === 'torpedo'
+                ? 'Tap a row, then Fire'
+                : armed === 'bomb'
+                  ? 'Tap an area, then Fire'
+                  : 'Tap a cell to target'}
           </Text>
         </View>
 
@@ -242,8 +333,10 @@ export default function BattleshipPlayScreen({ placements, onExit }: Props) {
               cell={cell}
               placedShips={revealedEnemy}
               shots={shots}
-              selectedCell={selected}
-              onCommit={handleTarget}
+              selectedCell={armed ? null : selected}
+              previewCells={previewCells}
+              action={action}
+              onCommit={handleGridCommit}
             />
           ) : (
             <BattleshipGrid boardSize={boardSize} cell={cell} placedShips={myFleet} />
@@ -272,6 +365,11 @@ export default function BattleshipPlayScreen({ placements, onExit }: Props) {
               {cellLabel(lastShot.row, lastShot.col)}
             </Text>
           </View>
+        )}
+
+        {/* Power-ups (attack only) */}
+        {isAttack && (
+          <PowerupBar points={points} armed={armed} onArm={handleArm} />
         )}
 
         {/* Enemy fleet remaining */}
@@ -320,8 +418,12 @@ export default function BattleshipPlayScreen({ placements, onExit }: Props) {
             positions={brandGradient.positions}
             style={[styles.fireButton, !canFire && styles.fireButtonDisabled]}
           >
-            <Icon type="target" color={colors.textPrimary} size={18} />
-            <Text style={styles.fireText}>FIRE</Text>
+            <Icon
+              type={armed === 'torpedo' ? 'rocket' : armed === 'bomb' ? 'bomb' : 'target'}
+              color={colors.textPrimary}
+              size={18}
+            />
+            <Text style={styles.fireText}>{armed ? 'LAUNCH' : 'FIRE'}</Text>
           </GradientView>
         </Pressable>
       </View>
@@ -503,6 +605,10 @@ const styles = StyleSheet.create({
   gridHint: {
     fontSize: 12,
     color: colors.textMuted,
+  },
+  gridHintArmed: {
+    fontFamily: fonts.bold,
+    color: colors.brandStart,
   },
   gridRow: {
     flexDirection: 'row',
