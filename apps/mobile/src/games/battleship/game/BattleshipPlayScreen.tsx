@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Canvas, Fill, RadialGradient, vec } from '@shopify/react-native-skia';
 
 import Icon from '../../../components/Icon';
+import GameResultScreen from '../../../components/GameResultScreen';
 import { GradientView } from '../../../components/GradientView';
 import { brandGradient, colors, radius, spacing } from '../../../theme/colors';
 import { fonts } from '../../../theme/typography';
@@ -41,6 +42,8 @@ import {
 type Props = {
   placements: Record<string, Placement>;
   onExit: () => void;
+  /** Leave the game entirely (used by the win/lose result screen). */
+  onQuit: () => void;
 };
 
 type Mode = 'attack' | 'fleet';
@@ -52,7 +55,7 @@ const TURN_SECONDS = 30;
 const cellLabel = (row: number, col: number) => `${COLUMN_LABELS[col]}${row + 1}`;
 
 /** The battle phase: attack the enemy waters, toggle to inspect your own fleet. */
-export default function BattleshipPlayScreen({ placements, onExit }: Props) {
+export default function BattleshipPlayScreen({ placements, onExit, onQuit }: Props) {
   const { width } = useWindowDimensions();
   const boardSize = Math.min(width - spacing.md * 2 - LABEL_GUTTER, 340);
   const cell = boardSize / GRID;
@@ -71,6 +74,9 @@ export default function BattleshipPlayScreen({ placements, onExit }: Props) {
   // on every action so the grid replays even when the same cells repeat.
   const [action, setAction] = useState<GridAction | null>(null);
   const actionId = useRef(0);
+  // Set when the turn timer runs out — the only way to lose in this
+  // single-player prototype (the opponent doesn't fire back).
+  const [lost, setLost] = useState(false);
 
   const shotAt = useMemo(
     () => new Set(shots.map(s => `${s.row},${s.col}`)),
@@ -192,6 +198,57 @@ export default function BattleshipPlayScreen({ placements, onExit }: Props) {
   const enemySunkCount = sunk.size;
   const isAttack = mode === 'attack';
 
+  // Win the moment every enemy ship is sunk (takes precedence over a timeout).
+  const won = enemySunkCount === SHIPS.length;
+  const result: 'win' | 'lose' | null = won ? 'win' : lost ? 'lose' : null;
+
+  if (result) {
+    const shotsFired = shots.length;
+    const hitsLanded = shots.filter(s => s.result === 'hit').length;
+    const accuracy = shotsFired ? Math.round((hitsLanded / shotsFired) * 100) : 0;
+    const stats = [
+      { value: `${shotsFired}`, label: 'SHOTS FIRED' },
+      { value: `${hitsLanded}`, label: 'HITS LANDED', highlight: true },
+      { value: `${accuracy}%`, label: 'ACCURACY' },
+      { value: `${enemySunkCount} / ${SHIPS.length}`, label: 'SHIPS SUNK', highlight: true },
+    ];
+    return won ? (
+      <GameResultScreen
+        variant="win"
+        icon="trophy"
+        eyebrow="FLEET DESTROYED"
+        title="VICTORY"
+        message="You sank every enemy ship and dominated the waters."
+        opponent={{ initial: 'K', label: 'DEFEATED', name: 'Kraken_92' }}
+        stats={stats}
+        rankProgress={{
+          delta: '+24 RP',
+          fillPct: 0.6,
+          rankLabel: 'Commodore II',
+          nextLabel: '128 RP to Admiral',
+        }}
+        onBack={onQuit}
+      />
+    ) : (
+      <GameResultScreen
+        variant="lose"
+        icon="anchor"
+        eyebrow="FLEET LOST"
+        title="DEFEAT"
+        message="Your fleet was wiped out. Regroup and strike back."
+        opponent={{ initial: 'K', label: 'LOST TO', name: 'Kraken_92' }}
+        stats={stats}
+        rankProgress={{
+          delta: '-12 RP',
+          fillPct: 0.2,
+          rankLabel: 'Commodore I',
+          nextLabel: '186 RP to next',
+        }}
+        onBack={onQuit}
+      />
+    );
+  }
+
   return (
     <SafeAreaView style={styles.screen}>
       <Canvas style={styles.glow}>
@@ -237,6 +294,7 @@ export default function BattleshipPlayScreen({ placements, onExit }: Props) {
             <TurnTimer
               seconds={TURN_SECONDS}
               resetSignal={action?.id ?? 0}
+              onExpire={() => setLost(true)}
               style={styles.turnTimer}
             />
             <Text style={styles.turnLabel}>YOUR TURN</Text>

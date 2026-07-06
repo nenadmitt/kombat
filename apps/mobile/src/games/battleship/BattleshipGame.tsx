@@ -18,6 +18,7 @@ export default function BattleshipGame() {
       <BattleshipPlayScreen
         placements={placements}
         onExit={() => setPhase('setup')}
+        onQuit={() => navigation.goBack()}
       />
     );
   }

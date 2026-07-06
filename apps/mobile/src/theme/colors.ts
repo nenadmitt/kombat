@@ -27,12 +27,22 @@ export const colors = {
   danger: '#ef4444',
   /** Positive/stake values, "your turn" status text. */
   success: '#10b981',
+  /** Victory / winner accent (gold). */
+  victoryGold: '#f5c451',
+  /** Defeat / loser accent (muted red). */
+  defeatRed: '#ec5b70',
 } as const;
 
 /** Brand gradient (purple → green), matching the auth-screen design. */
 export const brandGradient = {
   colors: [colors.brandStart, colors.brandEnd],
   positions: [0.25, 0.75],
+} as const;
+
+/** Gold gradient for victory accents (button, rank bar). */
+export const goldGradient = {
+  colors: [colors.victoryGold, colors.kombatAccent],
+  positions: [0.15, 0.85],
 } as const;
 
 /** Shared corner radii. */

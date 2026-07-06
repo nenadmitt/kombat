@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Text, type StyleProp, type TextStyle } from 'react-native';
 
 import { formatCountdown } from '../setup/ship-placement.utils';
@@ -8,6 +8,8 @@ type Props = {
   seconds: number;
   /** Bump this to restart the countdown (e.g. after each shot). */
   resetSignal?: number;
+  /** Fired once when the countdown reaches 0:00. */
+  onExpire?: () => void;
   style?: StyleProp<TextStyle>;
 };
 
@@ -17,8 +19,10 @@ type Props = {
  * board). One interval is created per mount/reset (not per tick) and it stops
  * at 0:00.
  */
-export default function TurnTimer({ seconds, resetSignal, style }: Props) {
+export default function TurnTimer({ seconds, resetSignal, onExpire, style }: Props) {
   const [left, setLeft] = useState(seconds);
+  const onExpireRef = useRef(onExpire);
+  onExpireRef.current = onExpire;
 
   useEffect(() => {
     setLeft(seconds);
@@ -33,6 +37,12 @@ export default function TurnTimer({ seconds, resetSignal, style }: Props) {
     }, 1000);
     return () => clearInterval(id);
   }, [seconds, resetSignal]);
+
+  useEffect(() => {
+    if (left === 0) {
+      onExpireRef.current?.();
+    }
+  }, [left]);
 
   return <Text style={style}>{formatCountdown(left)}</Text>;
 }
