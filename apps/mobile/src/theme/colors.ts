@@ -18,9 +18,9 @@ export const colors = {
   textMuted: '#94a3b8',
   /** Faint text (input placeholders, fine print). */
   textFaint: '#475569',
-  /** Brand gradient stops. */
+  /** Brand gradient stops (purple → green, matching the battleship icon). */
   brandStart: '#8b5cf6',
-  brandEnd: '#3b82f6',
+  brandEnd: '#00a070',
   /** KOMBAT (native token) accent — amber. */
   kombatAccent: '#f59e0b',
   /** Destructive actions (sign out). */
@@ -29,7 +29,7 @@ export const colors = {
   success: '#10b981',
 } as const;
 
-/** Brand gradient (purple → blue), matching the auth-screen design. */
+/** Brand gradient (purple → green), matching the auth-screen design. */
 export const brandGradient = {
   colors: [colors.brandStart, colors.brandEnd],
   positions: [0.25, 0.75],

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -27,9 +27,9 @@ import {
   SHIPS,
 } from '../setup/ship-placement.constants';
 import type { Placement, Shot } from '../setup/ship-placement.types';
-import { formatCountdown } from '../setup/ship-placement.utils';
 import { OPPONENT_FLEET, resolveShot, sunkShipIds } from './opponent-fleet';
 import PowerupBar from './PowerupBar';
+import TurnTimer from './TurnTimer';
 import {
   bombCells,
   POINTS_PER_HIT,
@@ -60,7 +60,6 @@ export default function BattleshipPlayScreen({ placements, onExit }: Props) {
   const [mode, setMode] = useState<Mode>('attack');
   const [shots, setShots] = useState<Shot[]>([]);
   const [selected, setSelected] = useState<{ row: number; col: number } | null>(null);
-  const [secondsLeft, setSecondsLeft] = useState(TURN_SECONDS);
   const [points, setPoints] = useState(0);
   const [armed, setArmed] = useState<PowerupKind | null>(null);
   // Where an armed power-up will strike once FIRE is pressed.
@@ -73,14 +72,6 @@ export default function BattleshipPlayScreen({ placements, onExit }: Props) {
   const [action, setAction] = useState<GridAction | null>(null);
   const actionId = useRef(0);
 
-  useEffect(() => {
-    if (secondsLeft <= 0) {
-      return;
-    }
-    const timer = setInterval(() => setSecondsLeft(s => Math.max(0, s - 1)), 1000);
-    return () => clearInterval(timer);
-  }, [secondsLeft]);
-
   const shotAt = useMemo(
     () => new Set(shots.map(s => `${s.row},${s.col}`)),
     [shots],
@@ -89,20 +80,28 @@ export default function BattleshipPlayScreen({ placements, onExit }: Props) {
   const lastShot = shots.length ? shots[shots.length - 1]! : null;
 
   // Sunk enemy ships are revealed as hull silhouettes on the attack board.
-  const revealedEnemy: PlacedShip[] = SHIPS.filter(s => sunk.has(s.id)).map(s => ({
-    id: s.id,
-    size: s.size,
-    color: s.color,
-    placement: OPPONENT_FLEET[s.id]!,
-  }));
+  const revealedEnemy: PlacedShip[] = useMemo(
+    () =>
+      SHIPS.filter(s => sunk.has(s.id)).map(s => ({
+        id: s.id,
+        size: s.size,
+        color: s.color,
+        placement: OPPONENT_FLEET[s.id]!,
+      })),
+    [sunk],
+  );
 
   // The player's own fleet, shown in the "fleet" view.
-  const myFleet: PlacedShip[] = SHIPS.filter(s => placements[s.id]).map(s => ({
-    id: s.id,
-    size: s.size,
-    color: s.color,
-    placement: placements[s.id]!,
-  }));
+  const myFleet: PlacedShip[] = useMemo(
+    () =>
+      SHIPS.filter(s => placements[s.id]).map(s => ({
+        id: s.id,
+        size: s.size,
+        color: s.color,
+        placement: placements[s.id]!,
+      })),
+    [placements],
+  );
 
   // Commit a batch of shots (single, torpedo, or bomb), skipping cells already
   // fired at, and hand the newly-added cells to the grid to animate.
@@ -118,7 +117,6 @@ export default function BattleshipPlayScreen({ placements, onExit }: Props) {
     setPoints(p => p + earned);
     actionId.current += 1;
     setAction({ id: actionId.current, kind, cells: added });
-    setSecondsLeft(TURN_SECONDS);
   };
 
   const handleArm = (kind: PowerupKind) => {
@@ -131,16 +129,21 @@ export default function BattleshipPlayScreen({ placements, onExit }: Props) {
   };
 
   // A grid tap only *selects* a target — firing happens via the FIRE button.
-  const handleGridCommit = (row: number, col: number) => {
-    if (armed) {
-      setPowerupTarget({ row, col });
-      return;
-    }
-    if (shotAt.has(`${row},${col}`)) {
-      return;
-    }
-    setSelected({ row, col });
-  };
+  // Memoized so the memoized BattleshipGrid can skip re-renders when unrelated
+  // state (points, animation batch, etc.) changes.
+  const handleGridCommit = useCallback(
+    (row: number, col: number) => {
+      if (armed) {
+        setPowerupTarget({ row, col });
+        return;
+      }
+      if (shotAt.has(`${row},${col}`)) {
+        return;
+      }
+      setSelected({ row, col });
+    },
+    [armed, shotAt],
+  );
 
   // Cells an armed power-up would strike (row for torpedo, 3x3 for bomb). The
   // torpedo previews the whole row so the enemy's position stays hidden.
@@ -231,7 +234,11 @@ export default function BattleshipPlayScreen({ placements, onExit }: Props) {
           </View>
 
           <View style={styles.turnBox}>
-            <Text style={styles.turnTimer}>{formatCountdown(secondsLeft)}</Text>
+            <TurnTimer
+              seconds={TURN_SECONDS}
+              resetSignal={action?.id ?? 0}
+              style={styles.turnTimer}
+            />
             <Text style={styles.turnLabel}>YOUR TURN</Text>
           </View>
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Canvas, Fill, RadialGradient, vec } from '@shopify/react-native-skia';
@@ -18,12 +18,12 @@ import {
   SHIPS,
   SHIP_BY_ID,
 } from './ship-placement.constants';
+import TurnTimer from '../game/TurnTimer';
 import type { Orientation, Placement } from './ship-placement.types';
 import {
   buildOccupied,
   canPlace,
   cellsFor,
-  formatCountdown,
   randomPlacement,
 } from './ship-placement.utils';
 
@@ -46,17 +46,6 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
   // A single orientation shared by every ship, toggled from the "Placing" row.
   const [orientation, setOrientation] = useState<Orientation>('h');
   const [selectedShipId, setSelectedShipId] = useState<string | null>(null);
-  const [secondsLeft, setSecondsLeft] = useState(SETUP_DURATION_SECONDS);
-
-  useEffect(() => {
-    if (secondsLeft <= 0) {
-      return;
-    }
-    const timer = setInterval(() => {
-      setSecondsLeft(s => Math.max(0, s - 1));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [secondsLeft]);
 
   const nextShipId = SHIPS.find(s => !placements[s.id])?.id;
   const activeShipId = selectedShipId ?? nextShipId;
@@ -69,52 +58,61 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
     setOrientation(prev => (prev === 'h' ? 'v' : 'h'));
   };
 
-  const handleRemove = (shipId: string) => {
+  const handleRemove = useCallback((shipId: string) => {
     setPlacements(prev => {
       const { [shipId]: _removed, ...rest } = prev;
       return rest;
     });
-  };
+  }, []);
 
-  const handlePlaceActive = (row: number, col: number) => {
-    if (!activeShipId) {
-      return;
-    }
-    const ship = SHIP_BY_ID[activeShipId]!;
-    const cells = cellsFor({ row, col, orientation }, ship.size);
-    if (!canPlace(cells, buildOccupied(placements))) {
-      return;
-    }
-    setPlacements(prev => ({ ...prev, [activeShipId]: { row, col, orientation } }));
-    setSelectedShipId(null);
-  };
-
-  const isValidPlacement = (row: number, col: number) => {
-    if (!activeShipId) {
-      return false;
-    }
-    const ship = SHIP_BY_ID[activeShipId]!;
-    const cells = cellsFor({ row, col, orientation }, ship.size);
-    return canPlace(cells, buildOccupied(placements));
-  };
-
-  const handleGridCommit = (row: number, col: number, isTap: boolean) => {
-    // Only a deliberate tap removes a placed ship — releasing a drag over an
-    // occupied cell is just an invalid drop and should do nothing, otherwise
-    // a missed drop silently deletes a ship the player already placed.
-    if (isTap) {
-      const occupantId = Object.keys(placements).find(id =>
-        cellsFor(placements[id]!, SHIP_BY_ID[id]!.size).some(
-          c => c.r === row && c.c === col,
-        ),
-      );
-      if (occupantId) {
-        handleRemove(occupantId);
+  const handlePlaceActive = useCallback(
+    (row: number, col: number) => {
+      if (!activeShipId) {
         return;
       }
-    }
-    handlePlaceActive(row, col);
-  };
+      const ship = SHIP_BY_ID[activeShipId]!;
+      const cells = cellsFor({ row, col, orientation }, ship.size);
+      if (!canPlace(cells, buildOccupied(placements))) {
+        return;
+      }
+      setPlacements(prev => ({ ...prev, [activeShipId]: { row, col, orientation } }));
+      setSelectedShipId(null);
+    },
+    [activeShipId, orientation, placements],
+  );
+
+  const isValidPlacement = useCallback(
+    (row: number, col: number) => {
+      if (!activeShipId) {
+        return false;
+      }
+      const ship = SHIP_BY_ID[activeShipId]!;
+      const cells = cellsFor({ row, col, orientation }, ship.size);
+      return canPlace(cells, buildOccupied(placements));
+    },
+    [activeShipId, orientation, placements],
+  );
+
+  const handleGridCommit = useCallback(
+    (row: number, col: number, isTap: boolean) => {
+      // Only a deliberate tap removes a placed ship — releasing a drag over an
+      // occupied cell is just an invalid drop and should do nothing, otherwise
+      // a missed drop silently deletes a ship the player already placed.
+      if (isTap) {
+        const occupantId = Object.keys(placements).find(id =>
+          cellsFor(placements[id]!, SHIP_BY_ID[id]!.size).some(
+            c => c.r === row && c.c === col,
+          ),
+        );
+        if (occupantId) {
+          handleRemove(occupantId);
+          return;
+        }
+      }
+      handlePlaceActive(row, col);
+    },
+    [placements, handleRemove, handlePlaceActive],
+  );
 
   const handleAutoPlace = () => {
     let next = { ...placements };
@@ -138,12 +136,16 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
   const placedCount = Object.keys(placements).length;
   const allPlaced = placedCount === SHIPS.length;
   const activeShip = activeShipId ? SHIP_BY_ID[activeShipId] : undefined;
-  const placedShips = SHIPS.filter(s => placements[s.id]).map(s => ({
-    id: s.id,
-    size: s.size,
-    color: s.color,
-    placement: placements[s.id]!,
-  }));
+  const placedShips = useMemo(
+    () =>
+      SHIPS.filter(s => placements[s.id]).map(s => ({
+        id: s.id,
+        size: s.size,
+        color: s.color,
+        placement: placements[s.id]!,
+      })),
+    [placements],
+  );
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -163,7 +165,7 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
         </Pressable>
         <View style={styles.headerCenter}>
           <Text style={styles.headerLabel}>BATTLE STARTS IN</Text>
-          <Text style={styles.headerTimer}>{formatCountdown(secondsLeft)}</Text>
+          <TurnTimer seconds={SETUP_DURATION_SECONDS} style={styles.headerTimer} />
         </View>
         <Pressable style={styles.headerButton}>
           <Icon type="more-horizontal" color={colors.textPrimary} size={20} />

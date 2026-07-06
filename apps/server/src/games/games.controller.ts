@@ -65,4 +65,13 @@ export class GamesController {
   ): Promise<GameRoomSummary | null> {
     return this.gamesService.getMyActiveRoom(securityContext.userId);
   }
+
+  @Get(":id/state")
+  async getRoomState(@SecurityContext() securityContext: ISecurityContext) {
+    // in here, we'll read the room state from memory.
+
+    // we'll allow only the user participating in the room to get the current state
+
+    // { roomId, myState: {}, oponentState: {} }
+  }
 }

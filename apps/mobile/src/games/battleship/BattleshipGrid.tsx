@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { PanResponder, StyleSheet, View } from 'react-native';
 import {
   BlurMask,
@@ -99,7 +99,7 @@ type Props = {
  *  selected, that ship's silhouette follows — its own color when the spot is
  *  valid, red when not. Releasing commits; a stationary tap on a placed ship
  *  removes it. */
-export default function BattleshipGrid({
+function BattleshipGrid({
   boardSize,
   cell,
   placedShips = [],
@@ -134,7 +134,14 @@ export default function BattleshipGrid({
       return;
     }
     const { row, col } = toCell(locationX, locationY);
-    setHover({ row, col, valid: isValidRef.current?.(row, col) ?? false });
+    const valid = isValidRef.current?.(row, col) ?? false;
+    // Bail out when the finger is still over the same cell — returning the
+    // previous state reference makes React skip the (expensive) grid re-render.
+    setHover(prev =>
+      prev && prev.row === row && prev.col === col && prev.valid === valid
+        ? prev
+        : { row, col, valid },
+    );
   };
 
   const responder = useRef(
@@ -160,12 +167,15 @@ export default function BattleshipGrid({
     }),
   ).current;
 
-  const occupied = new Set<string>();
-  for (const ship of placedShips) {
-    for (const { r, c } of cellsFor(ship.placement, ship.size)) {
-      occupied.add(`${r},${c}`);
+  const occupied = useMemo(() => {
+    const set = new Set<string>();
+    for (const ship of placedShips) {
+      for (const { r, c } of cellsFor(ship.placement, ship.size)) {
+        set.add(`${r},${c}`);
+      }
     }
-  }
+    return set;
+  }, [placedShips]);
   const active = activeShip !== null;
   // Only wire up touch handlers when the board is interactive.
   const touchHandlers = onCommit ? responder.panHandlers : {};
@@ -213,7 +223,10 @@ export default function BattleshipGrid({
   }, [action?.id]);
 
   // Animate ships as they sink: their cells form X squares left→right.
-  const sunkIds = placedShips.map(s => s.id).sort().join(',');
+  const sunkIds = useMemo(
+    () => placedShips.map(s => s.id).sort().join(','),
+    [placedShips],
+  );
   const prevSunkRef = useRef<string | null>(null);
   useEffect(() => {
     const prev = prevSunkRef.current;
@@ -241,11 +254,15 @@ export default function BattleshipGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sunkIds]);
 
-  const gridCells = Array.from({ length: GRID * GRID }, (_, i) => {
-    const r = Math.floor(i / GRID);
-    const c = i % GRID;
-    return { r, c, occupied: occupied.has(`${r},${c}`) };
-  });
+  const gridCells = useMemo(
+    () =>
+      Array.from({ length: GRID * GRID }, (_, i) => {
+        const r = Math.floor(i / GRID);
+        const c = i % GRID;
+        return { r, c, occupied: occupied.has(`${r},${c}`) };
+      }),
+    [occupied],
+  );
 
   const renderShip = (
     key: string,
@@ -463,3 +480,5 @@ export default function BattleshipGrid({
     </View>
   );
 }
+
+export default memo(BattleshipGrid);
