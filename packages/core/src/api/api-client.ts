@@ -3,6 +3,7 @@ import type {
   UserProfile,
 } from '../authentication/authentication.types';
 import type { GameRoomSummary, GameType } from '../games/game-room.types';
+import type { BattleshipRoomState } from '../games/battleship/battleship.protocol';
 import type {
   CreateWalletResponse,
   WalletNetwork,
@@ -96,6 +97,11 @@ export class ApiClient {
   /** The current user's own open room, if any — null when they don't have one. */
   getMyActiveGameRoom(): Promise<GameRoomSummary | null> {
     return this.request('GET', '/games/rooms/mine', undefined, true);
+  }
+
+  /** The requester's personalized Battleship match state — used to mount/resume. */
+  getBattleshipRoomState(roomId: string): Promise<BattleshipRoomState> {
+    return this.request('GET', `/games/rooms/${roomId}/state`, undefined, true);
   }
 
   private async request<T>(

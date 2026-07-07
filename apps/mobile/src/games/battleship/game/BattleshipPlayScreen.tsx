@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Canvas, Fill, RadialGradient, vec } from '@shopify/react-native-skia';
+import type { FireKind } from '@gaming-platform/core';
 
 import Icon from '../../../components/Icon';
 import GameResultScreen from '../../../components/GameResultScreen';
@@ -27,103 +29,122 @@ import {
   ROW_LABELS,
   SHIPS,
 } from '../setup/ship-placement.constants';
-import type { Placement, Shot } from '../setup/ship-placement.types';
-import { OPPONENT_FLEET, resolveShot, sunkShipIds } from './opponent-fleet';
+import type { Shot } from '../setup/ship-placement.types';
 import PowerupBar from './PowerupBar';
 import TurnTimer from './TurnTimer';
-import {
-  bombCells,
-  POINTS_PER_HIT,
-  POWERUP_COST,
-  type PowerupKind,
-  torpedoCells,
-} from './powerups';
-
-type Props = {
-  placements: Record<string, Placement>;
-  onExit: () => void;
-  /** Leave the game entirely (used by the win/lose result screen). */
-  onQuit: () => void;
-};
+import { bombCells, POWERUP_COST, type PowerupKind } from './powerups';
 
 type Mode = 'attack' | 'fleet';
 
+export type BattleshipPlayScreenProps = {
+  /** My own placed fleet (fleet view). */
+  myFleet: PlacedShip[];
+  /** Shots I have fired (attack view markers). */
+  myShots: Shot[];
+  /** Shots the opponent has fired at me (fleet view markers). */
+  opponentShots: Shot[];
+  /** Sunk enemy ships, revealed on the attack view. */
+  revealedEnemyShips: PlacedShip[];
+  /** My charge points. */
+  points: number;
+  /** Whether it's my turn (gates FIRE + hint treatment). */
+  myTurn: boolean;
+  /** Animation batch for my most recent shot. */
+  action: GridAction | null;
+  opponent: { initial: string; name: string };
+  /** Enemy ships I've sunk / my ships the opponent has sunk (header counts). */
+  sunkByMe: number;
+  sunkByOpponent: number;
+  /** Epoch ms the current turn ends (null outside an active turn). */
+  turnDeadline: number | null;
+  /** Socket connection indicators. */
+  myOnline: boolean;
+  opponentOnline: boolean;
+  result: 'win' | 'lose' | null;
+  onFire: (kind: FireKind, row: number, col: number) => void;
+  onTimerExpire?: () => void;
+  /** Header back — leaving an in-progress match forfeits it. */
+  onExit: () => void;
+  onQuit: () => void;
+};
+
 const GLOW_COLOR = 'rgba(139, 92, 246, 0.3)';
 const GLOW_HEIGHT = 420;
-const TURN_SECONDS = 30;
+/** Pause before auto-switching boards so the last shot's markers are seen. */
+const MODE_SWITCH_DELAY_MS = 1500;
 
 const cellLabel = (row: number, col: number) => `${COLUMN_LABELS[col]}${row + 1}`;
 
-/** The battle phase: attack the enemy waters, toggle to inspect your own fleet. */
-export default function BattleshipPlayScreen({ placements, onExit, onQuit }: Props) {
+/**
+ * Pure-UI battle screen: renders entirely from props and reports intents via
+ * callbacks. It never resolves shots — an engine (demo bot or multiplayer
+ * socket) owns the game state and feeds it back in. Only view-local interaction
+ * state (mode, selection, armed power-up) lives here.
+ */
+export default function BattleshipPlayScreen({
+  myFleet,
+  myShots,
+  opponentShots,
+  revealedEnemyShips,
+  points,
+  myTurn,
+  action,
+  opponent,
+  sunkByMe,
+  sunkByOpponent,
+  turnDeadline,
+  myOnline,
+  opponentOnline,
+  result,
+  onFire,
+  onTimerExpire,
+  onExit,
+  onQuit,
+}: BattleshipPlayScreenProps) {
   const { width } = useWindowDimensions();
   const boardSize = Math.min(width - spacing.md * 2 - LABEL_GUTTER, 340);
   const cell = boardSize / GRID;
 
   const [mode, setMode] = useState<Mode>('attack');
-  const [shots, setShots] = useState<Shot[]>([]);
   const [selected, setSelected] = useState<{ row: number; col: number } | null>(null);
-  const [points, setPoints] = useState(0);
   const [armed, setArmed] = useState<PowerupKind | null>(null);
-  // Where an armed power-up will strike once FIRE is pressed.
   const [powerupTarget, setPowerupTarget] = useState<{
     row: number;
     col: number;
   } | null>(null);
-  // The most recent shot batch, handed to the grid to animate. The id bumps
-  // on every action so the grid replays even when the same cells repeat.
-  const [action, setAction] = useState<GridAction | null>(null);
-  const actionId = useRef(0);
-  // Set when the turn timer runs out — the only way to lose in this
-  // single-player prototype (the opponent doesn't fire back).
-  const [lost, setLost] = useState(false);
+
+  // Clear any pending selection whenever the turn leaves me.
+  useEffect(() => {
+    if (!myTurn) {
+      setSelected(null);
+      setArmed(null);
+      setPowerupTarget(null);
+    }
+  }, [myTurn]);
+
+  // Follow the action: my turn shows enemy waters, the opponent's turn shows
+  // my fleet. The switch is delayed a beat so the shot that ended the turn is
+  // still visible; the manual toggle keeps working in between.
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setMode(myTurn ? 'attack' : 'fleet'),
+      MODE_SWITCH_DELAY_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [myTurn]);
 
   const shotAt = useMemo(
-    () => new Set(shots.map(s => `${s.row},${s.col}`)),
-    [shots],
+    () => new Set(myShots.map(s => `${s.row},${s.col}`)),
+    [myShots],
   );
-  const sunk = useMemo(() => sunkShipIds(OPPONENT_FLEET, shots), [shots]);
-  const lastShot = shots.length ? shots[shots.length - 1]! : null;
-
-  // Sunk enemy ships are revealed as hull silhouettes on the attack board.
-  const revealedEnemy: PlacedShip[] = useMemo(
-    () =>
-      SHIPS.filter(s => sunk.has(s.id)).map(s => ({
-        id: s.id,
-        size: s.size,
-        color: s.color,
-        placement: OPPONENT_FLEET[s.id]!,
-      })),
-    [sunk],
+  const sunkEnemyIds = useMemo(
+    () => new Set(revealedEnemyShips.map(s => s.id)),
+    [revealedEnemyShips],
   );
-
-  // The player's own fleet, shown in the "fleet" view.
-  const myFleet: PlacedShip[] = useMemo(
-    () =>
-      SHIPS.filter(s => placements[s.id]).map(s => ({
-        id: s.id,
-        size: s.size,
-        color: s.color,
-        placement: placements[s.id]!,
-      })),
-    [placements],
-  );
-
-  // Commit a batch of shots (single, torpedo, or bomb), skipping cells already
-  // fired at, and hand the newly-added cells to the grid to animate.
-  // Commit a batch of shots, skip cells already fired at, hand the newly-added
-  // cells to the grid to animate, and award a point per fresh hit.
-  const applyShots = (batch: Shot[], kind: GridAction['kind']) => {
-    const added = batch.filter(s => !shotAt.has(`${s.row},${s.col}`));
-    if (added.length === 0) {
-      return;
-    }
-    const earned = added.filter(s => s.result === 'hit').length * POINTS_PER_HIT;
-    setShots(prev => [...prev, ...added]);
-    setPoints(p => p + earned);
-    actionId.current += 1;
-    setAction({ id: actionId.current, kind, cells: added });
-  };
+  const lastShot = myShots.length ? myShots[myShots.length - 1]! : null;
+  const lastIncoming = opponentShots.length
+    ? opponentShots[opponentShots.length - 1]!
+    : null;
 
   const handleArm = (kind: PowerupKind) => {
     if (points < POWERUP_COST) {
@@ -134,11 +155,11 @@ export default function BattleshipPlayScreen({ placements, onExit, onQuit }: Pro
     setPowerupTarget(null);
   };
 
-  // A grid tap only *selects* a target — firing happens via the FIRE button.
-  // Memoized so the memoized BattleshipGrid can skip re-renders when unrelated
-  // state (points, animation batch, etc.) changes.
   const handleGridCommit = useCallback(
     (row: number, col: number) => {
+      if (!myTurn) {
+        return;
+      }
       if (armed) {
         setPowerupTarget({ row, col });
         return;
@@ -148,11 +169,12 @@ export default function BattleshipPlayScreen({ placements, onExit, onQuit }: Pro
       }
       setSelected({ row, col });
     },
-    [armed, shotAt],
+    [myTurn, armed, shotAt],
   );
 
   // Cells an armed power-up would strike (row for torpedo, 3x3 for bomb). The
-  // torpedo previews the whole row so the enemy's position stays hidden.
+  // torpedo previews the whole row so the enemy's position stays hidden; the
+  // empty-fleet bombCells call is used purely for its (clamped) geometry.
   const previewCells = useMemo(() => {
     if (!armed || !powerupTarget) {
       return undefined;
@@ -163,12 +185,14 @@ export default function BattleshipPlayScreen({ placements, onExit, onQuit }: Pro
         col: c,
       }));
     }
-    return bombCells(powerupTarget.row, powerupTarget.col, OPPONENT_FLEET).map(
-      s => ({ row: s.row, col: s.col }),
-    );
+    return bombCells(powerupTarget.row, powerupTarget.col, {}).map(s => ({
+      row: s.row,
+      col: s.col,
+    }));
   }, [armed, powerupTarget]);
 
   const canFire =
+    myTurn &&
     mode === 'attack' &&
     (armed ? powerupTarget !== null && points >= POWERUP_COST : selected !== null);
 
@@ -177,56 +201,51 @@ export default function BattleshipPlayScreen({ placements, onExit, onQuit }: Pro
       if (points < POWERUP_COST) {
         return;
       }
-      const batch =
-        armed === 'torpedo'
-          ? torpedoCells(powerupTarget.row, OPPONENT_FLEET)
-          : bombCells(powerupTarget.row, powerupTarget.col, OPPONENT_FLEET);
-      applyShots(batch, armed);
-      setPoints(p => p - POWERUP_COST);
+      onFire(armed, powerupTarget.row, powerupTarget.col);
       setArmed(null);
       setPowerupTarget(null);
       return;
     }
-    if (!selected) {
-      return;
+    if (selected) {
+      onFire('single', selected.row, selected.col);
+      setSelected(null);
     }
-    const result = resolveShot(selected.row, selected.col, OPPONENT_FLEET);
-    applyShots([{ row: selected.row, col: selected.col, result }], 'single');
-    setSelected(null);
   };
 
-  const enemySunkCount = sunk.size;
   const isAttack = mode === 'attack';
+  // Banner shows my last shot on the attack view, the opponent's on fleet.
+  const bannerShot = isAttack ? lastShot : lastIncoming;
 
-  // Win the moment every enemy ship is sunk (takes precedence over a timeout).
-  const won = enemySunkCount === SHIPS.length;
-  const result: 'win' | 'lose' | null = won ? 'win' : lost ? 'lose' : null;
+  const handleHeaderBack = () => {
+    Alert.alert(
+      'Leave match?',
+      'If you leave now you forfeit and lose the match.',
+      [
+        { text: 'Stay', style: 'cancel' },
+        { text: 'Leave', style: 'destructive', onPress: onExit },
+      ],
+    );
+  };
 
   if (result) {
-    const shotsFired = shots.length;
-    const hitsLanded = shots.filter(s => s.result === 'hit').length;
+    const shotsFired = myShots.length;
+    const hitsLanded = myShots.filter(s => s.result === 'hit').length;
     const accuracy = shotsFired ? Math.round((hitsLanded / shotsFired) * 100) : 0;
     const stats = [
       { value: `${shotsFired}`, label: 'SHOTS FIRED' },
       { value: `${hitsLanded}`, label: 'HITS LANDED', highlight: true },
       { value: `${accuracy}%`, label: 'ACCURACY' },
-      { value: `${enemySunkCount} / ${SHIPS.length}`, label: 'SHIPS SUNK', highlight: true },
+      { value: `${sunkByMe} / ${SHIPS.length}`, label: 'SHIPS SUNK', highlight: true },
     ];
-    return won ? (
+    return result === 'win' ? (
       <GameResultScreen
         variant="win"
         icon="trophy"
         eyebrow="FLEET DESTROYED"
         title="VICTORY"
         message="You sank every enemy ship and dominated the waters."
-        opponent={{ initial: 'K', label: 'DEFEATED', name: 'Kraken_92' }}
+        opponent={{ initial: opponent.initial, label: 'DEFEATED', name: opponent.name }}
         stats={stats}
-        rankProgress={{
-          delta: '+24 RP',
-          fillPct: 0.6,
-          rankLabel: 'Commodore II',
-          nextLabel: '128 RP to Admiral',
-        }}
         onBack={onQuit}
       />
     ) : (
@@ -236,14 +255,8 @@ export default function BattleshipPlayScreen({ placements, onExit, onQuit }: Pro
         eyebrow="FLEET LOST"
         title="DEFEAT"
         message="Your fleet was wiped out. Regroup and strike back."
-        opponent={{ initial: 'K', label: 'LOST TO', name: 'Kraken_92' }}
+        opponent={{ initial: opponent.initial, label: 'LOST TO', name: opponent.name }}
         stats={stats}
-        rankProgress={{
-          delta: '-12 RP',
-          fillPct: 0.2,
-          rankLabel: 'Commodore I',
-          nextLabel: '186 RP to next',
-        }}
         onBack={onQuit}
       />
     );
@@ -262,7 +275,7 @@ export default function BattleshipPlayScreen({ placements, onExit, onQuit }: Pro
       </Canvas>
 
       <View style={styles.header}>
-        <Pressable style={styles.headerButton} onPress={onExit}>
+        <Pressable style={styles.headerButton} onPress={handleHeaderBack}>
           <Icon type="chevron-left" color={colors.textPrimary} size={20} />
         </Pressable>
         <View style={styles.headerCenter}>
@@ -283,32 +296,53 @@ export default function BattleshipPlayScreen({ placements, onExit, onQuit }: Pro
           <View style={styles.playerSide}>
             <View style={[styles.avatar, styles.avatarYou]}>
               <Text style={styles.avatarText}>Y</Text>
+              <View
+                style={[
+                  styles.presenceDot,
+                  { backgroundColor: myOnline ? colors.success : colors.danger },
+                ]}
+              />
             </View>
             <View>
               <Text style={styles.playerName}>You</Text>
-              <Text style={styles.playerSub}>0 / {SHIPS.length} sunk</Text>
+              <Text style={styles.playerSub}>
+                {sunkByOpponent} / {SHIPS.length} sunk
+              </Text>
             </View>
           </View>
 
           <View style={styles.turnBox}>
             <TurnTimer
-              seconds={TURN_SECONDS}
-              resetSignal={action?.id ?? 0}
-              onExpire={() => setLost(true)}
+              deadline={turnDeadline}
+              onExpire={onTimerExpire}
               style={styles.turnTimer}
             />
-            <Text style={styles.turnLabel}>YOUR TURN</Text>
+            <Text style={styles.turnLabel}>
+              {myTurn ? 'YOUR TURN' : 'THEIR TURN'}
+            </Text>
           </View>
 
           <View style={[styles.playerSide, styles.playerSideRight]}>
             <View style={styles.playerRightText}>
-              <Text style={styles.playerName}>Kraken</Text>
+              <Text style={styles.playerName} numberOfLines={1}>
+                {opponent.name}
+              </Text>
               <Text style={styles.playerSub}>
-                {enemySunkCount} / {SHIPS.length} sunk
+                {sunkByMe} / {SHIPS.length} sunk
               </Text>
             </View>
             <View style={[styles.avatar, styles.avatarEnemy]}>
-              <Text style={styles.avatarText}>K</Text>
+              <Text style={styles.avatarText}>{opponent.initial}</Text>
+              <View
+                style={[
+                  styles.presenceDot,
+                  {
+                    backgroundColor: opponentOnline
+                      ? colors.success
+                      : colors.danger,
+                  },
+                ]}
+              />
             </View>
           </View>
         </View>
@@ -359,14 +393,16 @@ export default function BattleshipPlayScreen({ placements, onExit, onQuit }: Pro
           <Text style={styles.gridTitle}>
             {isAttack ? 'ENEMY WATERS' : 'YOUR FLEET'}
           </Text>
-          <Text style={[styles.gridHint, armed && styles.gridHintArmed]}>
+          <Text style={[styles.gridHint, isAttack && armed && styles.gridHintArmed]}>
             {!isAttack
-              ? 'Your deployed ships'
-              : armed === 'torpedo'
-                ? 'Tap a row, then Fire'
-                : armed === 'bomb'
-                  ? 'Tap an area, then Fire'
-                  : 'Tap a cell to target'}
+              ? 'Incoming fire'
+              : !myTurn
+                ? "Opponent's turn"
+                : armed === 'torpedo'
+                  ? 'Tap a row, then Fire'
+                  : armed === 'bomb'
+                    ? 'Tap an area, then Fire'
+                    : 'Tap a cell to target'}
           </Text>
         </View>
 
@@ -392,28 +428,46 @@ export default function BattleshipPlayScreen({ placements, onExit, onQuit }: Pro
             ))}
           </View>
 
-          {isAttack ? (
-            <BattleshipGrid
-              boardSize={boardSize}
-              cell={cell}
-              placedShips={revealedEnemy}
-              shots={shots}
-              selectedCell={armed ? null : selected}
-              previewCells={previewCells}
-              action={action}
-              onCommit={handleGridCommit}
-            />
-          ) : (
-            <BattleshipGrid boardSize={boardSize} cell={cell} placedShips={myFleet} />
-          )}
+          {/* Both boards stay mounted and laid out; toggling only flips
+              opacity (not `display`, which tears down the Skia canvas surface
+              and leaves it blank on the way back). They're stacked in a fixed
+              square so only the active one takes visual/touch precedence. */}
+          <View style={{ width: boardSize, height: boardSize }}>
+            <View
+              style={[styles.boardLayer, !isAttack && styles.hiddenBoard]}
+              pointerEvents={isAttack ? 'auto' : 'none'}
+            >
+              <BattleshipGrid
+                boardSize={boardSize}
+                cell={cell}
+                placedShips={revealedEnemyShips}
+                shots={myShots}
+                selectedCell={armed ? null : selected}
+                previewCells={previewCells}
+                action={action}
+                onCommit={handleGridCommit}
+              />
+            </View>
+            <View
+              style={[styles.boardLayer, isAttack && styles.hiddenBoard]}
+              pointerEvents={isAttack ? 'none' : 'auto'}
+            >
+              <BattleshipGrid
+                boardSize={boardSize}
+                cell={cell}
+                placedShips={myFleet}
+                shots={opponentShots}
+              />
+            </View>
+          </View>
         </View>
 
-        {/* Last-shot result banner (attack only) */}
-        {isAttack && lastShot && (
+        {/* Last-shot result banner */}
+        {bannerShot && (
           <View
             style={[
               styles.banner,
-              lastShot.result === 'hit' ? styles.bannerHit : styles.bannerMiss,
+              bannerShot.result === 'hit' ? styles.bannerHit : styles.bannerMiss,
             ]}
           >
             <View
@@ -421,13 +475,15 @@ export default function BattleshipPlayScreen({ placements, onExit, onQuit }: Pro
                 styles.bannerDot,
                 {
                   backgroundColor:
-                    lastShot.result === 'hit' ? colors.danger : colors.textMuted,
+                    bannerShot.result === 'hit'
+                      ? colors.danger
+                      : colors.textMuted,
                 },
               ]}
             />
             <Text style={styles.bannerText}>
-              {lastShot.result === 'hit' ? 'DIRECT HIT' : 'MISS'} ·{' '}
-              {cellLabel(lastShot.row, lastShot.col)}
+              {bannerShot.result === 'hit' ? 'DIRECT HIT' : 'MISS'} ·{' '}
+              {cellLabel(bannerShot.row, bannerShot.col)}
             </Text>
           </View>
         )}
@@ -442,7 +498,7 @@ export default function BattleshipPlayScreen({ placements, onExit, onQuit }: Pro
           <Text style={styles.sectionLabel}>ENEMY FLEET REMAINING</Text>
           <View style={styles.fleetRow}>
             {SHIPS.map(ship => {
-              const isSunk = sunk.has(ship.id);
+              const isSunk = sunkEnemyIds.has(ship.id);
               return (
                 <View key={ship.id} style={styles.fleetShip}>
                   <View style={isSunk && styles.fleetSunk}>
@@ -567,6 +623,7 @@ const styles = StyleSheet.create({
   },
   playerRightText: {
     alignItems: 'flex-end',
+    flexShrink: 1,
   },
   avatar: {
     width: 40,
@@ -574,6 +631,16 @@ const styles = StyleSheet.create({
     borderRadius: radius.chip,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  presenceDot: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: colors.background,
   },
   avatarYou: {
     backgroundColor: colors.brandStart,
@@ -677,6 +744,14 @@ const styles = StyleSheet.create({
   },
   gridRow: {
     flexDirection: 'row',
+  },
+  boardLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  hiddenBoard: {
+    opacity: 0,
   },
   axisLabel: {
     fontSize: 11,

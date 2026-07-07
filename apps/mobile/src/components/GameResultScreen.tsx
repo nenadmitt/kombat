@@ -31,17 +31,6 @@ export type ResultOpponent = {
   name: string;
 };
 
-export type ResultRankProgress = {
-  /** e.g. "+24 RP" / "-12 RP". */
-  delta: string;
-  /** Progress bar fill, 0..1. */
-  fillPct: number;
-  /** e.g. "Commodore II". */
-  rankLabel: string;
-  /** e.g. "128 RP to Admiral". */
-  nextLabel: string;
-};
-
 type Props = {
   variant: ResultVariant;
   /** Hero glyph in the ring. */
@@ -55,7 +44,6 @@ type Props = {
   opponent?: ResultOpponent;
   /** Exactly four reads well in the 2x2 grid, but any count wraps. */
   stats: ResultStat[];
-  rankProgress?: ResultRankProgress;
   /** Primary action — the "Back" button. */
   onBack: () => void;
   backLabel?: string;
@@ -100,7 +88,6 @@ export default function GameResultScreen({
   message,
   opponent,
   stats,
-  rankProgress,
   onBack,
   backLabel = 'Back',
   onHome,
@@ -160,31 +147,6 @@ export default function GameResultScreen({
             ))}
           </View>
 
-          {rankProgress && (
-            <View style={styles.rankCard}>
-              <View style={styles.rankHeader}>
-                <Text style={styles.rankTitle}>RANK PROGRESS</Text>
-                <Text style={[styles.rankDelta, { color: theme.accent }]}>
-                  {rankProgress.delta}
-                </Text>
-              </View>
-              <View style={styles.rankTrack}>
-                <GradientView
-                  colors={theme.gradient.colors}
-                  positions={theme.gradient.positions}
-                  style={[
-                    styles.rankFill,
-                    { width: `${Math.min(Math.max(rankProgress.fillPct, 0), 1) * 100}%` },
-                  ]}
-                />
-              </View>
-              <View style={styles.rankFooter}>
-                <Text style={styles.rankLabel}>{rankProgress.rankLabel}</Text>
-                <Text style={styles.rankNext}>{rankProgress.nextLabel}</Text>
-              </View>
-            </View>
-          )}
-
           <Pressable onPress={onBack} style={styles.primaryWrapper}>
             <GradientView
               colors={theme.gradient.colors}
@@ -238,10 +200,6 @@ const styles = StyleSheet.create({
   },
   card: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.hero,
     padding: spacing.md,
   },
   iconRing: {
@@ -285,8 +243,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     alignSelf: 'stretch',
     backgroundColor: colors.cardBackground,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
     borderRadius: radius.card,
     padding: spacing.sm,
     marginBottom: spacing.sm,
@@ -324,8 +280,6 @@ const styles = StyleSheet.create({
     width: '48.5%',
     flexGrow: 1,
     backgroundColor: colors.cardBackground,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
     borderRadius: radius.card,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.sm,
@@ -341,55 +295,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semiBold,
     color: colors.textMuted,
     letterSpacing: 0.5,
-  },
-  rankCard: {
-    alignSelf: 'stretch',
-    backgroundColor: colors.cardBackground,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.card,
-    padding: spacing.sm,
-    marginTop: spacing.sm,
-    gap: spacing.xs,
-  },
-  rankHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  rankTitle: {
-    fontSize: 11,
-    fontFamily: fonts.bold,
-    color: colors.textMuted,
-    letterSpacing: 0.5,
-  },
-  rankDelta: {
-    fontSize: 13,
-    fontFamily: fonts.extraBold,
-  },
-  rankTrack: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.surfaceMuted,
-    overflow: 'hidden',
-  },
-  rankFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  rankFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  rankLabel: {
-    fontSize: 12,
-    fontFamily: fonts.bold,
-    color: colors.textPrimary,
-  },
-  rankNext: {
-    fontSize: 12,
-    color: colors.textMuted,
   },
   primaryWrapper: {
     alignSelf: 'stretch',
@@ -421,8 +326,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.cardBackground,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
   },
   secondaryText: {
     fontSize: 14,

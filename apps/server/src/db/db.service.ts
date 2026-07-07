@@ -142,6 +142,14 @@ export class DbService {
     );
   }
 
+  /** Flip a room to Completed once its match has a winner. */
+  async completeGameRoom(id: string): Promise<void> {
+    await this.gameRoomRepository.update(
+      { id },
+      { status: GameRoomStatus.Completed },
+    );
+  }
+
   async deleteGameRoom(id: string): Promise<void> {
     await this.gameRoomRepository.delete({ id });
   }

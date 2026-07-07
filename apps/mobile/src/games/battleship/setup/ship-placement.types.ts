@@ -1,24 +1,18 @@
-export type Orientation = 'h' | 'v';
+// Battleship domain types now live in @gaming-platform/core (shared with the
+// server). Re-exported here so existing imports keep working; the only
+// mobile-specific addition is `ShipDef`, which carries a display color.
+import type { ShipSpec } from '@gaming-platform/core';
 
-export type ShipDef = {
-  id: string;
-  label: string;
-  size: number;
-  color: string;
-};
+export type {
+  Cell,
+  FleetPlacements,
+  Orientation,
+  Placement,
+  PowerupKind,
+  ShipSpec,
+  Shot,
+  ShotResult,
+} from '@gaming-platform/core';
 
-export type Cell = { r: number; c: number };
-
-export type Placement = {
-  row: number;
-  col: number;
-  orientation: Orientation;
-};
-
-export type ShotResult = 'hit' | 'miss';
-
-export type Shot = {
-  row: number;
-  col: number;
-  result: ShotResult;
-};
+/** A ship class plus its display color (mobile-only presentation). */
+export type ShipDef = ShipSpec & { color: string };

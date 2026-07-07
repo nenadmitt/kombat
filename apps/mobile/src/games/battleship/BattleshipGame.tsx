@@ -1,35 +1,70 @@
-import { useState } from 'react';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
 import BattleshipPlayScreen from './game/BattleshipPlayScreen';
+import WaitingForOpponent from './game/WaitingForOpponent';
+import type { BattleshipEngine } from './game/battleship-engine';
+import { useDemoBattleship } from './game/useDemoBattleship';
+import { useMultiplayerBattleship } from './game/useMultiplayerBattleship';
 import BattleshipSetupScreen from './setup/BattleshipSetupScreen';
-import type { Placement } from './setup/ship-placement.types';
 
-type Phase = 'setup' | 'game';
-
-/** Battleship, single-player local screen: fleet setup, then the battle itself. */
+/**
+ * Battleship container. Owns the mode via one of two engines, chosen from the
+ * route: the `Battleship` route carries a `roomId` (socket multiplayer), while
+ * the demo `BattleshipSetup` route has none (local bot). Drives the shared
+ * flow: fleet setup → (waiting) → the pure-UI play screen.
+ */
 export default function BattleshipGame() {
   const navigation = useNavigation();
-  const [phase, setPhase] = useState<Phase>('setup');
-  const [placements, setPlacements] = useState<Record<string, Placement>>({});
+  const route = useRoute();
+  const roomId = (route.params as { roomId?: string } | undefined)?.roomId;
+  const onExit = () => navigation.goBack();
 
-  if (phase === 'game') {
+  if (!roomId) {
+    return <DemoBattleshipGame onExit={onExit} />;
+  }
+  return <MultiplayerBattleshipGame roomId={roomId} onExit={onExit} />;
+}
+
+function DemoBattleshipGame({ onExit }: { onExit: () => void }) {
+  const engine = useDemoBattleship();
+  return <BattleshipGameFlow engine={engine} onExit={onExit} />;
+}
+
+function MultiplayerBattleshipGame({
+  roomId,
+  onExit,
+}: {
+  roomId: string;
+  onExit: () => void;
+}) {
+  const engine = useMultiplayerBattleship(roomId);
+  return <BattleshipGameFlow engine={engine} onExit={onExit} />;
+}
+
+function BattleshipGameFlow({
+  engine,
+  onExit,
+}: {
+  engine: BattleshipEngine;
+  onExit: () => void;
+}) {
+  if (engine.phase === 'waiting') {
+    return <WaitingForOpponent />;
+  }
+  if (engine.phase === 'play') {
     return (
       <BattleshipPlayScreen
-        placements={placements}
-        onExit={() => setPhase('setup')}
-        onQuit={() => navigation.goBack()}
+        {...engine.playProps}
+        // Leaving mid-match forfeits (the confirm dialog lives in the screen).
+        onExit={() => {
+          engine.forfeit();
+          onExit();
+        }}
+        onQuit={onExit}
       />
     );
   }
-
   return (
-    <BattleshipSetupScreen
-      onExit={() => navigation.goBack()}
-      onReady={fleet => {
-        setPlacements(fleet);
-        setPhase('game');
-      }}
-    />
+    <BattleshipSetupScreen onReady={engine.submitFleet} onExit={onExit} />
   );
 }

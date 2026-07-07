@@ -4,7 +4,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ErrorCode } from '@gaming-platform/core';
 
 import BattleshipGame from '../games/battleship/BattleshipGame';
-import BattleshipScreen from '../games/battleship/BattleshipScreen';
 import ErrorScreen from '../screens/ErrorScreen';
 import LoginScreen from '../screens/LoginScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
@@ -131,7 +130,9 @@ export default function RootNavigator() {
       ) : (
         <>
           <Stack.Screen name="MainTabs" component={MainTabsWithGameOverlay} />
-          <Stack.Screen name="Battleship" component={BattleshipScreen} />
+          {/* Multiplayer (carries a roomId) and the demo both use BattleshipGame,
+              which picks its engine from the presence of a roomId route param. */}
+          <Stack.Screen name="Battleship" component={BattleshipGame} />
           <Stack.Screen name="BattleshipSetup" component={BattleshipGame} />
         </>
       )}

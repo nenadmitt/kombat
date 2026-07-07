@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Canvas, Fill, RadialGradient, vec } from '@shopify/react-native-skia';
@@ -46,6 +46,10 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
   // A single orientation shared by every ship, toggled from the "Placing" row.
   const [orientation, setOrientation] = useState<Orientation>('h');
   const [selectedShipId, setSelectedShipId] = useState<string | null>(null);
+  // A fixed deadline for the setup countdown, computed once on mount.
+  const setupDeadline = useRef(
+    Date.now() + SETUP_DURATION_SECONDS * 1000,
+  ).current;
 
   const nextShipId = SHIPS.find(s => !placements[s.id])?.id;
   const activeShipId = selectedShipId ?? nextShipId;
@@ -165,7 +169,7 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
         </Pressable>
         <View style={styles.headerCenter}>
           <Text style={styles.headerLabel}>BATTLE STARTS IN</Text>
-          <TurnTimer seconds={SETUP_DURATION_SECONDS} style={styles.headerTimer} />
+          <TurnTimer deadline={setupDeadline} style={styles.headerTimer} />
         </View>
         <Pressable style={styles.headerButton}>
           <Icon type="more-horizontal" color={colors.textPrimary} size={20} />

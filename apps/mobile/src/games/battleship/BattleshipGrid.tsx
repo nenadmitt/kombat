@@ -176,6 +176,23 @@ function BattleshipGrid({
     }
     return set;
   }, [placedShips]);
+  // Cells that belong to a *fully destroyed* ship (every cell hit). Only these
+  // render as the red X — a hit on a ship still afloat stays a glowing circle.
+  // (On the fleet view `placedShips` is the whole fleet, so keying "sunk" off
+  //  `occupied` would wrongly X-out every incoming hit.)
+  const sunkCells = useMemo(() => {
+    const hitKeys = new Set(
+      shots.filter(s => s.result === 'hit').map(s => `${s.row},${s.col}`),
+    );
+    const set = new Set<string>();
+    for (const ship of placedShips) {
+      const cells = cellsFor(ship.placement, ship.size);
+      if (cells.every(({ r, c }) => hitKeys.has(`${r},${c}`))) {
+        for (const { r, c } of cells) set.add(`${r},${c}`);
+      }
+    }
+    return set;
+  }, [placedShips, shots]);
   const active = activeShip !== null;
   // Only wire up touch handlers when the board is interactive.
   const touchHandlers = onCommit ? responder.panHandlers : {};
@@ -344,7 +361,7 @@ function BattleshipGrid({
           const cellX = shot.col * cell + CELL_GAP / 2;
           const cellY = shot.row * cell + CELL_GAP / 2;
           const size = cell - CELL_GAP;
-          const isSunkCell = occupied.has(cellKey);
+          const isSunkCell = sunkCells.has(cellKey);
           // A sinking ship's cells animate their X formation left→right.
           const sinkIdx = sinkBatch ? sinkBatch.keys.indexOf(cellKey) : -1;
           if (sinkIdx !== -1) {
