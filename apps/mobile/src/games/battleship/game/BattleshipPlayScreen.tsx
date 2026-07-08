@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -297,16 +296,9 @@ export default function BattleshipPlayScreen({
     opacity: 1 - attackFade.value,
   }));
 
-  const handleHeaderBack = () => {
-    Alert.alert(
-      'Leave match?',
-      'If you leave now you forfeit and lose the match.',
-      [
-        { text: 'Stay', style: 'cancel' },
-        { text: 'Leave', style: 'destructive', onPress: onExit },
-      ],
-    );
-  };
+  // Plain back — the navigation guard in BattleshipGame owns the
+  // leave-forfeits confirmation for every exit path.
+  const handleHeaderBack = onExit;
 
   if (result) {
     const shotsFired = myShots.length;

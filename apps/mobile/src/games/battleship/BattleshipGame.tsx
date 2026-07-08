@@ -1,4 +1,10 @@
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useRef } from 'react';
+import { Alert } from 'react-native';
+import {
+  useNavigation,
+  usePreventRemove,
+  useRoute,
+} from '@react-navigation/native';
 
 import BattleshipPlayScreen from './game/BattleshipPlayScreen';
 import WaitingForOpponent from './game/WaitingForOpponent';
@@ -27,7 +33,7 @@ export default function BattleshipGame() {
 
 function DemoBattleshipGame({ onExit }: { onExit: () => void }) {
   const engine = useDemoBattleship();
-  return <BattleshipGameFlow engine={engine} onExit={onExit} />;
+  return <BattleshipGameFlow engine={engine} isMultiplayer={false} onExit={onExit} />;
 }
 
 function MultiplayerBattleshipGame({
@@ -38,23 +44,63 @@ function MultiplayerBattleshipGame({
   onExit: () => void;
 }) {
   const engine = useMultiplayerBattleship(roomId);
-  return <BattleshipGameFlow engine={engine} onExit={onExit} />;
+  return <BattleshipGameFlow engine={engine} isMultiplayer onExit={onExit} />;
 }
 
 function BattleshipGameFlow({
   engine,
+  isMultiplayer,
   onExit,
 }: {
   engine: BattleshipEngine;
+  isMultiplayer: boolean;
   onExit: () => void;
 }) {
+  const navigation = useNavigation();
+  // Set when the user has already confirmed leaving (e.g. the waiting screen's
+  // own cancel dialog) so the navigation guard lets that exit pass silently.
+  const exitConfirmed = useRef(false);
+
+  // Leaving an unfinished multiplayer match (any phase) forfeits it; the demo
+  // only guards active play. The result screens exit freely.
+  const guardExit =
+    engine.playProps.result === null &&
+    (isMultiplayer || engine.phase === 'play');
+
+  // Single choke point for every way off this screen: header back, Android
+  // back, anything that pops the route (iOS edge-swipe is disabled on the
+  // route itself). Confirm, forfeit, then let the blocked action through.
+  usePreventRemove(guardExit, ({ data }) => {
+    if (exitConfirmed.current) {
+      navigation.dispatch(data.action);
+      return;
+    }
+    Alert.alert(
+      'Leave match?',
+      'If you leave now you forfeit and lose the match.',
+      [
+        { text: 'Stay', style: 'cancel' },
+        {
+          text: 'Leave',
+          style: 'destructive',
+          onPress: () => {
+            engine.forfeit();
+            navigation.dispatch(data.action);
+          },
+        },
+      ],
+    );
+  });
+
   if (engine.phase === 'waiting') {
     return (
       <WaitingForOpponent
         opponent={engine.playProps.opponent}
         deadline={engine.setupDeadline}
-        // Cancelling forfeits the match (the confirm dialog lives inside).
+        // Cancelling forfeits the match (the confirm dialog lives inside);
+        // it already confirmed, so the navigation guard steps aside.
         onCancel={() => {
+          exitConfirmed.current = true;
           engine.forfeit();
           onExit();
         }}
@@ -65,11 +111,8 @@ function BattleshipGameFlow({
     return (
       <BattleshipPlayScreen
         {...engine.playProps}
-        // Leaving mid-match forfeits (the confirm dialog lives in the screen).
-        onExit={() => {
-          engine.forfeit();
-          onExit();
-        }}
+        // Plain back — the navigation guard owns the forfeit confirmation.
+        onExit={onExit}
         onQuit={onExit}
       />
     );
