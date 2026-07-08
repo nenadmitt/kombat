@@ -154,8 +154,9 @@ export default function WaitingForOpponent({ opponent, deadline, onCancel }: Pro
             the moment they're ready.
           </Text>
 
-          {/* Auto-forfeit countdown (server enforces the deadline) */}
-          {deadline !== null && (
+          {/* Auto-forfeit countdown (server enforces the deadline). Loose
+              check so an absent value (older server) hides it entirely. */}
+          {deadline != null && (
             <View style={styles.timerPill}>
               <Icon type="timer" color={BRAND_SWEEP} size={18} />
               <Text style={styles.timerLabel}>AUTO-FORFEIT IN</Text>

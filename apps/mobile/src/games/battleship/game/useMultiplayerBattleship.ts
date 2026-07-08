@@ -77,7 +77,9 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
         setPointsMap(state.points);
         setTurnUserId(state.turnUserId);
         setTurnDeadline(state.turnDeadline);
-        setSetupDeadline(state.setupDeadline);
+        // Normalize a missing field (older server build) to null so the
+        // waiting modal hides the countdown instead of rendering 0:00.
+        setSetupDeadline(state.setupDeadline ?? null);
         setWinnerUserId(state.winnerUserId);
         setEndReason(state.endReason);
         setOpponentUserId(state.opponentUserId);
