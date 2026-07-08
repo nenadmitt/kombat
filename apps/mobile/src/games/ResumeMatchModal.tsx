@@ -1,11 +1,11 @@
-import { Alert, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, StyleSheet, Text, View } from 'react-native';
 import type { GameRoomSummary } from '@gaming-platform/core';
 
-import { GradientView } from '../components/GradientView';
-import { brandGradient, colors, radius, spacing } from '../theme/colors';
-import { fonts } from '../theme/typography';
+import Icon from '../components/Icon';
+import { Button } from '../components/ui';
+import { colors, radius, spacing } from '../theme/colors';
+import { display, mono, type } from '../theme/typography';
 import { useGameStore } from '../store/game.store';
-import { GAME_ICONS } from './game-icons';
 import { GAME_TYPE_LABELS } from './game-type-labels';
 import { formatRoomCode } from './room-code';
 
@@ -53,54 +53,40 @@ export default function ResumeMatchModal({ onRejoin }: Props) {
         <View style={styles.card}>
           {resumableMatch ? (
             <>
-              <View style={styles.gameStack}>
-                <Image
-                  source={GAME_ICONS[resumableMatch.gameType]}
-                  style={styles.gameIcon}
-                />
-                <Text style={styles.gameName}>
-                  {GAME_TYPE_LABELS[resumableMatch.gameType]}
-                </Text>
+              <View style={styles.iconRing}>
+                <Icon type="swords" color={colors.accent} size={40} />
               </View>
+
+              <Text style={styles.gameLabel}>
+                {GAME_TYPE_LABELS[resumableMatch.gameType].toUpperCase()}
+              </Text>
 
               <View style={styles.textStack}>
                 <Text style={styles.title}>Match in progress</Text>
                 <Text style={styles.description}>
-                  You have a match waiting. Rejoin to keep playing, or forfeit
-                  to give the win to your opponent.
+                  Rejoin to keep playing, or forfeit to give the win to your
+                  opponent.
                 </Text>
               </View>
 
               <View style={styles.roomCodeBox}>
+                <Text style={styles.roomCodeLabel}>ROOM</Text>
                 <Text style={styles.roomCodeText}>
-                  <Text style={styles.roomCodeLabel}>ROOM: </Text>#
-                  {formatRoomCode(resumableMatch.id)}
+                  #{formatRoomCode(resumableMatch.id)}
                 </Text>
               </View>
 
-              <Pressable
-                style={styles.rejoinButton}
+              <Button
+                label="Rejoin match"
                 disabled={isForfeiting}
                 onPress={() => onRejoin(resumableMatch)}
-              >
-                <GradientView
-                  colors={brandGradient.colors}
-                  positions={brandGradient.positions}
-                  style={styles.rejoinGradient}
-                >
-                  <Text style={styles.rejoinText}>Rejoin match</Text>
-                </GradientView>
-              </Pressable>
-
-              <Pressable
-                onPress={confirmForfeit}
+              />
+              <Button
+                label={isForfeiting ? 'Forfeiting…' : 'Forfeit'}
+                variant="danger"
                 disabled={isForfeiting}
-                style={styles.forfeitButton}
-              >
-                <Text style={styles.forfeitText}>
-                  {isForfeiting ? 'Forfeiting…' : 'Forfeit'}
-                </Text>
-              </Pressable>
+                onPress={confirmForfeit}
+              />
             </>
           ) : null}
         </View>
@@ -112,101 +98,80 @@ export default function ResumeMatchModal({ onRejoin }: Props) {
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
   },
   container: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.md,
+    padding: spacing.lg,
   },
   card: {
     width: '100%',
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    borderRadius: radius.hero,
-    paddingTop: spacing.xl - 8,
+    borderRadius: radius.xl,
+    paddingTop: spacing.xl,
     paddingBottom: spacing.lg,
     paddingHorizontal: spacing.lg,
     alignItems: 'center',
     gap: spacing.md,
   },
-  gameStack: {
+  iconRing: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    borderWidth: 2,
+    borderColor: colors.accentBorder,
+    backgroundColor: colors.accentSoft,
     alignItems: 'center',
-    gap: spacing.xs + 2,
+    justifyContent: 'center',
   },
-  gameIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-  },
-  gameName: {
-    fontSize: 16,
-    fontFamily: fonts.semiBold,
-    color: colors.textMuted,
+  gameLabel: {
+    fontFamily: mono.semiBold,
+    fontSize: 12,
+    letterSpacing: 3,
+    color: colors.accent,
   },
   textStack: {
     alignItems: 'center',
-    gap: spacing.xs + 6,
+    gap: spacing.xs,
   },
   title: {
-    fontSize: 22,
-    fontFamily: fonts.bold,
+    fontFamily: display.bold,
+    fontSize: 24,
+    letterSpacing: -0.3,
     color: colors.textPrimary,
     textAlign: 'center',
   },
   description: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: colors.textMuted,
+    ...type.body,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   roomCodeBox: {
-    backgroundColor: colors.background,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.accentSoft,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: colors.brandStart,
-    borderRadius: radius.chip,
-    paddingHorizontal: spacing.sm + 4,
+    borderColor: colors.accentBorder,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
-  },
-  roomCodeText: {
-    fontSize: 18,
-    fontFamily: fonts.extraBold,
-    color: colors.textPrimary,
+    marginBottom: spacing.xs,
   },
   roomCodeLabel: {
-    color: colors.brandStart,
+    fontFamily: mono.semiBold,
+    fontSize: 13,
+    letterSpacing: 2,
+    color: colors.accentLight,
   },
-  rejoinButton: {
-    width: '100%',
-  },
-  rejoinGradient: {
-    width: '100%',
-    borderRadius: radius.chip,
-    paddingVertical: spacing.sm + 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rejoinText: {
-    fontSize: 15,
-    fontFamily: fonts.bold,
+  roomCodeText: {
+    fontFamily: mono.bold,
+    fontSize: 18,
     color: colors.textPrimary,
-  },
-  forfeitButton: {
-    width: '100%',
-    backgroundColor: colors.cardBackground,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.chip,
-    paddingVertical: spacing.sm + 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  forfeitText: {
-    fontSize: 15,
-    fontFamily: fonts.bold,
-    color: colors.danger,
   },
 });

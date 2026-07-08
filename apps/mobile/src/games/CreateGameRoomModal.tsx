@@ -1,21 +1,14 @@
 import { useState } from 'react';
-import {
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  ActivityIndicator,
-} from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError, GameType } from '@gaming-platform/core';
 
 import { apiClient } from '../api/client';
-import { GradientView } from '../components/GradientView';
 import Icon from '../components/Icon';
+import { Button } from '../components/ui';
 import { useGameStore } from '../store/game.store';
-import { brandGradient, colors, radius, spacing } from '../theme/colors';
-import { fonts } from '../theme/typography';
+import { colors, radius, spacing } from '../theme/colors';
+import { display, type } from '../theme/typography';
 
 type Props = {
   visible: boolean;
@@ -24,9 +17,9 @@ type Props = {
 
 /**
  * Bottom-sheet modal for creating a game room. Only asks for the game type —
- * Betting Asset / Entry Fee / Private Room from the Figma design aren't
- * backed by anything server-side yet, so they're left out rather than
- * shipping controls that don't do anything.
+ * Betting Asset / Entry Fee / Private Room from the design aren't backed by
+ * anything server-side yet, so they're left out rather than shipping controls
+ * that don't do anything.
  */
 export default function CreateGameRoomModal({ visible, onClose }: Props) {
   const [isCreating, setIsCreating] = useState(false);
@@ -55,17 +48,17 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
       onRequestClose={onClose}
     >
       <Pressable style={styles.overlay} onPress={onClose} />
-      <SafeAreaView style={styles.sheetWrapper} pointerEvents="box-none">
+      <SafeAreaView style={styles.sheetWrapper} pointerEvents="box-none" edges={['bottom']}>
         <View style={styles.sheet}>
           <View style={styles.dragHandle} />
           <Text style={styles.title}>Create Game Room</Text>
 
           <View style={styles.field}>
-            <Text style={styles.label}>SELECT GAME</Text>
+            <Text style={[type.label, styles.label]}>Select game</Text>
             <View style={styles.gameRow}>
               <View style={styles.gameRowLeft}>
                 <View style={styles.gameIcon}>
-                  <Icon type="ship" color={colors.textPrimary} size={18} />
+                  <Icon type="crosshair" color={colors.accent} size={20} />
                 </View>
                 <Text style={styles.gameName}>Battleships</Text>
               </View>
@@ -76,26 +69,13 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          <Pressable
+          <Button
+            label="Create Room"
             onPress={handleCreate}
+            loading={isCreating}
             disabled={isCreating}
-            style={styles.createButtonWrapper}
-          >
-            <GradientView
-              colors={brandGradient.colors}
-              positions={brandGradient.positions}
-              style={styles.createButton}
-            >
-              {isCreating ? (
-                <ActivityIndicator color={colors.textPrimary} />
-              ) : (
-                <Text style={styles.createButtonText}>Create Room</Text>
-              )}
-            </GradientView>
-          </Pressable>
-          <Pressable onPress={onClose} style={styles.cancelButton}>
-            <Text style={styles.cancelText}>Cancel</Text>
-          </Pressable>
+          />
+          <Button label="Cancel" variant="ghost" size="md" onPress={onClose} />
         </View>
       </SafeAreaView>
     </Modal>
@@ -112,93 +92,65 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: radius.hero,
-    borderTopRightRadius: radius.hero,
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
     borderTopWidth: 1,
     borderColor: colors.cardBorder,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.lg,
     gap: spacing.md,
   },
   dragHandle: {
     alignSelf: 'center',
     width: 40,
     height: 4,
-    borderRadius: 10,
-    backgroundColor: colors.textMuted,
-    opacity: 0.3,
+    borderRadius: 2,
+    backgroundColor: colors.borderStrong,
     marginBottom: spacing.sm,
   },
   title: {
+    fontFamily: display.bold,
     fontSize: 28,
-    fontFamily: fonts.bold,
+    letterSpacing: -0.3,
     color: colors.textPrimary,
   },
   field: {
     gap: spacing.xs,
   },
   label: {
-    fontSize: 11,
-    fontFamily: fonts.semiBold,
     color: colors.textMuted,
-    textTransform: 'uppercase',
   },
   gameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    borderRadius: radius.chip,
-    padding: spacing.sm,
+    borderRadius: radius.md,
+    padding: spacing.md,
   },
   gameRowLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs + 6,
+    gap: spacing.sm,
   },
   gameIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: colors.surfaceMuted,
+    width: 40,
+    height: 40,
+    borderRadius: radius.sm,
+    backgroundColor: colors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   gameName: {
-    fontSize: 14,
-    fontFamily: fonts.semiBold,
+    ...type.subheading,
     color: colors.textPrimary,
   },
   error: {
-    fontSize: 13,
+    ...type.caption,
     color: colors.danger,
-  },
-  createButtonWrapper: {
-    width: '100%',
-  },
-  createButton: {
-    height: 56,
-    borderRadius: radius.button,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  createButtonText: {
-    fontSize: 18,
-    fontFamily: fonts.bold,
-    color: colors.textPrimary,
-  },
-  cancelButton: {
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelText: {
-    fontSize: 14,
-    fontFamily: fonts.semiBold,
-    color: colors.textMuted,
   },
 });
