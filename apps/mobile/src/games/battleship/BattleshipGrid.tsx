@@ -37,9 +37,9 @@ const HULL_PAD = 3;
 const EMPTY_CELL_GRADIENT = ['rgba(255, 255, 255, 0.07)', 'rgba(255, 255, 255, 0.03)'];
 const CELL_BORDER = colors.cardBorder;
 // Brighter border on empty cells while a ship is selected, inviting a tap.
-const ACTIVE_CELL_BORDER = 'rgba(139, 92, 246, 0.55)';
-const HIT_FILL = 'rgba(239, 68, 68, 0.9)';
-const HIT_GLOW = 'rgba(239, 68, 68, 0.55)';
+const ACTIVE_CELL_BORDER = 'rgba(124, 92, 255, 0.55)';
+const HIT_FILL = 'rgba(255, 84, 104, 0.9)';
+const HIT_GLOW = 'rgba(255, 84, 104, 0.55)';
 const MISS_DOT = 'rgba(148, 163, 184, 0.7)';
 
 /** Finger movement below this (px) still counts as a tap, not a drag. */

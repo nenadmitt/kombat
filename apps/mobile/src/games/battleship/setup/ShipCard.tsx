@@ -73,8 +73,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xs,
   },
   cardSelected: {
-    borderColor: colors.brandStart,
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderColor: colors.accent,
+    backgroundColor: 'rgba(124, 92, 255, 0.1)',
   },
   removeButton: {
     position: 'absolute',

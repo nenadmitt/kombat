@@ -21,7 +21,7 @@ import Icon from '../../../components/Icon';
 import GameResultScreen from '../../../components/GameResultScreen';
 import { GradientView } from '../../../components/GradientView';
 import { brandGradient, colors, radius, spacing } from '../../../theme/colors';
-import { fonts } from '../../../theme/typography';
+import { display, fonts, mono } from '../../../theme/typography';
 import BattleshipGrid, {
   type GridAction,
   type PlacedShip,
@@ -77,7 +77,8 @@ export type BattleshipPlayScreenProps = {
   onQuit: () => void;
 };
 
-const GLOW_COLOR = 'rgba(139, 92, 246, 0.3)';
+const GLOW_COLOR = 'rgba(124, 92, 255, 0.3)';
+const GLOW_TRANSPARENT = 'rgba(124, 92, 255, 0)';
 const GLOW_HEIGHT = 420;
 /** Pause before auto-switching boards so the last shot's markers are seen. */
 const MODE_SWITCH_DELAY_MS = 1500;
@@ -343,7 +344,7 @@ export default function BattleshipPlayScreen({
           <RadialGradient
             c={vec(width / 2, 0)}
             r={GLOW_HEIGHT}
-            colors={[GLOW_COLOR, 'rgba(139, 92, 246, 0)']}
+            colors={[GLOW_COLOR, GLOW_TRANSPARENT]}
           />
         </Fill>
       </Canvas>
@@ -661,14 +662,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerLabel: {
-    fontSize: 11,
-    fontFamily: fonts.semiBold,
+    fontSize: 10,
+    fontFamily: mono.medium,
     color: colors.textMuted,
-    letterSpacing: 0.5,
+    letterSpacing: 1.5,
   },
   headerTitle: {
     fontSize: 17,
-    fontFamily: fonts.bold,
+    fontFamily: display.bold,
     color: colors.textPrimary,
     marginTop: 1,
   },
@@ -725,12 +726,12 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: 16,
-    fontFamily: fonts.bold,
+    fontFamily: display.bold,
     color: colors.textPrimary,
   },
   playerName: {
     fontSize: 14,
-    fontFamily: fonts.bold,
+    fontFamily: display.semiBold,
     color: colors.textPrimary,
   },
   playerSub: {
@@ -747,14 +748,15 @@ const styles = StyleSheet.create({
   },
   turnTimer: {
     fontSize: 15,
-    fontFamily: fonts.bold,
+    fontFamily: mono.bold,
     color: colors.textPrimary,
+    fontVariant: ['tabular-nums'],
   },
   turnLabel: {
     fontSize: 8,
-    fontFamily: fonts.extraBold,
-    color: colors.brandStart,
-    letterSpacing: 0.5,
+    fontFamily: mono.bold,
+    color: colors.accent,
+    letterSpacing: 1,
   },
   toggle: {
     flexDirection: 'row',
@@ -805,9 +807,9 @@ const styles = StyleSheet.create({
   },
   gridTitle: {
     fontSize: 13,
-    fontFamily: fonts.extraBold,
-    color: colors.brandStart,
-    letterSpacing: 0.5,
+    fontFamily: mono.bold,
+    color: colors.accent,
+    letterSpacing: 1,
   },
   gridHint: {
     fontSize: 12,
@@ -827,6 +829,7 @@ const styles = StyleSheet.create({
   },
   axisLabel: {
     fontSize: 11,
+    fontFamily: mono.medium,
     color: colors.textMuted,
     textAlign: 'center',
   },
@@ -841,8 +844,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   bannerHit: {
-    borderColor: 'rgba(239, 68, 68, 0.5)',
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: 'rgba(255, 84, 104, 0.5)',
+    backgroundColor: 'rgba(255, 84, 104, 0.1)',
   },
   bannerMiss: {
     borderColor: colors.cardBorder,
@@ -868,9 +871,9 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 11,
-    fontFamily: fonts.semiBold,
+    fontFamily: mono.medium,
     color: colors.textMuted,
-    letterSpacing: 0.5,
+    letterSpacing: 1.5,
     marginBottom: spacing.sm,
   },
   fleetRow: {
