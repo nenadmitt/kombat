@@ -84,9 +84,18 @@ yarn-error.log
 .turbo/
 **/dist/
 **/lib/
+# forge-std is vendored (not a git submodule) in the contracts app — keep it.
+!apps/evm-contracts/lib/
+!apps/evm-contracts/lib/**
 # React Native New Architecture codegen output
 **/android/build/generated/
 **/build/generated/
+
+# Foundry
+apps/evm-contracts/cache/
+apps/evm-contracts/out/
+apps/evm-contracts/broadcast/*/31337/
+apps/evm-contracts/broadcast/*/31337-fork/
 
 # Yarn
 .yarn/*
