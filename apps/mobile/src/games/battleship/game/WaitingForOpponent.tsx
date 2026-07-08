@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -51,7 +51,6 @@ const DANGER_TINT_BORDER = 'rgba(236, 91, 112, 0.4)';
 
 const RING_MS = 2600;
 const SWEEP_MS = 2400;
-const DOTS_MS = 500;
 
 /** One expanding sonar ring (scale up + fade out, looped). */
 function SonarRing({ delay }: { delay: number }) {
@@ -121,12 +120,6 @@ function Radar() {
  * forfeits the match.
  */
 export default function WaitingForOpponent({ opponent, deadline, onCancel }: Props) {
-  const [dotCount, setDotCount] = useState(1);
-  useEffect(() => {
-    const id = setInterval(() => setDotCount(c => (c + 1) % 4), DOTS_MS);
-    return () => clearInterval(id);
-  }, []);
-
   const confirmCancel = () => {
     Alert.alert(
       'Cancel match?',
@@ -146,8 +139,7 @@ export default function WaitingForOpponent({ opponent, deadline, onCancel }: Pro
 
           <Text style={styles.eyebrow}>FLEET DEPLOYED</Text>
           <Text style={styles.title}>
-            Waiting for Opponent
-            <Text style={styles.titleDots}>{'.'.repeat(dotCount)}</Text>
+            Waiting for Opponent<Text style={styles.titleDots}>…</Text>
           </Text>
           <Text style={styles.description}>
             {opponent.name} is still deploying their fleet. The battle begins

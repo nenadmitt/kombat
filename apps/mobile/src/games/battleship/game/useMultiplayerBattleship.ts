@@ -6,6 +6,7 @@ import {
   type FleetPlacements,
   type PresencePayload,
   type RevealedShip,
+  type SetupStatePayload,
   type Shot,
   type ShotPayload,
   type StartPayload,
@@ -96,6 +97,11 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
         // Happy path: assume the room exists; a failed fetch leaves us in setup.
       });
 
+    // The server pushes the setup countdown on enter — more reliable than the
+    // REST snapshot, which can be fetched before the match exists.
+    const offSetupState = on(BATTLESHIP_EVENTS.setupState, payload => {
+      setSetupDeadline((payload as SetupStatePayload).setupDeadline);
+    });
     const offStart = on(BATTLESHIP_EVENTS.start, payload => {
       const { firstTurnUserId, turnDeadline: deadline } = payload as StartPayload;
       setTurnUserId(firstTurnUserId);
@@ -155,6 +161,7 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
 
     return () => {
       mounted = false;
+      offSetupState();
       offStart();
       offShot();
       offTimeout();

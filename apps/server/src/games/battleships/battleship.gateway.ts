@@ -59,6 +59,11 @@ export class BattleshipGateway {
       const match = this.matchService.getOrCreate(room);
       if (match.phase === 'setup') {
         this.armSetupTimer(dto.roomId, match.setupDeadline);
+        // Push the countdown to this player directly — the REST snapshot may
+        // have been fetched before the match (and its deadline) existed.
+        client.emit(BATTLESHIP_EVENTS.setupState, {
+          setupDeadline: match.setupDeadline,
+        });
       }
       this.markOnline(client, dto.roomId, userId);
     } catch (error) {

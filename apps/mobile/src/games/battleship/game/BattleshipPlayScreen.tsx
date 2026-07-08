@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  Vibration,
   View,
   useWindowDimensions,
 } from 'react-native';
@@ -177,6 +178,19 @@ export default function BattleshipPlayScreen({
       setPowerupTarget(null);
     }
   }, [myTurn]);
+
+  // Nudge: a short buzz when the battle screen appears and whenever the turn
+  // becomes mine (no-op on simulators — vibration needs a physical device).
+  const prevTurn = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (result) {
+      return;
+    }
+    if (prevTurn.current === null || (myTurn && !prevTurn.current)) {
+      Vibration.vibrate(300);
+    }
+    prevTurn.current = myTurn;
+  }, [myTurn, result]);
 
   // Follow the action: my turn shows enemy waters, the opponent's turn shows
   // my fleet. The switch is delayed a beat so the shot that ended the turn is

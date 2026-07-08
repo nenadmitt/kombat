@@ -18,6 +18,7 @@ export const BATTLESHIP_EVENTS = {
   presence: 'battleship:presence',
   ended: 'battleship:ended',
   // server -> caller only
+  setupState: 'battleship:setup-state',
   error: 'battleship:error',
 } as const;
 
@@ -123,6 +124,13 @@ export type EndedPayload = {
 };
 
 // --- server -> caller only ----------------------------------------------------
+
+/** Sent to a player on entering while the match is still in setup, so the
+ *  auto-forfeit countdown doesn't depend on the REST snapshot alone. */
+export type SetupStatePayload = {
+  /** Epoch ms when fleet setup auto-forfeits. */
+  setupDeadline: number;
+};
 
 export type BattleshipErrorPayload = {
   message: string;
