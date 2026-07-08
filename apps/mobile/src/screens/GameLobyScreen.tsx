@@ -4,6 +4,7 @@ import {
   Alert,
   FlatList,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -19,6 +20,7 @@ import { Button, Card, Chip } from '../components/ui';
 import CreateGameRoomModal from '../games/CreateGameRoomModal';
 import { GAME_TYPE_LABELS } from '../games/game-type-labels';
 import { GAME_TYPE_SCREENS } from '../games/game-type-screens';
+import { formatRoomCode } from '../games/room-code';
 import type { RootStackParamList } from '../navigation/types';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import { colors, radius, spacing } from '../theme/colors';
@@ -27,9 +29,11 @@ import { display, mono, type } from '../theme/typography';
 type Status = 'loading' | 'ready' | 'error';
 type Filter = 'all' | GameType;
 
-/** No staking/prize backend yet — shown for visual parity with the design
- *  until real stakes exist. */
+/** No staking/prize or balance backend yet — shown for visual parity with the
+ *  design until real values exist. */
 const HARDCODED_STAKE = '50 USDC';
+const MOCK_USD_BALANCE = '4,240';
+const FEATURED_POOL = '480';
 
 const GAME_ICON = 'crosshair' as const;
 
@@ -110,24 +114,34 @@ export default function GameLobyScreen() {
     }
   };
 
+  // No join-by-code backend yet — point players at the open-rooms list.
+  const handleJoinGame = () => {
+    Alert.alert(
+      'Join a game',
+      'Tap any open room below to join, or ask a friend to share their room so it shows up here.',
+    );
+  };
+
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
+      {/* Fixed header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.welcome}>Welcome back,</Text>
-          <Text style={styles.headline}>Ready to Play?</Text>
+        <View style={styles.headerText}>
+          <Text style={[type.label, styles.welcome]}>Welcome back</Text>
+          <Text style={styles.name} numberOfLines={1}>
+            {username ?? 'Player'}
+          </Text>
         </View>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarInitial}>{initial}</Text>
+        <View style={styles.headerRight}>
+          <View style={styles.balancePill}>
+            <Icon type="gem" color={colors.accent} size={14} />
+            <Text style={styles.balanceValue}>{MOCK_USD_BALANCE}</Text>
+            <Text style={styles.balanceUnit}>USD</Text>
+          </View>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarInitial}>{initial}</Text>
+          </View>
         </View>
-      </View>
-
-      <View style={styles.createWrap}>
-        <Button
-          label="Create Game"
-          icon="plus"
-          onPress={() => setIsCreateModalVisible(true)}
-        />
       </View>
 
       <FlatList
@@ -137,29 +151,69 @@ export default function GameLobyScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View style={styles.listHeader}>
-            {/* Not wired up yet — filtering by game name/room comes later. */}
-            <View style={styles.searchBar}>
-              <Icon type="search" color={colors.textMuted} size={20} />
-              <Text style={styles.searchPlaceholder}>Find a game room…</Text>
+            {/* Featured game */}
+            <Card accent style={styles.featured}>
+              <View style={styles.featuredThumb}>
+                <Icon type={GAME_ICON} color={colors.accent} size={30} />
+              </View>
+              <View style={styles.featuredBody}>
+                <View style={styles.featuredEyebrow}>
+                  <View style={styles.liveDot} />
+                  <Text style={styles.featuredEyebrowText}>Featured · Live</Text>
+                </View>
+                <Text style={styles.featuredTitle}>Battleships</Text>
+                <Text style={styles.featuredPool}>
+                  {FEATURED_POOL} <Text style={styles.featuredPoolUnit}>USDC POOL</Text>
+                </Text>
+              </View>
+              <Button
+                label="Play"
+                size="sm"
+                fullWidth={false}
+                onPress={() => setIsCreateModalVisible(true)}
+              />
+            </Card>
+
+            {/* Primary actions */}
+            <View style={styles.actionRow}>
+              <Button
+                label="Create Room"
+                icon="plus"
+                onPress={() => setIsCreateModalVisible(true)}
+                style={styles.actionFlex}
+              />
+              <Button
+                label="Join Game"
+                icon="log-out"
+                variant="secondary"
+                onPress={handleJoinGame}
+                style={styles.actionFlex}
+              />
             </View>
 
-            <View style={styles.filterRow}>
+            {/* Filters */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterRow}
+            >
               {FILTERS.map(f => (
                 <Pressable key={String(f.key)} onPress={() => setFilter(f.key)}>
-                  <Chip
-                    label={f.label}
-                    tone={f.key === filter ? 'accent' : 'outline'}
-                    uppercase={false}
-                  />
+                  <Chip label={f.label} tone={f.key === filter ? 'accent' : 'outline'} />
                 </Pressable>
               ))}
-            </View>
+            </ScrollView>
 
+            {/* Section header */}
             <View style={styles.sectionHeader}>
-              <Text style={[type.label, styles.sectionLabel]}>Game rooms</Text>
-              <Pressable onPress={fetchRooms} disabled={status === 'loading'}>
-                <Text style={styles.refreshText}>Refresh</Text>
-              </Pressable>
+              <Text style={[type.label, styles.sectionLabel]}>Open rooms</Text>
+              {status === 'ready' ? (
+                <Text style={styles.liveCount}>{filteredRooms.length} LIVE</Text>
+              ) : (
+                <Pressable onPress={fetchRooms} disabled={status === 'loading'}>
+                  <Text style={styles.liveCount}>Refresh</Text>
+                </Pressable>
+              )}
             </View>
 
             {status === 'loading' && rooms.length === 0 ? (
@@ -189,36 +243,21 @@ export default function GameLobyScreen() {
         }
         renderItem={({ item }) => (
           <Card style={styles.roomCard}>
-            <View style={styles.roomRow}>
-              <View style={styles.roomLeft}>
-                <View style={styles.roomIcon}>
-                  <Icon type={GAME_ICON} color={colors.accent} size={22} />
-                </View>
-                <View style={styles.roomInfo}>
-                  <Text style={styles.roomName}>
-                    {GAME_TYPE_LABELS[item.gameType]}
-                  </Text>
-                  <Text style={styles.roomSubtext}>
-                    Waiting · {timeAgo(item.createdAt)}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.roomPlayers}>
-                <Text style={[type.label, styles.playersLabel]}>Players</Text>
-                <Text style={styles.playersValue}>{item.playerCount}/2</Text>
-              </View>
+            <View style={styles.roomIcon}>
+              <Icon type={GAME_ICON} color={colors.accent} size={20} />
             </View>
-
-            <View style={styles.roomDivider} />
-
-            <View style={styles.roomStatsRow}>
-              <View>
-                <Text style={[type.label, styles.statLabel]}>Stake</Text>
-                <Text style={styles.statValue}>{HARDCODED_STAKE}</Text>
-              </View>
+            <View style={styles.roomInfo}>
+              <Text style={styles.roomName}>{GAME_TYPE_LABELS[item.gameType]}</Text>
+              <Text style={styles.roomMeta}>
+                #{formatRoomCode(item.id)} · {item.playerCount}/2 · {timeAgo(item.createdAt)}
+              </Text>
+            </View>
+            <View style={styles.roomRight}>
+              <Text style={styles.roomStake}>{HARDCODED_STAKE}</Text>
               <Button
                 label="Join"
                 size="sm"
+                variant="tinted"
                 fullWidth={false}
                 loading={joiningRoomId === item.id}
                 disabled={joiningRoomId !== null}
@@ -251,19 +290,48 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     paddingBottom: spacing.md,
   },
+  headerText: {
+    flex: 1,
+    gap: 2,
+  },
   welcome: {
-    ...type.caption,
     color: colors.textMuted,
   },
-  headline: {
+  name: {
     fontFamily: display.bold,
     fontSize: 26,
     letterSpacing: -0.3,
     color: colors.textPrimary,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  balancePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 7,
+  },
+  balanceValue: {
+    fontFamily: mono.bold,
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  balanceUnit: {
+    fontFamily: mono.medium,
+    fontSize: 10,
+    color: colors.textMuted,
+  },
   avatar: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     borderRadius: radius.md,
     backgroundColor: colors.accent,
     alignItems: 'center',
@@ -271,12 +339,8 @@ const styles = StyleSheet.create({
   },
   avatarInitial: {
     fontFamily: display.bold,
-    fontSize: 20,
+    fontSize: 18,
     color: colors.onAccent,
-  },
-  createWrap: {
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
   },
   listContent: {
     paddingHorizontal: spacing.lg,
@@ -285,27 +349,72 @@ const styles = StyleSheet.create({
   },
   listHeader: {
     gap: spacing.md,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
-  searchBar: {
+  featured: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    height: 48,
   },
-  searchPlaceholder: {
-    fontFamily: mono.regular,
+  featuredThumb: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.md,
+    backgroundColor: colors.canvas,
+    borderWidth: 1,
+    borderColor: colors.accentBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  featuredBody: {
+    flex: 1,
+    gap: 2,
+  },
+  featuredEyebrow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.accent,
+  },
+  featuredEyebrowText: {
+    fontFamily: mono.semiBold,
+    fontSize: 10,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    color: colors.accentLight,
+  },
+  featuredTitle: {
+    fontFamily: display.bold,
+    fontSize: 22,
+    letterSpacing: -0.3,
+    color: colors.textPrimary,
+  },
+  featuredPool: {
+    fontFamily: mono.bold,
     fontSize: 14,
+    color: colors.textPrimary,
+  },
+  featuredPoolUnit: {
+    fontFamily: mono.medium,
+    fontSize: 10,
     color: colors.textMuted,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  actionFlex: {
+    flex: 1,
   },
   filterRow: {
     flexDirection: 'row',
     gap: spacing.xs,
+    paddingRight: spacing.lg,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -315,9 +424,10 @@ const styles = StyleSheet.create({
   sectionLabel: {
     color: colors.textMuted,
   },
-  refreshText: {
-    ...type.caption,
-    fontFamily: type.button.fontFamily,
+  liveCount: {
+    fontFamily: mono.bold,
+    fontSize: 12,
+    letterSpacing: 1,
     color: colors.accentLight,
   },
   stateBlock: {
@@ -341,18 +451,11 @@ const styles = StyleSheet.create({
     color: colors.accentLight,
   },
   roomCard: {
-    gap: spacing.sm,
-  },
-  roomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  roomLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    flexShrink: 1,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
   },
   roomIcon: {
     width: 44,
@@ -363,47 +466,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   roomInfo: {
-    flexShrink: 1,
+    flex: 1,
+    gap: 2,
   },
   roomName: {
     ...type.subheading,
     color: colors.textPrimary,
   },
-  roomSubtext: {
-    ...type.caption,
+  roomMeta: {
+    fontFamily: mono.regular,
+    fontSize: 11,
     color: colors.textMuted,
   },
-  roomPlayers: {
+  roomRight: {
     alignItems: 'flex-end',
-    gap: 2,
+    gap: spacing.xs,
   },
-  playersLabel: {
-    color: colors.textMuted,
-  },
-  playersValue: {
+  roomStake: {
     fontFamily: mono.bold,
-    fontSize: 15,
+    fontSize: 13,
     color: colors.textPrimary,
   },
-  roomDivider: {
-    height: 1,
-    backgroundColor: colors.cardBorder,
-  },
-  roomStatsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  statLabel: {
-    color: colors.textMuted,
-  },
-  statValue: {
-    fontFamily: mono.bold,
-    fontSize: 15,
-    color: colors.success,
-    marginTop: 2,
-  },
   joinButton: {
-    minWidth: 84,
+    minWidth: 72,
   },
 });

@@ -1,4 +1,4 @@
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { CurvedBottomBar } from 'react-native-curved-bottom-bar';
 
 import GamesNavigator from './GamesNavigator';
@@ -8,6 +8,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import DemoGamesScreen from '../screens/DemoGamesScreen';
 import Icon, { type IconName } from '../components/Icon';
 import { colors } from '../theme/colors';
+import { mono } from '../theme/typography';
 
 const TAB_ICONS: Record<string, IconName> = {
   Games: 'games',
@@ -15,6 +16,14 @@ const TAB_ICONS: Record<string, IconName> = {
   History: 'history',
   Profile: 'user',
   DemoGames: 'grid',
+};
+
+const TAB_LABELS: Record<string, string> = {
+  Games: 'Lobby',
+  Wallet: 'Wallet',
+  History: 'History',
+  Profile: 'Profile',
+  DemoGames: 'Games',
 };
 
 /** Args passed to the library's `renderCircle` / `tabBar` render props. */
@@ -76,8 +85,14 @@ export default function MainTabNavigator() {
             <Icon
               type={TAB_ICONS[routeName] ?? 'games'}
               color={focused ? colors.accent : colors.textMuted}
-              size={24}
+              size={22}
             />
+            <Text
+              style={[styles.tabLabel, focused && styles.tabLabelActive]}
+              numberOfLines={1}
+            >
+              {TAB_LABELS[routeName] ?? routeName}
+            </Text>
           </TouchableOpacity>
         );
       }}
@@ -123,6 +138,17 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 3,
+  },
+  tabLabel: {
+    fontFamily: mono.medium,
+    fontSize: 8,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: colors.textMuted,
+  },
+  tabLabelActive: {
+    color: colors.accent,
   },
   circle: {
     width: 56,
