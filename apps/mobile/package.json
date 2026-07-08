@@ -5,6 +5,8 @@
   "scripts": {
     "android": "react-native run-android",
     "ios": "react-native run-ios",
+    "ios-one": "react-native run-ios --simulator=\"iPhone 17 Pro\"",
+    "ios-two": "react-native run-ios --simulator=\"iPhone 17\"",
     "start": "react-native start",
     "typecheck": "tsc --noEmit",
     "pods": "bundle exec pod install --project-directory=ios"

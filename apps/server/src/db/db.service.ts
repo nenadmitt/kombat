@@ -114,6 +114,20 @@ export class DbService {
     });
   }
 
+  /**
+   * An active room the user takes part in as *either* creator or opponent — so
+   * the client can resume a match the user joined, not only one they created.
+   */
+  findActiveGameRoomForParticipant(
+    userId: string,
+  ): Promise<GameRoomEntity | null> {
+    const status = In([GameRoomStatus.Pending, GameRoomStatus.InProgress]);
+    return this.gameRoomRepository.findOneBy([
+      { userId, status },
+      { opponentId: userId, status },
+    ]);
+  }
+
   createGameRoom(data: {
     userId: string;
     gameType: GameType;
@@ -128,6 +142,26 @@ export class DbService {
     userId: string,
   ): Promise<GameRoomEntity | null> {
     return this.gameRoomRepository.findOneBy({ id, userId });
+  }
+
+  /** Generic lookup, regardless of owner — joining checks a room someone else created. */
+  findGameRoomById(id: string): Promise<GameRoomEntity | null> {
+    return this.gameRoomRepository.findOneBy({ id });
+  }
+
+  async joinGameRoom(id: string, opponentId: string): Promise<void> {
+    await this.gameRoomRepository.update(
+      { id },
+      { opponentId, status: GameRoomStatus.InProgress },
+    );
+  }
+
+  /** Flip a room to Completed once its match has a winner. */
+  async completeGameRoom(id: string): Promise<void> {
+    await this.gameRoomRepository.update(
+      { id },
+      { status: GameRoomStatus.Completed },
+    );
   }
 
   async deleteGameRoom(id: string): Promise<void> {

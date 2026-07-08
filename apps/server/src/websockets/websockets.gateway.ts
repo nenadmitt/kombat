@@ -13,7 +13,8 @@ import {
 import type { Server, Socket } from 'socket.io';
 
 import { ChannelDto } from './dto/channel.dto';
-import { channelRoom, userRoom } from './rooms.util';
+import { GameMessageDto } from './dto/game-message.dto';
+import { channelRoom, gameChannel, userRoom } from './rooms.util';
 import { WebsocketsService } from './websockets.service';
 
 interface SocketData {
@@ -46,6 +47,10 @@ export class WebsocketsGateway
 
   @WebSocketServer()
   private readonly server: Server;
+
+  // Throwaway in-memory game state (message log per room) — not persisted,
+  // lost on restart. Placeholder until real game state replaces it.
+  private readonly gameMessages = new Map<string, string[]>();
 
   constructor(
     private readonly jwtService: JwtService,
@@ -104,6 +109,29 @@ export class WebsocketsGateway
     @MessageBody() { channel }: ChannelDto,
   ): Promise<void> {
     await client.leave(channelRoom(channel));
+  }
+
+  /**
+   * Throwaway message relay for the placeholder Battleship screen — appends
+   * to that room's in-memory log (attributed to the authenticated socket's
+   * own userId, not anything client-supplied) and broadcasts the full,
+   * updated log to everyone subscribed to the room's channel.
+   */
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  @SubscribeMessage('game:message')
+  handleGameMessage(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() { roomId, text }: GameMessageDto,
+  ): void {
+    const messages = this.gameMessages.get(roomId) ?? [];
+    messages.push(`${client.data.userId}: ${text}`);
+    this.gameMessages.set(roomId, messages);
+
+    this.websocketsService.sendToChannel(
+      gameChannel(roomId),
+      'game:message',
+      messages,
+    );
   }
 
   private extractToken(client: Socket): string | undefined {

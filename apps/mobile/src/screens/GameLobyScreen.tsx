@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   Pressable,
@@ -9,7 +10,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ApiError, GameType, type GameRoomSummary } from '@gaming-platform/core';
 
 import { apiClient } from '../api/client';
@@ -18,6 +20,8 @@ import Icon from '../components/Icon';
 import CreateGameRoomModal from '../games/CreateGameRoomModal';
 import { GAME_ICONS } from '../games/game-icons';
 import { GAME_TYPE_LABELS } from '../games/game-type-labels';
+import { GAME_TYPE_SCREENS } from '../games/game-type-screens';
+import type { RootStackParamList } from '../navigation/types';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import { brandGradient, colors, radius, spacing } from '../theme/colors';
 import { fonts } from '../theme/typography';
@@ -44,6 +48,11 @@ function timeAgo(iso: string): string {
 }
 
 export default function GameLobyScreen() {
+  // Battleship is a root-level screen (reachable from the global
+  // "opponent joined" push too), not nested under this Games stack — cast
+  // needed since this screen's own nav type doesn't know about it.
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const username = useCurrentUserStore(state => state.username);
 
   const [rooms, setRooms] = useState<GameRoomSummary[]>([]);
@@ -51,6 +60,7 @@ export default function GameLobyScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+  const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
 
   const fetchRooms = useCallback(async () => {
     setStatus('loading');
@@ -78,6 +88,27 @@ export default function GameLobyScreen() {
   const filteredRooms =
     filter === 'all' ? rooms : rooms.filter(room => room.gameType === filter);
   const initial = (username ?? '?').charAt(0).toUpperCase();
+
+  const handleJoin = async (roomId: string, gameType: GameType) => {
+    setJoiningRoomId(roomId);
+    try {
+      await apiClient.joinGameRoom(roomId);
+      // navigate's params type is tied to a literal route name; the target
+      // is dynamic (per game type), so it can't line up with the specific
+      // overload — same pragmatic cast as elsewhere in this file's nav use.
+      (navigation.navigate as (screen: string, params: unknown) => void)(
+        GAME_TYPE_SCREENS[gameType],
+        { roomId },
+      );
+    } catch (err) {
+      Alert.alert(
+        'Could not join room',
+        err instanceof ApiError ? err.message : 'Something went wrong.',
+      );
+    } finally {
+      setJoiningRoomId(null);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -198,6 +229,22 @@ export default function GameLobyScreen() {
                 <Text style={styles.statLabel}>Stake</Text>
                 <Text style={styles.statValue}>{HARDCODED_STAKE}</Text>
               </View>
+              <Pressable
+                onPress={() => handleJoin(item.id, item.gameType)}
+                disabled={joiningRoomId !== null}
+              >
+                <GradientView
+                  colors={brandGradient.colors}
+                  positions={brandGradient.positions}
+                  style={styles.joinButton}
+                >
+                  {joiningRoomId === item.id ? (
+                    <ActivityIndicator color={colors.textPrimary} size="small" />
+                  ) : (
+                    <Text style={styles.joinButtonText}>Join</Text>
+                  )}
+                </GradientView>
+              </Pressable>
             </View>
           </View>
         )}
@@ -373,6 +420,8 @@ const styles = StyleSheet.create({
   },
   roomStatsRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   statLabel: {
     fontSize: 11,
@@ -383,6 +432,19 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     color: colors.success,
     marginTop: 2,
+  },
+  joinButton: {
+    minWidth: 68,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.chip,
+    paddingHorizontal: spacing.sm + 4,
+    paddingVertical: spacing.xs + 4,
+  },
+  joinButtonText: {
+    fontSize: 14,
+    fontFamily: fonts.bold,
+    color: colors.textPrimary,
   },
   createButtonWrapper: {
     paddingHorizontal: spacing.md,

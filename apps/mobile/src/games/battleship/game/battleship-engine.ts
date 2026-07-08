@@ -1,0 +1,25 @@
+import type { FleetPlacements } from '@gaming-platform/core';
+
+import type { BattleshipPlayScreenProps } from './BattleshipPlayScreen';
+
+export type EnginePhase = 'setup' | 'waiting' | 'play';
+
+/** The play-screen props an engine provides; the container adds onExit/onQuit. */
+export type EnginePlayProps = Omit<
+  BattleshipPlayScreenProps,
+  'onExit' | 'onQuit'
+>;
+
+/**
+ * A Battleship engine drives the game state and exposes it as play-screen
+ * props. Both the local demo bot and the multiplayer socket implement this,
+ * so `BattleshipGame` and the pure-UI screen don't care which is in use.
+ */
+export type BattleshipEngine = {
+  phase: EnginePhase;
+  /** Called from the setup screen when the player confirms their fleet. */
+  submitFleet: (placements: FleetPlacements) => void;
+  /** Leave the match early (multiplayer forfeits to the opponent). */
+  forfeit: () => void;
+  playProps: EnginePlayProps;
+};
