@@ -1,19 +1,23 @@
 # Gaming Platform
 
-Turborepo monorepo: a **bare React Native CLI** app (New Architecture) plus a
-shared, platform-agnostic package (reusable by a future web app).
+Turborepo monorepo: a **bare React Native CLI** app (New Architecture), a
+NestJS server, a web app, on-chain payment contracts, and a shared
+platform-agnostic package.
 
 ```
 .
 ├── apps/
-│   └── mobile/                 # React Native 0.86 (New Arch on), native ios/ + android/
-│       ├── App.tsx             # NavigationContainer + SafeAreaProvider
-│       └── src/
-│           ├── navigation/     # RootNavigator (native stack) + types
-│           └── screens/        # HomeScreen, DetailsScreen
+│   ├── mobile/                  # React Native 0.86 (New Arch on), native ios/ + android/
+│   │   ├── App.tsx              # NavigationContainer + SafeAreaProvider
+│   │   └── src/
+│   │       ├── navigation/      # RootNavigator (native stack) + types
+│   │       └── screens/         # HomeScreen, DetailsScreen
+│   ├── server/                  # NestJS API + websockets
+│   ├── web/                     # web app
+│   └── evm-contracts/           # Solidity payment contracts (Foundry)
 ├── packages/
-│   └── core/                   # shared TS, no react-native/DOM
-├── package.json                # npm workspaces
+│   └── core/                    # shared TS, no react-native/DOM
+├── package.json                 # npm workspaces
 ├── turbo.json
 └── tsconfig.base.json
 ```
@@ -40,3 +44,12 @@ Set a bundle identifier and signing Team in Xcode
 first time. If `pod install` ever fails with a Ruby encoding error, prefix it
 with `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8`.
 ```
+
+### Contracts (Foundry)
+```bash
+cd apps/evm-contracts
+forge build
+forge test
+```
+See [apps/evm-contracts/README.md](apps/evm-contracts/README.md) for deploy
+and dependency-management details. Requires [Foundry](https://book.getfoundry.sh/getting-started/installation).
