@@ -49,7 +49,17 @@ function BattleshipGameFlow({
   onExit: () => void;
 }) {
   if (engine.phase === 'waiting') {
-    return <WaitingForOpponent />;
+    return (
+      <WaitingForOpponent
+        opponent={engine.playProps.opponent}
+        deadline={engine.setupDeadline}
+        // Cancelling forfeits the match (the confirm dialog lives inside).
+        onCancel={() => {
+          engine.forfeit();
+          onExit();
+        }}
+      />
+    );
   }
   if (engine.phase === 'play') {
     return (

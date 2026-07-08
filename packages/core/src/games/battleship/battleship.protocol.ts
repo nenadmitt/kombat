@@ -25,6 +25,18 @@ export const BATTLESHIP_EVENTS = {
 export const TURN_SECONDS = 30;
 /** Total turn timeouts a player may accrue before forfeiting the match. */
 export const MAX_TIMEOUTS = 3;
+/** How long both players have to deploy their fleets before auto-forfeiting. */
+export const SETUP_SECONDS = 90;
+
+/**
+ * Why a match ended: every enemy ship sunk, an explicit forfeit, too many turn
+ * timeouts, or a fleet never deployed in time.
+ */
+export type BattleshipEndReason =
+  | 'complete'
+  | 'forfeit'
+  | 'timeout'
+  | 'setup-timeout';
 
 /** A shot kind: a normal shot or one of the power-ups. */
 export type FireKind = 'single' | PowerupKind;
@@ -105,8 +117,9 @@ export type PresencePayload = {
 };
 
 export type EndedPayload = {
-  winnerUserId: string;
-  reason: 'forfeit';
+  /** Null only when neither player deployed in time (match voided). */
+  winnerUserId: string | null;
+  reason: 'forfeit' | 'setup-timeout';
 };
 
 // --- server -> caller only ----------------------------------------------------
@@ -136,11 +149,15 @@ export type BattleshipRoomState = {
   points: Record<string, number>;
   turnUserId: string | null;
   /** Epoch ms when the current turn times out (null outside play). */
-  turnDeadline: number | null; 
+  turnDeadline: number | null;
+  /** Epoch ms when fleet setup auto-forfeits (null once play begins). */
+  setupDeadline: number | null;
   /** Accrued turn-timeout counts per user. */
   timeouts: Record<string, number>;
   /** Socket connection state per user. */
   online: Record<string, boolean>;
   winnerUserId: string | null;
+  /** Why the match ended (null while still in progress). */
+  endReason: BattleshipEndReason | null;
   opponentUserId: string;
 };

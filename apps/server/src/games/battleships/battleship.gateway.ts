@@ -33,6 +33,8 @@ export class BattleshipGateway {
   private readonly logger = new Logger(BattleshipGateway.name);
   // Server-authoritative per-room turn clock.
   private readonly turnTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  // Per-room fleet-setup clock — a player who never deploys auto-forfeits.
+  private readonly setupTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   constructor(
     private readonly matchService: BattleshipMatchService,
@@ -54,7 +56,10 @@ export class BattleshipGateway {
       const room = await this.loadParticipantRoom(dto.roomId, userId);
       // The match may not exist yet if this is the first player in; create it
       // so presence can be recorded before either side has submitted a fleet.
-      this.matchService.getOrCreate(room);
+      const match = this.matchService.getOrCreate(room);
+      if (match.phase === 'setup') {
+        this.armSetupTimer(dto.roomId, match.setupDeadline);
+      }
       this.markOnline(client, dto.roomId, userId);
     } catch (error) {
       this.emitError(client, error);
@@ -73,17 +78,20 @@ export class BattleshipGateway {
     }
     try {
       const room = await this.loadParticipantRoom(dto.roomId, userId);
-      this.matchService.getOrCreate(room);
+      const match = this.matchService.getOrCreate(room);
       const result = this.matchService.setFleet(dto.roomId, userId, dto.placements);
       this.markOnline(client, dto.roomId, userId);
       const channel = gameChannel(dto.roomId);
       if (result.bothReady) {
+        // Setup is complete — the play turn clock takes over.
+        this.clearSetupTimer(dto.roomId);
         this.websocketsService.sendToChannel(channel, BATTLESHIP_EVENTS.start, {
           firstTurnUserId: result.firstTurnUserId,
           turnDeadline: result.turnDeadline,
         });
         this.armTurnTimer(dto.roomId);
       } else {
+        this.armSetupTimer(dto.roomId, match.setupDeadline);
         this.websocketsService.sendToChannel(
           channel,
           BATTLESHIP_EVENTS.opponentReady,
@@ -154,6 +162,47 @@ export class BattleshipGateway {
     }
   }
 
+  // --- setup clock -----------------------------------------------------------
+
+  /** Idempotent — the first enter/ready arms it, later calls are no-ops. */
+  private armSetupTimer(roomId: string, deadline: number): void {
+    if (this.setupTimers.has(roomId)) {
+      return;
+    }
+    this.setupTimers.set(
+      roomId,
+      setTimeout(
+        () => {
+          void this.handleSetupTimeout(roomId);
+        },
+        Math.max(0, deadline - Date.now()),
+      ),
+    );
+  }
+
+  private clearSetupTimer(roomId: string): void {
+    const timer = this.setupTimers.get(roomId);
+    if (timer) {
+      clearTimeout(timer);
+      this.setupTimers.delete(roomId);
+    }
+  }
+
+  private async handleSetupTimeout(roomId: string): Promise<void> {
+    this.setupTimers.delete(roomId);
+    try {
+      const { winnerUserId } = this.matchService.timeoutSetup(roomId);
+      this.websocketsService.sendToChannel(
+        gameChannel(roomId),
+        BATTLESHIP_EVENTS.ended,
+        { winnerUserId, reason: 'setup-timeout' },
+      );
+      await this.endMatch(roomId);
+    } catch {
+      // The match started or ended in the meantime — nothing to enforce.
+    }
+  }
+
   // --- turn clock ------------------------------------------------------------
 
   private armTurnTimer(roomId: string): void {
@@ -194,6 +243,7 @@ export class BattleshipGateway {
 
   private async endMatch(roomId: string): Promise<void> {
     this.clearTurnTimer(roomId);
+    this.clearSetupTimer(roomId);
     // Keep the finished match in memory so both players can fetch the "over"
     // state; just mark the room done in the DB.
     await this.dbService.completeGameRoom(roomId);
