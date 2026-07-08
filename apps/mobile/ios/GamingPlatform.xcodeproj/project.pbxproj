@@ -24,6 +24,7 @@
 		E4EB8FA3F0A04C4BB7834825 /* BricolageGrotesque-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7729E2CD0A9C442688090881 /* BricolageGrotesque-SemiBold.ttf */; };
 		354BBB4D0FF14346B13C2AAD /* BricolageGrotesque-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = CDC4E2FCBC9946139455732E /* BricolageGrotesque-Bold.ttf */; };
 		8C995D1E23D34438B3488D58 /* IBMPlexMono-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 962AF41468E9453AB6C2BD36 /* IBMPlexMono-SemiBold.ttf */; };
+		449BDDE718BB4E7BBAA7CD73 /* Sora-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 361D8EFF137A476DA7A7D401 /* Sora-Medium.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -49,6 +50,7 @@
 		7729E2CD0A9C442688090881 /* BricolageGrotesque-SemiBold.ttf */ = {isa = PBXFileReference; name = "BricolageGrotesque-SemiBold.ttf"; path = "../assets/fonts/BricolageGrotesque-SemiBold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 		CDC4E2FCBC9946139455732E /* BricolageGrotesque-Bold.ttf */ = {isa = PBXFileReference; name = "BricolageGrotesque-Bold.ttf"; path = "../assets/fonts/BricolageGrotesque-Bold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 		962AF41468E9453AB6C2BD36 /* IBMPlexMono-SemiBold.ttf */ = {isa = PBXFileReference; name = "IBMPlexMono-SemiBold.ttf"; path = "../assets/fonts/IBMPlexMono-SemiBold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		361D8EFF137A476DA7A7D401 /* Sora-Medium.ttf */ = {isa = PBXFileReference; name = "Sora-Medium.ttf"; path = "../assets/fonts/Sora-Medium.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -138,6 +140,7 @@
 				7729E2CD0A9C442688090881 /* BricolageGrotesque-SemiBold.ttf */,
 				CDC4E2FCBC9946139455732E /* BricolageGrotesque-Bold.ttf */,
 				962AF41468E9453AB6C2BD36 /* IBMPlexMono-SemiBold.ttf */,
+				361D8EFF137A476DA7A7D401 /* Sora-Medium.ttf */,
 			);
 			name = Resources;
 			sourceTree = "<group>";
@@ -218,6 +221,7 @@
 				E4EB8FA3F0A04C4BB7834825 /* BricolageGrotesque-SemiBold.ttf in Resources */,
 				354BBB4D0FF14346B13C2AAD /* BricolageGrotesque-Bold.ttf in Resources */,
 				8C995D1E23D34438B3488D58 /* IBMPlexMono-SemiBold.ttf in Resources */,
+				449BDDE718BB4E7BBAA7CD73 /* Sora-Medium.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

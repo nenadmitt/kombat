@@ -19,7 +19,12 @@ export const display = {
 } as const;
 
 export const body = {
-  regular: 'Sora-Regular',
+  /** Baseline body weight — Medium, a touch heavier than book Regular so
+   *  copy reads with more presence (the "Bold" design language). */
+  regular: 'Sora-Medium',
+  /** True book weight, kept for the rare place that needs it lighter. */
+  light: 'Sora-Regular',
+  medium: 'Sora-Medium',
   semiBold: 'Sora-SemiBold',
   bold: 'Sora-Bold',
   extraBold: 'Sora-ExtraBold',
@@ -54,21 +59,21 @@ export const type = {
   },
   /** Screen titles — "Wallet", "Match History". */
   title: {
-    fontFamily: display.bold,
+    fontFamily: display.extraBold,
     fontSize: 30,
     lineHeight: 34,
     letterSpacing: -0.3,
   },
   /** Section / card headings. */
   heading: {
-    fontFamily: display.bold,
+    fontFamily: display.extraBold,
     fontSize: 20,
     lineHeight: 26,
     letterSpacing: -0.2,
   },
   /** Sub-heading / list-item title. */
   subheading: {
-    fontFamily: display.semiBold,
+    fontFamily: display.bold,
     fontSize: 16,
     lineHeight: 22,
   },
@@ -86,7 +91,7 @@ export const type = {
   },
   /** Button / action label. */
   button: {
-    fontFamily: body.semiBold,
+    fontFamily: body.bold,
     fontSize: 16,
     lineHeight: 20,
   },
