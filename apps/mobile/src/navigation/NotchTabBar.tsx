@@ -58,7 +58,7 @@ export default function NotchTabBar({
             <View style={[styles.tile, focused && styles.tileActive]}>
               <Icon
                 type={icon}
-                color={focused ? colors.textPrimary : colors.textMuted}
+                color={focused ? colors.onAccent : colors.textMuted}
                 size={24}
               />
             </View>
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tileActive: {
-    backgroundColor: colors.brandEnd,
+    backgroundColor: colors.accent,
     // Pop the selected tab up out of the bar, ringed by the screen background
     // so it reads as a raised notch (per the reference design).
     transform: [{ translateY: -24 }],

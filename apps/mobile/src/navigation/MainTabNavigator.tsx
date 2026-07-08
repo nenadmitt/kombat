@@ -1,4 +1,4 @@
-import { StyleSheet, TouchableOpacity } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { CurvedBottomBar } from 'react-native-curved-bottom-bar';
 
 import GamesNavigator from './GamesNavigator';
@@ -7,8 +7,7 @@ import HistoryScreen from '../screens/HistoryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import DemoGamesScreen from '../screens/DemoGamesScreen';
 import Icon, { type IconName } from '../components/Icon';
-import { GradientView } from '../components/GradientView';
-import { brandGradient, colors } from '../theme/colors';
+import { colors } from '../theme/colors';
 
 const TAB_ICONS: Record<string, IconName> = {
   Games: 'games',
@@ -59,13 +58,9 @@ export default function MainTabNavigator() {
           style={styles.circle}
           onPress={() => navigate('Games')}
         >
-          <GradientView
-            colors={brandGradient.colors}
-            positions={brandGradient.positions}
-            style={styles.circleFill}
-          >
-            <Icon type="swords" color={colors.textPrimary} size={26} />
-          </GradientView>
+          <View style={styles.circleFill}>
+            <Icon type="swords" color={colors.onAccent} size={26} />
+          </View>
         </TouchableOpacity>
       )}
       tabBar={({ routeName, selectedTab, navigate }: BarSlot) => {
@@ -80,7 +75,7 @@ export default function MainTabNavigator() {
           >
             <Icon
               type={TAB_ICONS[routeName] ?? 'games'}
-              color={focused ? colors.textPrimary : colors.textMuted}
+              color={focused ? colors.accent : colors.textMuted}
               size={24}
             />
           </TouchableOpacity>
@@ -140,6 +135,7 @@ const styles = StyleSheet.create({
   circleFill: {
     flex: 1,
     borderRadius: 24,
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
