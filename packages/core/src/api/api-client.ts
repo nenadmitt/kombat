@@ -90,6 +90,11 @@ export class ApiClient {
     return this.request('DELETE', `/games/rooms/${id}`, undefined, true);
   }
 
+  /** Forfeit an in-progress match (the opponent wins). */
+  forfeitGameRoom(id: string): Promise<{ winnerUserId: string }> {
+    return this.request('POST', `/games/rooms/${id}/forfeit`, undefined, true);
+  }
+
   joinGameRoom(id: string): Promise<GameRoomSummary> {
     return this.request('POST', `/games/rooms/${id}/join`, undefined, true);
   }

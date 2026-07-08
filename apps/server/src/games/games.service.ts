@@ -1,10 +1,17 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { GameRoomSummary } from '@gaming-platform/core';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { BATTLESHIP_EVENTS, GameRoomSummary } from '@gaming-platform/core';
 
 import { DbService } from '../db';
 import { GameRoomEntity } from '../db/entities/game-room.entity';
 import { GameRoomStatus, GameType } from '../db/types/game';
 import { WebsocketsService } from '../websockets';
+import { gameChannel } from '../websockets/rooms.util';
+import { BattleshipMatchService } from './battleships/battleship-match.service';
 import { getPlayerCountForGameType } from './game-type.util';
 
 @Injectable()
@@ -12,6 +19,7 @@ export class GamesService {
   constructor(
     private readonly dbService: DbService,
     private readonly websocketsService: WebsocketsService,
+    private readonly battleshipMatchService: BattleshipMatchService,
   ) {}
 
   async createRoom(
@@ -92,10 +100,59 @@ export class GamesService {
     return rooms.map(toGameRoomSummary);
   }
 
-  /** The user's own open (Pending/InProgress) room, if any — used to resume a "waiting" state on app start. */
+  /**
+   * The user's active (Pending/InProgress) room as either creator or opponent,
+   * if any — used on app start to resume a "waiting" room or offer to rejoin an
+   * in-progress match.
+   */
   async getMyActiveRoom(userId: string): Promise<GameRoomSummary | null> {
-    const room = await this.dbService.findOpenGameRoomForUser(userId);
+    const room = await this.dbService.findActiveGameRoomForParticipant(userId);
     return room ? toGameRoomSummary(room) : null;
+  }
+
+  /**
+   * Give up an in-progress match: the opponent wins. Unlike closeRoom (which
+   * only deletes a not-yet-started room), this completes a live match so a
+   * player can quit from the lobby without opening the game. A Pending room has
+   * no match to forfeit — close it instead.
+   */
+  async forfeitRoom(
+    userId: string,
+    roomId: string,
+  ): Promise<{ winnerUserId: string }> {
+    const room = await this.dbService.findGameRoomById(roomId);
+    if (!room) {
+      throw new NotFoundException('Game room not found');
+    }
+    if (room.userId !== userId && room.opponentId !== userId) {
+      throw new ForbiddenException('You are not part of this room.');
+    }
+    if (room.status !== GameRoomStatus.InProgress || !room.opponentId) {
+      throw new ConflictException('Only an in-progress match can be forfeited.');
+    }
+
+    const opponentId =
+      room.userId === userId ? room.opponentId : room.userId;
+
+    // Update the in-memory match if it's still around; after a server restart
+    // it may be gone, in which case completing the DB room is enough to end it.
+    try {
+      this.battleshipMatchService.forfeit(roomId, userId);
+    } catch {
+      // No live match — fall through to the DB completion below.
+    }
+    await this.dbService.completeGameRoom(roomId);
+
+    // Tell the channel so an opponent still in the match sees the win. (The
+    // gateway's turn timer, if any, self-clears on its next tick since the
+    // match is no longer in play.)
+    this.websocketsService.sendToChannel(
+      gameChannel(roomId),
+      BATTLESHIP_EVENTS.ended,
+      { winnerUserId: opponentId, reason: 'forfeit' },
+    );
+
+    return { winnerUserId: opponentId };
   }
 }
 

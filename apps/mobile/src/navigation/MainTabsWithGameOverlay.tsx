@@ -1,10 +1,12 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { GameRoomStatus, type GameRoomSummary } from '@gaming-platform/core';
 
 import { apiClient } from '../api/client';
 import { GAME_TYPE_SCREENS } from '../games/game-type-screens';
+import ResumeMatchModal from '../games/ResumeMatchModal';
 import WaitingForPlayersMinimizedBar from '../games/WaitingForPlayersMinimizedBar';
 import WaitingForPlayersPopup from '../games/WaitingForPlayersPopup';
 import { useGameStore } from '../store/game.store';
@@ -30,6 +32,8 @@ export default function MainTabsWithGameOverlay() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const setWaitingRoom = useGameStore(state => state.setWaitingRoom);
+  const setResumableMatch = useGameStore(state => state.setResumableMatch);
+  const clearResumableMatch = useGameStore(state => state.clearResumableMatch);
   const clearWaitingRoom = useGameStore(state => state.clear);
   const onSocketEvent = useWebsocketStore(state => state.on);
 
@@ -37,14 +41,32 @@ export default function MainTabsWithGameOverlay() {
     apiClient
       .getMyActiveGameRoom()
       .then(room => {
-        if (room) {
+        if (!room) {
+          return;
+        }
+        // A Pending room means we're still waiting for an opponent (resume the
+        // waiting popup); an InProgress one is a live match to rejoin/forfeit.
+        if (room.status === GameRoomStatus.InProgress) {
+          setResumableMatch(room);
+        } else {
           setWaitingRoom(room);
         }
       })
       .catch(() => {
-        // Non-critical — just means we won't resume the popup this session.
+        // Non-critical — just means we won't resume anything this session.
       });
-  }, [setWaitingRoom]);
+  }, [setWaitingRoom, setResumableMatch]);
+
+  const handleRejoin = useCallback(
+    (room: GameRoomSummary) => {
+      clearResumableMatch();
+      (navigation.navigate as (screen: string, params: unknown) => void)(
+        GAME_TYPE_SCREENS[room.gameType],
+        { roomId: room.id },
+      );
+    },
+    [clearResumableMatch, navigation],
+  );
 
   // Someone joined the room this user is waiting in — stop waiting and
   // transfer them into whichever screen their game type uses.
@@ -77,6 +99,7 @@ export default function MainTabsWithGameOverlay() {
       <MainTabNavigator />
       <WaitingForPlayersMinimizedBar />
       <WaitingForPlayersPopup />
+      <ResumeMatchModal onRejoin={handleRejoin} />
     </View>
   );
 }

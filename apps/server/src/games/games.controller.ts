@@ -55,6 +55,15 @@ export class GamesController {
     return { success: true };
   }
 
+  /** Forfeit an in-progress match (the opponent wins) — e.g. from the resume prompt. */
+  @Post(':id/forfeit')
+  async forfeitRoom(
+    @Param('id') id: string,
+    @SecurityContext() securityContext: ISecurityContext,
+  ): Promise<{ winnerUserId: string }> {
+    return this.gamesService.forfeitRoom(securityContext.userId, id);
+  }
+
   /** Pending rooms, visible to any authenticated user (joining comes later). */
   @Get()
   async listPendingRooms(

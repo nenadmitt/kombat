@@ -114,6 +114,20 @@ export class DbService {
     });
   }
 
+  /**
+   * An active room the user takes part in as *either* creator or opponent — so
+   * the client can resume a match the user joined, not only one they created.
+   */
+  findActiveGameRoomForParticipant(
+    userId: string,
+  ): Promise<GameRoomEntity | null> {
+    const status = In([GameRoomStatus.Pending, GameRoomStatus.InProgress]);
+    return this.gameRoomRepository.findOneBy([
+      { userId, status },
+      { opponentId: userId, status },
+    ]);
+  }
+
   createGameRoom(data: {
     userId: string;
     gameType: GameType;
