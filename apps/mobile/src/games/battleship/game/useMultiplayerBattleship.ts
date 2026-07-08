@@ -43,6 +43,8 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
   const [opponentOnline, setOpponentOnline] = useState(false);
   const [action, setAction] = useState<GridAction | null>(null);
   const actionId = useRef(0);
+  const [opponentAction, setOpponentAction] = useState<GridAction | null>(null);
+  const opponentActionId = useRef(0);
 
   const status = useWebsocketStore(s => s.status);
 
@@ -103,6 +105,13 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
       }
       if (p.byUserId === opponentIdRef.current) {
         setOpponentShots(prev => [...prev, ...p.cells]);
+        // Replay the incoming shot on my fleet view (bomb/torpedo animations).
+        opponentActionId.current += 1;
+        setOpponentAction({
+          id: opponentActionId.current,
+          kind: p.kind,
+          cells: p.cells,
+        });
       } else {
         // My shot echoed back — replay animation + reveal any sinks.
         setMyShots(prev => [...prev, ...p.cells]);
@@ -206,6 +215,7 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
       points: myPoints,
       myTurn,
       action,
+      opponentAction,
       opponent: {
         initial: opponentUserId ? opponentUserId.charAt(0).toUpperCase() : 'O',
         name: 'Opponent',

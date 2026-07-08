@@ -9,6 +9,11 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { Canvas, Fill, RadialGradient, vec } from '@shopify/react-native-skia';
 import type { FireKind } from '@gaming-platform/core';
 
@@ -49,8 +54,10 @@ export type BattleshipPlayScreenProps = {
   points: number;
   /** Whether it's my turn (gates FIRE + hint treatment). */
   myTurn: boolean;
-  /** Animation batch for my most recent shot. */
+  /** Animation batch for my most recent shot (attack view). */
   action: GridAction | null;
+  /** Animation batch for the opponent's most recent shot (fleet view). */
+  opponentAction: GridAction | null;
   opponent: { initial: string; name: string };
   /** Enemy ships I've sunk / my ships the opponent has sunk (header counts). */
   sunkByMe: number;
@@ -72,6 +79,8 @@ const GLOW_COLOR = 'rgba(139, 92, 246, 0.3)';
 const GLOW_HEIGHT = 420;
 /** Pause before auto-switching boards so the last shot's markers are seen. */
 const MODE_SWITCH_DELAY_MS = 1500;
+/** Cross-fade duration when the attack/fleet boards swap. */
+const BOARD_FADE_MS = 320;
 
 const cellLabel = (row: number, col: number) => `${COLUMN_LABELS[col]}${row + 1}`;
 
@@ -89,6 +98,7 @@ export default function BattleshipPlayScreen({
   points,
   myTurn,
   action,
+  opponentAction,
   opponent,
   sunkByMe,
   sunkByOpponent,
@@ -215,6 +225,17 @@ export default function BattleshipPlayScreen({
   const isAttack = mode === 'attack';
   // Banner shows my last shot on the attack view, the opponent's on fleet.
   const bannerShot = isAttack ? lastShot : lastIncoming;
+
+  // Cross-fade the two stacked boards instead of hard-swapping their opacity —
+  // 1 = attack (enemy waters) on top, 0 = fleet on top.
+  const attackFade = useSharedValue(isAttack ? 1 : 0);
+  useEffect(() => {
+    attackFade.value = withTiming(isAttack ? 1 : 0, { duration: BOARD_FADE_MS });
+  }, [isAttack, attackFade]);
+  const attackBoardStyle = useAnimatedStyle(() => ({ opacity: attackFade.value }));
+  const fleetBoardStyle = useAnimatedStyle(() => ({
+    opacity: 1 - attackFade.value,
+  }));
 
   const handleHeaderBack = () => {
     Alert.alert(
@@ -428,13 +449,13 @@ export default function BattleshipPlayScreen({
             ))}
           </View>
 
-          {/* Both boards stay mounted and laid out; toggling only flips
+          {/* Both boards stay mounted and laid out; toggling cross-fades their
               opacity (not `display`, which tears down the Skia canvas surface
               and leaves it blank on the way back). They're stacked in a fixed
               square so only the active one takes visual/touch precedence. */}
           <View style={{ width: boardSize, height: boardSize }}>
-            <View
-              style={[styles.boardLayer, !isAttack && styles.hiddenBoard]}
+            <Animated.View
+              style={[styles.boardLayer, attackBoardStyle]}
               pointerEvents={isAttack ? 'auto' : 'none'}
             >
               <BattleshipGrid
@@ -447,9 +468,9 @@ export default function BattleshipPlayScreen({
                 action={action}
                 onCommit={handleGridCommit}
               />
-            </View>
-            <View
-              style={[styles.boardLayer, isAttack && styles.hiddenBoard]}
+            </Animated.View>
+            <Animated.View
+              style={[styles.boardLayer, fleetBoardStyle]}
               pointerEvents={isAttack ? 'none' : 'auto'}
             >
               <BattleshipGrid
@@ -457,8 +478,9 @@ export default function BattleshipPlayScreen({
                 cell={cell}
                 placedShips={myFleet}
                 shots={opponentShots}
+                action={opponentAction}
               />
-            </View>
+            </Animated.View>
           </View>
         </View>
 
@@ -749,9 +771,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
-  },
-  hiddenBoard: {
-    opacity: 0,
   },
   axisLabel: {
     fontSize: 11,
