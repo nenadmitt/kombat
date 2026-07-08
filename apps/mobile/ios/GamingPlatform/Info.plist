@@ -62,6 +62,14 @@
 		<string>Sora-Bold.ttf</string>
 		<string>Sora-Regular.ttf</string>
 		<string>Sora-SemiBold.ttf</string>
+		<string>IBMPlexMono-Bold.ttf</string>
+		<string>IBMPlexMono-Medium.ttf</string>
+		<string>BricolageGrotesque-ExtraBold.ttf</string>
+		<string>BricolageGrotesque-Regular.ttf</string>
+		<string>IBMPlexMono-Regular.ttf</string>
+		<string>BricolageGrotesque-SemiBold.ttf</string>
+		<string>BricolageGrotesque-Bold.ttf</string>
+		<string>IBMPlexMono-SemiBold.ttf</string>
 	</array>
 </dict>
 </plist>
