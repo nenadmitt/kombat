@@ -131,9 +131,19 @@ export default function RootNavigator() {
         <>
           <Stack.Screen name="MainTabs" component={MainTabsWithGameOverlay} />
           {/* Multiplayer (carries a roomId) and the demo both use BattleshipGame,
-              which picks its engine from the presence of a roomId route param. */}
-          <Stack.Screen name="Battleship" component={BattleshipGame} />
-          <Stack.Screen name="BattleshipSetup" component={BattleshipGame} />
+              which picks its engine from the presence of a roomId route param.
+              The iOS edge-swipe is disabled so leaving always goes through the
+              in-game guard (leaving an active match forfeits it). */}
+          <Stack.Screen
+            name="Battleship"
+            component={BattleshipGame}
+            options={{ gestureEnabled: false }}
+          />
+          <Stack.Screen
+            name="BattleshipSetup"
+            component={BattleshipGame}
+            options={{ gestureEnabled: false }}
+          />
         </>
       )}
     </Stack.Navigator>

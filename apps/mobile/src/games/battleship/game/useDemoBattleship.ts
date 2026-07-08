@@ -190,11 +190,18 @@ export function useDemoBattleship(): BattleshipEngine {
   const lost =
     sunkByOpponentIds.size === FLEET.length || myTimeouts >= MAX_TIMEOUTS;
   const result: 'win' | 'lose' | null = won ? 'win' : lost ? 'lose' : null;
+  const resultReason = result
+    ? !won && myTimeouts >= MAX_TIMEOUTS
+      ? ('timeout' as const)
+      : ('complete' as const)
+    : null;
 
   return {
     phase,
     submitFleet,
     forfeit: () => {},
+    // The demo has no waiting phase, so there's no setup clock to race.
+    setupDeadline: null,
     playProps: {
       myFleet,
       myShots,
@@ -211,6 +218,7 @@ export function useDemoBattleship(): BattleshipEngine {
       myOnline: true,
       opponentOnline: true,
       result,
+      resultReason,
       onFire,
       onTimerExpire: handleTimeout,
     },

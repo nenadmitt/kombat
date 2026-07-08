@@ -21,6 +21,8 @@ export const colors = {
   /** Brand gradient stops (purple → green, matching the battleship icon). */
   brandStart: '#8b5cf6',
   brandEnd: '#00a070',
+  /** Lighter brand purple for accents on dark tints (radar sweep, statuses). */
+  brandLight: '#a78bfa',
   /** KOMBAT (native token) accent — amber. */
   kombatAccent: '#f59e0b',
   /** Destructive actions (sign out). */

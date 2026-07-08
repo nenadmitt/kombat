@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  BattleshipEndReason,
   BattleshipRoomState,
   FLEET,
   FireKind,
@@ -16,6 +17,7 @@ import {
   POWERUP_COST,
   RevealedShip,
   resolveShot,
+  SETUP_SECONDS,
   SHIP_BY_ID,
   Shot,
   ShotPayload,
@@ -45,7 +47,11 @@ type MatchState = {
   turnUserId: string | null;
   /** Epoch ms the current turn started (for the countdown deadline). */
   turnStartedAt: number | null;
+  /** Epoch ms fleet setup auto-forfeits (fixed at match creation). */
+  setupDeadline: number;
   winnerUserId: string | null;
+  /** Why the match ended (null while still in progress). */
+  endReason: BattleshipEndReason | null;
 };
 
 /**
@@ -78,7 +84,9 @@ export class BattleshipMatchService {
       phase: 'setup',
       turnUserId: null,
       turnStartedAt: null,
+      setupDeadline: Date.now() + SETUP_SECONDS * 1000,
       winnerUserId: null,
+      endReason: null,
     };
     this.matches.set(room.id, match);
     return match;
@@ -172,6 +180,7 @@ export class BattleshipMatchService {
     if (after.size === FLEET.length) {
       match.phase = 'over';
       match.winnerUserId = userId;
+      match.endReason = 'complete';
       winnerUserId = userId;
       nextTurnUserId = userId;
     } else if (anyHit) {
@@ -215,6 +224,7 @@ export class BattleshipMatchService {
     if (match.timeouts[timedOutUserId]! >= MAX_TIMEOUTS) {
       match.phase = 'over';
       match.winnerUserId = opponentId;
+      match.endReason = 'timeout';
       winnerUserId = opponentId;
       nextTurnUserId = timedOutUserId;
     } else {
@@ -239,7 +249,25 @@ export class BattleshipMatchService {
     const opponentId = this.opponentOf(match, userId);
     match.phase = 'over';
     match.winnerUserId = opponentId;
+    match.endReason = 'forfeit';
     return { winnerUserId: opponentId };
+  }
+
+  /**
+   * The fleet-setup window ran out. Any player who never deployed forfeits: a
+   * ready player wins; if neither deployed, the match is voided (no winner).
+   */
+  timeoutSetup(roomId: string): { winnerUserId: string | null } {
+    const match = this.require(roomId);
+    if (match.phase !== 'setup') {
+      throw new ConflictException('The match is not in setup.');
+    }
+    const ready = this.players(match).filter(p => match.fleets[p]);
+    const winnerUserId = ready.length === 1 ? ready[0]! : null;
+    match.phase = 'over';
+    match.winnerUserId = winnerUserId;
+    match.endReason = 'setup-timeout';
+    return { winnerUserId };
   }
 
   /** Update a player's socket-connection state. Returns whether it's an active match. */
@@ -276,9 +304,11 @@ export class BattleshipMatchService {
       points: { ...match.points },
       turnUserId: match.turnUserId,
       turnDeadline: match.phase === 'play' ? this.deadline(match) : null,
+      setupDeadline: match.phase === 'setup' ? match.setupDeadline : null,
       timeouts: { ...match.timeouts },
       online: { ...match.online },
       winnerUserId: match.winnerUserId,
+      endReason: match.endReason,
       opponentUserId: opponentId,
     };
   }

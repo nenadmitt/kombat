@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BATTLESHIP_EVENTS,
+  type BattleshipEndReason,
   type EndedPayload,
   type FleetPlacements,
   type PresencePayload,
   type RevealedShip,
+  type SetupStatePayload,
   type Shot,
   type ShotPayload,
   type StartPayload,
@@ -38,7 +40,9 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
   const [pointsMap, setPointsMap] = useState<Record<string, number>>({});
   const [turnUserId, setTurnUserId] = useState<string | null>(null);
   const [turnDeadline, setTurnDeadline] = useState<number | null>(null);
+  const [setupDeadline, setSetupDeadline] = useState<number | null>(null);
   const [winnerUserId, setWinnerUserId] = useState<string | null>(null);
+  const [endReason, setEndReason] = useState<BattleshipEndReason | null>(null);
   const [opponentUserId, setOpponentUserId] = useState<string>('');
   const [opponentOnline, setOpponentOnline] = useState(false);
   const [action, setAction] = useState<GridAction | null>(null);
@@ -74,7 +78,11 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
         setPointsMap(state.points);
         setTurnUserId(state.turnUserId);
         setTurnDeadline(state.turnDeadline);
+        // Normalize a missing field (older server build) to null so the
+        // waiting modal hides the countdown instead of rendering 0:00.
+        setSetupDeadline(state.setupDeadline ?? null);
         setWinnerUserId(state.winnerUserId);
+        setEndReason(state.endReason);
         setOpponentUserId(state.opponentUserId);
         setOpponentOnline(state.online[state.opponentUserId] ?? false);
         setPhase(
@@ -89,10 +97,16 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
         // Happy path: assume the room exists; a failed fetch leaves us in setup.
       });
 
+    // The server pushes the setup countdown on enter — more reliable than the
+    // REST snapshot, which can be fetched before the match exists.
+    const offSetupState = on(BATTLESHIP_EVENTS.setupState, payload => {
+      setSetupDeadline((payload as SetupStatePayload).setupDeadline);
+    });
     const offStart = on(BATTLESHIP_EVENTS.start, payload => {
       const { firstTurnUserId, turnDeadline: deadline } = payload as StartPayload;
       setTurnUserId(firstTurnUserId);
       setTurnDeadline(deadline);
+      setSetupDeadline(null);
       setPhase('play');
     });
     const offShot = on(BATTLESHIP_EVENTS.shot, payload => {
@@ -102,6 +116,7 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
       setTurnDeadline(p.turnDeadline);
       if (p.winnerUserId) {
         setWinnerUserId(p.winnerUserId);
+        setEndReason('complete');
       }
       if (p.byUserId === opponentIdRef.current) {
         setOpponentShots(prev => [...prev, ...p.cells]);
@@ -128,6 +143,7 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
       setTurnDeadline(p.turnDeadline);
       if (p.winnerUserId) {
         setWinnerUserId(p.winnerUserId);
+        setEndReason('timeout');
       }
     });
     const offPresence = on(BATTLESHIP_EVENTS.presence, payload => {
@@ -137,12 +153,15 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
       }
     });
     const offEnded = on(BATTLESHIP_EVENTS.ended, payload => {
-      const { winnerUserId: winner } = payload as EndedPayload;
+      const { winnerUserId: winner, reason } = payload as EndedPayload;
+      // Winner is null only when neither fleet was deployed in time.
       setWinnerUserId(winner);
+      setEndReason(reason);
     });
 
     return () => {
       mounted = false;
+      offSetupState();
       offStart();
       offShot();
       offTimeout();
@@ -196,7 +215,10 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
     ? winnerUserId === opponentUserId
       ? 'lose'
       : 'win'
-    : null;
+    : // A voided match (nobody deployed) still ends as a loss for both sides.
+      endReason === 'setup-timeout'
+      ? 'lose'
+      : null;
   const myTurn =
     phase === 'play' &&
     !result &&
@@ -204,9 +226,12 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
     turnUserId !== opponentUserId;
 
   return {
-    phase,
+    // A match can end during setup/waiting (forfeit or setup timeout) — jump
+    // to the play phase so the result screen renders.
+    phase: result ? 'play' : phase,
     submitFleet,
     forfeit,
+    setupDeadline,
     playProps: {
       myFleet,
       myShots,
@@ -226,6 +251,7 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
       myOnline: status === 'connected',
       opponentOnline,
       result,
+      resultReason: result ? endReason : null,
       onFire,
     },
   };

@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  Vibration,
   View,
   useWindowDimensions,
 } from 'react-native';
@@ -15,7 +15,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { Canvas, Fill, RadialGradient, vec } from '@shopify/react-native-skia';
-import type { FireKind } from '@gaming-platform/core';
+import type { BattleshipEndReason, FireKind } from '@gaming-platform/core';
 
 import Icon from '../../../components/Icon';
 import GameResultScreen from '../../../components/GameResultScreen';
@@ -68,6 +68,8 @@ export type BattleshipPlayScreenProps = {
   myOnline: boolean;
   opponentOnline: boolean;
   result: 'win' | 'lose' | null;
+  /** Why the match ended (drives the result-screen copy). */
+  resultReason: BattleshipEndReason | null;
   onFire: (kind: FireKind, row: number, col: number) => void;
   onTimerExpire?: () => void;
   /** Header back — leaving an in-progress match forfeits it. */
@@ -83,6 +85,49 @@ const MODE_SWITCH_DELAY_MS = 1500;
 const BOARD_FADE_MS = 320;
 
 const cellLabel = (row: number, col: number) => `${COLUMN_LABELS[col]}${row + 1}`;
+
+/** Result-screen copy per outcome and end reason. */
+const RESULT_COPY: Record<
+  'win' | 'lose',
+  Record<BattleshipEndReason, { eyebrow: string; message: (name: string) => string }>
+> = {
+  win: {
+    complete: {
+      eyebrow: 'FLEET DESTROYED',
+      message: () => 'You sank every enemy ship and dominated the waters.',
+    },
+    forfeit: {
+      eyebrow: 'OPPONENT FORFEITED',
+      message: name => `${name} abandoned the battle. The seas are yours.`,
+    },
+    timeout: {
+      eyebrow: 'VICTORY BY TIMEOUT',
+      message: name => `${name} ran out of time once too often. The win is yours.`,
+    },
+    'setup-timeout': {
+      eyebrow: 'OPPONENT NEVER DEPLOYED',
+      message: name => `${name} failed to deploy their fleet in time. The win is yours.`,
+    },
+  },
+  lose: {
+    complete: {
+      eyebrow: 'FLEET LOST',
+      message: () => 'Your fleet was wiped out. Regroup and strike back.',
+    },
+    forfeit: {
+      eyebrow: 'MATCH FORFEITED',
+      message: () => 'You forfeited the match and handed over the win.',
+    },
+    timeout: {
+      eyebrow: 'LOST BY TIMEOUT',
+      message: () => 'You ran out of time once too often and forfeited the match.',
+    },
+    'setup-timeout': {
+      eyebrow: 'FLEET NEVER DEPLOYED',
+      message: () => "You didn't deploy your fleet in time, so the match was forfeited.",
+    },
+  },
+};
 
 /**
  * Pure-UI battle screen: renders entirely from props and reports intents via
@@ -106,6 +151,7 @@ export default function BattleshipPlayScreen({
   myOnline,
   opponentOnline,
   result,
+  resultReason,
   onFire,
   onTimerExpire,
   onExit,
@@ -131,6 +177,19 @@ export default function BattleshipPlayScreen({
       setPowerupTarget(null);
     }
   }, [myTurn]);
+
+  // Nudge: a short buzz when the battle screen appears and whenever the turn
+  // becomes mine (no-op on simulators — vibration needs a physical device).
+  const prevTurn = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (result) {
+      return;
+    }
+    if (prevTurn.current === null || (myTurn && !prevTurn.current)) {
+      Vibration.vibrate(300);
+    }
+    prevTurn.current = myTurn;
+  }, [myTurn, result]);
 
   // Follow the action: my turn shows enemy waters, the opponent's turn shows
   // my fleet. The switch is delayed a beat so the shot that ended the turn is
@@ -237,16 +296,9 @@ export default function BattleshipPlayScreen({
     opacity: 1 - attackFade.value,
   }));
 
-  const handleHeaderBack = () => {
-    Alert.alert(
-      'Leave match?',
-      'If you leave now you forfeit and lose the match.',
-      [
-        { text: 'Stay', style: 'cancel' },
-        { text: 'Leave', style: 'destructive', onPress: onExit },
-      ],
-    );
-  };
+  // Plain back — the navigation guard in BattleshipGame owns the
+  // leave-forfeits confirmation for every exit path.
+  const handleHeaderBack = onExit;
 
   if (result) {
     const shotsFired = myShots.length;
@@ -258,13 +310,14 @@ export default function BattleshipPlayScreen({
       { value: `${accuracy}%`, label: 'ACCURACY' },
       { value: `${sunkByMe} / ${SHIPS.length}`, label: 'SHIPS SUNK', highlight: true },
     ];
+    const copy = RESULT_COPY[result][resultReason ?? 'complete'];
     return result === 'win' ? (
       <GameResultScreen
         variant="win"
         icon="trophy"
-        eyebrow="FLEET DESTROYED"
+        eyebrow={copy.eyebrow}
         title="VICTORY"
-        message="You sank every enemy ship and dominated the waters."
+        message={copy.message(opponent.name)}
         opponent={{ initial: opponent.initial, label: 'DEFEATED', name: opponent.name }}
         stats={stats}
         onBack={onQuit}
@@ -273,9 +326,9 @@ export default function BattleshipPlayScreen({
       <GameResultScreen
         variant="lose"
         icon="anchor"
-        eyebrow="FLEET LOST"
+        eyebrow={copy.eyebrow}
         title="DEFEAT"
-        message="Your fleet was wiped out. Regroup and strike back."
+        message={copy.message(opponent.name)}
         opponent={{ initial: opponent.initial, label: 'LOST TO', name: opponent.name }}
         stats={stats}
         onBack={onQuit}

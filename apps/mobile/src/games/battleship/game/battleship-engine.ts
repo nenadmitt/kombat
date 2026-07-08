@@ -21,5 +21,7 @@ export type BattleshipEngine = {
   submitFleet: (placements: FleetPlacements) => void;
   /** Leave the match early (multiplayer forfeits to the opponent). */
   forfeit: () => void;
+  /** Epoch ms fleet setup auto-forfeits (null in demo / once play begins). */
+  setupDeadline: number | null;
   playProps: EnginePlayProps;
 };
