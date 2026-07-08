@@ -16,14 +16,16 @@ import { ApiError } from '@gaming-platform/core';
 import type { RootStackParamList } from '../navigation/types';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import { apiClient } from '../api/client';
-import { GradientView } from '../components/GradientView';
 import Icon from '../components/Icon';
-import { brandGradient, colors, radius, spacing } from '../theme/colors';
-import { fonts } from '../theme/typography';
+import { Button, Chip } from '../components/ui';
+import { colors, radius, spacing } from '../theme/colors';
+import { display, mono, type } from '../theme/typography';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 type SheetStep = 'methods' | 'email' | 'code';
+
+const FEATURES = ['Self-custody', 'Provably fair', 'Instant payouts'];
 
 export default function LoginScreen(_props: Props) {
   const loginWithToken = useCurrentUserStore(state => state.loginWithToken);
@@ -83,47 +85,37 @@ export default function LoginScreen(_props: Props) {
       <View style={styles.content}>
         {/* Logo + wordmark */}
         <View style={styles.logoStack}>
-          <GradientView
-            colors={brandGradient.colors}
-            positions={brandGradient.positions}
-            style={styles.logoIcon}
-          >
-            <Icon type="gem" color={colors.textPrimary} size={40} />
-          </GradientView>
+          <View style={styles.logoTile}>
+            <Icon type="gem" color={colors.onAccent} size={34} />
+          </View>
           <Text style={styles.wordmark}>KRYPTOKOMBAT</Text>
         </View>
 
         {/* Hero visual */}
         <View style={styles.hero}>
-          <Icon type="swords" color={colors.brandStart} size={96} />
+          <View style={styles.heroGlow}>
+            <Icon type="swords" color={colors.accent} size={72} />
+          </View>
+          <Text style={styles.heroCaption}>NEON ARCADE · WIN CRYPTO</Text>
         </View>
 
-        {/* Footer: headline + CTA */}
+        {/* Headline + CTA */}
         <View style={styles.footer}>
-          <Text style={styles.headline}>Play. Compete. Win Crypto.</Text>
+          <Text style={styles.headline}>
+            Play.{'\n'}Compete.{'\n'}
+            <Text style={styles.headlineAccent}>Win</Text>
+          </Text>
 
-          <View style={styles.ctaBlock}>
-            <Pressable
-              onPress={openSheet}
-              style={({ pressed }) => [
-                styles.buttonWrapper,
-                pressed && styles.buttonPressed,
-              ]}
-            >
-              <GradientView
-                colors={brandGradient.colors}
-                positions={brandGradient.positions}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.button}
-              >
-                <Text style={styles.buttonText}>Continue</Text>
-              </GradientView>
-            </Pressable>
+          <Button label="Start Winning" onPress={openSheet} />
 
-            <Text style={styles.disclaimer}>
-              By continuing you agree to the Terms of Service.
-            </Text>
+          <Text style={styles.disclaimer}>
+            A self-custodial wallet is created for you automatically.
+          </Text>
+
+          <View style={styles.features}>
+            {FEATURES.map(f => (
+              <Chip key={f} label={f} tone="outline" />
+            ))}
           </View>
         </View>
       </View>
@@ -140,22 +132,23 @@ export default function LoginScreen(_props: Props) {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <SafeAreaView style={styles.sheet} edges={['bottom']}>
+            <View style={styles.sheetHandle} />
             {step === 'methods' && (
               <View style={styles.sheetContent}>
                 <Text style={styles.sheetTitle}>Sign in</Text>
 
-                <Pressable
+                <Button
+                  label="Continue with Email"
+                  icon="at-sign"
+                  variant="secondary"
                   onPress={() => setStep('email')}
-                  style={styles.methodRow}
-                >
-                  <Text style={styles.methodLabel}>Continue with Email</Text>
-                </Pressable>
+                />
 
-                <View style={[styles.methodRow, styles.methodRowDisabled]}>
+                <View style={styles.methodDisabled}>
                   <Text style={styles.methodLabelDisabled}>
                     Continue with Google
                   </Text>
-                  <Text style={styles.comingSoon}>Coming soon</Text>
+                  <Chip label="Soon" tone="neutral" />
                 </View>
               </View>
             )}
@@ -168,7 +161,7 @@ export default function LoginScreen(_props: Props) {
                   value={email}
                   onChangeText={setEmail}
                   placeholder="you@example.com"
-                  placeholderTextColor={colors.textMuted}
+                  placeholderTextColor={colors.textFaint}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -176,26 +169,13 @@ export default function LoginScreen(_props: Props) {
                   editable={!busy}
                   autoFocus
                 />
-                <Pressable
+                <Button
+                  label={busy ? 'Sending code…' : 'Send code'}
                   onPress={handleSendCode}
                   disabled={!canSendCode}
-                  style={({ pressed }) => [
-                    styles.sheetButtonWrapper,
-                    (pressed || !canSendCode) && styles.buttonPressed,
-                  ]}
-                >
-                  <GradientView
-                    colors={brandGradient.colors}
-                    positions={brandGradient.positions}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.button}
-                  >
-                    <Text style={styles.buttonText}>
-                      {busy ? 'Sending code…' : 'Send code'}
-                    </Text>
-                  </GradientView>
-                </Pressable>
+                  loading={busy}
+                  trailingIcon="arrow-right"
+                />
                 {errorMessage ? (
                   <Text style={styles.error}>{errorMessage}</Text>
                 ) : null}
@@ -212,36 +192,27 @@ export default function LoginScreen(_props: Props) {
                   value={code}
                   onChangeText={setCode}
                   placeholder="ABCD1234"
-                  placeholderTextColor={colors.textMuted}
+                  placeholderTextColor={colors.textFaint}
                   autoCapitalize="characters"
                   autoComplete="one-time-code"
                   maxLength={8}
                   editable={!busy}
                   autoFocus
                 />
-                <Pressable
+                <Button
+                  label={busy ? 'Verifying…' : 'Verify'}
                   onPress={handleVerify}
                   disabled={!canVerify}
-                  style={({ pressed }) => [
-                    styles.sheetButtonWrapper,
-                    (pressed || !canVerify) && styles.buttonPressed,
-                  ]}
-                >
-                  <GradientView
-                    colors={brandGradient.colors}
-                    positions={brandGradient.positions}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.button}
-                  >
-                    <Text style={styles.buttonText}>
-                      {busy ? 'Verifying…' : 'Verify'}
-                    </Text>
-                  </GradientView>
-                </Pressable>
-                <Pressable onPress={() => setStep('email')} disabled={busy}>
-                  <Text style={styles.linkText}>Use a different email</Text>
-                </Pressable>
+                  loading={busy}
+                  trailingIcon="arrow-right"
+                />
+                <Button
+                  label="Use a different email"
+                  variant="ghost"
+                  size="md"
+                  onPress={() => setStep('email')}
+                  disabled={busy}
+                />
                 {errorMessage ? (
                   <Text style={styles.error}>{errorMessage}</Text>
                 ) : null}
@@ -270,154 +241,138 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  logoIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: radius.logo,
+  logoTile: {
+    width: 72,
+    height: 72,
+    borderRadius: radius.xl,
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   wordmark: {
-    fontSize: 32,
-    fontWeight: '800',
-    fontFamily: fonts.extraBold,
+    fontFamily: mono.semiBold,
+    fontSize: 15,
+    letterSpacing: 4,
     color: colors.textPrimary,
-    letterSpacing: 1,
   },
   hero: {
     width: '100%',
-    height: 280,
-    borderRadius: radius.hero,
+    flex: 1,
+    marginVertical: spacing.lg,
+    maxHeight: 300,
+    borderRadius: radius.xl,
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.25)',
+    borderColor: colors.cardBorder,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing.lg,
+  },
+  heroGlow: {
+    width: 132,
+    height: 132,
+    borderRadius: radius.xl,
+    backgroundColor: colors.accentSoft,
+    borderWidth: 1,
+    borderColor: colors.accentBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroCaption: {
+    fontFamily: mono.medium,
+    fontSize: 11,
+    letterSpacing: 2,
+    color: colors.textMuted,
   },
   footer: {
     width: '100%',
-    alignItems: 'center',
-    gap: spacing.lg,
+    gap: spacing.md,
   },
   headline: {
-    width: '100%',
-    fontSize: 40,
-    lineHeight: 44,
-    fontWeight: '800',
-    fontFamily: fonts.extraBold,
-    textAlign: 'center',
+    fontFamily: display.extraBold,
+    fontSize: 44,
+    lineHeight: 46,
+    letterSpacing: -1,
     color: colors.textPrimary,
   },
-  ctaBlock: {
-    width: '100%',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  buttonWrapper: {
-    width: '100%',
-    borderRadius: radius.button,
-  },
-  buttonPressed: {
-    opacity: 0.85,
-  },
-  button: {
-    height: 56,
-    width: '100%',
-    borderRadius: radius.button,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonText: {
-    fontSize: 18,
-    fontWeight: '700',
-    fontFamily: fonts.bold,
-    color: colors.textPrimary,
+  headlineAccent: {
+    color: colors.accent,
   },
   disclaimer: {
-    width: '100%',
-    fontSize: 13,
-    textAlign: 'center',
+    ...type.caption,
     color: colors.textMuted,
+  },
+  features: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
   },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   sheetWrapper: {
     justifyContent: 'flex-end',
   },
   sheet: {
     backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.hero,
-    borderTopRightRadius: radius.hero,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    borderTopWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.borderStrong,
+    marginTop: spacing.sm,
   },
   sheetContent: {
     padding: spacing.lg,
     gap: spacing.md,
   },
   sheetTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    fontFamily: fonts.bold,
+    ...type.heading,
     color: colors.textPrimary,
   },
-  methodRow: {
+  methodDisabled: {
     height: 56,
-    borderRadius: radius.button,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.35)',
+    borderColor: colors.cardBorder,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  methodRowDisabled: {
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  methodLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: fonts.semiBold,
-    color: colors.textPrimary,
+    gap: spacing.sm,
+    opacity: 0.6,
   },
   methodLabelDisabled: {
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: fonts.semiBold,
-    color: colors.textMuted,
-  },
-  comingSoon: {
-    fontSize: 12,
+    ...type.button,
     color: colors.textMuted,
   },
   input: {
     width: '100%',
     height: 56,
-    borderRadius: radius.button,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.35)',
-    backgroundColor: colors.background,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surfaceMuted,
     paddingHorizontal: spacing.md,
+    fontFamily: mono.medium,
     fontSize: 16,
     color: colors.textPrimary,
   },
   codeInput: {
     textAlign: 'center',
-    fontSize: 22,
-    letterSpacing: 6,
-  },
-  sheetButtonWrapper: {
-    width: '100%',
-    borderRadius: radius.button,
-  },
-  linkText: {
-    fontSize: 14,
-    color: colors.brandStart,
-    textAlign: 'center',
+    fontSize: 24,
+    letterSpacing: 8,
+    fontFamily: mono.bold,
   },
   error: {
-    fontSize: 13,
+    ...type.caption,
     textAlign: 'center',
-    color: '#f87171',
+    color: colors.danger,
   },
 });
