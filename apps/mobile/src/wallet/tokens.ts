@@ -63,16 +63,16 @@ const KOMBAT = (address?: Address): Token => ({
 
 export const CHAIN_TOKENS: Record<BalanceChainId, Token[]> = {
   base: [
+    KOMBAT(),
     ETH,
     USDC('0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'),
     USDT('0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2'),
-    KOMBAT(),
   ],
   sepolia: [
+    KOMBAT('0x59faBb88F9f72805bBbF5a038BEdd059Af6d4923'),
     ETH,
     USDC('0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'),
     USDT(),
-    KOMBAT(),
   ],
 };
 
