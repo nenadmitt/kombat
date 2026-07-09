@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,12 +12,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { ApiError } from '@gaming-platform/core';
 
-import { GradientView } from '../components/GradientView';
 import Icon from '../components/Icon';
+import { Button, Card, Chip } from '../components/ui';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import { getWalletSecret } from '../wallet/wallet-keychain';
-import { brandGradient, colors, radius, spacing } from '../theme/colors';
-import { fonts } from '../theme/typography';
+import { colors, radius, spacing } from '../theme/colors';
+import { display, mono, type } from '../theme/typography';
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,20}$/;
 // Placeholder word lengths for the masked grid before the real mnemonic is loaded.
@@ -36,7 +35,8 @@ export default function OnboardingScreen() {
   const [mnemonicError, setMnemonicError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const canSubmit = USERNAME_PATTERN.test(username.trim()) && !busy;
+  const isValid = USERNAME_PATTERN.test(username.trim());
+  const canSubmit = isValid && !busy;
 
   const handleSubmit = async () => {
     setErrorMessage(null);
@@ -92,52 +92,45 @@ export default function OnboardingScreen() {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView contentContainerStyle={styles.content}>
-          {/* Progress indicator (decorative — this is the only onboarding step) */}
-          <View style={styles.progressRow}>
-            <View style={styles.progressDot} />
-            <GradientView
-              colors={brandGradient.colors}
-              positions={brandGradient.positions}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.progressDotActive}
-            />
-            <View style={styles.progressDot} />
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Step indicator */}
+          <View style={styles.stepRow}>
+            <Text style={styles.stepText}>STEP 01 / 02</Text>
+            <View style={styles.progressTrack}>
+              <View style={styles.progressFill} />
+              <View style={styles.progressRest} />
+            </View>
           </View>
 
-          <View style={styles.titleBlock}>
-            <Text style={styles.title}>Almost Legendary</Text>
-            <Text style={styles.subtitle}>
-              Choose a username and secure your wallet recovery phrase before
-              you start playing.
-            </Text>
-          </View>
+          <Text style={styles.title}>Set up your account</Text>
+          <Text style={styles.subtitle}>
+            Choose a username and secure your recovery phrase before you play.
+          </Text>
 
           {/* Username */}
           <View style={styles.section}>
-            <View style={styles.labelRow}>
-              <Icon type="user" color={colors.textMuted} size={13} />
-              <Text style={styles.label}>USERNAME</Text>
-            </View>
-            <View style={styles.input}>
+            <Text style={[type.label, styles.label]}>Username</Text>
+            <View style={[styles.input, isValid && styles.inputValid]}>
               <TextInput
                 style={styles.inputText}
                 value={username}
                 onChangeText={setUsername}
-                placeholder="Enter your username..."
+                placeholder="Katty_Kombat"
                 placeholderTextColor={colors.textFaint}
                 autoCapitalize="none"
                 autoCorrect={false}
                 maxLength={20}
                 editable={!busy}
               />
-              <View style={styles.atBadge}>
-                <Icon type="at-sign" color={colors.brandStart} size={16} />
-              </View>
+              {isValid ? (
+                <Icon type="check" color={colors.accent} size={20} />
+              ) : null}
             </View>
             <Text style={styles.hint}>
-              3-20 characters, letters, numbers and underscores only.
+              3–20 characters · letters, numbers, underscores.
             </Text>
             {errorMessage ? (
               <Text style={styles.error}>{errorMessage}</Text>
@@ -147,22 +140,17 @@ export default function OnboardingScreen() {
           {/* Recovery phrase */}
           <View style={styles.section}>
             <View style={styles.recoveryHeaderRow}>
-              <View style={styles.labelRow}>
-                <Icon type="key" color={colors.textMuted} size={13} />
-                <Text style={styles.label}>RECOVERY PHRASE</Text>
-              </View>
-              <View style={styles.keepSecretBadge}>
-                <Text style={styles.keepSecretText}>Keep Secret</Text>
-              </View>
+              <Text style={[type.label, styles.label]}>Recovery phrase</Text>
+              <Chip label="Keep secret" tone="gold" />
             </View>
 
-            <View style={styles.recoveryCard}>
+            <Card>
               <View style={styles.wordGridWrapper}>
                 <View style={styles.wordGrid}>
                   {(revealed && mnemonicWords ? mnemonicWords : MASK_LENGTHS).map(
                     (word, index) => (
                       <View key={index} style={styles.wordChip}>
-                        <Text style={styles.wordChipText}>
+                        <Text style={styles.wordChipText} numberOfLines={1}>
                           {revealed && mnemonicWords
                             ? (word as string)
                             : '•'.repeat(word as number)}
@@ -174,66 +162,51 @@ export default function OnboardingScreen() {
                 {!revealed ? (
                   <View style={styles.lockOverlay}>
                     <View style={styles.lockCircle}>
-                      <Icon type="lock" color={colors.textPrimary} size={22} />
+                      <Icon type="lock" color={colors.accent} size={22} />
                     </View>
                   </View>
                 ) : null}
               </View>
 
               <View style={styles.recoveryActions}>
-                <Pressable onPress={handleReveal} style={styles.revealButton}>
-                  {revealed ? (
-                    <Icon type="eye-off" color="#a78bfa" size={16} />
-                  ) : (
-                    <Icon type="eye" color="#a78bfa" size={16} />
-                  )}
-                  <Text style={styles.revealText}>
-                    {revealed ? 'Hide' : 'Reveal'}
-                  </Text>
-                </Pressable>
-                <Pressable onPress={handleCopy} style={styles.copyButton}>
-                  <Icon type="copy" color={colors.textMuted} size={16} />
-                  <Text style={styles.copyText}>
-                    {copied ? 'Copied!' : 'Copy'}
-                  </Text>
-                </Pressable>
+                <Button
+                  label={revealed ? 'Hide' : 'Reveal'}
+                  icon={revealed ? 'eye-off' : 'eye'}
+                  variant="tinted"
+                  size="md"
+                  onPress={handleReveal}
+                  style={styles.actionFlex}
+                />
+                <Button
+                  label={copied ? 'Copied!' : 'Copy'}
+                  icon="copy"
+                  variant="secondary"
+                  size="md"
+                  onPress={handleCopy}
+                  style={styles.actionFlex}
+                />
               </View>
-            </View>
+            </Card>
 
             {mnemonicError ? (
               <Text style={styles.error}>{mnemonicError}</Text>
             ) : null}
 
             <View style={styles.warningBox}>
-              <Icon type="warning" color={colors.kombatAccent} size={16} />
+              <Icon type="warning" color={colors.gold} size={18} />
               <Text style={styles.warningText}>
-                Never share your recovery phrase. Anyone with it has full
-                access to your wallet.
+                Never share this phrase. Anyone with it controls your wallet.
               </Text>
             </View>
           </View>
 
-          <Pressable
+          <Button
+            label={busy ? 'Saving…' : 'Continue'}
+            trailingIcon="arrow-right"
             onPress={handleSubmit}
             disabled={!canSubmit}
-            style={({ pressed }) => [
-              styles.continueWrapper,
-              (pressed || !canSubmit) && styles.continueDimmed,
-            ]}
-          >
-            <GradientView
-              colors={brandGradient.colors}
-              positions={brandGradient.positions}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.continueButton}
-            >
-              <Text style={styles.continueText}>
-                {busy ? 'Saving…' : 'Continue'}
-              </Text>
-              <Icon type="arrow-right" color={colors.textPrimary} size={18} />
-            </GradientView>
-          </Pressable>
+            loading={busy}
+          />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -249,81 +222,79 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: spacing.md,
-    gap: spacing.lg,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxl,
+    gap: spacing.md,
   },
-  progressRow: {
+  stepRow: {
     flexDirection: 'row',
-    gap: spacing.xs,
-    justifyContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  progressDot: {
-    width: 8,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#475569',
+  stepText: {
+    fontFamily: mono.semiBold,
+    fontSize: 12,
+    letterSpacing: 2,
+    color: colors.accent,
   },
-  progressDotActive: {
-    width: 32,
-    height: 6,
-    borderRadius: 3,
+  progressTrack: {
+    flexDirection: 'row',
+    gap: 4,
+    width: 64,
   },
-  titleBlock: {
-    gap: spacing.xs + 6,
+  progressFill: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.accent,
+  },
+  progressRest: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.surfaceMuted,
   },
   title: {
-    fontSize: 36,
-    lineHeight: 40,
-    fontWeight: '800',
-    fontFamily: fonts.extraBold,
+    fontFamily: display.bold,
+    fontSize: 34,
+    lineHeight: 38,
+    letterSpacing: -0.5,
     color: colors.textPrimary,
   },
   subtitle: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: colors.textMuted,
+    ...type.body,
+    color: colors.textSecondary,
   },
   section: {
-    gap: spacing.xs + 4,
-  },
-  labelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs - 2,
+    gap: spacing.xs,
+    marginTop: spacing.sm,
   },
   label: {
-    fontSize: 13,
-    fontWeight: '600',
-    fontFamily: fonts.semiBold,
     color: colors.textMuted,
-    letterSpacing: 0.5,
+    marginBottom: spacing.xxs,
   },
   input: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    borderRadius: radius.card - 4,
-    paddingHorizontal: spacing.sm + 4,
-    paddingVertical: spacing.sm - 2,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    height: 56,
+  },
+  inputValid: {
+    borderColor: colors.accentBorder,
   },
   inputText: {
     flex: 1,
+    fontFamily: mono.medium,
     fontSize: 16,
     color: colors.textPrimary,
   },
-  atBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   hint: {
-    fontSize: 12,
+    ...type.caption,
     color: colors.textFaint,
   },
   recoveryHeaderRow: {
@@ -331,51 +302,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  keepSecretBadge: {
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.2)',
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.xs + 4,
-    paddingVertical: 4,
-  },
-  keepSecretText: {
-    fontSize: 11,
-    fontWeight: '600',
-    fontFamily: fonts.semiBold,
-    color: colors.kombatAccent,
-  },
-  recoveryCard: {
-    backgroundColor: colors.cardBackground,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.card + 4,
-    padding: spacing.sm + 4,
-    gap: spacing.sm,
-  },
   wordGridWrapper: {
-    borderRadius: radius.card - 4,
+    borderRadius: radius.md,
     backgroundColor: colors.background,
     padding: spacing.sm,
+    marginBottom: spacing.sm,
   },
   wordGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.xs + 4,
+    gap: spacing.xs,
     justifyContent: 'center',
   },
   wordChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    minWidth: 84,
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 8,
-    paddingHorizontal: spacing.xs + 6,
-    paddingVertical: spacing.xs - 2,
+    borderColor: colors.cardBorder,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   wordChipText: {
+    fontFamily: mono.medium,
     fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontFamily: 'Menlo',
+    color: colors.textSecondary,
   },
   lockOverlay: {
     position: 'absolute',
@@ -387,93 +339,40 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   lockCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(11, 11, 14, 0.8)',
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.canvas,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: colors.accentBorder,
   },
   recoveryActions: {
     flexDirection: 'row',
-    gap: spacing.sm - 4,
+    gap: spacing.sm,
   },
-  revealButton: {
+  actionFlex: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    backgroundColor: 'rgba(139, 92, 246, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.25)',
-    borderRadius: 14,
-    paddingVertical: spacing.sm - 2,
-  },
-  revealText: {
-    fontSize: 14,
-    fontWeight: '600',
-    fontFamily: fonts.semiBold,
-    color: '#a78bfa',
-  },
-  copyButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.cardBackground,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: 14,
-    paddingVertical: spacing.sm - 2,
-  },
-  copyText: {
-    fontSize: 14,
-    fontWeight: '600',
-    fontFamily: fonts.semiBold,
-    color: colors.textMuted,
   },
   warningBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: spacing.xs + 4,
-    backgroundColor: 'rgba(245, 158, 11, 0.05)',
+    gap: spacing.sm,
+    backgroundColor: colors.goldSoft,
     borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.15)',
-    borderRadius: 12,
-    padding: spacing.sm - 2,
+    borderColor: 'rgba(251, 191, 36, 0.25)',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginTop: spacing.xs,
   },
   warningText: {
     flex: 1,
-    fontSize: 12,
-    lineHeight: 18,
-    color: 'rgba(245, 158, 11, 0.8)',
+    ...type.caption,
+    color: colors.gold,
   },
   error: {
-    fontSize: 13,
-    color: '#f87171',
-  },
-  continueWrapper: {
-    borderRadius: radius.hero - 12,
-  },
-  continueDimmed: {
-    opacity: 0.6,
-  },
-  continueButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    height: 58,
-    borderRadius: radius.hero - 12,
-  },
-  continueText: {
-    fontSize: 18,
-    fontWeight: '700',
-    fontFamily: fonts.bold,
-    color: colors.textPrimary,
+    ...type.caption,
+    color: colors.danger,
   },
 });

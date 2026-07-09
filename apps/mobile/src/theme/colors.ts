@@ -1,70 +1,119 @@
 /**
- * App color palette and shared design tokens.
- * Keep raw hex values here so screens reference names, not literals.
+ * KryptoKombat design tokens — a flat "inked canvas" system with one focused
+ * accent (violet). Keep raw values here so screens reference names, not
+ * literals. Legacy token names are preserved (re-pointed to the new palette)
+ * so older game screens keep compiling while they migrate.
  */
 export const colors = {
-  /** App / screen background. */
-  background: '#0b0b0e',
-  /** Elevated surface (cards, hero placeholder). */
-  surface: '#15151b',
-  /** Muted chip/icon-circle background (wallet screen). */
-  surfaceMuted: '#1c1c24',
-  /** Card background/border (wallet screen asset cards, action buttons). */
-  cardBackground: 'rgba(255, 255, 255, 0.05)',
-  cardBorder: 'rgba(255, 255, 255, 0.1)',
-  /** Primary text on dark backgrounds. */
-  textPrimary: '#ffffff',
+  // ---- Canvas & surfaces -------------------------------------------------
+  /** App background — flat near-black. */
+  background: '#08080B',
+  /** Phone/section canvas, one step up from the pure background. */
+  canvas: '#0A0A0C',
+  /** Elevated surface (cards, sheets). */
+  surface: '#111116',
+  /** Muted surface (inputs, chips, icon tiles). */
+  surfaceMuted: '#17171D',
+  /** Card fill/border used across the app. */
+  cardBackground: '#111116',
+  cardBorder: 'rgba(255, 255, 255, 0.08)',
+  /** Slightly stronger hairline for emphasis. */
+  border: 'rgba(255, 255, 255, 0.08)',
+  borderStrong: 'rgba(255, 255, 255, 0.14)',
+
+  // ---- Accent (violet) ---------------------------------------------------
+  /** Primary accent. */
+  accent: '#7C5CFF',
+  /** Text/icon color that sits on a filled accent surface (dark). */
+  onAccent: '#0A0A0C',
+  /** Tinted accent background (tinted buttons, selected chips, highlights). */
+  accentSoft: 'rgba(124, 92, 255, 0.14)',
+  /** Accent hairline/border. */
+  accentBorder: 'rgba(124, 92, 255, 0.40)',
+  /** Lighter accent for text-on-dark accents. */
+  accentLight: '#A594FF',
+
+  // ---- Semantic ----------------------------------------------------------
+  /** Positive — wins, gains, "your turn". */
+  success: '#24E08A',
+  successSoft: 'rgba(36, 224, 138, 0.14)',
+  /** Negative — losses, destructive. */
+  danger: '#FF5468',
+  dangerSoft: 'rgba(255, 84, 104, 0.14)',
+  /** Gold — earnings, achievements, KOMBAT token. */
+  gold: '#FBBF24',
+  goldSoft: 'rgba(251, 191, 36, 0.12)',
+  /** Blue — informational (alt accent). */
+  info: '#2E8BFF',
+
+  // ---- Text --------------------------------------------------------------
+  /** Primary text. */
+  textPrimary: '#F5F5F7',
   /** Secondary / helper text. */
-  textMuted: '#94a3b8',
-  /** Faint text (input placeholders, fine print). */
-  textFaint: '#475569',
-  /** Brand gradient stops (purple → green, matching the battleship icon). */
-  brandStart: '#8b5cf6',
-  brandEnd: '#00a070',
-  /** Lighter brand purple for accents on dark tints (radar sweep, statuses). */
-  brandLight: '#a78bfa',
-  /** KOMBAT (native token) accent — amber. */
-  kombatAccent: '#f59e0b',
-  /** Destructive actions (sign out). */
-  danger: '#ef4444',
-  /** Positive/stake values, "your turn" status text. */
-  success: '#10b981',
-  /** Victory / winner accent (gold). */
-  victoryGold: '#f5c451',
-  /** Defeat / loser accent (muted red). */
-  defeatRed: '#ec5b70',
+  textSecondary: '#9A9AA8',
+  /** Muted text (labels, subtitles). */
+  textMuted: '#6E6E7C',
+  /** Faint text (placeholders, fine print, disabled). */
+  textFaint: '#45454F',
+
+  // ---- Legacy aliases (re-pointed; kept so game code compiles) -----------
+  /** @deprecated use `accent`. */
+  brandStart: '#7C5CFF',
+  /** @deprecated use `accent`. */
+  brandEnd: '#7C5CFF',
+  /** @deprecated use `accentLight`. */
+  brandLight: '#A594FF',
+  /** @deprecated use `gold`. */
+  kombatAccent: '#FBBF24',
+  /** @deprecated use `gold`. */
+  victoryGold: '#FBBF24',
+  /** @deprecated use `danger`. */
+  defeatRed: '#FF5468',
 } as const;
 
-/** Brand gradient (purple → green), matching the auth-screen design. */
+/**
+ * "Gradient" tokens kept for API compatibility with GradientView callers.
+ * The design is flat/single-accent, so these are near-solid violet — a subtle
+ * top-to-bottom shift keeps large fills from looking dead-flat.
+ */
 export const brandGradient = {
-  colors: [colors.brandStart, colors.brandEnd],
-  positions: [0.25, 0.75],
+  colors: ['#8B6DFF', '#6A48F5'],
+  positions: [0, 1],
 } as const;
 
-/** Gold gradient for victory accents (button, rank bar). */
+/** Gold gradient for victory / earnings accents. */
 export const goldGradient = {
-  colors: [colors.victoryGold, colors.kombatAccent],
+  colors: ['#FCD34D', '#F59E0B'],
   positions: [0.15, 0.85],
 } as const;
 
 /** Shared corner radii. */
 export const radius = {
-  logo: 24,
-  hero: 32,
-  button: 28,
-  /** Wallet asset/action cards. */
-  card: 20,
-  /** Smaller cards (profile stats/settings rows). */
-  chip: 16,
-  /** Fully-rounded chips (e.g. address pill). */
+  /** Chips / small tiles. */
+  sm: 12,
+  /** Inputs, list rows. */
+  md: 16,
+  /** Cards, sheets. */
+  lg: 20,
+  /** Large hero cards. */
+  xl: 28,
+  /** Fully-rounded pills. */
   pill: 100,
+  // legacy aliases
+  logo: 24,
+  hero: 28,
+  button: 16,
+  card: 20,
+  chip: 12,
 } as const;
 
 /** Shared spacing scale (px). */
 export const spacing = {
-  xs: 6,
-  sm: 16,
-  md: 24,
-  lg: 32,
-  xl: 48,
+  xxs: 4,
+  xs: 8,
+  sm: 12,
+  md: 16,
+  lg: 24,
+  xl: 32,
+  xxl: 48,
 } as const;

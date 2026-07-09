@@ -3,8 +3,8 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Image,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -15,23 +15,27 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ApiError, GameType, type GameRoomSummary } from '@gaming-platform/core';
 
 import { apiClient } from '../api/client';
-import { GradientView } from '../components/GradientView';
 import Icon from '../components/Icon';
+import { Button, Card, Chip } from '../components/ui';
 import CreateGameRoomModal from '../games/CreateGameRoomModal';
-import { GAME_ICONS } from '../games/game-icons';
 import { GAME_TYPE_LABELS } from '../games/game-type-labels';
 import { GAME_TYPE_SCREENS } from '../games/game-type-screens';
+import { formatRoomCode } from '../games/room-code';
 import type { RootStackParamList } from '../navigation/types';
 import { useCurrentUserStore } from '../store/currentUser.store';
-import { brandGradient, colors, radius, spacing } from '../theme/colors';
-import { fonts } from '../theme/typography';
+import { colors, radius, spacing } from '../theme/colors';
+import { display, mono, type } from '../theme/typography';
 
 type Status = 'loading' | 'ready' | 'error';
 type Filter = 'all' | GameType;
 
-/** No staking/prize backend yet — shown for visual parity with the Figma
- *  design until real stakes exist. */
+/** No staking/prize or balance backend yet — shown for visual parity with the
+ *  design until real values exist. */
 const HARDCODED_STAKE = '50 USDC';
+const MOCK_USD_BALANCE = '4,240';
+const FEATURED_POOL = '480';
+
+const GAME_ICON = 'crosshair' as const;
 
 const FILTERS: { key: Filter; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -110,75 +114,110 @@ export default function GameLobyScreen() {
     }
   };
 
-  return (
-    <SafeAreaView style={styles.screen}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.welcome}>Welcome back,</Text>
-          <Text style={styles.headline}>Ready to Play?</Text>
-        </View>
-        <GradientView
-          colors={brandGradient.colors}
-          positions={brandGradient.positions}
-          style={styles.avatar}
-        >
-          <Text style={styles.avatarInitial}>{initial}</Text>
-        </GradientView>
-      </View>
+  // No join-by-code backend yet — point players at the open-rooms list.
+  const handleJoinGame = () => {
+    Alert.alert(
+      'Join a game',
+      'Tap any open room below to join, or ask a friend to share their room so it shows up here.',
+    );
+  };
 
-      <Pressable
-        style={styles.createButtonWrapper}
-        onPress={() => setIsCreateModalVisible(true)}
-      >
-        <GradientView
-          colors={brandGradient.colors}
-          positions={brandGradient.positions}
-          style={styles.createButton}
-        >
-          <Icon type="plus" color={colors.textPrimary} size={18} />
-          <Text style={styles.createButtonText}>Create Game</Text>
-        </GradientView>
-      </Pressable>
+  return (
+    <SafeAreaView style={styles.screen} edges={['top']}>
+      {/* Fixed header */}
+      <View style={styles.header}>
+        <View style={styles.headerText}>
+          <Text style={[type.label, styles.welcome]}>Welcome back</Text>
+          <Text style={styles.name} numberOfLines={1}>
+            {username ?? 'Player'}
+          </Text>
+        </View>
+        <View style={styles.headerRight}>
+          <View style={styles.balancePill}>
+            <Icon type="gem" color={colors.accent} size={14} />
+            <Text style={styles.balanceValue}>{MOCK_USD_BALANCE}</Text>
+            <Text style={styles.balanceUnit}>USD</Text>
+          </View>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarInitial}>{initial}</Text>
+          </View>
+        </View>
+      </View>
 
       <FlatList
         data={filteredRooms}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
         ListHeaderComponent={
-          <>
-            {/* Not wired up yet — filtering by game name/room comes later. */}
-            <View style={styles.searchBar}>
-              <Icon type="search" color={colors.textMuted} size={20} />
-              <Text style={styles.searchPlaceholder}>Find a game room...</Text>
+          <View style={styles.listHeader}>
+            {/* Featured game */}
+            <Card accent style={styles.featured}>
+              <View style={styles.featuredThumb}>
+                <Icon type={GAME_ICON} color={colors.accent} size={30} />
+              </View>
+              <View style={styles.featuredBody}>
+                <View style={styles.featuredEyebrow}>
+                  <View style={styles.liveDot} />
+                  <Text style={styles.featuredEyebrowText}>Featured · Live</Text>
+                </View>
+                <Text style={styles.featuredTitle}>Battleships</Text>
+                <Text style={styles.featuredPool}>
+                  {FEATURED_POOL} <Text style={styles.featuredPoolUnit}>USDC POOL</Text>
+                </Text>
+              </View>
+              <Button
+                label="Play"
+                size="sm"
+                fullWidth={false}
+                onPress={() => setIsCreateModalVisible(true)}
+              />
+            </Card>
+
+            {/* Primary actions */}
+            <View style={styles.actionRow}>
+              <Button
+                label="Create Room"
+                icon="plus"
+                onPress={() => setIsCreateModalVisible(true)}
+                style={styles.actionFlex}
+              />
+              <Button
+                label="Join Game"
+                icon="log-out"
+                variant="secondary"
+                onPress={handleJoinGame}
+                style={styles.actionFlex}
+              />
             </View>
 
-            <View style={styles.filterRow}>
-              {FILTERS.map(f => {
-                const active = f.key === filter;
-                return (
-                  <Pressable
-                    key={f.key}
-                    onPress={() => setFilter(f.key)}
-                    style={[styles.chip, active && styles.chipActive]}
-                  >
-                    <Text style={styles.chipText}>{f.label}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+            {/* Filters */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterRow}
+            >
+              {FILTERS.map(f => (
+                <Pressable key={String(f.key)} onPress={() => setFilter(f.key)}>
+                  <Chip label={f.label} tone={f.key === filter ? 'accent' : 'outline'} />
+                </Pressable>
+              ))}
+            </ScrollView>
 
+            {/* Section header */}
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Game Rooms</Text>
-              <Pressable onPress={fetchRooms} disabled={status === 'loading'}>
-                <Text style={styles.refreshText}>Refresh</Text>
-              </Pressable>
+              <Text style={[type.label, styles.sectionLabel]}>Open rooms</Text>
+              {status === 'ready' ? (
+                <Text style={styles.liveCount}>{filteredRooms.length} LIVE</Text>
+              ) : (
+                <Pressable onPress={fetchRooms} disabled={status === 'loading'}>
+                  <Text style={styles.liveCount}>Refresh</Text>
+                </Pressable>
+              )}
             </View>
 
             {status === 'loading' && rooms.length === 0 ? (
-              <ActivityIndicator
-                color={colors.brandStart}
-                style={styles.stateBlock}
-              />
+              <ActivityIndicator color={colors.accent} style={styles.stateBlock} />
             ) : null}
 
             {status === 'error' ? (
@@ -200,53 +239,33 @@ export default function GameLobyScreen() {
                 </Text>
               </View>
             ) : null}
-          </>
+          </View>
         }
         renderItem={({ item }) => (
-          <View style={styles.roomCard}>
-            <View style={styles.roomRow}>
-              <View style={styles.roomLeft}>
-                <Image
-                  source={GAME_ICONS[item.gameType]}
-                  style={styles.roomIcon}
-                />
-                <View>
-                  <Text style={styles.roomName}>
-                    {GAME_TYPE_LABELS[item.gameType]}
-                  </Text>
-                  <Text style={styles.roomSubtext}>
-                    Waiting for players · {timeAgo(item.createdAt)}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.roomPlayers}>
-                <Text style={styles.playersLabel}>Players</Text>
-                <Text style={styles.playersValue}>{item.playerCount}</Text>
-              </View>
+          <Card style={styles.roomCard}>
+            <View style={styles.roomIcon}>
+              <Icon type={GAME_ICON} color={colors.accent} size={20} />
             </View>
-            <View style={styles.roomStatsRow}>
-              <View>
-                <Text style={styles.statLabel}>Stake</Text>
-                <Text style={styles.statValue}>{HARDCODED_STAKE}</Text>
-              </View>
-              <Pressable
-                onPress={() => handleJoin(item.id, item.gameType)}
+            <View style={styles.roomInfo}>
+              <Text style={styles.roomName}>{GAME_TYPE_LABELS[item.gameType]}</Text>
+              <Text style={styles.roomMeta}>
+                #{formatRoomCode(item.id)} · {item.playerCount}/2 · {timeAgo(item.createdAt)}
+              </Text>
+            </View>
+            <View style={styles.roomRight}>
+              <Text style={styles.roomStake}>{HARDCODED_STAKE}</Text>
+              <Button
+                label="Join"
+                size="sm"
+                variant="tinted"
+                fullWidth={false}
+                loading={joiningRoomId === item.id}
                 disabled={joiningRoomId !== null}
-              >
-                <GradientView
-                  colors={brandGradient.colors}
-                  positions={brandGradient.positions}
-                  style={styles.joinButton}
-                >
-                  {joiningRoomId === item.id ? (
-                    <ActivityIndicator color={colors.textPrimary} size="small" />
-                  ) : (
-                    <Text style={styles.joinButtonText}>Join</Text>
-                  )}
-                </GradientView>
-              </Pressable>
+                onPress={() => handleJoin(item.id, item.gameType)}
+                style={styles.joinButton}
+              />
             </View>
-          </View>
+          </Card>
         )}
       />
 
@@ -267,201 +286,208 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.md,
+  },
+  headerText: {
+    flex: 1,
+    gap: 2,
   },
   welcome: {
-    fontSize: 14,
     color: colors.textMuted,
   },
-  headline: {
-    fontSize: 24,
-    fontFamily: fonts.bold,
+  name: {
+    fontFamily: display.bold,
+    fontSize: 26,
+    letterSpacing: -0.3,
     color: colors.textPrimary,
   },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitial: {
-    fontSize: 18,
-    fontFamily: fonts.bold,
-    color: colors.textPrimary,
-  },
-  listContent: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.xl * 2,
-    gap: spacing.md,
-  },
-  searchBar: {
+  headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs + 6,
-    backgroundColor: colors.cardBackground,
-    borderRadius: radius.chip,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs + 6,
-    marginBottom: spacing.md,
+    gap: spacing.sm,
   },
-  searchPlaceholder: {
-    fontSize: 15,
-    color: colors.textMuted,
-  },
-  filterRow: {
+  balancePill: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.xs,
-    marginBottom: spacing.md,
-  },
-  chip: {
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.cardBorder,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingVertical: 7,
   },
-  chipActive: {
-    backgroundColor: colors.brandStart,
-    borderColor: colors.brandStart,
-  },
-  chipText: {
-    fontSize: 13,
-    fontFamily: fonts.semiBold,
+  balanceValue: {
+    fontFamily: mono.bold,
+    fontSize: 14,
     color: colors.textPrimary,
+  },
+  balanceUnit: {
+    fontFamily: mono.medium,
+    fontSize: 10,
+    color: colors.textMuted,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitial: {
+    fontFamily: display.bold,
+    fontSize: 18,
+    color: colors.onAccent,
+  },
+  listContent: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xxl * 2,
+    gap: spacing.sm,
+  },
+  listHeader: {
+    gap: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  featured: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  featuredThumb: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.md,
+    backgroundColor: colors.canvas,
+    borderWidth: 1,
+    borderColor: colors.accentBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  featuredBody: {
+    flex: 1,
+    gap: 2,
+  },
+  featuredEyebrow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.accent,
+  },
+  featuredEyebrowText: {
+    fontFamily: mono.semiBold,
+    fontSize: 10,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    color: colors.accentLight,
+  },
+  featuredTitle: {
+    fontFamily: display.bold,
+    fontSize: 22,
+    letterSpacing: -0.3,
+    color: colors.textPrimary,
+  },
+  featuredPool: {
+    fontFamily: mono.bold,
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  featuredPoolUnit: {
+    fontFamily: mono.medium,
+    fontSize: 10,
+    color: colors.textMuted,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  actionFlex: {
+    flex: 1,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    paddingRight: spacing.lg,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.sm,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: fonts.bold,
-    color: colors.textPrimary,
+  sectionLabel: {
+    color: colors.textMuted,
   },
-  refreshText: {
-    fontSize: 14,
-    fontFamily: fonts.semiBold,
-    color: colors.brandStart,
+  liveCount: {
+    fontFamily: mono.bold,
+    fontSize: 12,
+    letterSpacing: 1,
+    color: colors.accentLight,
   },
   stateBlock: {
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
-    paddingVertical: spacing.xl,
+    paddingVertical: spacing.xxl,
   },
   emptyText: {
-    fontSize: 14,
-    fontFamily: fonts.semiBold,
+    ...type.subheading,
     color: colors.textPrimary,
   },
   emptySubtext: {
-    fontSize: 13,
+    ...type.caption,
     color: colors.textMuted,
     textAlign: 'center',
   },
   retryText: {
-    fontSize: 14,
-    fontFamily: fonts.semiBold,
-    color: colors.brandStart,
+    ...type.caption,
+    fontFamily: type.button.fontFamily,
+    color: colors.accentLight,
   },
   roomCard: {
-    backgroundColor: colors.cardBackground,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.card,
-    padding: spacing.sm + 4,
-    gap: spacing.sm,
-  },
-  roomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  roomLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    flexShrink: 1,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
   },
   roomIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: colors.surfaceMuted,
+    width: 44,
+    height: 44,
+    borderRadius: radius.sm,
+    backgroundColor: colors.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  roomInfo: {
+    flex: 1,
+    gap: 2,
   },
   roomName: {
-    fontSize: 16,
-    fontFamily: fonts.bold,
+    ...type.subheading,
     color: colors.textPrimary,
   },
-  roomSubtext: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  roomPlayers: {
-    alignItems: 'flex-end',
-  },
-  playersLabel: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  playersValue: {
-    fontSize: 15,
-    fontFamily: fonts.bold,
-    color: colors.textPrimary,
-    marginTop: 2,
-  },
-  roomStatsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  statLabel: {
+  roomMeta: {
+    fontFamily: mono.regular,
     fontSize: 11,
     color: colors.textMuted,
   },
-  statValue: {
-    fontSize: 14,
-    fontFamily: fonts.bold,
-    color: colors.success,
-    marginTop: 2,
+  roomRight: {
+    alignItems: 'flex-end',
+    gap: spacing.xs,
+  },
+  roomStake: {
+    fontFamily: mono.bold,
+    fontSize: 13,
+    color: colors.textPrimary,
   },
   joinButton: {
-    minWidth: 68,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.chip,
-    paddingHorizontal: spacing.sm + 4,
-    paddingVertical: spacing.xs + 4,
-  },
-  joinButtonText: {
-    fontSize: 14,
-    fontFamily: fonts.bold,
-    color: colors.textPrimary,
-  },
-  createButtonWrapper: {
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  createButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    width: '100%',
-    height: 52,
-    borderRadius: radius.button,
-  },
-  createButtonText: {
-    fontSize: 16,
-    fontFamily: fonts.bold,
-    color: colors.textPrimary,
+    minWidth: 72,
   },
 });

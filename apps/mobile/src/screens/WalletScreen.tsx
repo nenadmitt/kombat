@@ -1,19 +1,32 @@
-import { StyleSheet, Text, View, Pressable } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, Text, View } from 'react-native';
 
 import Icon, { type IconName } from '../components/Icon';
+import { AddressPill, Card, Screen, SectionLabel } from '../components/ui';
 import { useCurrentUserStore } from '../store/currentUser.store';
-import { truncateAddress } from '../wallet/format-address';
 import { colors, radius, spacing } from '../theme/colors';
-import { fonts } from '../theme/typography';
+import { mono, type } from '../theme/typography';
 
-/** Mocked — no balance-fetching endpoint yet. Values match the Figma design. */
-const MOCK_ASSETS = [
-  { symbol: 'USDC', icon: 'banknote' as IconName, balance: '1,240.50', usd: '$1,240.50' },
-  { symbol: 'USDT', icon: 'banknote' as IconName, balance: '450.00', usd: '$450.00' },
-  { symbol: 'ETH', icon: null, label: 'Ξ', balance: '0.45', usd: '$1,320.12' },
-  { symbol: 'KOMBAT', icon: 'gem' as IconName, balance: '12,500', usd: '$3,125.00' },
-] as const;
+/** Mocked — no balance endpoint yet. Values mirror the design reference. */
+const BALANCE_WHOLE = '$6,135';
+const BALANCE_CENTS = '.62';
+const BALANCE_CHANGE = '+12.4% this week';
+
+type Asset = {
+  symbol: string;
+  name: string;
+  glyph: string;
+  tint: string;
+  balance: string;
+  usd: string;
+  highlight?: boolean;
+};
+
+const ASSETS: Asset[] = [
+  { symbol: 'USDC', name: 'USD Coin', glyph: '$', tint: '#2775CA', balance: '1,240.50', usd: '$1,240.50' },
+  { symbol: 'USDT', name: 'Tether', glyph: '₮', tint: '#26A17B', balance: '450.00', usd: '$450.00' },
+  { symbol: 'ETH', name: 'Ethereum', glyph: 'Ξ', tint: '#627EEA', balance: '0.45', usd: '$1,320.12' },
+  { symbol: 'KOMBAT', name: 'Platform Token', glyph: '◆', tint: colors.gold, balance: '12,500', usd: '$3,125.00', highlight: true },
+];
 
 const ACTIONS = [
   { key: 'receive', label: 'Receive', icon: 'arrow-down' as IconName },
@@ -21,212 +34,263 @@ const ACTIONS = [
   { key: 'withdraw', label: 'Withdraw', icon: 'arrow-up' as IconName },
 ] as const;
 
+type Activity = {
+  key: string;
+  title: string;
+  time: string;
+  amount: string;
+  icon: IconName;
+  negative?: boolean;
+};
+
+const ACTIVITY: Activity[] = [
+  { key: '1', title: 'Battleships Win', time: '2m ago', amount: '+45.00', icon: 'games' },
+  { key: '2', title: 'USDC Deposit', time: '1h ago', amount: '+200.00', icon: 'arrow-down' },
+  { key: '3', title: 'Ludo Loss', time: '3h ago', amount: '-10.00', icon: 'dice', negative: true },
+];
+
 export default function WalletScreen() {
   const wallet = useCurrentUserStore(state => state.wallet);
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <View style={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>My Wallet</Text>
-          {wallet ? (
-            // TODO: wire up copy-to-clipboard once a clipboard dependency is added.
-            <Pressable style={styles.addressPill}>
-              <Text style={styles.addressText}>
-                {truncateAddress(wallet.address)}
-              </Text>
-              <Icon type="copy" color={colors.textMuted} size={14} />
-            </Pressable>
-          ) : null}
-        </View>
+    <Screen scroll>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title}>Wallet</Text>
+        {wallet ? <AddressPill address={wallet.address} /> : null}
+      </View>
 
-        {/* Receive / Deposit / Withdraw — mocked for now */}
-        <View style={styles.actionRow}>
-          {ACTIONS.map(action => (
-            <Pressable key={action.key} style={styles.actionButton}>
-              <View style={styles.actionIconCircle}>
-                <Icon type={action.icon} color={colors.textPrimary} size={18} />
-              </View>
-              <Text style={styles.actionLabel}>{action.label}</Text>
-            </Pressable>
-          ))}
-        </View>
-
-        {/* Assets */}
-        <View style={styles.assetsSection}>
-          <Text style={styles.sectionTitle}>Assets</Text>
-          <View style={styles.assetsList}>
-            {MOCK_ASSETS.map(asset => (
-              <View
-                key={asset.symbol}
-                style={[
-                  styles.assetCard,
-                  asset.symbol === 'KOMBAT' && styles.assetCardHighlight,
-                ]}
-              >
-                <View style={styles.assetLeft}>
-                  <View
-                    style={[
-                      styles.assetIconCircle,
-                      asset.symbol === 'KOMBAT' && styles.assetIconCircleHighlight,
-                    ]}
-                  >
-                    {asset.icon ? (
-                      <Icon type={asset.icon} color={colors.textPrimary} size={20} />
-                    ) : (
-                      <Text style={styles.assetIcon}>{asset.label}</Text>
-                    )}
-                  </View>
-                  <View>
-                    <Text style={styles.assetSymbol}>{asset.symbol}</Text>
-                    <Text style={styles.assetSubtitle}>Platform Token</Text>
-                  </View>
-                </View>
-                <View style={styles.assetRight}>
-                  <Text style={styles.assetBalance}>{asset.balance}</Text>
-                  <Text style={styles.assetUsd}>{asset.usd}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
+      {/* Balance card */}
+      <View style={styles.balanceCard}>
+        <Text style={[type.label, styles.balanceLabel]}>Total balance</Text>
+        <Text style={styles.balanceValue}>
+          {BALANCE_WHOLE}
+          <Text style={styles.balanceCents}>{BALANCE_CENTS}</Text>
+        </Text>
+        <View style={styles.changePill}>
+          <Icon type="trending-up" color={colors.onAccent} size={13} />
+          <Text style={styles.changeText}>{BALANCE_CHANGE}</Text>
         </View>
       </View>
-    </SafeAreaView>
+
+      {/* Actions */}
+      <View style={styles.actionRow}>
+        {ACTIONS.map(action => (
+          <Card key={action.key} style={styles.actionCard} onPress={() => {}}>
+            <View style={styles.actionIcon}>
+              <Icon type={action.icon} color={colors.accent} size={20} />
+            </View>
+            <Text style={styles.actionLabel}>{action.label}</Text>
+          </Card>
+        ))}
+      </View>
+
+      {/* Assets */}
+      <View style={styles.section}>
+        <SectionLabel>Assets</SectionLabel>
+        <View style={styles.list}>
+          {ASSETS.map(asset => (
+            <Card
+              key={asset.symbol}
+              flush
+              style={[styles.assetCard, asset.highlight && styles.assetHighlight]}
+            >
+              <View style={styles.assetLeft}>
+                <View style={[styles.tokenCircle, { backgroundColor: asset.tint + '22', borderColor: asset.tint + '55' }]}>
+                  <Text style={[styles.tokenGlyph, { color: asset.tint }]}>{asset.glyph}</Text>
+                </View>
+                <View>
+                  <Text style={styles.assetSymbol}>{asset.symbol}</Text>
+                  <Text style={styles.assetName}>{asset.name}</Text>
+                </View>
+              </View>
+              <View style={styles.assetRight}>
+                <Text style={styles.assetBalance}>{asset.balance}</Text>
+                <Text style={styles.assetUsd}>{asset.usd}</Text>
+              </View>
+            </Card>
+          ))}
+        </View>
+      </View>
+
+      {/* Recent activity */}
+      <View style={styles.section}>
+        <SectionLabel action="View all">Recent activity</SectionLabel>
+        <View style={styles.list}>
+          {ACTIVITY.map(item => (
+            <View key={item.key} style={styles.activityRow}>
+              <View style={styles.activityIcon}>
+                <Icon type={item.icon} color={colors.textSecondary} size={18} />
+              </View>
+              <View style={styles.activityMid}>
+                <Text style={styles.activityTitle}>{item.title}</Text>
+                <Text style={styles.activityTime}>{item.time}</Text>
+              </View>
+              <Text
+                style={[
+                  styles.activityAmount,
+                  item.negative && styles.activityAmountNeg,
+                ]}
+              >
+                {item.amount}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    flex: 1,
-    padding: spacing.md,
-    gap: spacing.lg,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    fontFamily: fonts.bold,
+    ...type.title,
     color: colors.textPrimary,
   },
-  addressPill: {
+  balanceCard: {
+    backgroundColor: colors.accent,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  balanceLabel: {
+    color: 'rgba(10, 10, 12, 0.6)',
+  },
+  balanceValue: {
+    fontFamily: mono.bold,
+    fontSize: 40,
+    letterSpacing: -1,
+    color: colors.onAccent,
+  },
+  balanceCents: {
+    fontSize: 24,
+  },
+  changePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    backgroundColor: colors.surfaceMuted,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(10, 10, 12, 0.18)',
     borderRadius: radius.pill,
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs + 2,
+    paddingVertical: 5,
   },
-  addressText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontFamily: 'Menlo',
+  changeText: {
+    fontFamily: mono.semiBold,
+    fontSize: 12,
+    color: colors.onAccent,
   },
   actionRow: {
     flexDirection: 'row',
-    gap: spacing.xs + 6,
+    gap: spacing.sm,
   },
-  actionButton: {
+  actionCard: {
     flex: 1,
     alignItems: 'center',
     gap: spacing.xs,
-    backgroundColor: colors.cardBackground,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.card,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
   },
-  actionIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.surfaceMuted,
+  actionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.sm,
+    backgroundColor: colors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   actionLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    fontFamily: fonts.semiBold,
+    ...type.caption,
+    fontFamily: type.button.fontFamily,
     color: colors.textPrimary,
   },
-  assetsSection: {
+  section: {
     gap: spacing.sm,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    fontFamily: fonts.bold,
-    color: colors.textPrimary,
-  },
-  assetsList: {
-    gap: spacing.xs + 6,
+  list: {
+    gap: spacing.sm,
   },
   assetCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.cardBackground,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.card,
-    padding: spacing.sm + 4,
+    padding: spacing.md,
   },
-  assetCardHighlight: {
-    borderColor: colors.kombatAccent,
+  assetHighlight: {
+    borderColor: colors.gold,
   },
   assetLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
   },
-  assetIconCircle: {
+  tokenCircle: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  assetIconCircleHighlight: {
-    backgroundColor: colors.kombatAccent,
-  },
-  assetIcon: {
-    fontSize: 20,
-    color: colors.textPrimary,
+  tokenGlyph: {
+    fontFamily: mono.bold,
+    fontSize: 18,
   },
   assetSymbol: {
-    fontSize: 16,
-    fontWeight: '700',
-    fontFamily: fonts.bold,
+    ...type.subheading,
     color: colors.textPrimary,
   },
-  assetSubtitle: {
-    fontSize: 12,
+  assetName: {
+    ...type.caption,
     color: colors.textMuted,
-    marginTop: 2,
   },
   assetRight: {
     alignItems: 'flex-end',
   },
   assetBalance: {
-    fontSize: 18,
-    fontWeight: '700',
-    fontFamily: fonts.bold,
+    fontFamily: mono.semiBold,
+    fontSize: 16,
     color: colors.textPrimary,
   },
   assetUsd: {
-    fontSize: 12,
+    ...type.caption,
     color: colors.textMuted,
-    marginTop: 2,
+  },
+  activityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  activityIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityMid: {
+    flex: 1,
+  },
+  activityTitle: {
+    ...type.subheading,
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  activityTime: {
+    ...type.caption,
+    color: colors.textMuted,
+  },
+  activityAmount: {
+    fontFamily: mono.semiBold,
+    fontSize: 15,
+    color: colors.success,
+  },
+  activityAmountNeg: {
+    color: colors.danger,
   },
 });

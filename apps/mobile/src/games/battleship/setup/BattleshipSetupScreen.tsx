@@ -6,7 +6,7 @@ import { Canvas, Fill, RadialGradient, vec } from '@shopify/react-native-skia';
 import Icon from '../../../components/Icon';
 import { GradientView } from '../../../components/GradientView';
 import { brandGradient, colors, radius, spacing } from '../../../theme/colors';
-import { fonts } from '../../../theme/typography';
+import { display, fonts, mono } from '../../../theme/typography';
 import BattleshipGrid from '../BattleshipGrid';
 import ShipCard from './ShipCard';
 import {
@@ -32,8 +32,9 @@ type Props = {
   onExit: () => void;
 };
 
-// colors.brandStart at reduced opacity, for the top glow behind the header.
-const GLOW_COLOR = 'rgba(139, 92, 246, 0.35)';
+// colors.accent at reduced opacity, for the top glow behind the header.
+const GLOW_COLOR = 'rgba(124, 92, 255, 0.35)';
+const GLOW_TRANSPARENT = 'rgba(124, 92, 255, 0)';
 const GLOW_HEIGHT = 480;
 
 /** "Deploy Your Fleet" — select a ship, then tap the grid to place it. */
@@ -158,7 +159,7 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
           <RadialGradient
             c={vec(width / 2, 0)}
             r={GLOW_HEIGHT}
-            colors={[GLOW_COLOR, 'rgba(139, 92, 246, 0)']}
+            colors={[GLOW_COLOR, GLOW_TRANSPARENT]}
           />
         </Fill>
       </Canvas>
@@ -327,16 +328,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerLabel: {
-    fontSize: 11,
-    fontFamily: fonts.semiBold,
+    fontSize: 10,
+    fontFamily: mono.medium,
     color: colors.textMuted,
-    letterSpacing: 0.5,
+    letterSpacing: 1.5,
   },
   headerTimer: {
     fontSize: 16,
-    fontFamily: fonts.bold,
+    fontFamily: mono.bold,
     color: colors.textPrimary,
     marginTop: 2,
+    fontVariant: ['tabular-nums'],
   },
   content: {
     flex: 1,
@@ -344,8 +346,9 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   title: {
-    fontSize: 26,
-    fontFamily: fonts.bold,
+    fontSize: 28,
+    fontFamily: display.bold,
+    letterSpacing: -0.3,
     color: colors.textPrimary,
   },
   subtitle: {
@@ -374,7 +377,7 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     fontSize: 12,
-    fontFamily: fonts.semiBold,
+    fontFamily: mono.medium,
     color: colors.textMuted,
   },
   gridRow: {
@@ -382,6 +385,7 @@ const styles = StyleSheet.create({
   },
   axisLabel: {
     fontSize: 11,
+    fontFamily: mono.medium,
     color: colors.textMuted,
     textAlign: 'center',
   },
@@ -397,7 +401,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   placingName: {
-    fontFamily: fonts.bold,
+    fontFamily: display.bold,
   },
   rotatePill: {
     flexDirection: 'row',
@@ -412,7 +416,7 @@ const styles = StyleSheet.create({
   },
   rotatePillText: {
     fontSize: 11,
-    fontFamily: fonts.semiBold,
+    fontFamily: mono.medium,
     color: colors.textPrimary,
   },
   deployedRow: {
@@ -422,7 +426,7 @@ const styles = StyleSheet.create({
   },
   deployedText: {
     fontSize: 12,
-    fontFamily: fonts.semiBold,
+    fontFamily: mono.semiBold,
     color: colors.success,
   },
   fleetPanel: {
@@ -435,9 +439,9 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 11,
-    fontFamily: fonts.semiBold,
+    fontFamily: mono.medium,
     color: colors.textMuted,
-    letterSpacing: 0.5,
+    letterSpacing: 1.5,
     marginBottom: spacing.sm,
   },
   tray: {

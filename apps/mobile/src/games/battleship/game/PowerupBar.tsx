@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Icon, { type IconName } from '../../../components/Icon';
 import { GradientView } from '../../../components/GradientView';
 import { colors, radius, spacing } from '../../../theme/colors';
-import { fonts } from '../../../theme/typography';
+import { display, mono } from '../../../theme/typography';
 import { CHARGE_BAR_MAX, POWERUP_COST, type PowerupKind } from './powerups';
 
 type PowerupDef = {
@@ -123,9 +123,9 @@ const styles = StyleSheet.create({
   },
   heading: {
     fontSize: 11,
-    fontFamily: fonts.semiBold,
+    fontFamily: mono.medium,
     color: colors.textMuted,
-    letterSpacing: 0.5,
+    letterSpacing: 1.5,
   },
   tooltip: {
     backgroundColor: colors.surface,
@@ -147,8 +147,8 @@ const styles = StyleSheet.create({
   },
   pointsText: {
     fontSize: 11,
-    fontFamily: fonts.bold,
-    color: colors.kombatAccent,
+    fontFamily: mono.bold,
+    color: colors.gold,
     letterSpacing: 0.5,
   },
   chargeTrack: {
@@ -180,8 +180,8 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   cardArmed: {
-    borderColor: colors.brandStart,
-    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    borderColor: colors.accent,
+    backgroundColor: 'rgba(124, 92, 255, 0.12)',
   },
   cardDisabled: {
     opacity: 0.4,
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 15,
-    fontFamily: fonts.bold,
+    fontFamily: display.semiBold,
     color: colors.textPrimary,
   },
   costBadge: {
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
   },
   costText: {
     fontSize: 11,
-    fontFamily: fonts.bold,
+    fontFamily: mono.bold,
     color: colors.textMuted,
   },
   blurb: {

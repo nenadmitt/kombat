@@ -1,102 +1,200 @@
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { GameType } from '@gaming-platform/core';
 
-import { GAME_ICONS } from '../games/game-icons';
+import Icon, { type IconName } from '../components/Icon';
+import { Card, Chip, Screen, SectionLabel, Toggle } from '../components/ui';
 import { GAME_TYPE_DEMO_SCREENS } from '../games/game-type-demo-screens';
-import { GAME_TYPE_LABELS } from '../games/game-type-labels';
 import type { RootStackParamList } from '../navigation/types';
 import { colors, radius, spacing } from '../theme/colors';
-import { fonts } from '../theme/typography';
+import { display, mono, type } from '../theme/typography';
 
-/** Numeric enum values only — TS numeric enums also reverse-map name -> value. */
-const ALL_GAME_TYPES = Object.values(GameType).filter(
-  (value): value is GameType => typeof value === 'number',
-);
+type GameCard = {
+  name: string;
+  tag: string;
+  players: string;
+  icon: IconName;
+  tint: string;
+  /** Real catalog game types are playable; the rest are demo-only previews. */
+  gameType?: GameType;
+};
 
-/** Showcase of every game the platform supports — tap a tile to preview its UI. */
+/**
+ * Only Battleships (NavalBattle) is a real, playable game type — the others
+ * are design-showcase previews and open a "coming soon" notice rather than
+ * pretending to launch. The GameType catalog stays honest; these extra cards
+ * live only in this screen to match the design's library grid.
+ */
+const GAMES: GameCard[] = [
+  { name: 'Battleships', tag: 'Strategy', players: '2.4k playing', icon: 'crosshair', tint: colors.accentSoft, gameType: GameType.NavalBattle },
+  { name: 'Ludo Classic', tag: 'Board', players: '1.8k playing', icon: 'grid', tint: 'rgba(56,189,248,0.12)' },
+  { name: 'Yahtzee Arena', tag: 'Dice', players: '960 playing', icon: 'dice', tint: 'rgba(251,191,36,0.12)' },
+  { name: 'Poker High', tag: 'Cards', players: '3.1k playing', icon: 'target', tint: 'rgba(36,224,138,0.12)' },
+];
+
 export default function DemoGamesScreen() {
-  // Same pragmatic cast as GameLobyScreen — this screen's own nav type
-  // doesn't know about root-level screens like BattleshipSetup.
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [demoMode, setDemoMode] = useState(true);
+
+  const playDemo = (game: GameCard) => {
+    if (game.gameType === undefined) {
+      Alert.alert(game.name, 'This game is coming soon.');
+      return;
+    }
+    (navigation.navigate as (screen: string, params?: unknown) => void)(
+      GAME_TYPE_DEMO_SCREENS[game.gameType],
+    );
+  };
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Demo Games</Text>
-        <Text style={styles.subtitle}>
-          A look at every game on the platform.
-        </Text>
+    <Screen scroll>
+      <Text style={styles.title}>Games</Text>
+
+      {/* Demo mode */}
+      <Card accent style={styles.demoCard}>
+        <View style={styles.demoIcon}>
+          <Icon type="plus" color={colors.onAccent} size={20} />
+        </View>
+        <View style={styles.demoText}>
+          <Text style={styles.demoTitle}>Demo Mode</Text>
+          <Text style={styles.demoSubtitle}>
+            Practice any game free — no crypto staked.
+          </Text>
+        </View>
+        <Toggle value={demoMode} onValueChange={setDemoMode} />
+      </Card>
+
+      {/* All games */}
+      <View style={styles.section}>
+        <SectionLabel>All games</SectionLabel>
         <View style={styles.grid}>
-          {ALL_GAME_TYPES.map(gameType => (
-            <Pressable
-              key={gameType}
-              style={styles.tile}
-              onPress={() =>
-                (
-                  navigation.navigate as (
-                    screen: string,
-                    params?: unknown,
-                  ) => void
-                )(GAME_TYPE_DEMO_SCREENS[gameType])
-              }
-            >
-              <Image source={GAME_ICONS[gameType]} style={styles.icon} />
-              <Text style={styles.label}>{GAME_TYPE_LABELS[gameType]}</Text>
-            </Pressable>
+          {GAMES.map(game => (
+            <Card key={game.name} flush style={styles.gameCard}>
+              <View style={[styles.gameArt, { backgroundColor: game.tint }]}>
+                <Chip label="Demo" tone="neutral" style={styles.demoBadge} />
+                <Icon type={game.icon} color={colors.textPrimary} size={40} />
+              </View>
+              <View style={styles.gameBody}>
+                <Text style={styles.gameName}>{game.name}</Text>
+                <Text style={styles.gameMeta}>
+                  {game.tag} · {game.players}
+                </Text>
+                <Pressable style={styles.playBtn} onPress={() => playDemo(game)}>
+                  <Text style={styles.playBtnText}>Play Demo</Text>
+                </Pressable>
+              </View>
+            </Card>
           ))}
         </View>
+
+        <View style={styles.comingSoon}>
+          <Icon type="lock" color={colors.textFaint} size={17} />
+          <Text style={styles.comingText}>More games coming soon</Text>
+        </View>
       </View>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
   title: {
-    fontSize: 28,
-    fontFamily: fonts.bold,
+    ...type.title,
     color: colors.textPrimary,
   },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textMuted,
-    marginBottom: spacing.md,
+  demoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  demoIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.sm,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  demoText: {
+    flex: 1,
+    gap: 2,
+  },
+  demoTitle: {
+    ...type.subheading,
+    color: colors.textPrimary,
+  },
+  demoSubtitle: {
+    ...type.caption,
+    color: colors.textSecondary,
+  },
+  section: {
+    gap: spacing.sm,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
-  tile: {
-    width: 100,
+  gameCard: {
+    width: '47.8%',
+    overflow: 'hidden',
+  },
+  gameArt: {
+    height: 90,
     alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.cardBackground,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.card,
-    paddingVertical: spacing.sm,
+    justifyContent: 'center',
   },
-  icon: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.chip,
+  demoBadge: {
+    position: 'absolute',
+    top: spacing.xs,
+    left: spacing.xs,
   },
-  label: {
-    fontSize: 12,
-    fontFamily: fonts.semiBold,
+  gameBody: {
+    padding: spacing.sm,
+    gap: 3,
+  },
+  gameName: {
+    ...type.subheading,
+    fontSize: 15,
     color: colors.textPrimary,
-    textAlign: 'center',
+  },
+  gameMeta: {
+    fontFamily: mono.regular,
+    fontSize: 10,
+    color: colors.textMuted,
+    marginBottom: spacing.xs,
+  },
+  playBtn: {
+    borderWidth: 1,
+    borderColor: colors.accentBorder,
+    backgroundColor: colors.accentSoft,
+    borderRadius: radius.sm,
+    paddingVertical: 9,
+    alignItems: 'center',
+  },
+  playBtnText: {
+    fontFamily: display.bold,
+    fontSize: 13,
+    color: colors.accent,
+  },
+  comingSoon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.borderStrong,
+    borderRadius: radius.md,
+    padding: spacing.md,
+  },
+  comingText: {
+    fontFamily: mono.medium,
+    fontSize: 11,
+    letterSpacing: 1,
+    color: colors.textFaint,
+    textTransform: 'uppercase',
   },
 });

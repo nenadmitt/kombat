@@ -12,7 +12,7 @@ import { Canvas, Fill, RadialGradient, vec } from '@shopify/react-native-skia';
 import Icon, { type IconName } from './Icon';
 import { GradientView } from './GradientView';
 import { brandGradient, colors, goldGradient, radius, spacing } from '../theme/colors';
-import { fonts } from '../theme/typography';
+import { display, fonts, mono } from '../theme/typography';
 
 export type ResultVariant = 'win' | 'lose';
 
@@ -218,15 +218,15 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     fontSize: 12,
-    fontFamily: fonts.extraBold,
-    letterSpacing: 2,
+    fontFamily: mono.bold,
+    letterSpacing: 3,
   },
   title: {
     fontSize: 44,
-    fontFamily: fonts.extraBold,
+    fontFamily: display.extraBold,
     color: colors.textPrimary,
     marginTop: spacing.xs,
-    letterSpacing: 1,
+    letterSpacing: -0.5,
   },
   message: {
     fontSize: 14,
@@ -261,13 +261,14 @@ const styles = StyleSheet.create({
   },
   opponentLabel: {
     fontSize: 10,
-    fontFamily: fonts.semiBold,
+    fontFamily: mono.medium,
     color: colors.textMuted,
-    letterSpacing: 0.5,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   opponentName: {
     fontSize: 15,
-    fontFamily: fonts.bold,
+    fontFamily: display.semiBold,
     color: colors.textPrimary,
   },
   statsGrid: {
@@ -286,15 +287,16 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   statValue: {
-    fontSize: 22,
-    fontFamily: fonts.extraBold,
+    fontSize: 24,
+    fontFamily: mono.bold,
     color: colors.textPrimary,
   },
   statLabel: {
     fontSize: 10,
-    fontFamily: fonts.semiBold,
+    fontFamily: mono.medium,
     color: colors.textMuted,
-    letterSpacing: 0.5,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   primaryWrapper: {
     alignSelf: 'stretch',

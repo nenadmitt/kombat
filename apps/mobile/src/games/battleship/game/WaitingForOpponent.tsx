@@ -25,7 +25,7 @@ import Svg, {
 
 import Icon from '../../../components/Icon';
 import { colors, radius, spacing } from '../../../theme/colors';
-import { fonts } from '../../../theme/typography';
+import { display, mono } from '../../../theme/typography';
 import TurnTimer from './TurnTimer';
 
 type Props = {
@@ -36,18 +36,18 @@ type Props = {
   onCancel: () => void;
 };
 
-// Purple accent tints derived from colors.brandStart (#8b5cf6) — same
-// precedent as the play screen's glow.
-const BRAND_TINT_BG = 'rgba(139, 92, 246, 0.08)';
-const BRAND_TINT_BORDER = 'rgba(139, 92, 246, 0.3)';
-const BRAND_RING_BORDER = 'rgba(139, 92, 246, 0.55)';
-const BRAND_SWEEP = colors.brandLight;
-// Green tints derived from colors.success (#10b981).
-const SUCCESS_TINT_BG = 'rgba(16, 185, 129, 0.07)';
-const SUCCESS_TINT_BORDER = 'rgba(16, 185, 129, 0.28)';
-// Red tints derived from colors.defeatRed (#ec5b70).
-const DANGER_TINT_BG = 'rgba(236, 91, 112, 0.09)';
-const DANGER_TINT_BORDER = 'rgba(236, 91, 112, 0.4)';
+// Accent tints derived from colors.accent (#7C5CFF) — same precedent as the
+// play screen's glow.
+const BRAND_TINT_BG = 'rgba(124, 92, 255, 0.10)';
+const BRAND_TINT_BORDER = 'rgba(124, 92, 255, 0.35)';
+const BRAND_RING_BORDER = 'rgba(124, 92, 255, 0.55)';
+const BRAND_SWEEP = colors.accentLight;
+// Green tints derived from colors.success (#24E08A).
+const SUCCESS_TINT_BG = 'rgba(36, 224, 138, 0.08)';
+const SUCCESS_TINT_BORDER = 'rgba(36, 224, 138, 0.28)';
+// Red tints derived from colors.danger (#FF5468).
+const DANGER_TINT_BG = 'rgba(255, 84, 104, 0.09)';
+const DANGER_TINT_BORDER = 'rgba(255, 84, 104, 0.4)';
 
 const RING_MS = 2600;
 const SWEEP_MS = 2400;
@@ -258,15 +258,16 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     fontSize: 11,
-    fontFamily: fonts.bold,
-    color: colors.brandStart,
+    fontFamily: mono.bold,
+    color: colors.accent,
     letterSpacing: 3,
     marginBottom: spacing.xs,
   },
   title: {
     fontSize: 27,
-    fontFamily: fonts.extraBold,
+    fontFamily: display.extraBold,
     color: colors.textPrimary,
+    letterSpacing: -0.3,
     textAlign: 'center',
   },
   titleDots: {
@@ -297,13 +298,13 @@ const styles = StyleSheet.create({
   },
   timerLabel: {
     fontSize: 9,
-    fontFamily: fonts.bold,
+    fontFamily: mono.medium,
     color: colors.textMuted,
     letterSpacing: 1.5,
   },
   timerClock: {
     fontSize: 22,
-    fontFamily: fonts.extraBold,
+    fontFamily: mono.bold,
     color: colors.textPrimary,
     fontVariant: ['tabular-nums'],
   },
@@ -339,12 +340,12 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: 15,
-    fontFamily: fonts.extraBold,
+    fontFamily: display.bold,
     color: colors.textPrimary,
   },
   avatarTextDark: {
     fontSize: 15,
-    fontFamily: fonts.extraBold,
+    fontFamily: display.bold,
     color: colors.background,
   },
   playerText: {
@@ -353,13 +354,13 @@ const styles = StyleSheet.create({
   },
   playerLabel: {
     fontSize: 9,
-    fontFamily: fonts.bold,
+    fontFamily: mono.medium,
     color: colors.textMuted,
     letterSpacing: 1.4,
   },
   playerName: {
     fontSize: 14,
-    fontFamily: fonts.bold,
+    fontFamily: display.semiBold,
     color: colors.textPrimary,
   },
   statusGroup: {
@@ -377,12 +378,12 @@ const styles = StyleSheet.create({
   },
   readyText: {
     fontSize: 12,
-    fontFamily: fonts.bold,
+    fontFamily: mono.semiBold,
     color: colors.success,
   },
   deployingText: {
     fontSize: 12,
-    fontFamily: fonts.bold,
+    fontFamily: mono.semiBold,
     color: BRAND_SWEEP,
   },
   cancelButton: {
@@ -400,8 +401,8 @@ const styles = StyleSheet.create({
   },
   cancelText: {
     fontSize: 14,
-    fontFamily: fonts.extraBold,
-    color: colors.defeatRed,
+    fontFamily: mono.bold,
+    color: colors.danger,
     letterSpacing: 0.7,
   },
   footnote: {

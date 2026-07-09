@@ -1,10 +1,10 @@
 import { BlurMask, Circle, Group, Line, RoundedRect, vec } from '@shopify/react-native-skia';
 import { useDerivedValue, type SharedValue } from 'react-native-reanimated';
 
-const HIT_FILL = 'rgba(239, 68, 68, 0.9)';
-const HIT_GLOW = 'rgba(239, 68, 68, 0.55)';
+const HIT_FILL = 'rgba(255, 84, 104, 0.9)';
+const HIT_GLOW = 'rgba(255, 84, 104, 0.55)';
 const MISS_DOT = 'rgba(148, 163, 184, 0.7)';
-const TORPEDO = '#facc15';
+const TORPEDO = '#FBBF24';
 const CELL_RADIUS = 6;
 
 export type MarkerKind = 'miss' | 'hit' | 'sunk';

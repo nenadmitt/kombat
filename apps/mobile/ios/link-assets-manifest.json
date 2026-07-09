@@ -2,12 +2,52 @@
   "migIndex": 1,
   "data": [
     {
+      "path": "assets/fonts/BricolageGrotesque-Bold.ttf",
+      "sha1": "a01f17b7406ecd75f37786cba1383046174fa60a"
+    },
+    {
+      "path": "assets/fonts/BricolageGrotesque-ExtraBold.ttf",
+      "sha1": "60970b8312dd8716e70a34c3876c883af286318b"
+    },
+    {
+      "path": "assets/fonts/BricolageGrotesque-Medium.ttf",
+      "sha1": "1adb89583013ea8331e323c529bd8a754a381a9a"
+    },
+    {
+      "path": "assets/fonts/BricolageGrotesque-Regular.ttf",
+      "sha1": "0c547f543f1bee40ce2889cad2b7c5150f71d726"
+    },
+    {
+      "path": "assets/fonts/BricolageGrotesque-SemiBold.ttf",
+      "sha1": "b8d7278ca65485464f6b9aa8ccd57004aedbe58b"
+    },
+    {
+      "path": "assets/fonts/IBMPlexMono-Bold.ttf",
+      "sha1": "3e2a9f2dce6a33af0a61259d2127a5f2b95b61fe"
+    },
+    {
+      "path": "assets/fonts/IBMPlexMono-Medium.ttf",
+      "sha1": "537d61823e7b2975b0dce638e9764d0c8fc07af7"
+    },
+    {
+      "path": "assets/fonts/IBMPlexMono-Regular.ttf",
+      "sha1": "3d9f905f6425ad44bcd4388a40355712e1774f62"
+    },
+    {
+      "path": "assets/fonts/IBMPlexMono-SemiBold.ttf",
+      "sha1": "b7fccb223b3f1fcbea35564a613d7980d1e48306"
+    },
+    {
       "path": "assets/fonts/Sora-Bold.ttf",
       "sha1": "530a1c37292ea334a0a090fd8292cedf914e630c"
     },
     {
       "path": "assets/fonts/Sora-ExtraBold.ttf",
       "sha1": "03f3cd8c07d7e3f6a389b5a6236bbd099937e47f"
+    },
+    {
+      "path": "assets/fonts/Sora-Medium.ttf",
+      "sha1": "1288735ec20588bc619d7e408230209eadeb1f6c"
     },
     {
       "path": "assets/fonts/Sora-Regular.ttf",

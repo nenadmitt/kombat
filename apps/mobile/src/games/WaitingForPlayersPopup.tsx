@@ -1,10 +1,10 @@
-import { Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 
 import Icon from '../components/Icon';
+import { Button } from '../components/ui';
 import { useGameStore } from '../store/game.store';
 import { colors, radius, spacing } from '../theme/colors';
-import { fonts } from '../theme/typography';
-import { GAME_ICONS } from './game-icons';
+import { display, mono, type } from '../theme/typography';
 import { GAME_TYPE_LABELS } from './game-type-labels';
 import { formatRoomCode } from './room-code';
 
@@ -21,6 +21,16 @@ export default function WaitingForPlayersPopup() {
   const cancelWaitingRoom = useGameStore(state => state.cancelWaitingRoom);
 
   const visible = waitingRoom !== null && !isMinimized;
+  const roomCode = waitingRoom ? formatRoomCode(waitingRoom.id) : '';
+
+  const handleShare = () => {
+    if (!waitingRoom) return;
+    Share.share({
+      message: `Join my KryptoKombat match — room #${roomCode}`,
+    }).catch(() => {
+      // User dismissed the share sheet; nothing to do.
+    });
+  };
 
   return (
     <Modal
@@ -40,44 +50,46 @@ export default function WaitingForPlayersPopup() {
             <Icon type="chevron-down" color={colors.textMuted} size={18} />
           </Pressable>
 
+          {/* Spinner ring */}
+          <View style={styles.spinnerRing}>
+            <ActivityIndicator color={colors.accent} size="large" />
+          </View>
+
           {waitingRoom ? (
-            <View style={styles.gameStack}>
-              <Image
-                source={GAME_ICONS[waitingRoom.gameType]}
-                style={styles.gameIcon}
-              />
-              <Text style={styles.gameName}>
-                {GAME_TYPE_LABELS[waitingRoom.gameType]}
-              </Text>
-            </View>
+            <Text style={styles.gameLabel}>
+              {GAME_TYPE_LABELS[waitingRoom.gameType].toUpperCase()}
+            </Text>
           ) : null}
 
           <View style={styles.textStack}>
-            <Text style={styles.title}>Waiting for Players...</Text>
+            <Text style={styles.title}>Waiting for players…</Text>
             <Text style={styles.description}>
-              Your room has been created. Share the code with friends or wait
-              for others to join.
+              Share the room code with friends for others to join.
             </Text>
           </View>
 
           {waitingRoom ? (
             <View style={styles.roomCodeBox}>
-              <Text style={styles.roomCodeText}>
-                <Text style={styles.roomCodeLabel}>ROOM: </Text>#
-                {formatRoomCode(waitingRoom.id)}
-              </Text>
+              <Text style={styles.roomCodeLabel}>ROOM</Text>
+              <Text style={styles.roomCodeText}>#{roomCode}</Text>
             </View>
           ) : null}
 
-          <Pressable
-            onPress={cancelWaitingRoom}
-            disabled={isCancelling}
-            style={styles.cancelButton}
-          >
-            <Text style={styles.cancelText}>
-              {isCancelling ? 'Cancelling…' : 'Cancel'}
-            </Text>
-          </Pressable>
+          <View style={styles.actions}>
+            <Button
+              label="Share"
+              icon="share"
+              onPress={handleShare}
+              style={styles.actionFlex}
+            />
+            <Button
+              label={isCancelling ? 'Cancelling…' : 'Cancel'}
+              variant="secondary"
+              onPress={cancelWaitingRoom}
+              disabled={isCancelling}
+              style={styles.actionFlex}
+            />
+          </View>
         </View>
       </View>
     </Modal>
@@ -87,21 +99,21 @@ export default function WaitingForPlayersPopup() {
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
   },
   container: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.md,
+    padding: spacing.lg,
   },
   card: {
     width: '100%',
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    borderRadius: radius.hero,
-    paddingTop: spacing.xl - 8,
+    borderRadius: radius.xl,
+    paddingTop: spacing.xl,
     paddingBottom: spacing.lg,
     paddingHorizontal: spacing.lg,
     alignItems: 'center',
@@ -109,77 +121,79 @@ const styles = StyleSheet.create({
   },
   minimizeControl: {
     position: 'absolute',
-    top: 15,
-    right: 15,
+    top: spacing.md,
+    right: spacing.md,
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.cardBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  gameStack: {
+  spinnerRing: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    borderWidth: 2,
+    borderColor: colors.accentBorder,
+    backgroundColor: colors.accentSoft,
     alignItems: 'center',
-    gap: spacing.xs + 2,
+    justifyContent: 'center',
   },
-  gameIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-  },
-  gameName: {
-    fontSize: 16,
-    fontFamily: fonts.semiBold,
-    color: colors.textMuted,
+  gameLabel: {
+    fontFamily: mono.semiBold,
+    fontSize: 12,
+    letterSpacing: 3,
+    color: colors.accent,
   },
   textStack: {
     alignItems: 'center',
-    gap: spacing.xs + 6,
+    gap: spacing.xs,
   },
   title: {
-    fontSize: 22,
-    fontFamily: fonts.bold,
+    fontFamily: display.bold,
+    fontSize: 24,
+    letterSpacing: -0.3,
     color: colors.textPrimary,
     textAlign: 'center',
   },
   description: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: colors.textMuted,
+    ...type.body,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   roomCodeBox: {
-    backgroundColor: colors.background,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.accentSoft,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: colors.brandStart,
-    borderRadius: radius.chip,
-    paddingHorizontal: spacing.sm + 4,
+    borderColor: colors.accentBorder,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
   },
+  roomCodeLabel: {
+    fontFamily: mono.semiBold,
+    fontSize: 13,
+    letterSpacing: 2,
+    color: colors.accentLight,
+  },
   roomCodeText: {
+    fontFamily: mono.bold,
     fontSize: 18,
-    fontFamily: fonts.extraBold,
     color: colors.textPrimary,
   },
-  roomCodeLabel: {
-    color: colors.brandStart,
-  },
-  cancelButton: {
+  actions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
     width: '100%',
-    backgroundColor: colors.cardBackground,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.chip,
-    paddingVertical: spacing.sm + 2,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: spacing.xs,
   },
-  cancelText: {
-    fontSize: 15,
-    fontFamily: fonts.bold,
-    color: colors.textMuted,
+  actionFlex: {
+    flex: 1,
   },
 });
