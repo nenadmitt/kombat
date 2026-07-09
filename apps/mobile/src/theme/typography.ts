@@ -22,11 +22,11 @@ export const display = {
 /**
  * Body text uses the SAME family as display — the Bold design system is two
  * families total: Bricolage Grotesque for all copy + IBM Plex Mono for
- * numbers/labels. The baseline is Medium (a touch heavier than book Regular)
- * for more presence; `light` keeps true Regular where needed.
+ * numbers/labels. The baseline is SemiBold for more presence; `light` keeps
+ * true Regular and `medium` the intermediate Medium weight where needed.
  */
 export const body = {
-  regular: 'BricolageGrotesque-Medium',
+  regular: 'BricolageGrotesque-SemiBold',
   light: 'BricolageGrotesque-Regular',
   medium: 'BricolageGrotesque-Medium',
   semiBold: 'BricolageGrotesque-SemiBold',
@@ -77,7 +77,7 @@ export const type = {
   },
   /** Sub-heading / list-item title. */
   subheading: {
-    fontFamily: display.bold,
+    fontFamily: display.extraBold,
     fontSize: 16,
     lineHeight: 22,
   },
