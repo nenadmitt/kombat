@@ -139,7 +139,7 @@ export default function WalletScreen() {
         {ACTIONS.map(action => (
           <Card key={action.key} style={styles.actionCard} onPress={() => {}}>
             <View style={styles.actionIcon}>
-              <Icon type={action.icon} color={colors.accent} size={20} />
+              <Icon type={action.icon} color={colors.accent} size={28} />
             </View>
             <Text style={styles.actionLabel}>{action.label}</Text>
           </Card>
