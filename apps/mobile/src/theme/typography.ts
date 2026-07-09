@@ -13,21 +13,25 @@ import type { TextStyle } from 'react-native';
  */
 export const display = {
   regular: 'BricolageGrotesque-Regular',
+  medium: 'BricolageGrotesque-Medium',
   semiBold: 'BricolageGrotesque-SemiBold',
   bold: 'BricolageGrotesque-Bold',
   extraBold: 'BricolageGrotesque-ExtraBold',
 } as const;
 
+/**
+ * Body text uses the SAME family as display — the Bold design system is two
+ * families total: Bricolage Grotesque for all copy + IBM Plex Mono for
+ * numbers/labels. The baseline is Medium (a touch heavier than book Regular)
+ * for more presence; `light` keeps true Regular where needed.
+ */
 export const body = {
-  /** Baseline body weight — Medium, a touch heavier than book Regular so
-   *  copy reads with more presence (the "Bold" design language). */
-  regular: 'Sora-Medium',
-  /** True book weight, kept for the rare place that needs it lighter. */
-  light: 'Sora-Regular',
-  medium: 'Sora-Medium',
-  semiBold: 'Sora-SemiBold',
-  bold: 'Sora-Bold',
-  extraBold: 'Sora-ExtraBold',
+  regular: 'BricolageGrotesque-Medium',
+  light: 'BricolageGrotesque-Regular',
+  medium: 'BricolageGrotesque-Medium',
+  semiBold: 'BricolageGrotesque-SemiBold',
+  bold: 'BricolageGrotesque-Bold',
+  extraBold: 'BricolageGrotesque-ExtraBold',
 } as const;
 
 export const mono = {
