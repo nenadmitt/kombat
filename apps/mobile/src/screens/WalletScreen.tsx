@@ -1,10 +1,14 @@
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import BrandIcon, { type BrandIconName } from '../components/BrandIcon';
 import Icon, { type IconName } from '../components/Icon';
-import { AddressPill, Card, Screen, SectionLabel } from '../components/ui';
+import { Card, Screen, SectionLabel } from '../components/ui';
+import ChainSelector from '../components/wallet/ChainSelector';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import { colors, radius, spacing } from '../theme/colors';
 import { mono, type } from '../theme/typography';
+import { CHAINS, DEFAULT_CHAIN_ID, type ChainId } from '../wallet/chains';
 
 /** Mocked — no balance endpoint yet. Values mirror the design reference. */
 const BALANCE_WHOLE = '$6,135';
@@ -14,7 +18,8 @@ const BALANCE_CHANGE = '+12.4% this week';
 type Asset = {
   symbol: string;
   name: string;
-  glyph: string;
+  brand?: BrandIconName;
+  glyph?: string;
   tint: string;
   balance: string;
   usd: string;
@@ -22,9 +27,9 @@ type Asset = {
 };
 
 const ASSETS: Asset[] = [
-  { symbol: 'USDC', name: 'USD Coin', glyph: '$', tint: '#2775CA', balance: '1,240.50', usd: '$1,240.50' },
-  { symbol: 'USDT', name: 'Tether', glyph: '₮', tint: '#26A17B', balance: '450.00', usd: '$450.00' },
-  { symbol: 'ETH', name: 'Ethereum', glyph: 'Ξ', tint: '#627EEA', balance: '0.45', usd: '$1,320.12' },
+  { symbol: 'USDC', name: 'USD Coin', brand: 'usdc', tint: '#2775CA', balance: '1,240.50', usd: '$1,240.50' },
+  { symbol: 'USDT', name: 'Tether', brand: 'usdt', tint: '#26A17B', balance: '450.00', usd: '$450.00' },
+  { symbol: 'ETH', name: 'Ethereum', brand: 'eth', tint: '#627EEA', balance: '0.45', usd: '$1,320.12' },
   { symbol: 'KOMBAT', name: 'Platform Token', glyph: '◆', tint: colors.gold, balance: '12,500', usd: '$3,125.00', highlight: true },
 ];
 
@@ -51,13 +56,29 @@ const ACTIVITY: Activity[] = [
 
 export default function WalletScreen() {
   const wallet = useCurrentUserStore(state => state.wallet);
+  const [chainId, setChainId] = useState<ChainId>(DEFAULT_CHAIN_ID);
+
+  const activeChain = CHAINS.find(c => c.id === chainId) ?? CHAINS[0];
 
   return (
     <Screen scroll>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Wallet</Text>
-        {wallet ? <AddressPill address={wallet.address} /> : null}
+        <View style={styles.headerLeft}>
+          <Text style={styles.title}>Wallet</Text>
+          {wallet ? (
+            <Text style={styles.networkNote}>
+              You&apos;re on {activeChain.network}
+            </Text>
+          ) : null}
+        </View>
+        {wallet ? (
+          <ChainSelector
+            evmAddress={wallet.address}
+            selected={chainId}
+            onSelect={setChainId}
+          />
+        ) : null}
       </View>
 
       {/* Balance card */}
@@ -96,9 +117,15 @@ export default function WalletScreen() {
               style={[styles.assetCard, asset.highlight && styles.assetHighlight]}
             >
               <View style={styles.assetLeft}>
-                <View style={[styles.tokenCircle, { backgroundColor: asset.tint + '22', borderColor: asset.tint + '55' }]}>
-                  <Text style={[styles.tokenGlyph, { color: asset.tint }]}>{asset.glyph}</Text>
-                </View>
+                {asset.brand ? (
+                  <View style={styles.tokenIcon}>
+                    <BrandIcon type={asset.brand} size={40} />
+                  </View>
+                ) : (
+                  <View style={[styles.tokenCircle, { backgroundColor: asset.tint + '22', borderColor: asset.tint + '55' }]}>
+                    <Text style={[styles.tokenGlyph, { color: asset.tint }]}>{asset.glyph}</Text>
+                  </View>
+                )}
                 <View>
                   <Text style={styles.assetSymbol}>{asset.symbol}</Text>
                   <Text style={styles.assetName}>{asset.name}</Text>
@@ -145,12 +172,19 @@ export default function WalletScreen() {
 const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
   title: {
     ...type.title,
     color: colors.textPrimary,
+  },
+  headerLeft: {
+    gap: spacing.xxs,
+  },
+  networkNote: {
+    ...type.caption,
+    color: colors.textMuted,
   },
   balanceCard: {
     backgroundColor: colors.accent,
@@ -233,6 +267,12 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tokenIcon: {
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
