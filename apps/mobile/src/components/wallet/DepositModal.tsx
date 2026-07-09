@@ -15,6 +15,11 @@ type Props = {
   address: string;
 };
 
+const PROVIDERS = [
+  { key: 'moonpay', label: 'MoonPay', badge: 'M', tint: colors.accent },
+  { key: 'ramp', label: 'Ramp', badge: 'R', tint: colors.success },
+] as const;
+
 /** Direct card/bank deposits aren't wired up — points the user at their address. */
 export default function DepositModal({ visible, onClose, chain, address }: Props) {
   const [copied, setCopied] = useState(false);
@@ -54,6 +59,18 @@ export default function DepositModal({ visible, onClose, chain, address }: Props
           size={18}
         />
       </Pressable>
+
+      <Text style={styles.sectionLabel}>Buy with card · Coming soon</Text>
+      <View style={styles.providerRow}>
+        {PROVIDERS.map(provider => (
+          <View key={provider.key} style={styles.provider}>
+            <View style={[styles.providerBadge, { backgroundColor: provider.tint }]}>
+              <Text style={styles.providerBadgeText}>{provider.badge}</Text>
+            </View>
+            <Text style={styles.providerLabel}>{provider.label}</Text>
+          </View>
+        ))}
+      </View>
 
       <Button label="Got it" onPress={handleClose} style={styles.button} />
     </BottomSheet>
@@ -102,6 +119,45 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
+  },
+  sectionLabel: {
+    ...type.label,
+    color: colors.textMuted,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  providerRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  provider: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    opacity: 0.6,
+  },
+  providerBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  providerBadgeText: {
+    fontFamily: mono.bold,
+    fontSize: 14,
+    color: colors.onAccent,
+  },
+  providerLabel: {
+    ...type.subheading,
+    fontSize: 14,
+    color: colors.textSecondary,
   },
   button: {
     marginTop: spacing.lg,

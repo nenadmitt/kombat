@@ -1,15 +1,10 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import { useState } from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { formatUnits, parseUnits, type Hex } from 'viem';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { formatUnits, parseUnits, type Address, type Hex } from 'viem';
 
 import type { TokenBalance } from '../../store/walletBalances.store';
+import { NETWORK_FEE_USD } from '../../wallet/market-mock';
 import { colors, radius, spacing } from '../../theme/colors';
 import { mono, type } from '../../theme/typography';
 import type { Chain } from '../../wallet/chains';
@@ -21,32 +16,50 @@ import BrandIcon from '../BrandIcon';
 import Icon from '../Icon';
 import { BottomSheet, Button } from '../ui';
 
+export type SubmittedTx = {
+  hash: Hex;
+  tokenSymbol: TokenSymbol;
+  amount: string;
+  to: Address;
+  toLabel?: string;
+};
+
 type Props = {
   visible: boolean;
   onClose: () => void;
   chain: Chain & { id: BalanceChainId };
   balances: Partial<Record<TokenSymbol, TokenBalance>>;
-  /** Called after a successful send so balances can refresh. */
-  onSent: () => void;
+  ethUsdPrice: bigint | null;
+  /** Fired once the tx is broadcast; parent tracks it and opens the tx sheet. */
+  onSubmitted: (tx: SubmittedTx) => void;
 };
 
-type Step = 'form' | 'review' | 'sent';
+const QUICK_FRACTIONS = [0.25, 0.5, 0.75, 1] as const;
+
+function trimAmount(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) {
+    return '';
+  }
+  return value
+    .toFixed(value >= 1 ? 2 : 6)
+    .replace(/\.?0+$/, '');
+}
 
 export default function WithdrawModal({
   visible,
   onClose,
   chain,
   balances,
-  onSent,
+  ethUsdPrice,
+  onSubmitted,
 }: Props) {
   const tokens = CHAIN_TOKENS[chain.id].filter(t => t.native || t.address);
 
   const [symbol, setSymbol] = useState<TokenSymbol>(tokens[0].symbol);
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
-  const [step, setStep] = useState<Step>('form');
+  const [step, setStep] = useState<'form' | 'review'>('form');
   const [resolved, setResolved] = useState<ResolvedRecipient | null>(null);
-  const [txHash, setTxHash] = useState<Hex | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,13 +67,22 @@ export default function WithdrawModal({
   const maxRaw = balances[token.symbol]?.raw ?? null;
   const maxAmount = maxRaw != null ? formatUnits(maxRaw, token.decimals) : '0';
 
+  const usdApprox = (() => {
+    const num = Number(amount);
+    if (!num) return '$0.00';
+    if (token.stable) return `$${num.toFixed(2)}`;
+    if (token.native && ethUsdPrice != null) {
+      return `$${(num * Number(formatUnits(ethUsdPrice, 8))).toFixed(2)}`;
+    }
+    return '$—';
+  })();
+
   const reset = () => {
     setSymbol(tokens[0].symbol);
     setRecipient('');
     setAmount('');
     setStep('form');
     setResolved(null);
-    setTxHash(null);
     setBusy(false);
     setError(null);
   };
@@ -68,6 +90,20 @@ export default function WithdrawModal({
   const handleClose = () => {
     reset();
     onClose();
+  };
+
+  const applyFraction = (fraction: number) => {
+    if (maxRaw == null) return;
+    if (fraction === 1) {
+      setAmount(maxAmount);
+      return;
+    }
+    setAmount(trimAmount(Number(maxAmount) * fraction));
+  };
+
+  const handlePaste = async () => {
+    const clip = await Clipboard.getString();
+    if (clip) setRecipient(clip.trim());
   };
 
   const handleReview = async () => {
@@ -94,8 +130,7 @@ export default function WithdrawModal({
 
     setBusy(true);
     try {
-      const result = await resolveRecipient(recipient, chain.id);
-      setResolved(result);
+      setResolved(await resolveRecipient(recipient, chain.id));
       setStep('review');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not resolve recipient');
@@ -105,9 +140,7 @@ export default function WithdrawModal({
   };
 
   const handleConfirm = async () => {
-    if (!resolved) {
-      return;
-    }
+    if (!resolved) return;
     setBusy(true);
     setError(null);
     try {
@@ -117,9 +150,14 @@ export default function WithdrawModal({
         to: resolved.address,
         amount: amount.trim(),
       });
-      setTxHash(hash);
-      setStep('sent');
-      onSent();
+      onSubmitted({
+        hash,
+        tokenSymbol: token.symbol,
+        amount: amount.trim(),
+        to: resolved.address,
+        toLabel: resolved.ensName,
+      });
+      reset();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Withdrawal failed');
       setStep('form');
@@ -129,68 +167,93 @@ export default function WithdrawModal({
   };
 
   return (
-    <BottomSheet visible={visible} onClose={handleClose} title="Withdraw">
+    <BottomSheet visible={visible} onClose={handleClose} title="Withdraw" showClose>
       {step === 'form' ? (
         <>
-          <Text style={styles.label}>Asset</Text>
-          <View style={styles.coinRow}>
-            {tokens.map(t => {
-              const active = t.symbol === symbol;
-              return (
+          <View style={styles.amountCard}>
+            <View style={styles.amountRow}>
+              <TextInput
+                value={amount}
+                onChangeText={setAmount}
+                placeholder="0.00"
+                placeholderTextColor={colors.textFaint}
+                keyboardType="decimal-pad"
+                style={styles.amountInput}
+              />
+              <Text style={styles.amountSymbol}>{token.symbol}</Text>
+            </View>
+            <Text style={styles.amountUsd}>≈ {usdApprox} USD</Text>
+
+            <View style={styles.fractionRow}>
+              {QUICK_FRACTIONS.map(fraction => (
                 <Pressable
-                  key={t.symbol}
-                  onPress={() => setSymbol(t.symbol)}
-                  style={[styles.coinChip, active && styles.coinChipActive]}
+                  key={fraction}
+                  onPress={() => applyFraction(fraction)}
+                  style={({ pressed }) => [styles.fractionBtn, pressed && styles.pressed]}
                 >
-                  {t.brand ? (
-                    <BrandIcon type={t.brand} size={18} />
-                  ) : (
-                    <Text style={[styles.coinGlyph, { color: t.tint }]}>{t.glyph}</Text>
-                  )}
-                  <Text style={[styles.coinText, active && styles.coinTextActive]}>
-                    {t.symbol}
+                  <Text style={styles.fractionText}>
+                    {fraction === 1 ? 'MAX' : `${fraction * 100}%`}
                   </Text>
                 </Pressable>
-              );
-            })}
+              ))}
+            </View>
           </View>
-          <Text style={styles.available}>
-            Available: {balances[token.symbol]?.formatted ?? '0.00'} {token.symbol}
-          </Text>
 
-          <Text style={styles.label}>Recipient</Text>
-          <TextInput
-            value={recipient}
-            onChangeText={setRecipient}
-            placeholder="0x… or name.eth"
-            placeholderTextColor={colors.textFaint}
-            autoCapitalize="none"
-            autoCorrect={false}
-            style={styles.input}
-          />
+          <View style={styles.coinRow}>
+            <View style={styles.coinChips}>
+              {tokens.map(t => {
+                const active = t.symbol === symbol;
+                return (
+                  <Pressable
+                    key={t.symbol}
+                    onPress={() => setSymbol(t.symbol)}
+                    style={[styles.coinChip, active && styles.coinChipActive]}
+                  >
+                    {t.brand ? (
+                      <BrandIcon type={t.brand} size={18} />
+                    ) : (
+                      <Text style={[styles.coinGlyph, { color: t.tint }]}>{t.glyph}</Text>
+                    )}
+                    <Text style={[styles.coinText, active && styles.coinTextActive]}>
+                      {t.symbol}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={styles.balText}>
+              Bal {balances[token.symbol]?.formatted ?? '0.00'} {token.symbol}
+            </Text>
+          </View>
 
-          <Text style={styles.label}>Amount</Text>
-          <View style={styles.amountRow}>
+          <View style={styles.recipientRow}>
+            <Icon type="user" color={colors.textMuted} size={18} />
             <TextInput
-              value={amount}
-              onChangeText={setAmount}
-              placeholder="0.0"
+              value={recipient}
+              onChangeText={setRecipient}
+              placeholder="Recipient address or name"
               placeholderTextColor={colors.textFaint}
-              keyboardType="decimal-pad"
-              style={[styles.input, styles.amountInput]}
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={styles.recipientInput}
             />
-            <Pressable
-              onPress={() => setAmount(maxAmount)}
-              style={styles.maxBtn}
-            >
-              <Text style={styles.maxText}>MAX</Text>
+            <Pressable onPress={handlePaste} hitSlop={6} style={styles.recipientBtn}>
+              <Icon type="copy" color={colors.textSecondary} size={16} />
             </Pressable>
+          </View>
+
+          <View style={styles.feeRow}>
+            <View style={styles.feeLeft}>
+              <Icon type="timer" color={colors.textMuted} size={14} />
+              <Text style={styles.feeLabel}>Network fee</Text>
+            </View>
+            <Text style={styles.feeValue}>{NETWORK_FEE_USD}</Text>
           </View>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
           <Button
-            label="Review"
+            label="Review Withdrawal"
             onPress={handleReview}
             loading={busy}
             disabled={busy}
@@ -205,23 +268,29 @@ export default function WithdrawModal({
             <Text style={styles.summaryAmount}>
               {amount} {token.symbol}
             </Text>
-            <View style={styles.summaryRow}>
+            <Text style={styles.summaryUsd}>≈ {usdApprox} USD</Text>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryLine}>
               <Text style={styles.summaryKey}>To</Text>
               <Text style={styles.summaryVal}>
                 {resolved.ensName ?? truncateAddress(resolved.address)}
               </Text>
             </View>
             {resolved.ensName ? (
-              <View style={styles.summaryRow}>
+              <View style={styles.summaryLine}>
                 <Text style={styles.summaryKey}>Address</Text>
                 <Text style={styles.summaryVal}>
                   {truncateAddress(resolved.address)}
                 </Text>
               </View>
             ) : null}
-            <View style={styles.summaryRow}>
+            <View style={styles.summaryLine}>
               <Text style={styles.summaryKey}>Network</Text>
               <Text style={styles.summaryVal}>{chain.network}</Text>
+            </View>
+            <View style={styles.summaryLine}>
+              <Text style={styles.summaryKey}>Network fee</Text>
+              <Text style={styles.summaryVal}>{NETWORK_FEE_USD}</Text>
             </View>
           </View>
 
@@ -243,37 +312,75 @@ export default function WithdrawModal({
           />
         </>
       ) : null}
-
-      {step === 'sent' && txHash ? (
-        <>
-          <View style={styles.sentIcon}>
-            <Icon type="check" color={colors.success} size={30} />
-          </View>
-          <Text style={styles.sentTitle}>Withdrawal sent</Text>
-          <Pressable
-            onPress={() => Clipboard.setString(txHash)}
-            style={({ pressed }) => [styles.hashRow, pressed && styles.pressed]}
-          >
-            <Text style={styles.hashText}>{truncateAddress(txHash)}</Text>
-            <Icon type="copy" color={colors.textSecondary} size={16} />
-          </Pressable>
-          <Button label="Done" onPress={handleClose} style={styles.action} />
-        </>
-      ) : null}
     </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  label: {
-    ...type.label,
+  amountCard: {
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    alignItems: 'center',
+  },
+  amountRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  amountInput: {
+    fontFamily: mono.bold,
+    fontSize: 40,
+    color: colors.textPrimary,
+    padding: 0,
+    minWidth: 90,
+    textAlign: 'right',
+  },
+  amountSymbol: {
+    fontFamily: mono.bold,
+    fontSize: 20,
     color: colors.textMuted,
+    marginBottom: 6,
+  },
+  amountUsd: {
+    ...type.caption,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
+  },
+  fractionRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
     marginTop: spacing.md,
-    marginBottom: spacing.sm,
+    alignSelf: 'stretch',
+  },
+  fractionBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 9,
+    borderRadius: radius.sm,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  fractionText: {
+    fontFamily: mono.bold,
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  pressed: {
+    opacity: 0.7,
   },
   coinRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.lg,
+  },
+  coinChips: {
+    flexDirection: 'row',
     gap: spacing.xs,
   },
   coinChip: {
@@ -303,42 +410,56 @@ const styles = StyleSheet.create({
   coinTextActive: {
     color: colors.textPrimary,
   },
-  available: {
+  balText: {
     ...type.caption,
     color: colors.textMuted,
-    marginTop: spacing.xs,
   },
-  input: {
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    fontFamily: mono.medium,
-    fontSize: 15,
-    color: colors.textPrimary,
-  },
-  amountRow: {
+  recipientRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-  },
-  amountInput: {
-    flex: 1,
-  },
-  maxBtn: {
+    marginTop: spacing.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: radius.md,
-    backgroundColor: colors.accentSoft,
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: colors.accentBorder,
+    borderColor: colors.cardBorder,
   },
-  maxText: {
-    fontFamily: mono.bold,
-    fontSize: 12,
-    color: colors.accentLight,
+  recipientInput: {
+    flex: 1,
+    fontFamily: mono.medium,
+    fontSize: 14,
+    color: colors.textPrimary,
+    padding: 0,
+  },
+  recipientBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  feeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+  },
+  feeLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  feeLabel: {
+    ...type.caption,
+    color: colors.textMuted,
+  },
+  feeValue: {
+    fontFamily: mono.semiBold,
+    fontSize: 13,
+    color: colors.textSecondary,
   },
   error: {
     ...type.caption,
@@ -355,19 +476,29 @@ const styles = StyleSheet.create({
     borderColor: colors.cardBorder,
     borderRadius: radius.lg,
     padding: spacing.lg,
-    gap: spacing.sm,
   },
   summaryAmount: {
     fontFamily: mono.bold,
     fontSize: 28,
     color: colors.textPrimary,
     textAlign: 'center',
-    marginBottom: spacing.xs,
   },
-  summaryRow: {
+  summaryUsd: {
+    ...type.caption,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: colors.cardBorder,
+    marginVertical: spacing.md,
+  },
+  summaryLine: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: 5,
   },
   summaryKey: {
     ...type.caption,
@@ -377,36 +508,5 @@ const styles = StyleSheet.create({
     fontFamily: mono.medium,
     fontSize: 13,
     color: colors.textPrimary,
-  },
-  sentIcon: {
-    alignSelf: 'center',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.successSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-  },
-  sentTitle: {
-    ...type.heading,
-    fontSize: 18,
-    color: colors.textPrimary,
-    textAlign: 'center',
-  },
-  hashRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    marginTop: spacing.sm,
-  },
-  hashText: {
-    fontFamily: mono.medium,
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  pressed: {
-    opacity: 0.7,
   },
 });
