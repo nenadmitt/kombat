@@ -1,26 +1,12 @@
-import {
-  createPublicClient,
-  erc20Abi,
-  http,
-  parseAbi,
-  type Address,
-} from 'viem';
-import { base, sepolia } from 'viem/chains';
+import { erc20Abi, parseAbi, type Address } from 'viem';
 
-import { env } from '../config/env';
 import {
   CHAIN_TOKENS,
   ETH_USD_FEED,
   type BalanceChainId,
   type TokenSymbol,
 } from './tokens';
-
-const ALCHEMY_SUBDOMAIN: Record<BalanceChainId, string> = {
-  base: 'base-mainnet',
-  sepolia: 'eth-sepolia',
-};
-
-const VIEM_CHAIN = { base, sepolia };
+import { getPublicClient, VIEM_CHAIN } from './rpc';
 
 const getEthBalanceAbi = parseAbi([
   'function getEthBalance(address addr) view returns (uint256)',
@@ -29,14 +15,6 @@ const getEthBalanceAbi = parseAbi([
 const aggregatorAbi = parseAbi([
   'function latestRoundData() view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)',
 ]);
-
-function getClient(chainId: BalanceChainId) {
-  const url = `https://${ALCHEMY_SUBDOMAIN[chainId]}.g.alchemy.com/v2/${env.alchemyToken}`;
-  return createPublicClient({
-    chain: VIEM_CHAIN[chainId],
-    transport: http(url),
-  });
-}
 
 /** null = the call failed (e.g. placeholder address) and should render as unavailable. */
 export type RawBalances = Partial<Record<TokenSymbol, bigint | null>>;
@@ -55,7 +33,7 @@ export async function fetchBalances(
   chainId: BalanceChainId,
   address: Address,
 ): Promise<BalancesResult> {
-  const client = getClient(chainId);
+  const client = getPublicClient(chainId);
   const multicall3 = VIEM_CHAIN[chainId].contracts.multicall3.address;
 
   // Tokens without an address (e.g. KOMBAT on a chain it isn't deployed to) are

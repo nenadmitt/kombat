@@ -1,5 +1,6 @@
 export { default as AddressPill } from './AddressPill';
 export { default as AppText, type TextVariant } from './AppText';
+export { default as BottomSheet } from './BottomSheet';
 export { default as Button, type ButtonVariant, type ButtonSize } from './Button';
 export { default as Card } from './Card';
 export { default as Chip, type ChipTone } from './Chip';

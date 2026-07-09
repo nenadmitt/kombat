@@ -13,6 +13,9 @@ import BrandIcon from '../components/BrandIcon';
 import Icon, { type IconName } from '../components/Icon';
 import { Card, Screen, SectionLabel } from '../components/ui';
 import ChainSelector from '../components/wallet/ChainSelector';
+import DepositModal from '../components/wallet/DepositModal';
+import ReceiveModal from '../components/wallet/ReceiveModal';
+import WithdrawModal from '../components/wallet/WithdrawModal';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import {
   MANUAL_REFRESH_COOLDOWN_MS,
@@ -51,6 +54,9 @@ export default function WalletScreen() {
   const wallet = useCurrentUserStore(state => state.wallet);
   const [chainId, setChainId] = useState<ChainId>(DEFAULT_CHAIN_ID);
   const [coolingDown, setCoolingDown] = useState(false);
+  const [openModal, setOpenModal] = useState<
+    'receive' | 'deposit' | 'withdraw' | null
+  >(null);
   const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refresh = useWalletBalancesStore(state => state.refresh);
@@ -137,7 +143,11 @@ export default function WalletScreen() {
       {/* Actions */}
       <View style={styles.actionRow}>
         {ACTIONS.map(action => (
-          <Card key={action.key} style={styles.actionCard} onPress={() => {}}>
+          <Card
+            key={action.key}
+            style={styles.actionCard}
+            onPress={() => setOpenModal(action.key)}
+          >
             <View style={styles.actionIcon}>
               <Icon type={action.icon} color={colors.accent} size={28} />
             </View>
@@ -242,6 +252,32 @@ export default function WalletScreen() {
           ))}
         </View>
       </View>
+
+      {wallet ? (
+        <>
+          <ReceiveModal
+            visible={openModal === 'receive'}
+            onClose={() => setOpenModal(null)}
+            chain={activeChain}
+            address={wallet.address}
+          />
+          <DepositModal
+            visible={openModal === 'deposit'}
+            onClose={() => setOpenModal(null)}
+            chain={activeChain}
+            address={wallet.address}
+          />
+          {supportsBalances(chainId) && address ? (
+            <WithdrawModal
+              visible={openModal === 'withdraw'}
+              onClose={() => setOpenModal(null)}
+              chain={{ ...activeChain, id: chainId }}
+              balances={balances}
+              onSent={() => refresh(chainId, address)}
+            />
+          ) : null}
+        </>
+      ) : null}
     </Screen>
   );
 }
