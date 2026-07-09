@@ -53,9 +53,20 @@ export default function WithdrawModal({
   ethUsdPrice,
   onSubmitted,
 }: Props) {
-  const tokens = CHAIN_TOKENS[chain.id].filter(t => t.native || t.address);
+  const tokens = CHAIN_TOKENS[chain.id];
+  const hasFunds = (sym: TokenSymbol) => {
+    const raw = balances[sym]?.raw;
+    return raw != null && raw > 0n;
+  };
 
-  const [symbol, setSymbol] = useState<TokenSymbol>(tokens[0].symbol);
+  const [symbol, setSymbol] = useState<TokenSymbol>(
+    () =>
+      (
+        tokens.find(t => hasFunds(t.symbol)) ??
+        tokens.find(t => t.native || t.address) ??
+        tokens[0]
+      ).symbol,
+  );
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
   const [step, setStep] = useState<'form' | 'review'>('form');
@@ -66,6 +77,17 @@ export default function WithdrawModal({
   const token = tokens.find(t => t.symbol === symbol) ?? tokens[0];
   const maxRaw = balances[token.symbol]?.raw ?? null;
   const maxAmount = maxRaw != null ? formatUnits(maxRaw, token.decimals) : '0';
+
+  const amountWei = (() => {
+    if (!amount) return null;
+    try {
+      return parseUnits(amount, token.decimals);
+    } catch {
+      return null;
+    }
+  })();
+  const exceedsBalance =
+    amountWei != null && maxRaw != null && amountWei > maxRaw;
 
   const usdApprox = (() => {
     const num = Number(amount);
@@ -170,7 +192,7 @@ export default function WithdrawModal({
     <BottomSheet visible={visible} onClose={handleClose} title="Withdraw" showClose>
       {step === 'form' ? (
         <>
-          <View style={styles.amountCard}>
+          <View style={[styles.amountCard, exceedsBalance && styles.amountCardError]}>
             <View style={styles.amountRow}>
               <TextInput
                 value={amount}
@@ -199,32 +221,30 @@ export default function WithdrawModal({
             </View>
           </View>
 
-          <View style={styles.coinRow}>
-            <View style={styles.coinChips}>
-              {tokens.map(t => {
-                const active = t.symbol === symbol;
-                return (
-                  <Pressable
-                    key={t.symbol}
-                    onPress={() => setSymbol(t.symbol)}
-                    style={[styles.coinChip, active && styles.coinChipActive]}
-                  >
-                    {t.brand ? (
-                      <BrandIcon type={t.brand} size={18} />
-                    ) : (
-                      <Text style={[styles.coinGlyph, { color: t.tint }]}>{t.glyph}</Text>
-                    )}
-                    <Text style={[styles.coinText, active && styles.coinTextActive]}>
-                      {t.symbol}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <Text style={styles.balText}>
-              Bal {balances[token.symbol]?.formatted ?? '0.00'} {token.symbol}
-            </Text>
+          <View style={styles.coinChips}>
+            {tokens.map(t => {
+              const active = t.symbol === symbol;
+              return (
+                <Pressable
+                  key={t.symbol}
+                  onPress={() => setSymbol(t.symbol)}
+                  style={[styles.coinChip, active && styles.coinChipActive]}
+                >
+                  {t.brand ? (
+                    <BrandIcon type={t.brand} size={18} />
+                  ) : (
+                    <Text style={[styles.coinGlyph, { color: t.tint }]}>{t.glyph}</Text>
+                  )}
+                  <Text style={[styles.coinText, active && styles.coinTextActive]}>
+                    {t.symbol}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
+          <Text style={styles.balText}>
+            Bal {balances[token.symbol]?.formatted ?? '0.00'} {token.symbol}
+          </Text>
 
           <View style={styles.recipientRow}>
             <Icon type="user" color={colors.textMuted} size={18} />
@@ -256,7 +276,7 @@ export default function WithdrawModal({
             label="Review Withdrawal"
             onPress={handleReview}
             loading={busy}
-            disabled={busy}
+            disabled={busy || exceedsBalance}
             style={styles.action}
           />
         </>
@@ -325,6 +345,9 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     alignItems: 'center',
   },
+  amountCardError: {
+    borderColor: colors.danger,
+  },
   amountRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -373,15 +396,11 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.7,
   },
-  coinRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.lg,
-  },
   coinChips: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.xs,
+    marginTop: spacing.lg,
   },
   coinChip: {
     flexDirection: 'row',
@@ -413,6 +432,8 @@ const styles = StyleSheet.create({
   balText: {
     ...type.caption,
     color: colors.textMuted,
+    textAlign: 'right',
+    marginTop: spacing.xs,
   },
   recipientRow: {
     flexDirection: 'row',

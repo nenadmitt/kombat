@@ -37,26 +37,14 @@ import { CHAIN_TOKENS, supportsBalances } from '../wallet/tokens';
 
 const REFRESH_INTERVAL_MS = 60_000;
 
+/** Stable empty reference so the tx selector doesn't churn renders. */
+const EMPTY_TXS: WalletTx[] = [];
+
 const ACTIONS = [
   { key: 'receive', label: 'Receive', icon: 'arrow-down' as IconName },
   { key: 'deposit', label: 'Deposit', icon: 'plus' as IconName },
   { key: 'withdraw', label: 'Withdraw', icon: 'arrow-up' as IconName },
 ] as const;
-
-type Activity = {
-  key: string;
-  title: string;
-  time: string;
-  amount: string;
-  icon: IconName;
-  negative?: boolean;
-};
-
-const ACTIVITY: Activity[] = [
-  { key: '1', title: 'Battleships Win', time: '2m ago', amount: '+45.00', icon: 'games' },
-  { key: '2', title: 'USDC Deposit', time: '1h ago', amount: '+200.00', icon: 'arrow-down' },
-  { key: '3', title: 'Ludo Loss', time: '3h ago', amount: '-10.00', icon: 'dice', negative: true },
-];
 
 const TX_STATUS_BADGE: Record<
   WalletTx['status'],
@@ -82,7 +70,10 @@ export default function WalletScreen() {
   const chainState = useWalletBalancesStore(state =>
     supportsBalances(chainId) ? state.byChain[chainId] : undefined,
   );
-  const txs = useTransactionsStore(state => state.txs);
+  const chainTxs = useTransactionsStore(state =>
+    supportsBalances(chainId) ? state.byChain[chainId] : undefined,
+  );
+  const txs = chainTxs ?? EMPTY_TXS;
   const track = useTransactionsStore(state => state.track);
 
   const activeChain = CHAINS.find(c => c.id === chainId) ?? CHAINS[0];
@@ -286,8 +277,8 @@ export default function WalletScreen() {
                       <BrandIcon type={token.brand} size={40} />
                     </View>
                   ) : (
-                    <View style={[styles.tokenCircle, { backgroundColor: token.tint + '22', borderColor: token.tint + '55' }]}>
-                      <Text style={[styles.tokenGlyph, { color: token.tint }]}>{token.glyph}</Text>
+                    <View style={[styles.tokenCircle, { backgroundColor: token.tint, borderColor: token.tint }]}>
+                      <Text style={[styles.tokenGlyph, { color: colors.onAccent }]}>{token.glyph}</Text>
                     </View>
                   )}
                   <View>
@@ -299,9 +290,6 @@ export default function WalletScreen() {
                     </View>
                     <Text style={styles.assetName}>{token.name}</Text>
                   </View>
-                </View>
-                <View style={styles.assetSpark}>
-                  <Sparkline points={trend.spark} color={trendColor} width={56} height={24} />
                 </View>
                 <View style={styles.assetRight}>
                   <Text style={styles.assetBalance}>
@@ -321,9 +309,12 @@ export default function WalletScreen() {
 
       {/* Recent activity */}
       <View style={styles.section}>
-        <SectionLabel action="View all">Recent activity</SectionLabel>
-        <View style={styles.list}>
-          {txs.map(tx => {
+        <SectionLabel>Recent activity</SectionLabel>
+        {txs.length === 0 ? (
+          <Text style={styles.emptyActivityText}>No recent activity yet</Text>
+        ) : (
+          <View style={styles.list}>
+            {txs.map(tx => {
             const badge = TX_STATUS_BADGE[tx.status];
             const subtitle =
               tx.status === 'pending'
@@ -362,27 +353,9 @@ export default function WalletScreen() {
                 </Text>
               </Pressable>
             );
-          })}
-          {ACTIVITY.map(item => (
-            <View key={item.key} style={styles.activityRow}>
-              <View style={styles.activityIcon}>
-                <Icon type={item.icon} color={colors.textSecondary} size={18} />
-              </View>
-              <View style={styles.activityMid}>
-                <Text style={styles.activityTitle}>{item.title}</Text>
-                <Text style={styles.activityTime}>{item.time}</Text>
-              </View>
-              <Text
-                style={[
-                  styles.activityAmount,
-                  item.negative && styles.activityAmountNeg,
-                ]}
-              >
-                {item.amount}
-              </Text>
-            </View>
-          ))}
-        </View>
+            })}
+          </View>
+        )}
       </View>
 
       {wallet ? (
@@ -629,11 +602,6 @@ const styles = StyleSheet.create({
     ...type.caption,
     color: colors.textMuted,
   },
-  assetSpark: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   assetRight: {
     alignItems: 'flex-end',
   },
@@ -683,18 +651,10 @@ const styles = StyleSheet.create({
     fontSize: 9,
     letterSpacing: 0.5,
   },
-  activityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  activityIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.sm,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
+  emptyActivityText: {
+    ...type.caption,
+    color: colors.textMuted,
+    paddingVertical: spacing.sm,
   },
   activityMid: {
     flex: 1,

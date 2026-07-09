@@ -1,6 +1,6 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import { useState } from 'react';
-import { Share, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
 import { colors, radius, spacing } from '../../theme/colors';
@@ -45,7 +45,7 @@ export default function ReceiveModal({ visible, onClose, chain, address }: Props
       <View style={styles.qrCard}>
         <QRCode
           value={address}
-          size={200}
+          size={180}
           ecl="H"
           backgroundColor="#ffffff"
           color="#0A0A0C"
@@ -55,11 +55,19 @@ export default function ReceiveModal({ visible, onClose, chain, address }: Props
         </View>
       </View>
 
-      <View style={styles.addressBox}>
+      <Pressable
+        onPress={handleCopy}
+        style={({ pressed }) => [styles.addressBox, pressed && styles.pressed]}
+      >
         <Text style={styles.address} numberOfLines={1} ellipsizeMode="middle">
           {address}
         </Text>
-      </View>
+        <Icon
+          type={copied ? 'check' : 'copy'}
+          color={copied ? colors.success : colors.textSecondary}
+          size={18}
+        />
+      </Pressable>
 
       <View style={styles.warning}>
         <Icon type="warning" color={colors.gold} size={14} />
@@ -133,6 +141,9 @@ const styles = StyleSheet.create({
     color: colors.onAccent,
   },
   addressBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     marginTop: spacing.lg,
     padding: spacing.md,
     borderRadius: radius.md,
@@ -141,10 +152,13 @@ const styles = StyleSheet.create({
     borderColor: colors.cardBorder,
   },
   address: {
+    flex: 1,
     fontFamily: mono.medium,
     fontSize: 14,
     color: colors.textPrimary,
-    textAlign: 'center',
+  },
+  pressed: {
+    opacity: 0.7,
   },
   warning: {
     flexDirection: 'row',
