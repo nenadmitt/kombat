@@ -1,44 +1,46 @@
 import type { TextStyle } from 'react-native';
 
 /**
- * Three type roles, each weight linked natively as its own family (Google's
- * naming) — weights are chosen via `fontFamily`, not `fontWeight`, because
- * custom fonts don't get synthesized bold/semibold by RN. See assets/fonts
- * and react-native.config.js.
+ * Three type roles, all on Sora (Google Fonts) — each weight linked natively
+ * as its own family (Google's naming), so weights are chosen via `fontFamily`,
+ * not `fontWeight`, because custom fonts don't get synthesized bold/semibold by
+ * RN. See assets/fonts and react-native.config.js.
  *
- * - `display` — Bricolage Grotesque. Big, characterful headings & titles.
- * - `body`    — Sora. Clean sans for paragraphs, descriptions, labels.
- * - `mono`    — IBM Plex Mono. Every number, code, and uppercase micro-label
- *               (balances, stakes, room codes, section eyebrows).
+ * The whole system is one family, Sora, matching the pre-redesign look:
+ * - `display` — headings & titles.
+ * - `body`    — paragraphs, descriptions, labels.
+ * - `mono`    — numbers, codes, and uppercase micro-labels (balances, stakes,
+ *               room codes, section eyebrows). Not truly monospaced — kept as a
+ *               separate role so it can diverge again later without touching
+ *               call sites.
  */
 export const display = {
-  regular: 'BricolageGrotesque-Regular',
-  medium: 'BricolageGrotesque-Medium',
-  semiBold: 'BricolageGrotesque-SemiBold',
-  bold: 'BricolageGrotesque-Bold',
-  extraBold: 'BricolageGrotesque-ExtraBold',
+  regular: 'Sora-Regular',
+  medium: 'Sora-Medium',
+  semiBold: 'Sora-SemiBold',
+  bold: 'Sora-Bold',
+  extraBold: 'Sora-ExtraBold',
 } as const;
 
 /**
- * Body text uses the SAME family as display — the Bold design system is two
- * families total: Bricolage Grotesque for all copy + IBM Plex Mono for
- * numbers/labels. The baseline is SemiBold for more presence; `light` keeps
- * true Regular and `medium` the intermediate Medium weight where needed.
+ * Body text shares the Sora family with display. The baseline is SemiBold for
+ * more presence; `light` keeps true Regular and `medium` the intermediate
+ * Medium weight where needed.
  */
 export const body = {
-  regular: 'BricolageGrotesque-SemiBold',
-  light: 'BricolageGrotesque-Regular',
-  medium: 'BricolageGrotesque-Medium',
-  semiBold: 'BricolageGrotesque-SemiBold',
-  bold: 'BricolageGrotesque-Bold',
-  extraBold: 'BricolageGrotesque-ExtraBold',
+  regular: 'Sora-SemiBold',
+  light: 'Sora-Regular',
+  medium: 'Sora-Medium',
+  semiBold: 'Sora-SemiBold',
+  bold: 'Sora-Bold',
+  extraBold: 'Sora-ExtraBold',
 } as const;
 
 export const mono = {
-  regular: 'IBMPlexMono-Regular',
-  medium: 'IBMPlexMono-Medium',
-  semiBold: 'IBMPlexMono-SemiBold',
-  bold: 'IBMPlexMono-Bold',
+  regular: 'Sora-Regular',
+  medium: 'Sora-Medium',
+  semiBold: 'Sora-SemiBold',
+  bold: 'Sora-Bold',
 } as const;
 
 /**
