@@ -24,6 +24,7 @@ const MATCHES: Match[] = [
   { key: '1', game: 'Battleships', icon: 'crosshair', tint: colors.accent, opponent: 'CryptoNinja', when: 'Today 14:20', result: 'win', stake: '10 USDC', prize: '+20 USDC' },
   { key: '2', game: 'Ludo Classic', icon: 'grid', tint: '#38BDF8', opponent: 'BullMarket', when: 'Today 09:15', result: 'loss', stake: '5 USDC', prize: '-5 USDC' },
   { key: '3', game: 'Yahtzee Arena', icon: 'dice', tint: '#FBBF24', opponent: 'WhaleHunter', when: 'Yesterday', result: 'cancelled', stake: '2 USDC', prize: '0 USDC' },
+  { key: '4', game: 'Poker High', icon: 'target', tint: '#24E08A', opponent: 'DiamondHands', when: 'Yesterday', result: 'win', stake: '50 USDC', prize: '+100 USDC' },
 ];
 
 const RESULT_META: Record<MatchResult, { label: string; tone: ChipTone; prizeColor: string }> = {

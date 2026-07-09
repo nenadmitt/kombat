@@ -7,7 +7,8 @@ import { colors, radius, spacing } from '../theme/colors';
 import { mono, type } from '../theme/typography';
 
 /** Mocked — no balance endpoint yet. Values mirror the design reference. */
-const TOTAL_BALANCE = '$6,135.62';
+const BALANCE_WHOLE = '$6,135';
+const BALANCE_CENTS = '.62';
 const BALANCE_CHANGE = '+12.4% this week';
 
 type Asset = {
@@ -39,11 +40,13 @@ type Activity = {
   time: string;
   amount: string;
   icon: IconName;
+  negative?: boolean;
 };
 
 const ACTIVITY: Activity[] = [
   { key: '1', title: 'Battleships Win', time: '2m ago', amount: '+45.00', icon: 'games' },
   { key: '2', title: 'USDC Deposit', time: '1h ago', amount: '+200.00', icon: 'arrow-down' },
+  { key: '3', title: 'Ludo Loss', time: '3h ago', amount: '-10.00', icon: 'dice', negative: true },
 ];
 
 export default function WalletScreen() {
@@ -60,7 +63,10 @@ export default function WalletScreen() {
       {/* Balance card */}
       <View style={styles.balanceCard}>
         <Text style={[type.label, styles.balanceLabel]}>Total balance</Text>
-        <Text style={styles.balanceValue}>{TOTAL_BALANCE}</Text>
+        <Text style={styles.balanceValue}>
+          {BALANCE_WHOLE}
+          <Text style={styles.balanceCents}>{BALANCE_CENTS}</Text>
+        </Text>
         <View style={styles.changePill}>
           <Icon type="trending-up" color={colors.onAccent} size={13} />
           <Text style={styles.changeText}>{BALANCE_CHANGE}</Text>
@@ -120,7 +126,14 @@ export default function WalletScreen() {
                 <Text style={styles.activityTitle}>{item.title}</Text>
                 <Text style={styles.activityTime}>{item.time}</Text>
               </View>
-              <Text style={styles.activityAmount}>{item.amount}</Text>
+              <Text
+                style={[
+                  styles.activityAmount,
+                  item.negative && styles.activityAmountNeg,
+                ]}
+              >
+                {item.amount}
+              </Text>
             </View>
           ))}
         </View>
@@ -150,9 +163,12 @@ const styles = StyleSheet.create({
   },
   balanceValue: {
     fontFamily: mono.bold,
-    fontSize: 44,
+    fontSize: 40,
     letterSpacing: -1,
     color: colors.onAccent,
+  },
+  balanceCents: {
+    fontSize: 24,
   },
   changePill: {
     flexDirection: 'row',
@@ -273,5 +289,8 @@ const styles = StyleSheet.create({
     fontFamily: mono.semiBold,
     fontSize: 15,
     color: colors.success,
+  },
+  activityAmountNeg: {
+    color: colors.danger,
   },
 });

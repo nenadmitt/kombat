@@ -1,34 +1,53 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { GameType } from '@gaming-platform/core';
 
 import Icon, { type IconName } from '../components/Icon';
-import { Button, Card, Chip, Screen, SectionLabel, Toggle } from '../components/ui';
+import { Card, Chip, Screen, SectionLabel, Toggle } from '../components/ui';
 import { GAME_TYPE_DEMO_SCREENS } from '../games/game-type-demo-screens';
-import { GAME_TYPE_LABELS } from '../games/game-type-labels';
 import type { RootStackParamList } from '../navigation/types';
 import { colors, radius, spacing } from '../theme/colors';
-import { mono, type } from '../theme/typography';
+import { display, mono, type } from '../theme/typography';
 
-/** Numeric enum values only — TS numeric enums also reverse-map name -> value. */
-const ALL_GAME_TYPES = Object.values(GameType).filter(
-  (value): value is GameType => typeof value === 'number',
-);
-
-/** Presentational metadata for the real catalog games (no invented titles). */
-const GAME_META: Record<GameType, { genre: string; icon: IconName; tint: string }> = {
-  [GameType.NavalBattle]: { genre: 'Strategy · 1v1', icon: 'crosshair', tint: colors.accent },
+type GameCard = {
+  name: string;
+  tag: string;
+  players: string;
+  icon: IconName;
+  tint: string;
+  /** Real catalog game types are playable; the rest are demo-only previews. */
+  gameType?: GameType;
 };
 
-/** Showcase of every game the platform supports — tap to preview its UI. */
+/**
+ * Only Battleships (NavalBattle) is a real, playable game type — the others
+ * are design-showcase previews and open a "coming soon" notice rather than
+ * pretending to launch. The GameType catalog stays honest; these extra cards
+ * live only in this screen to match the design's library grid.
+ */
+const GAMES: GameCard[] = [
+  { name: 'Battleships', tag: 'Strategy', players: '2.4k playing', icon: 'crosshair', tint: colors.accentSoft, gameType: GameType.NavalBattle },
+  { name: 'Ludo Classic', tag: 'Board', players: '1.8k playing', icon: 'grid', tint: 'rgba(56,189,248,0.12)' },
+  { name: 'Yahtzee Arena', tag: 'Dice', players: '960 playing', icon: 'dice', tint: 'rgba(251,191,36,0.12)' },
+  { name: 'Poker High', tag: 'Cards', players: '3.1k playing', icon: 'target', tint: 'rgba(36,224,138,0.12)' },
+];
+
 export default function DemoGamesScreen() {
-  // Same pragmatic cast as GameLobyScreen — this screen's own nav type
-  // doesn't know about root-level screens like BattleshipSetup.
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [demoMode, setDemoMode] = useState(true);
+
+  const playDemo = (game: GameCard) => {
+    if (game.gameType === undefined) {
+      Alert.alert(game.name, 'This game is coming soon.');
+      return;
+    }
+    (navigation.navigate as (screen: string, params?: unknown) => void)(
+      GAME_TYPE_DEMO_SCREENS[game.gameType],
+    );
+  };
 
   return (
     <Screen scroll>
@@ -52,41 +71,28 @@ export default function DemoGamesScreen() {
       <View style={styles.section}>
         <SectionLabel>All games</SectionLabel>
         <View style={styles.grid}>
-          {ALL_GAME_TYPES.map(gameType => {
-            const meta = GAME_META[gameType];
-            return (
-              <Card key={gameType} flush style={styles.gameCard}>
-                <View style={[styles.gameArt, { backgroundColor: meta.tint + '22' }]}>
-                  <Chip label="Demo" tone="neutral" style={styles.demoBadge} />
-                  <Icon type={meta.icon} color={meta.tint} size={40} />
-                </View>
-                <View style={styles.gameBody}>
-                  <Text style={styles.gameName}>{GAME_TYPE_LABELS[gameType]}</Text>
-                  <Text style={styles.gameGenre}>{meta.genre}</Text>
-                  <Button
-                    label="Play Demo"
-                    variant="tinted"
-                    size="sm"
-                    onPress={() =>
-                      (
-                        navigation.navigate as (
-                          screen: string,
-                          params?: unknown,
-                        ) => void
-                      )(GAME_TYPE_DEMO_SCREENS[gameType])
-                    }
-                  />
-                </View>
-              </Card>
-            );
-          })}
+          {GAMES.map(game => (
+            <Card key={game.name} flush style={styles.gameCard}>
+              <View style={[styles.gameArt, { backgroundColor: game.tint }]}>
+                <Chip label="Demo" tone="neutral" style={styles.demoBadge} />
+                <Icon type={game.icon} color={colors.textPrimary} size={40} />
+              </View>
+              <View style={styles.gameBody}>
+                <Text style={styles.gameName}>{game.name}</Text>
+                <Text style={styles.gameMeta}>
+                  {game.tag} · {game.players}
+                </Text>
+                <Pressable style={styles.playBtn} onPress={() => playDemo(game)}>
+                  <Text style={styles.playBtnText}>Play Demo</Text>
+                </Pressable>
+              </View>
+            </Card>
+          ))}
+        </View>
 
-          {/* Coming-soon placeholder keeps the grid balanced without
-              inventing playable titles. */}
-          <View style={styles.comingCard}>
-            <Icon type="lock" color={colors.textFaint} size={28} />
-            <Text style={styles.comingText}>More games{'\n'}coming soon</Text>
-          </View>
+        <View style={styles.comingSoon}>
+          <Icon type="lock" color={colors.textFaint} size={17} />
+          <Text style={styles.comingText}>More games coming soon</Text>
         </View>
       </View>
     </Screen>
@@ -104,8 +110,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   demoIcon: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: radius.sm,
     backgroundColor: colors.accent,
     alignItems: 'center',
@@ -132,11 +138,11 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   gameCard: {
-    width: '47.5%',
+    width: '47.8%',
     overflow: 'hidden',
   },
   gameArt: {
-    height: 96,
+    height: 90,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -147,35 +153,48 @@ const styles = StyleSheet.create({
   },
   gameBody: {
     padding: spacing.sm,
-    gap: spacing.xs,
+    gap: 3,
   },
   gameName: {
     ...type.subheading,
+    fontSize: 15,
     color: colors.textPrimary,
   },
-  gameGenre: {
+  gameMeta: {
     fontFamily: mono.regular,
-    fontSize: 11,
+    fontSize: 10,
     color: colors.textMuted,
     marginBottom: spacing.xs,
   },
-  comingCard: {
-    width: '47.5%',
-    minHeight: 200,
+  playBtn: {
+    borderWidth: 1,
+    borderColor: colors.accentBorder,
+    backgroundColor: colors.accentSoft,
+    borderRadius: radius.sm,
+    paddingVertical: 9,
+    alignItems: 'center',
+  },
+  playBtnText: {
+    fontFamily: display.bold,
+    fontSize: 13,
+    color: colors.accent,
+  },
+  comingSoon: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
     borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: colors.borderStrong,
-    borderRadius: radius.lg,
+    borderRadius: radius.md,
+    padding: spacing.md,
   },
   comingText: {
     fontFamily: mono.medium,
-    fontSize: 12,
+    fontSize: 11,
     letterSpacing: 1,
     color: colors.textFaint,
-    textAlign: 'center',
     textTransform: 'uppercase',
   },
 });
