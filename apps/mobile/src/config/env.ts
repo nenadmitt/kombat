@@ -16,4 +16,5 @@ function required(key: keyof typeof Config): string {
 
 export const env = {
   apiBaseUrl: required('API_BASE_URL'),
+  alchemyToken: required('ALCHEMY_TOKEN')
 };

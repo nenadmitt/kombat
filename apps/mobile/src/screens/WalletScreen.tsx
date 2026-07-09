@@ -1,32 +1,30 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import type { Address } from 'viem';
 
+import BrandIcon from '../components/BrandIcon';
 import Icon, { type IconName } from '../components/Icon';
-import { AddressPill, Card, Screen, SectionLabel } from '../components/ui';
+import { Card, Screen, SectionLabel } from '../components/ui';
+import ChainSelector from '../components/wallet/ChainSelector';
 import { useCurrentUserStore } from '../store/currentUser.store';
+import {
+  MANUAL_REFRESH_COOLDOWN_MS,
+  totalUsd,
+  useWalletBalancesStore,
+} from '../store/walletBalances.store';
 import { colors, radius, spacing } from '../theme/colors';
 import { mono, type } from '../theme/typography';
+import { CHAINS, DEFAULT_CHAIN_ID, type ChainId } from '../wallet/chains';
+import { CHAIN_TOKENS, supportsBalances } from '../wallet/tokens';
 
-/** Mocked — no balance endpoint yet. Values mirror the design reference. */
-const BALANCE_WHOLE = '$6,135';
-const BALANCE_CENTS = '.62';
-const BALANCE_CHANGE = '+12.4% this week';
-
-type Asset = {
-  symbol: string;
-  name: string;
-  glyph: string;
-  tint: string;
-  balance: string;
-  usd: string;
-  highlight?: boolean;
-};
-
-const ASSETS: Asset[] = [
-  { symbol: 'USDC', name: 'USD Coin', glyph: '$', tint: '#2775CA', balance: '1,240.50', usd: '$1,240.50' },
-  { symbol: 'USDT', name: 'Tether', glyph: '₮', tint: '#26A17B', balance: '450.00', usd: '$450.00' },
-  { symbol: 'ETH', name: 'Ethereum', glyph: 'Ξ', tint: '#627EEA', balance: '0.45', usd: '$1,320.12' },
-  { symbol: 'KOMBAT', name: 'Platform Token', glyph: '◆', tint: colors.gold, balance: '12,500', usd: '$3,125.00', highlight: true },
-];
+const REFRESH_INTERVAL_MS = 60_000;
 
 const ACTIONS = [
   { key: 'receive', label: 'Receive', icon: 'arrow-down' as IconName },
@@ -51,25 +49,88 @@ const ACTIVITY: Activity[] = [
 
 export default function WalletScreen() {
   const wallet = useCurrentUserStore(state => state.wallet);
+  const [chainId, setChainId] = useState<ChainId>(DEFAULT_CHAIN_ID);
+  const [coolingDown, setCoolingDown] = useState(false);
+  const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const refresh = useWalletBalancesStore(state => state.refresh);
+  const chainState = useWalletBalancesStore(state =>
+    supportsBalances(chainId) ? state.byChain[chainId] : undefined,
+  );
+
+  const activeChain = CHAINS.find(c => c.id === chainId) ?? CHAINS[0];
+  const address = wallet?.address as Address | undefined;
+  const canRead = supportsBalances(chainId) && !!address;
+  const isLoading = chainState?.status === 'loading';
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!supportsBalances(chainId) || !address) {
+        return;
+      }
+      refresh(chainId, address);
+      const id = setInterval(() => refresh(chainId, address), REFRESH_INTERVAL_MS);
+      return () => clearInterval(id);
+    }, [chainId, address, refresh]),
+  );
+
+  useEffect(
+    () => () => {
+      if (cooldownTimer.current) {
+        clearTimeout(cooldownTimer.current);
+      }
+    },
+    [],
+  );
+
+  const handleRefresh = () => {
+    if (!supportsBalances(chainId) || !address || isLoading || coolingDown) {
+      return;
+    }
+    refresh(chainId, address, { manual: true });
+    setCoolingDown(true);
+    cooldownTimer.current = setTimeout(
+      () => setCoolingDown(false),
+      MANUAL_REFRESH_COOLDOWN_MS,
+    );
+  };
+
+  const tokens = supportsBalances(chainId) ? CHAIN_TOKENS[chainId] : [];
+  const balances = chainState?.balances ?? {};
+  const total = supportsBalances(chainId)
+    ? totalUsd(chainId, balances, chainState?.ethUsdPrice ?? null)
+    : '$0.00';
+  const [totalWhole, totalCents = '00'] = total.split('.');
 
   return (
     <Screen scroll>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Wallet</Text>
-        {wallet ? <AddressPill address={wallet.address} /> : null}
+        {wallet ? (
+          <View style={styles.headerRight}>
+            <ChainSelector
+              evmAddress={wallet.address}
+              selected={chainId}
+              onSelect={setChainId}
+            />
+            <Text style={styles.networkNote}>
+              You&apos;re on {activeChain.network}
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       {/* Balance card */}
       <View style={styles.balanceCard}>
         <Text style={[type.label, styles.balanceLabel]}>Total balance</Text>
         <Text style={styles.balanceValue}>
-          {BALANCE_WHOLE}
-          <Text style={styles.balanceCents}>{BALANCE_CENTS}</Text>
+          {totalWhole}
+          <Text style={styles.balanceCents}>.{totalCents}</Text>
         </Text>
         <View style={styles.changePill}>
           <Icon type="trending-up" color={colors.onAccent} size={13} />
-          <Text style={styles.changeText}>{BALANCE_CHANGE}</Text>
+          <Text style={styles.changeText}>+0.0% this week</Text>
         </View>
       </View>
 
@@ -87,29 +148,72 @@ export default function WalletScreen() {
 
       {/* Assets */}
       <View style={styles.section}>
-        <SectionLabel>Assets</SectionLabel>
+        <View style={styles.assetsHeader}>
+          <Text style={[type.label, styles.assetsLabel]}>Assets</Text>
+          <Pressable
+            onPress={handleRefresh}
+            disabled={!canRead || isLoading || coolingDown}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Refresh balances"
+            style={({ pressed }) => [styles.refreshBtn, pressed && styles.refreshPressed]}
+          >
+            {isLoading ? (
+              <ActivityIndicator size="small" color={colors.accentLight} />
+            ) : (
+              <Icon
+                type="refresh"
+                size={16}
+                color={coolingDown ? colors.textFaint : colors.accentLight}
+              />
+            )}
+          </Pressable>
+        </View>
+
+        {chainState?.status === 'error' ? (
+          <Text style={styles.errorText}>
+            {chainState.error ?? 'Failed to load balances'}
+          </Text>
+        ) : null}
+
         <View style={styles.list}>
-          {ASSETS.map(asset => (
-            <Card
-              key={asset.symbol}
-              flush
-              style={[styles.assetCard, asset.highlight && styles.assetHighlight]}
-            >
-              <View style={styles.assetLeft}>
-                <View style={[styles.tokenCircle, { backgroundColor: asset.tint + '22', borderColor: asset.tint + '55' }]}>
-                  <Text style={[styles.tokenGlyph, { color: asset.tint }]}>{asset.glyph}</Text>
+          {tokens.map(token => {
+            const balance = balances[token.symbol];
+            const highlight = token.symbol === 'KOMBAT';
+            return (
+              <Card
+                key={token.symbol}
+                flush
+                style={[styles.assetCard, highlight && styles.assetHighlight]}
+              >
+                <View style={styles.assetLeft}>
+                  {token.brand ? (
+                    <View style={styles.tokenIcon}>
+                      <BrandIcon type={token.brand} size={40} />
+                    </View>
+                  ) : (
+                    <View style={[styles.tokenCircle, { backgroundColor: token.tint + '22', borderColor: token.tint + '55' }]}>
+                      <Text style={[styles.tokenGlyph, { color: token.tint }]}>{token.glyph}</Text>
+                    </View>
+                  )}
+                  <View>
+                    <Text style={styles.assetSymbol}>{token.symbol}</Text>
+                    <Text style={styles.assetName}>{token.name}</Text>
+                  </View>
                 </View>
-                <View>
-                  <Text style={styles.assetSymbol}>{asset.symbol}</Text>
-                  <Text style={styles.assetName}>{asset.name}</Text>
+                <View style={styles.assetRight}>
+                  <Text style={styles.assetBalance}>
+                    {balance?.formatted ?? '—'}
+                  </Text>
+                  <Text style={styles.assetUsd}>
+                    {token.stable && balance?.raw != null
+                      ? `$${balance.formatted}`
+                      : token.symbol}
+                  </Text>
                 </View>
-              </View>
-              <View style={styles.assetRight}>
-                <Text style={styles.assetBalance}>{asset.balance}</Text>
-                <Text style={styles.assetUsd}>{asset.usd}</Text>
-              </View>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </View>
       </View>
 
@@ -145,12 +249,21 @@ export default function WalletScreen() {
 const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
   title: {
     ...type.title,
     color: colors.textPrimary,
+  },
+  headerRight: {
+    alignItems: 'flex-end',
+    gap: spacing.xxs,
+    paddingTop: spacing.xxs,
+  },
+  networkNote: {
+    ...type.caption,
+    color: colors.textMuted,
   },
   balanceCard: {
     backgroundColor: colors.accent,
@@ -198,8 +311,6 @@ const styles = StyleSheet.create({
   actionIcon: {
     width: 44,
     height: 44,
-    borderRadius: radius.sm,
-    backgroundColor: colors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -210,6 +321,29 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: spacing.sm,
+  },
+  assetsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  assetsLabel: {
+    color: colors.textMuted,
+  },
+  refreshBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  refreshPressed: {
+    opacity: 0.6,
+  },
+  errorText: {
+    ...type.caption,
+    color: colors.danger,
   },
   list: {
     gap: spacing.sm,
@@ -233,6 +367,12 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tokenIcon: {
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
