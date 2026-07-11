@@ -3,6 +3,11 @@ import type {
   UserProfile,
 } from '../authentication/authentication.types';
 import type { GameRoomSummary, GameType } from '../games/game-room.types';
+import type {
+  MatchHistoryEntry,
+  StakeAsset,
+  WalletBalances,
+} from '../games/stake.types';
 import type { BattleshipRoomState } from '../games/battleship/battleship.protocol';
 import type {
   CreateWalletResponse,
@@ -74,8 +79,30 @@ export class ApiClient {
     return this.request('PATCH', '/users/me/username', { username }, true);
   }
 
-  createGameRoom(gameType: GameType): Promise<GameRoomSummary> {
-    return this.request('POST', '/games/rooms', { gameType }, true);
+  createGameRoom(
+    gameType: GameType,
+    /** Omit for a free game. Amount is base units (see parseStakeAmount). */
+    stake?: { token: StakeAsset; amount: string },
+  ): Promise<GameRoomSummary> {
+    return this.request(
+      'POST',
+      '/games/rooms',
+      {
+        gameType,
+        ...(stake ? { stakeToken: stake.token, stakeAmount: stake.amount } : {}),
+      },
+      true,
+    );
+  }
+
+  /** Completed matches (result, stake, prize) for the History screen. */
+  getMatchHistory(): Promise<MatchHistoryEntry[]> {
+    return this.request('GET', '/games/rooms/history', undefined, true);
+  }
+
+  /** On-chain balances for the user's wallet. */
+  getWalletBalances(): Promise<WalletBalances> {
+    return this.request('GET', '/wallets/balances', undefined, true);
   }
 
   listPendingGameRooms(options?: {

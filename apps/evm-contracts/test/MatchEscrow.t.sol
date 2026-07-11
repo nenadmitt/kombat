@@ -2,108 +2,317 @@
 pragma solidity ^0.8.26;
 
 import { Test } from "forge-std/Test.sol";
+import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import { KombatCoin } from "../src/KombatCoin.sol";
 import { MatchEscrow } from "../src/MatchEscrow.sol";
+import { MockUSDC } from "../src/MockUSDC.sol";
 import { MockUSDT } from "./mocks/MockUSDT.sol";
 
 contract MatchEscrowTest is Test {
     KombatCoin internal kc;
+    MockUSDC internal usdc;
     MockUSDT internal usdt;
     MatchEscrow internal escrow;
 
     address internal owner = makeAddr("owner");
     address internal operator = makeAddr("operator");
-    address internal alice = makeAddr("alice");
-    address internal bob = makeAddr("bob");
 
-    uint16 internal constant FEE_BPS = 250; // 2.5%
+    address internal alice;
+    uint256 internal alicePk;
+    address internal bob;
+    uint256 internal bobPk;
+
+    uint16 internal constant FEE_BPS = 500; // 5%
     uint256 internal constant STAKE = 10 ether;
     bytes32 internal constant MATCH_ID = keccak256("room-1");
 
     function setUp() public {
-        // The operator (the platform's game contract) holds the players'
-        // deposits and funds the escrow itself, so KC's fixed supply goes
-        // straight to it here.
-        kc = new KombatCoin(operator);
+        (alice, alicePk) = makeAddrAndKey("alice");
+        (bob, bobPk) = makeAddrAndKey("bob");
+
+        kc = new KombatCoin(owner);
+        usdc = new MockUSDC();
         usdt = new MockUSDT();
         escrow = new MatchEscrow(owner, operator, FEE_BPS);
 
-        usdt.mint(operator, 100e6);
-        vm.deal(operator, 100 ether);
-
-        vm.startPrank(operator);
-        kc.approve(address(escrow), type(uint256).max);
-        usdt.approve(address(escrow), type(uint256).max);
+        address native = escrow.NATIVE();
+        vm.startPrank(owner);
+        escrow.setTokenAllowed(address(kc), true);
+        escrow.setTokenAllowed(address(usdc), true);
+        escrow.setTokenAllowed(address(usdt), true);
+        escrow.setTokenAllowed(native, true);
+        // KC has a fixed supply minted to the owner — hand the players theirs.
+        kc.transfer(alice, 100 ether);
+        kc.transfer(bob, 100 ether);
         vm.stopPrank();
+
+        vm.prank(alice);
+        usdc.faucet(100e6);
+        vm.prank(bob);
+        usdc.faucet(100e6);
+        usdt.mint(alice, 100e6);
+        usdt.mint(bob, 100e6);
+        vm.deal(alice, 100 ether);
+        vm.deal(bob, 100 ether);
     }
 
     // ------------------------------------------------------------- helpers
 
+    /** Build an EIP-2612 permit for any ERC20Permit token. Computed BEFORE
+     *  vm.prank/expectRevert call sites — the staticcalls in here (nonces,
+     *  DOMAIN_SEPARATOR) would consume single-use cheatcodes otherwise. */
+    function _permit(address token, uint256 pk, address player, uint256 value)
+        internal
+        view
+        returns (MatchEscrow.PermitSig memory)
+    {
+        IERC20Permit permitToken = IERC20Permit(token);
+        uint256 deadline = block.timestamp + 1 hours;
+        bytes32 structHash = keccak256(
+            abi.encode(
+                keccak256(
+                    "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+                ),
+                player,
+                address(escrow),
+                value,
+                permitToken.nonces(player),
+                deadline
+            )
+        );
+        bytes32 digest = keccak256(
+            abi.encodePacked("\x19\x01", permitToken.DOMAIN_SEPARATOR(), structHash)
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
+        return MatchEscrow.PermitSig({ deadline: deadline, v: v, r: r, s: s });
+    }
+
     function _openKcMatch() internal {
+        MatchEscrow.PermitSig memory sigA = _permit(address(kc), alicePk, alice, STAKE);
+        MatchEscrow.PermitSig memory sigB = _permit(address(kc), bobPk, bob, STAKE);
         vm.prank(operator);
-        escrow.createStake(MATCH_ID, alice, bob, address(kc), STAKE);
+        escrow.openWithPermits(MATCH_ID, alice, bob, address(kc), STAKE, sigA, sigB);
     }
 
     function _state(bytes32 matchId) internal view returns (MatchEscrow.StakeState state) {
-        (,,,,, state) = escrow.stakes(matchId);
+        (,,,,, state,,) = escrow.stakes(matchId);
     }
 
-    // --------------------------------------------------------- createStake
+    // --------------------------------------------------- open with approvals
 
-    function test_CreateStake_EscrowsPotAndActivates() public {
+    function test_OpenWithApprovals_PullsBothStakesAndActivates() public {
+        vm.prank(alice);
+        kc.approve(address(escrow), type(uint256).max);
+        vm.prank(bob);
+        kc.approve(address(escrow), type(uint256).max);
+
+        vm.prank(operator);
+        escrow.openWithApprovals(MATCH_ID, alice, bob, address(kc), STAKE);
+
+        assertEq(kc.balanceOf(address(escrow)), STAKE * 2);
+        assertEq(kc.balanceOf(alice), 90 ether);
+        assertEq(kc.balanceOf(bob), 90 ether);
+        assertEq(uint8(_state(MATCH_ID)), uint8(MatchEscrow.StakeState.Active));
+    }
+
+    function test_OpenWithApprovals_AllOrNothingWithoutAllowance() public {
+        // Only alice approved — the whole open reverts, she keeps her stake.
+        vm.prank(alice);
+        kc.approve(address(escrow), type(uint256).max);
+
+        vm.prank(operator);
+        vm.expectRevert();
+        escrow.openWithApprovals(MATCH_ID, alice, bob, address(kc), STAKE);
+
+        assertEq(kc.balanceOf(alice), 100 ether);
+        assertEq(uint8(_state(MATCH_ID)), uint8(MatchEscrow.StakeState.None));
+    }
+
+    function test_OpenWithApprovals_RevertsForNonOperator() public {
+        vm.expectRevert(MatchEscrow.NotOperator.selector);
+        escrow.openWithApprovals(MATCH_ID, alice, bob, address(kc), STAKE);
+    }
+
+    // ----------------------------------------------------- open with permits
+
+    function test_OpenWithPermits_PullsBothStakesAndActivates() public {
         _openKcMatch();
 
-        (address p1, address p2, address token, uint256 amount,, MatchEscrow.StakeState state) =
-            escrow.stakes(MATCH_ID);
-        assertEq(p1, alice);
-        assertEq(p2, bob);
-        assertEq(token, address(kc));
-        assertEq(amount, STAKE);
-        assertEq(uint8(state), uint8(MatchEscrow.StakeState.Active));
         assertEq(kc.balanceOf(address(escrow)), STAKE * 2);
-        assertEq(kc.balanceOf(operator), kc.INITIAL_SUPPLY() - STAKE * 2);
+        assertEq(kc.balanceOf(alice), 90 ether);
+        assertEq(kc.balanceOf(bob), 90 ether);
+        assertEq(uint8(_state(MATCH_ID)), uint8(MatchEscrow.StakeState.Active));
     }
 
-    function test_CreateStake_RevertsForNonOperator() public {
-        vm.prank(alice);
+    function test_OpenWithPermits_UsdcSixDecimals() public {
+        uint256 stake = 10e6;
+        MatchEscrow.PermitSig memory sigA = _permit(address(usdc), alicePk, alice, stake);
+        MatchEscrow.PermitSig memory sigB = _permit(address(usdc), bobPk, bob, stake);
+        vm.prank(operator);
+        escrow.openWithPermits(MATCH_ID, alice, bob, address(usdc), stake, sigA, sigB);
+
+        assertEq(usdc.balanceOf(address(escrow)), stake * 2);
+        assertEq(uint8(_state(MATCH_ID)), uint8(MatchEscrow.StakeState.Active));
+    }
+
+    function test_OpenWithPermits_RevertsForNonOperator() public {
+        MatchEscrow.PermitSig memory sigA = _permit(address(kc), alicePk, alice, STAKE);
+        MatchEscrow.PermitSig memory sigB = _permit(address(kc), bobPk, bob, STAKE);
         vm.expectRevert(MatchEscrow.NotOperator.selector);
-        escrow.createStake(MATCH_ID, alice, bob, address(kc), STAKE);
+        escrow.openWithPermits(MATCH_ID, alice, bob, address(kc), STAKE, sigA, sigB);
     }
 
-    function test_CreateStake_Guards() public {
+    function test_OpenWithPermits_AllOrNothingWhenOnePlayerCantPay() public {
+        // Bob sends his KC away; his transferFrom must fail and revert the
+        // whole open — alice keeps her stake too.
+        vm.prank(bob);
+        kc.transfer(address(0xD00D), 100 ether);
+
+        MatchEscrow.PermitSig memory sigA = _permit(address(kc), alicePk, alice, STAKE);
+        MatchEscrow.PermitSig memory sigB = _permit(address(kc), bobPk, bob, STAKE);
+        vm.prank(operator);
+        vm.expectRevert();
+        escrow.openWithPermits(MATCH_ID, alice, bob, address(kc), STAKE, sigA, sigB);
+
+        assertEq(kc.balanceOf(alice), 100 ether);
+        assertEq(uint8(_state(MATCH_ID)), uint8(MatchEscrow.StakeState.None));
+    }
+
+    function test_OpenWithPermits_SurvivesFrontRunPermitConsumption() public {
+        // A griefer lifts alice's permit from the mempool and lands it first.
+        MatchEscrow.PermitSig memory sigA = _permit(address(kc), alicePk, alice, STAKE);
+        kc.permit(alice, address(escrow), STAKE, sigA.deadline, sigA.v, sigA.r, sigA.s);
+
+        // The escrow's try/catch shrugs it off — allowance is already in place.
+        MatchEscrow.PermitSig memory sigB = _permit(address(kc), bobPk, bob, STAKE);
+        vm.prank(operator);
+        escrow.openWithPermits(MATCH_ID, alice, bob, address(kc), STAKE, sigA, sigB);
+        assertEq(uint8(_state(MATCH_ID)), uint8(MatchEscrow.StakeState.Active));
+    }
+
+    // ------------------------------------------------------- create guards
+
+    function test_CreateMatch_Guards() public {
         vm.startPrank(operator);
 
         vm.expectRevert(MatchEscrow.InvalidPlayers.selector);
-        escrow.createStake(MATCH_ID, alice, alice, address(kc), STAKE);
+        escrow.createMatch(MATCH_ID, alice, alice, address(kc), STAKE);
 
         vm.expectRevert(MatchEscrow.InvalidPlayers.selector);
-        escrow.createStake(MATCH_ID, address(0), bob, address(kc), STAKE);
+        escrow.createMatch(MATCH_ID, address(0), bob, address(kc), STAKE);
 
         vm.expectRevert(MatchEscrow.InvalidStake.selector);
-        escrow.createStake(MATCH_ID, alice, bob, address(kc), 0);
+        escrow.createMatch(MATCH_ID, alice, bob, address(kc), 0);
 
-        escrow.createStake(MATCH_ID, alice, bob, address(kc), STAKE);
+        address rogue = makeAddr("rogue-token");
+        vm.expectRevert(abi.encodeWithSelector(MatchEscrow.TokenNotAllowed.selector, rogue));
+        escrow.createMatch(MATCH_ID, alice, bob, rogue, STAKE);
+
+        escrow.createMatch(MATCH_ID, alice, bob, address(kc), STAKE);
         vm.expectRevert(abi.encodeWithSelector(MatchEscrow.StakeAlreadyExists.selector, MATCH_ID));
-        escrow.createStake(MATCH_ID, alice, bob, address(kc), STAKE);
+        escrow.createMatch(MATCH_ID, alice, bob, address(kc), STAKE);
 
         vm.stopPrank();
     }
 
-    function test_CreateStake_RevertsWithoutAllowance() public {
+    // ------------------------------------------------- USDT allowance path
+
+    function test_UsdtMatch_FundViaAllowanceAndSettle() public {
+        uint256 stake = 5e6;
+        vm.prank(alice);
+        usdt.approve(address(escrow), stake);
+        vm.prank(bob);
+        usdt.approve(address(escrow), stake);
+
         vm.startPrank(operator);
-        usdt.approve(address(escrow), 0);
+        escrow.createMatch(MATCH_ID, alice, bob, address(usdt), stake);
+        escrow.fund(MATCH_ID, alice);
+        escrow.fund(MATCH_ID, bob);
+        escrow.settleStake(MATCH_ID, alice);
+        vm.stopPrank();
+
+        uint256 fee = (stake * 2 * FEE_BPS) / 10_000;
+        assertEq(usdt.balanceOf(alice), 100e6 - stake + (stake * 2 - fee));
+        assertEq(escrow.feePot(address(usdt)), fee);
+    }
+
+    function test_Fund_RevertsWithoutAllowance() public {
+        vm.startPrank(operator);
+        escrow.createMatch(MATCH_ID, alice, bob, address(usdt), 5e6);
         vm.expectRevert();
-        escrow.createStake(MATCH_ID, alice, bob, address(usdt), 5e6);
+        escrow.fund(MATCH_ID, alice);
         vm.stopPrank();
     }
 
-    function test_CreateStake_RejectsEthOnErc20Stake() public {
+    // ----------------------------------------------------------- native ETH
+
+    function test_NativeMatch_FullLifecycle() public {
+        address native = escrow.NATIVE();
         vm.prank(operator);
-        vm.expectRevert(MatchEscrow.UnexpectedValue.selector);
-        escrow.createStake{ value: 1 ether }(MATCH_ID, alice, bob, address(kc), STAKE);
+        escrow.createMatch(MATCH_ID, alice, bob, native, STAKE);
+
+        vm.prank(alice);
+        escrow.fundNative{ value: STAKE }(MATCH_ID);
+        vm.prank(bob);
+        escrow.fundNative{ value: STAKE }(MATCH_ID);
+        assertEq(address(escrow).balance, STAKE * 2);
+        assertEq(uint8(_state(MATCH_ID)), uint8(MatchEscrow.StakeState.Active));
+
+        vm.prank(operator);
+        escrow.settleStake(MATCH_ID, alice);
+
+        uint256 fee = (STAKE * 2 * FEE_BPS) / 10_000;
+        assertEq(alice.balance, 100 ether - STAKE + (STAKE * 2 - fee));
+        assertEq(address(escrow).balance, fee);
+        assertEq(escrow.feePot(native), fee);
     }
 
-    // --------------------------------------------------------- settleStake
+    function test_FundNative_Guards() public {
+        address native = escrow.NATIVE();
+        vm.prank(operator);
+        escrow.createMatch(MATCH_ID, alice, bob, native, STAKE);
+
+        // wrong value
+        vm.prank(alice);
+        vm.expectRevert(
+            abi.encodeWithSelector(MatchEscrow.WrongStakeValue.selector, STAKE, STAKE - 1)
+        );
+        escrow.fundNative{ value: STAKE - 1 }(MATCH_ID);
+
+        // not a player
+        address stranger = makeAddr("stranger");
+        vm.deal(stranger, STAKE);
+        vm.prank(stranger);
+        vm.expectRevert(abi.encodeWithSelector(MatchEscrow.NotAPlayer.selector, MATCH_ID, stranger));
+        escrow.fundNative{ value: STAKE }(MATCH_ID);
+
+        // double fund
+        vm.prank(alice);
+        escrow.fundNative{ value: STAKE }(MATCH_ID);
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(MatchEscrow.AlreadyFunded.selector, MATCH_ID, alice));
+        escrow.fundNative{ value: STAKE }(MATCH_ID);
+    }
+
+    function test_TokenKindMismatches() public {
+        address native = escrow.NATIVE();
+        vm.startPrank(operator);
+        escrow.createMatch(MATCH_ID, alice, bob, native, STAKE);
+        // ERC20 funding paths on a native match
+        vm.expectRevert(abi.encodeWithSelector(MatchEscrow.NativeStake.selector, MATCH_ID));
+        escrow.fund(MATCH_ID, alice);
+
+        bytes32 kcMatch = keccak256("room-2");
+        escrow.createMatch(kcMatch, alice, bob, address(kc), STAKE);
+        vm.stopPrank();
+
+        // native funding on an ERC20 match
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(MatchEscrow.NotNativeStake.selector, kcMatch));
+        escrow.fundNative{ value: STAKE }(kcMatch);
+    }
+
+    // ---------------------------------------------------------------- settle
 
     function test_SettleStake_PaysWinnerMinusFeeAndAccruesFeePot() public {
         _openKcMatch();
@@ -112,32 +321,18 @@ contract MatchEscrowTest is Test {
         escrow.settleStake(MATCH_ID, bob);
 
         uint256 pot = STAKE * 2;
-        uint256 fee = (pot * FEE_BPS) / 10_000; // 0.5 ether
-        assertEq(kc.balanceOf(bob), pot - fee);
-        // the fee stays on the contract, accrued to the owner's fee pot
+        uint256 fee = (pot * FEE_BPS) / 10_000; // 1 ether
+        assertEq(kc.balanceOf(bob), 90 ether + pot - fee);
+        // The fee stays on the contract, accrued to the owner's fee pot.
         assertEq(kc.balanceOf(address(escrow)), fee);
         assertEq(escrow.feePot(address(kc)), fee);
-        assertEq(kc.balanceOf(owner), 0);
         assertEq(uint8(_state(MATCH_ID)), uint8(MatchEscrow.StakeState.Settled));
-    }
-
-    function test_SettleStake_ZeroFee() public {
-        escrow = new MatchEscrow(owner, operator, 0);
-        vm.startPrank(operator);
-        kc.approve(address(escrow), type(uint256).max);
-        escrow.createStake(MATCH_ID, alice, bob, address(kc), STAKE);
-        escrow.settleStake(MATCH_ID, alice);
-        vm.stopPrank();
-
-        assertEq(kc.balanceOf(alice), STAKE * 2);
-        assertEq(escrow.feePot(address(kc)), 0);
     }
 
     function test_SettleStake_Reverts() public {
         _openKcMatch();
 
         // not the operator
-        vm.prank(alice);
         vm.expectRevert(MatchEscrow.NotOperator.selector);
         escrow.settleStake(MATCH_ID, alice);
 
@@ -161,49 +356,103 @@ contract MatchEscrowTest is Test {
         escrow.settleStake(MATCH_ID, alice);
     }
 
-    // ------------------------------------------------- USDT allowance path
-
-    function test_UsdtMatch_StakeAndSettle() public {
-        uint256 stake = 5e6;
+    function test_SettleStake_RevertsWhileOnlyPartiallyFunded() public {
+        MatchEscrow.PermitSig memory sigA = _permit(address(kc), alicePk, alice, STAKE);
         vm.startPrank(operator);
-        escrow.createStake(MATCH_ID, alice, bob, address(usdt), stake);
+        escrow.createMatch(MATCH_ID, alice, bob, address(kc), STAKE);
+        escrow.fundWithPermit(MATCH_ID, alice, sigA);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MatchEscrow.WrongStakeState.selector, MATCH_ID, MatchEscrow.StakeState.Created
+            )
+        );
         escrow.settleStake(MATCH_ID, alice);
         vm.stopPrank();
-
-        uint256 fee = (stake * 2 * FEE_BPS) / 10_000;
-        assertEq(usdt.balanceOf(alice), stake * 2 - fee);
-        assertEq(escrow.feePot(address(usdt)), fee);
     }
 
-    // ----------------------------------------------------------- native ETH
+    // ------------------------------------------------------------- fee admin
 
-    function test_NativeMatch_FullLifecycle() public {
-        // `escrow.NATIVE()` in the argument list is a staticcall that would
-        // consume the prank — resolve it first.
-        address native = escrow.NATIVE();
-        vm.prank(operator);
-        escrow.createStake{ value: STAKE * 2 }(MATCH_ID, alice, bob, native, STAKE);
-        assertEq(address(escrow).balance, STAKE * 2);
+    function test_SetFeeBps_OwnerUpdatesAndAppliesAtSettleTime() public {
+        _openKcMatch();
+
+        // Owner drops the fee to 1% before settlement — the new rate applies.
+        vm.prank(owner);
+        escrow.setFeeBps(100);
 
         vm.prank(operator);
         escrow.settleStake(MATCH_ID, alice);
 
-        uint256 fee = (STAKE * 2 * FEE_BPS) / 10_000;
-        assertEq(alice.balance, STAKE * 2 - fee);
-        assertEq(address(escrow).balance, fee);
-        assertEq(escrow.feePot(native), fee);
+        uint256 fee = (STAKE * 2 * 100) / 10_000; // 0.2 ether
+        assertEq(kc.balanceOf(alice), 90 ether + STAKE * 2 - fee);
+        assertEq(escrow.feePot(address(kc)), fee);
     }
 
-    function test_CreateStake_NativeValueMustEqualPot() public {
-        address native = escrow.NATIVE();
+    function test_SetFeeBps_Guards() public {
+        vm.prank(owner);
+        vm.expectRevert(MatchEscrow.FeeTooHigh.selector);
+        escrow.setFeeBps(1001);
+
+        vm.prank(alice);
+        vm.expectRevert();
+        escrow.setFeeBps(100);
+    }
+
+    function test_SettleStake_ZeroFee() public {
+        vm.prank(owner);
+        escrow.setFeeBps(0);
+        _openKcMatch();
+
         vm.prank(operator);
-        vm.expectRevert(
-            abi.encodeWithSelector(MatchEscrow.WrongStakeValue.selector, STAKE * 2, STAKE)
-        );
-        escrow.createStake{ value: STAKE }(MATCH_ID, alice, bob, native, STAKE);
+        escrow.settleStake(MATCH_ID, alice);
+        assertEq(kc.balanceOf(alice), 90 ether + STAKE * 2);
+        assertEq(escrow.feePot(address(kc)), 0);
     }
 
-    // -------------------------------------------------------- withdrawStake
+    // ------------------------------------------------------------ void stake
+
+    function test_VoidStake_RefundsOnlyFundedPlayers() public {
+        MatchEscrow.PermitSig memory sigA = _permit(address(kc), alicePk, alice, STAKE);
+        vm.startPrank(operator);
+        escrow.createMatch(MATCH_ID, alice, bob, address(kc), STAKE);
+        escrow.fundWithPermit(MATCH_ID, alice, sigA);
+        escrow.voidStake(MATCH_ID);
+        vm.stopPrank();
+
+        assertEq(kc.balanceOf(alice), 100 ether);
+        assertEq(kc.balanceOf(bob), 100 ether);
+        assertEq(uint8(_state(MATCH_ID)), uint8(MatchEscrow.StakeState.Voided));
+    }
+
+    function test_VoidStake_RefundsBothWhenActive() public {
+        _openKcMatch();
+        vm.prank(operator);
+        escrow.voidStake(MATCH_ID);
+
+        assertEq(kc.balanceOf(alice), 100 ether);
+        assertEq(kc.balanceOf(bob), 100 ether);
+        assertEq(kc.balanceOf(address(escrow)), 0);
+    }
+
+    function test_VoidStake_Guards() public {
+        _openKcMatch();
+        // not the operator
+        vm.expectRevert(MatchEscrow.NotOperator.selector);
+        escrow.voidStake(MATCH_ID);
+
+        // settled match cannot be voided
+        vm.startPrank(operator);
+        escrow.settleStake(MATCH_ID, alice);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MatchEscrow.WrongStakeState.selector, MATCH_ID, MatchEscrow.StakeState.Settled
+            )
+        );
+        escrow.voidStake(MATCH_ID);
+        vm.stopPrank();
+    }
+
+    // -------------------------------------------------------- withdraw stake
 
     function test_WithdrawStake_RefundsBothAfterDelay() public {
         _openKcMatch();
@@ -220,14 +469,13 @@ contract MatchEscrowTest is Test {
         escrow.withdrawStake(MATCH_ID);
 
         vm.warp(block.timestamp + escrow.WITHDRAW_DELAY() + 1);
-        // anyone may trigger it; refunds go to the players, not the operator
+        // anyone may trigger it
         vm.prank(makeAddr("anyone"));
         escrow.withdrawStake(MATCH_ID);
 
-        assertEq(kc.balanceOf(alice), STAKE);
-        assertEq(kc.balanceOf(bob), STAKE);
-        assertEq(kc.balanceOf(address(escrow)), 0);
-        assertEq(uint8(_state(MATCH_ID)), uint8(MatchEscrow.StakeState.Withdrawn));
+        assertEq(kc.balanceOf(alice), 100 ether);
+        assertEq(kc.balanceOf(bob), 100 ether);
+        assertEq(uint8(_state(MATCH_ID)), uint8(MatchEscrow.StakeState.Voided));
     }
 
     function test_WithdrawStake_RevertsOnSettledOrUnknownMatch() public {
@@ -252,20 +500,6 @@ contract MatchEscrowTest is Test {
         escrow.withdrawStake(ghost);
     }
 
-    function test_WithdrawStake_CannotBeSettledAfterWithdraw() public {
-        _openKcMatch();
-        vm.warp(block.timestamp + escrow.WITHDRAW_DELAY() + 1);
-        escrow.withdrawStake(MATCH_ID);
-
-        vm.prank(operator);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                MatchEscrow.WrongStakeState.selector, MATCH_ID, MatchEscrow.StakeState.Withdrawn
-            )
-        );
-        escrow.settleStake(MATCH_ID, alice);
-    }
-
     // ------------------------------------------------------- withdrawFeePot
 
     function test_WithdrawFeePot_Erc20() public {
@@ -286,7 +520,11 @@ contract MatchEscrowTest is Test {
     function test_WithdrawFeePot_NativePartial() public {
         address native = escrow.NATIVE();
         vm.prank(operator);
-        escrow.createStake{ value: STAKE * 2 }(MATCH_ID, alice, bob, native, STAKE);
+        escrow.createMatch(MATCH_ID, alice, bob, native, STAKE);
+        vm.prank(alice);
+        escrow.fundNative{ value: STAKE }(MATCH_ID);
+        vm.prank(bob);
+        escrow.fundNative{ value: STAKE }(MATCH_ID);
         vm.prank(operator);
         escrow.settleStake(MATCH_ID, alice);
         uint256 fee = escrow.feePot(native);
@@ -299,7 +537,7 @@ contract MatchEscrowTest is Test {
     }
 
     function test_WithdrawFeePot_CannotTouchEscrowedStakes() public {
-        // an active (unsettled) match holds 2×STAKE, but none of it is fees
+        // An active (unsettled) match holds 2×STAKE, but none of it is fees.
         _openKcMatch();
 
         vm.prank(owner);
@@ -354,5 +592,20 @@ contract MatchEscrowTest is Test {
         vm.prank(alice);
         vm.expectRevert();
         escrow.setOperator(alice);
+    }
+
+    // -------------------------------------------------------------- MockUSDC
+
+    function test_MockUsdc_FaucetAndDecimals() public {
+        assertEq(usdc.decimals(), 6);
+        assertEq(usdc.balanceOf(alice), 100e6);
+
+        vm.prank(alice);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MockUSDC.FaucetAmountTooLarge.selector, 10_001e6, 10_000e6
+            )
+        );
+        usdc.faucet(10_001e6);
     }
 }

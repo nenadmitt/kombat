@@ -1,83 +1,147 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import {
+  ApiError,
+  STAKE_ASSET_SYMBOLS,
+  formatStakeAmount,
+  type MatchHistoryEntry,
+} from '@gaming-platform/core';
 
-import Icon, { type IconName } from '../components/Icon';
+import { apiClient } from '../api/client';
+import Icon from '../components/Icon';
 import { Card, Chip, Screen, SectionLabel, StatTile, type ChipTone } from '../components/ui';
+import { GAME_TYPE_LABELS } from '../games/game-type-labels';
 import { colors, radius, spacing } from '../theme/colors';
 import { mono, type } from '../theme/typography';
 
-/** Mocked — no match-history endpoint yet. Values mirror the design reference. */
-type MatchResult = 'win' | 'loss' | 'cancelled';
+type Status = 'loading' | 'ready' | 'error';
 
-type Match = {
-  key: string;
-  game: string;
-  icon: IconName;
-  tint: string;
-  opponent: string;
-  when: string;
-  result: MatchResult;
-  stake: string;
-  prize: string;
-};
-
-const MATCHES: Match[] = [
-  { key: '1', game: 'Battleships', icon: 'crosshair', tint: colors.accent, opponent: 'CryptoNinja', when: 'Today 14:20', result: 'win', stake: '10 USDC', prize: '+20 USDC' },
-  { key: '2', game: 'Ludo Classic', icon: 'grid', tint: '#38BDF8', opponent: 'BullMarket', when: 'Today 09:15', result: 'loss', stake: '5 USDC', prize: '-5 USDC' },
-  { key: '3', game: 'Yahtzee Arena', icon: 'dice', tint: '#FBBF24', opponent: 'WhaleHunter', when: 'Yesterday', result: 'cancelled', stake: '2 USDC', prize: '0 USDC' },
-  { key: '4', game: 'Poker High', icon: 'target', tint: '#24E08A', opponent: 'DiamondHands', when: 'Yesterday', result: 'win', stake: '50 USDC', prize: '+100 USDC' },
-];
-
-const RESULT_META: Record<MatchResult, { label: string; tone: ChipTone; prizeColor: string }> = {
+const RESULT_META: Record<
+  MatchHistoryEntry['result'],
+  { label: string; tone: ChipTone; prizeColor: string }
+> = {
   win: { label: 'Win', tone: 'success', prizeColor: colors.success },
   loss: { label: 'Loss', tone: 'danger', prizeColor: colors.danger },
-  cancelled: { label: 'Cancelled', tone: 'neutral', prizeColor: colors.textMuted },
+  void: { label: 'Voided', tone: 'neutral', prizeColor: colors.textMuted },
 };
 
+function formatWhen(iso: string): string {
+  const date = new Date(iso);
+  const sameDay = new Date().toDateString() === date.toDateString();
+  if (sameDay) {
+    const hh = `${date.getHours()}`.padStart(2, '0');
+    const mm = `${date.getMinutes()}`.padStart(2, '0');
+    return `Today ${hh}:${mm}`;
+  }
+  return date.toLocaleDateString();
+}
+
+/** "+19 USDC" / "-10 USDC" / "FREE" for a history entry. */
+function prizeLabel(entry: MatchHistoryEntry): string | null {
+  if (entry.stakeToken === null || entry.prizeDelta === null) {
+    return null;
+  }
+  const formatted = formatStakeAmount(entry.prizeDelta, entry.stakeToken);
+  const signed = entry.prizeDelta.startsWith('-') || formatted === '0'
+    ? formatted
+    : `+${formatted}`;
+  return `${signed} ${STAKE_ASSET_SYMBOLS[entry.stakeToken]}`;
+}
+
 export default function HistoryScreen() {
+  const [entries, setEntries] = useState<MatchHistoryEntry[]>([]);
+  const [status, setStatus] = useState<Status>('loading');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const fetchHistory = useCallback(async () => {
+    setStatus('loading');
+    setErrorMessage(null);
+    try {
+      setEntries(await apiClient.getMatchHistory());
+      setStatus('ready');
+    } catch (err) {
+      setErrorMessage(
+        err instanceof ApiError ? err.message : 'Failed to load match history',
+      );
+      setStatus('error');
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchHistory();
+    }, [fetchHistory]),
+  );
+
+  const played = entries.length;
+  const wins = entries.filter(e => e.result === 'win').length;
+  const losses = entries.filter(e => e.result === 'loss').length;
+  const decided = wins + losses;
+  const winRate = decided > 0 ? `${((wins / decided) * 100).toFixed(1)}%` : '—';
+
   return (
     <Screen scroll>
       <Text style={styles.title}>Match History</Text>
 
-      {/* Stat grid */}
+      {/* Stat grid (computed from real history) */}
       <View style={styles.statGrid}>
         <View style={styles.statRow}>
-          <StatTile label="Games played" value="156" />
-          <StatTile label="Wins" value="98" valueColor={colors.success} />
+          <StatTile label="Games played" value={`${played}`} />
+          <StatTile label="Wins" value={`${wins}`} valueColor={colors.success} />
         </View>
         <View style={styles.statRow}>
-          <StatTile label="Losses" value="58" valueColor={colors.danger} />
-          <StatTile label="Win rate" value="62.8%" valueColor={colors.accent} />
-        </View>
-      </View>
-
-      {/* Total earnings */}
-      <View style={styles.earningsCard}>
-        <View style={styles.earningsHeader}>
-          <Text style={[type.label, styles.earningsLabel]}>Total earnings</Text>
-          <Icon type="gem" color={colors.onAccent} size={18} />
-        </View>
-        <View style={styles.earningsValueRow}>
-          <Text style={styles.earningsValue}>+2,450.00</Text>
-          <Text style={styles.earningsUnit}>USDC</Text>
+          <StatTile label="Losses" value={`${losses}`} valueColor={colors.danger} />
+          <StatTile label="Win rate" value={winRate} valueColor={colors.accent} />
         </View>
       </View>
 
       {/* Recent matches */}
       <View style={styles.section}>
-        <SectionLabel>Recent matches</SectionLabel>
+        <SectionLabel action="Refresh" onActionPress={fetchHistory}>
+          Recent matches
+        </SectionLabel>
+
+        {status === 'loading' && entries.length === 0 ? (
+          <ActivityIndicator color={colors.accent} style={styles.stateBlock} />
+        ) : null}
+
+        {status === 'error' ? (
+          <View style={styles.stateBlock}>
+            <Icon type="warning" color={colors.textMuted} size={32} />
+            <Text style={styles.emptyText}>{errorMessage}</Text>
+            <Pressable onPress={fetchHistory}>
+              <Text style={styles.retryText}>Try again</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {status === 'ready' && entries.length === 0 ? (
+          <View style={styles.stateBlock}>
+            <Icon type="history" color={colors.textMuted} size={32} />
+            <Text style={styles.emptyText}>No matches yet</Text>
+            <Text style={styles.emptySubtext}>
+              Your completed games — result, stake and winnings — land here.
+            </Text>
+          </View>
+        ) : null}
+
         <View style={styles.list}>
-          {MATCHES.map(match => {
-            const meta = RESULT_META[match.result];
+          {entries.map(entry => {
+            const meta = RESULT_META[entry.result];
+            const prize = prizeLabel(entry);
             return (
-              <Card key={match.key} style={styles.matchCard}>
+              <Card key={entry.roomId} style={styles.matchCard}>
                 <View style={styles.matchTop}>
-                  <View style={[styles.gameIcon, { backgroundColor: match.tint + '22' }]}>
-                    <Icon type={match.icon} color={match.tint} size={20} />
+                  <View style={styles.gameIcon}>
+                    <Icon type="crosshair" color={colors.accent} size={20} />
                   </View>
                   <View style={styles.matchMid}>
-                    <Text style={styles.matchGame}>{match.game}</Text>
+                    <Text style={styles.matchGame}>
+                      {GAME_TYPE_LABELS[entry.gameType as keyof typeof GAME_TYPE_LABELS] ?? 'Match'}
+                    </Text>
                     <Text style={styles.matchMeta}>
-                      vs {match.opponent} · {match.when}
+                      vs {entry.opponentUsername ?? 'Unknown'} · {formatWhen(entry.completedAt)}
                     </Text>
                   </View>
                   <Chip label={meta.label} tone={meta.tone} />
@@ -88,20 +152,20 @@ export default function HistoryScreen() {
                 <View style={styles.matchBottom}>
                   <View style={styles.matchStat}>
                     <Text style={[type.label, styles.matchStatLabel]}>Stake</Text>
-                    <Text style={styles.matchStatValue}>{match.stake}</Text>
-                  </View>
-                  <View style={styles.matchStat}>
-                    <Text style={[type.label, styles.matchStatLabel]}>Prize</Text>
-                    <Text style={[styles.matchStatValue, { color: meta.prizeColor }]}>
-                      {match.prize}
+                    <Text style={styles.matchStatValue}>
+                      {entry.stakeToken !== null && entry.stakeAmount
+                        ? `${formatStakeAmount(entry.stakeAmount, entry.stakeToken)} ${STAKE_ASSET_SYMBOLS[entry.stakeToken]}`
+                        : 'FREE'}
                     </Text>
                   </View>
-                  <Icon
-                    type="chevron-right"
-                    color={colors.textMuted}
-                    size={20}
-                    style={styles.matchChevron}
-                  />
+                  {prize ? (
+                    <View style={styles.matchStat}>
+                      <Text style={[type.label, styles.matchStatLabel]}>Prize</Text>
+                      <Text style={[styles.matchStatValue, { color: meta.prizeColor }]}>
+                        {prize}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
               </Card>
             );
@@ -124,41 +188,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
   },
-  earningsCard: {
-    backgroundColor: colors.gold,
-    borderRadius: radius.xl,
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  earningsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  earningsLabel: {
-    color: 'rgba(10, 10, 12, 0.6)',
-  },
-  earningsValueRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: spacing.xs,
-  },
-  earningsValue: {
-    fontFamily: mono.bold,
-    fontSize: 38,
-    letterSpacing: -1,
-    color: colors.onAccent,
-  },
-  earningsUnit: {
-    fontFamily: mono.semiBold,
-    fontSize: 15,
-    color: 'rgba(10, 10, 12, 0.7)',
-  },
   section: {
     gap: spacing.sm,
   },
   list: {
     gap: spacing.sm,
+  },
+  stateBlock: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.xl,
+  },
+  emptyText: {
+    ...type.subheading,
+    color: colors.textPrimary,
+  },
+  emptySubtext: {
+    ...type.caption,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
+  retryText: {
+    ...type.caption,
+    fontFamily: type.button.fontFamily,
+    color: colors.accentLight,
   },
   matchCard: {
     gap: spacing.sm,
@@ -172,6 +226,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: radius.sm,
+    backgroundColor: colors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -183,7 +238,8 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   matchMeta: {
-    ...type.caption,
+    fontFamily: mono.regular,
+    fontSize: 11,
     color: colors.textMuted,
   },
   matchDivider: {
@@ -205,8 +261,5 @@ const styles = StyleSheet.create({
     fontFamily: mono.semiBold,
     fontSize: 14,
     color: colors.textPrimary,
-  },
-  matchChevron: {
-    marginLeft: 'auto',
   },
 });

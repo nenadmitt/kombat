@@ -4,7 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { BATTLESHIP_EVENTS, GameRoomSummary } from '@gaming-platform/core';
+import {
+  BATTLESHIP_EVENTS,
+  GameRoomSummary,
+  MatchHistoryEntry,
+  StakeAsset,
+} from '@gaming-platform/core';
 
 import { DbService } from '../db';
 import { GameRoomEntity } from '../db/entities/game-room.entity';
@@ -13,6 +18,7 @@ import { WebsocketsService } from '../websockets';
 import { gameChannel } from '../websockets/rooms.util';
 import { BattleshipMatchService } from './battleships/battleship-match.service';
 import { getPlayerCountForGameType } from './game-type.util';
+import { StakesService } from './stakes/stakes.service';
 
 @Injectable()
 export class GamesService {
@@ -20,11 +26,13 @@ export class GamesService {
     private readonly dbService: DbService,
     private readonly websocketsService: WebsocketsService,
     private readonly battleshipMatchService: BattleshipMatchService,
+    private readonly stakesService: StakesService,
   ) {}
 
   async createRoom(
     userId: string,
     gameType: GameType,
+    stake?: { token: StakeAsset; amount: string } | null,
   ): Promise<GameRoomSummary> {
     const existing = await this.dbService.findOpenGameRoomForUser(userId);
     if (existing) {
@@ -33,11 +41,24 @@ export class GamesService {
       );
     }
 
+    // Staked room: bounds + can the creator actually cover it? Nothing is
+    // escrowed yet — stakes are pulled only when an opponent joins.
+    if (stake) {
+      this.stakesService.validateStake(stake.token, stake.amount);
+      await this.stakesService.assertSufficientBalance(
+        userId,
+        stake.token,
+        stake.amount,
+      );
+    }
+
     const room = await this.dbService.createGameRoom({
       userId,
       gameType,
       status: GameRoomStatus.Pending,
       playerCount: getPlayerCountForGameType(gameType),
+      stakeToken: stake?.token ?? null,
+      stakeAmount: stake?.amount ?? null,
     });
 
     return toGameRoomSummary(room);
@@ -63,9 +84,14 @@ export class GamesService {
   }
 
   /**
-   * Naval Battle is exactly 2 players, so joining immediately fills the
-   * room — flips it to InProgress and notifies the creator so their app can
-   * leave the "waiting" state automatically.
+   * Naval Battle is exactly 2 players, so joining immediately fills the room
+   * and flips it to InProgress.
+   *
+   * Free rooms notify the creator right away (their app leaves "waiting" and
+   * both transfer into the match). Staked rooms first escrow both stakes —
+   * StakesService emits stake:funding now and stake:funded (plus the
+   * creator's opponent-joined) once the pot is on-chain; the match start is
+   * gated on that.
    */
   async joinRoom(userId: string, roomId: string): Promise<GameRoomSummary> {
     const room = await this.dbService.findGameRoomById(roomId);
@@ -83,16 +109,31 @@ export class GamesService {
       );
     }
 
-    await this.dbService.joinGameRoom(roomId, userId);
-    this.websocketsService.sendToUser(room.userId, 'game:opponent-joined', {
-      roomId,
-    });
+    // Check the joiner's balance BEFORE flipping the room — a broke joiner
+    // shouldn't take a pending room off the market.
+    if (room.stakeToken !== null) {
+      await this.stakesService.assertSufficientBalance(
+        userId,
+        room.stakeToken,
+        room.stakeAmount!,
+      );
+    }
 
-    return toGameRoomSummary({
-      ...room,
+    await this.dbService.joinGameRoom(roomId, userId);
+    const joined: GameRoomEntity = Object.assign(room, {
       opponentId: userId,
       status: GameRoomStatus.InProgress,
     });
+
+    if (room.stakeToken !== null) {
+      await this.stakesService.beginFunding(joined);
+    } else {
+      this.websocketsService.sendToUser(room.userId, 'game:opponent-joined', {
+        roomId,
+      });
+    }
+
+    return toGameRoomSummary(joined);
   }
 
   async listPendingRooms(excludeUserId?: string): Promise<GameRoomSummary[]> {
@@ -108,6 +149,53 @@ export class GamesService {
   async getMyActiveRoom(userId: string): Promise<GameRoomSummary | null> {
     const room = await this.dbService.findActiveGameRoomForParticipant(userId);
     return room ? toGameRoomSummary(room) : null;
+  }
+
+  /** Completed matches for the History screen, newest first. */
+  async getHistory(userId: string): Promise<MatchHistoryEntry[]> {
+    const rooms = await this.dbService.findCompletedGameRoomsForUser(userId);
+    const entries = await Promise.all(
+      rooms.map(async room => {
+        const opponentId =
+          room.userId === userId ? room.opponentId : room.userId;
+        const opponent = opponentId
+          ? await this.dbService.findUserById(opponentId)
+          : null;
+
+        const isWinner = room.winnerUserId === userId;
+        const isVoid = room.winnerUserId === null;
+        const result = isVoid ? 'void' : isWinner ? 'win' : 'loss';
+
+        let prizeDelta: string | null = null;
+        if (room.stakeToken !== null && room.stakeAmount) {
+          const stake = BigInt(room.stakeAmount);
+          if (isVoid) {
+            prizeDelta = '0';
+          } else if (isWinner) {
+            const escrow = await this.dbService.findStakeEscrowByRoomId(room.id);
+            // payout − own stake; before settlement lands, estimate as stake.
+            prizeDelta = escrow?.payout
+              ? (BigInt(escrow.payout) - stake).toString()
+              : stake.toString();
+          } else {
+            prizeDelta = (-stake).toString();
+          }
+        }
+
+        return {
+          roomId: room.id,
+          gameType: room.gameType,
+          opponentUsername: opponent?.username ?? null,
+          result,
+          stakeAmount: room.stakeAmount,
+          stakeToken: room.stakeToken,
+          prizeDelta,
+          endReason: room.endReason,
+          completedAt: (room.completedAt ?? room.createdAt).toISOString(),
+        } satisfies MatchHistoryEntry;
+      }),
+    );
+    return entries;
   }
 
   /**
@@ -139,9 +227,9 @@ export class GamesService {
     try {
       await this.battleshipMatchService.forfeit(roomId, userId);
     } catch {
-      // No live match — fall through to the DB completion below.
+      // No live match — fall through to the completion below.
     }
-    await this.dbService.completeGameRoom(roomId);
+    await this.stakesService.completeMatch(roomId, opponentId, 'forfeit');
 
     // Tell the channel so an opponent still in the match sees the win. (Any
     // scheduled turn deadline goes stale — the sweeper re-validates the phase
@@ -162,6 +250,8 @@ function toGameRoomSummary(room: GameRoomEntity): GameRoomSummary {
     gameType: room.gameType,
     status: room.status,
     playerCount: room.playerCount,
+    stakeToken: room.stakeToken,
+    stakeAmount: room.stakeAmount,
     createdAt: room.createdAt.toISOString(),
   };
 }

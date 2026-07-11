@@ -10,7 +10,11 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { BattleshipRoomState, GameRoomSummary } from '@gaming-platform/core';
+import {
+  BattleshipRoomState,
+  GameRoomSummary,
+  MatchHistoryEntry,
+} from '@gaming-platform/core';
 
 import { ISecurityContext } from '../authentication/authentication.types';
 import { SecurityContext } from '../authentication/decorators/security-context.decorator';
@@ -20,6 +24,7 @@ import { BattleshipMatchService } from './battleships/battleship-match.service';
 import { CreateGameRoomDto } from './dto/create-game-room.dto';
 import { ListGameRoomsDto } from './dto/list-game-rooms.dto';
 import { GamesService } from './games.service';
+import { StakesService } from './stakes/stakes.service';
 
 @Controller('games/rooms')
 @UseGuards(JwtTokenGuard)
@@ -28,6 +33,7 @@ export class GamesController {
     private readonly gamesService: GamesService,
     private readonly dbService: DbService,
     private readonly battleshipMatchService: BattleshipMatchService,
+    private readonly stakesService: StakesService,
   ) {}
 
   @Post()
@@ -35,7 +41,21 @@ export class GamesController {
     @Body() dto: CreateGameRoomDto,
     @SecurityContext() securityContext: ISecurityContext,
   ): Promise<GameRoomSummary> {
-    return this.gamesService.createRoom(securityContext.userId, dto.gameType);
+    return this.gamesService.createRoom(
+      securityContext.userId,
+      dto.gameType,
+      dto.stakeToken !== undefined && dto.stakeAmount !== undefined
+        ? { token: dto.stakeToken, amount: dto.stakeAmount }
+        : null,
+    );
+  }
+
+  /** Completed matches (result, stake, prize) — the History screen's feed. */
+  @Get('history')
+  async getHistory(
+    @SecurityContext() securityContext: ISecurityContext,
+  ): Promise<MatchHistoryEntry[]> {
+    return this.gamesService.getHistory(securityContext.userId);
   }
 
   @Post(':id/join')

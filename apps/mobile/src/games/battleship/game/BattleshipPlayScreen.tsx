@@ -15,7 +15,13 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { Canvas, Fill, RadialGradient, vec } from '@shopify/react-native-skia';
-import type { BattleshipEndReason, FireKind } from '@gaming-platform/core';
+import {
+  STAKE_ASSET_SYMBOLS,
+  formatStakeAmount,
+  type BattleshipEndReason,
+  type FireKind,
+  type StakeAsset,
+} from '@gaming-platform/core';
 
 import Icon from '../../../components/Icon';
 import GameResultScreen from '../../../components/GameResultScreen';
@@ -70,6 +76,8 @@ export type BattleshipPlayScreenProps = {
   result: 'win' | 'lose' | null;
   /** Why the match ended (drives the result-screen copy). */
   resultReason: BattleshipEndReason | null;
+  /** Per-player stake (staked multiplayer matches) — shown on the result screen. */
+  stake?: { token: StakeAsset; amount: string } | null;
   onFire: (kind: FireKind, row: number, col: number) => void;
   onTimerExpire?: () => void;
   /** Header back — leaving an in-progress match forfeits it. */
@@ -153,6 +161,7 @@ export default function BattleshipPlayScreen({
   opponentOnline,
   result,
   resultReason,
+  stake,
   onFire,
   onTimerExpire,
   onExit,
@@ -311,6 +320,21 @@ export default function BattleshipPlayScreen({
       { value: `${accuracy}%`, label: 'ACCURACY' },
       { value: `${sunkByMe} / ${SHIPS.length}`, label: 'SHIPS SUNK', highlight: true },
     ];
+    if (stake) {
+      // Pot (2×stake) rather than net winnings — the fee is applied on-chain
+      // at settlement, so the exact net lands in History once settled.
+      const symbol = STAKE_ASSET_SYMBOLS[stake.token];
+      const amount = formatStakeAmount(stake.amount, stake.token);
+      const pot = formatStakeAmount(
+        (BigInt(stake.amount) * 2n).toString(),
+        stake.token,
+      );
+      stats.push(
+        result === 'win'
+          ? { value: `${pot} ${symbol}`, label: 'POT WON', highlight: true }
+          : { value: `${amount} ${symbol}`, label: 'STAKE LOST' },
+      );
+    }
     const copy = RESULT_COPY[result][resultReason ?? 'complete'];
     return result === 'win' ? (
       <GameResultScreen

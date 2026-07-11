@@ -7,6 +7,7 @@ import { ConfigurationService } from '../configuration/configuration.service';
 import { DbService } from './db.service';
 import { EmailLoginTokenEntity } from './entities/email-login-token.entity';
 import { GameRoomEntity } from './entities/game-room.entity';
+import { StakeEscrowEntity } from './entities/stake-escrow.entity';
 import { UserEntity } from './entities/user.entity';
 import { WalletEntity } from './entities/wallet.entity';
 import { MigrationService } from './migration.service';
@@ -31,6 +32,7 @@ import { MigrationService } from './migration.service';
           EmailLoginTokenEntity,
           WalletEntity,
           GameRoomEntity,
+          StakeEscrowEntity,
         ],
         synchronize: false,
         // Migrations are applied explicitly by MigrationService on boot, not
@@ -46,6 +48,7 @@ import { MigrationService } from './migration.service';
       EmailLoginTokenEntity,
       WalletEntity,
       GameRoomEntity,
+      StakeEscrowEntity,
     ]),
   ],
   providers: [MigrationService, DbService],

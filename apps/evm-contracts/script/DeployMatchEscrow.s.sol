@@ -2,39 +2,64 @@
 pragma solidity ^0.8.26;
 
 import { Script, console } from "forge-std/Script.sol";
-import { KombatCoin } from "../src/KombatCoin.sol";
 import { MatchEscrow } from "../src/MatchEscrow.sol";
+import { MockUSDC } from "../src/MockUSDC.sol";
 
 /**
- * @notice Deploys the platform contracts:
- *         - KombatCoin, with its fixed 100M supply minted to the platform key
- *         - MatchEscrow, with a 5% platform fee and the platform key as both
- *           owner and operator (the operator can be repointed to the game
- *           contract later via `setOperator`)
+ * @notice Deploys the v2 escrow + the MockUSDC test token, wires the
+ *         allowlist, and splits roles:
+ *         - owner    → the platform cold key (admin, fee withdrawal)
+ *         - operator → the broadcasting hot key (creates/funds/settles;
+ *           the server signs with it as OPERATOR_PRIVATE_KEY)
  *
- *         Dry run:
- *           forge script script/DeployMatchEscrow.s.sol --rpc-url sepolia
+ *         The escrow is deployed with the broadcaster as initial owner so the
+ *         allowlist can be configured in the same run, then ownership is
+ *         transferred to the cold key.
+ *
+ *         KombatCoin is NOT redeployed — the existing Sepolia deployment is
+ *         allowlisted (override with KOMBAT_ADDRESS if needed).
+ *
  *         Deploy + verify:
  *           source .env && forge script script/DeployMatchEscrow.s.sol \
- *             --rpc-url sepolia --broadcast --verify --private-key $PRIVATE_KEY
+ *             --rpc-url sepolia --broadcast --private-key $PRIVATE_KEY
  */
 contract DeployMatchEscrow is Script {
-    /// @dev Platform key: KC treasury, escrow owner (admin + fee withdrawal)
-    ///      and escrow operator (creates/settles stakes).
-    address internal constant PLATFORM = 0x0aB34352B087a107302aFF5d155e23a11637Caa1;
+    /// @dev Platform cold key: final owner (admin + fee withdrawal).
+    address internal constant PLATFORM_OWNER = 0x0aB34352B087a107302aFF5d155e23a11637Caa1;
 
-    /// @dev 5% platform fee (MatchEscrow hard-caps at 10%).
+    /// @dev Existing Sepolia KombatCoin (fixed 100M supply).
+    address internal constant DEFAULT_KOMBAT = 0xFE25C2b2400144c6536b9F707F06b751D6eeF943;
+
+    /// @dev Existing Sepolia MockUSDC — reused across escrow redeploys so
+    ///      already-fauceted balances stay valid. Zero address ⇒ deploy fresh.
+    address internal constant DEFAULT_USDC = 0x277c9f3957633C99ef8F7421B980B50C41b31a7b;
+
+    /// @dev 5% platform fee (owner-updatable on-chain, hard cap 10%).
     uint16 internal constant FEE_BPS = 500;
 
-    function run() external returns (KombatCoin kc, MatchEscrow escrow) {
+    function run() external returns (MatchEscrow escrow, MockUSDC usdc) {
+        address kombat = vm.envOr("KOMBAT_ADDRESS", DEFAULT_KOMBAT);
+        address usdcAddress = vm.envOr("USDC_ADDRESS", DEFAULT_USDC);
+
         vm.startBroadcast();
-        kc = new KombatCoin(PLATFORM);
-        escrow = new MatchEscrow(PLATFORM, PLATFORM, FEE_BPS);
+        address operator = msg.sender;
+
+        usdc = usdcAddress == address(0) ? new MockUSDC() : MockUSDC(usdcAddress);
+        // Broadcaster starts as owner so the allowlist can be set here.
+        escrow = new MatchEscrow(operator, operator, FEE_BPS);
+        escrow.setTokenAllowed(escrow.NATIVE(), true);
+        escrow.setTokenAllowed(kombat, true);
+        escrow.setTokenAllowed(address(usdc), true);
+        escrow.transferOwnership(PLATFORM_OWNER);
+
         vm.stopBroadcast();
 
-        console.log("KombatCoin deployed at: ", address(kc));
-        console.log("MatchEscrow deployed at:", address(escrow));
-        console.log("  owner/operator:", PLATFORM);
-        console.log("  feeBps:        ", FEE_BPS);
+        console.log("MatchEscrow v2 deployed at:", address(escrow));
+        console.log("MockUSDC deployed at:      ", address(usdc));
+        console.log("  owner:   ", PLATFORM_OWNER);
+        console.log("  operator:", operator);
+        console.log("  feeBps:  ", FEE_BPS);
+        console.log("  allowlisted: NATIVE, KOMBAT, USDC");
+        console.log("  kombat:  ", kombat);
     }
 }

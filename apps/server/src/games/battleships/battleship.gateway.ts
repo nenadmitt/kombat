@@ -12,6 +12,7 @@ import { DbService } from '../../db';
 import { GameRoomEntity } from '../../db/entities/game-room.entity';
 import { gameChannel } from '../../websockets/rooms.util';
 import { WebsocketsService } from '../../websockets';
+import { StakesService } from '../stakes/stakes.service';
 import { BattleshipMatchService } from './battleship-match.service';
 import {
   BattleshipEnterDto,
@@ -38,6 +39,7 @@ export class BattleshipGateway {
     private readonly matchService: BattleshipMatchService,
     private readonly dbService: DbService,
     private readonly websocketsService: WebsocketsService,
+    private readonly stakesService: StakesService,
   ) {}
 
   @UsePipes(new ValidationPipe({ whitelist: true }))
@@ -52,6 +54,8 @@ export class BattleshipGateway {
     }
     try {
       const room = await this.loadParticipantRoom(dto.roomId, userId);
+      // Staked rooms are playable only once the pot is escrowed (Funded).
+      await this.stakesService.assertRoomPlayable(room);
       // The match may not exist yet if this is the first player in; create it
       // so presence can be recorded before either side has submitted a fleet.
       // Creation also schedules the setup deadline.
@@ -81,6 +85,7 @@ export class BattleshipGateway {
     }
     try {
       const room = await this.loadParticipantRoom(dto.roomId, userId);
+      await this.stakesService.assertRoomPlayable(room);
       await this.matchService.getOrCreate(room);
       const result = await this.matchService.setFleet(
         dto.roomId,
@@ -133,7 +138,7 @@ export class BattleshipGateway {
         payload,
       );
       if (payload.winnerUserId) {
-        await this.endMatch(dto.roomId);
+        await this.endMatch(dto.roomId, payload.winnerUserId, 'complete');
       }
     } catch (error) {
       this.emitError(client, error);
@@ -161,20 +166,24 @@ export class BattleshipGateway {
         BATTLESHIP_EVENTS.ended,
         { winnerUserId, reason: 'forfeit' },
       );
-      await this.endMatch(dto.roomId);
+      await this.endMatch(dto.roomId, winnerUserId, 'forfeit');
     } catch (error) {
       this.emitError(client, error);
     }
   }
 
   /**
-   * Mark the room done in the DB. The finished match stays in the cache so
-   * both players can fetch the "over" state; its TTL handles cleanup. Any
-   * still-scheduled deadline goes stale (phase is 'over') and the sweeper
-   * drops it.
+   * Mark the room done (with its persisted result) and queue any stake
+   * settlement. The finished match stays in the cache so both players can
+   * fetch the "over" state; its TTL handles cleanup. Any still-scheduled
+   * deadline goes stale (phase is 'over') and the sweeper drops it.
    */
-  private async endMatch(roomId: string): Promise<void> {
-    await this.dbService.completeGameRoom(roomId);
+  private async endMatch(
+    roomId: string,
+    winnerUserId: string | null,
+    endReason: string,
+  ): Promise<void> {
+    await this.stakesService.completeMatch(roomId, winnerUserId, endReason);
   }
 
   // --- presence --------------------------------------------------------------

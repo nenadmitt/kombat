@@ -1,8 +1,12 @@
 import { useCallback, useEffect } from 'react';
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { GameRoomStatus, type GameRoomSummary } from '@gaming-platform/core';
+import {
+  GameRoomStatus,
+  STAKE_EVENTS,
+  type GameRoomSummary,
+} from '@gaming-platform/core';
 
 import { apiClient } from '../api/client';
 import { GAME_TYPE_SCREENS } from '../games/game-type-screens';
@@ -35,7 +39,39 @@ export default function MainTabsWithGameOverlay() {
   const setResumableMatch = useGameStore(state => state.setResumableMatch);
   const clearResumableMatch = useGameStore(state => state.clearResumableMatch);
   const clearWaitingRoom = useGameStore(state => state.clear);
+  const setSecuringStakes = useGameStore(state => state.setSecuringStakes);
   const onSocketEvent = useWebsocketStore(state => state.on);
+
+  // Stake lifecycle for the room CREATOR: their app sits in the waiting
+  // popup while the joiner triggers escrow. funding flips the popup copy to
+  // "Securing stakes…"; funded clears it (the deferred game:opponent-joined
+  // below does the navigation); failed means the room was voided.
+  useEffect(() => {
+    const offFunding = onSocketEvent(STAKE_EVENTS.funding, () =>
+      setSecuringStakes(true),
+    );
+    const offFunded = onSocketEvent(STAKE_EVENTS.funded, () =>
+      setSecuringStakes(false),
+    );
+    const offFailed = onSocketEvent(STAKE_EVENTS.failed, payload => {
+      setSecuringStakes(false);
+      // Only the creator holds a waitingRoom — the joiner's lobby screen
+      // shows its own alert for this event.
+      if (useGameStore.getState().waitingRoom) {
+        clearWaitingRoom();
+        const reason =
+          payload && typeof payload === 'object' && 'reason' in payload
+            ? String((payload as { reason: unknown }).reason)
+            : 'The match was voided.';
+        Alert.alert('Stakes could not be secured', reason);
+      }
+    });
+    return () => {
+      offFunding();
+      offFunded();
+      offFailed();
+    };
+  }, [onSocketEvent, setSecuringStakes, clearWaitingRoom]);
 
   useEffect(() => {
     apiClient
@@ -62,7 +98,11 @@ export default function MainTabsWithGameOverlay() {
       clearResumableMatch();
       (navigation.navigate as (screen: string, params: unknown) => void)(
         GAME_TYPE_SCREENS[room.gameType],
-        { roomId: room.id },
+        {
+          roomId: room.id,
+          stakeToken: room.stakeToken,
+          stakeAmount: room.stakeAmount,
+        },
       );
     },
     [clearResumableMatch, navigation],
@@ -81,15 +121,19 @@ export default function MainTabsWithGameOverlay() {
       }
       // Read live, not via a reactive selector — this only needs the value
       // at the moment the event fires, not to resubscribe when it changes.
-      const gameType = useGameStore.getState().waitingRoom?.gameType;
+      const waitingRoom = useGameStore.getState().waitingRoom;
       clearWaitingRoom();
-      if (gameType === undefined) {
+      if (!waitingRoom) {
         return;
       }
       // Same dynamic-route-name cast as GameLobyScreen's join handler.
       (navigation.navigate as (screen: string, params: unknown) => void)(
-        GAME_TYPE_SCREENS[gameType],
-        { roomId },
+        GAME_TYPE_SCREENS[waitingRoom.gameType],
+        {
+          roomId,
+          stakeToken: waitingRoom.stakeToken,
+          stakeAmount: waitingRoom.stakeAmount,
+        },
       );
     });
   }, [onSocketEvent, clearWaitingRoom, navigation]);
