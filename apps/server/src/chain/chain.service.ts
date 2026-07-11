@@ -22,6 +22,7 @@ import { ConfigurationService } from '../configuration/configuration.service';
 import { DbService } from '../db';
 import { WalletEncryptionService } from '../wallets/wallet-encryption.service';
 import { ERC20_ABI, ESCROW_ABI, OnChainStakeState } from './escrow.abi';
+import { TOKEN_REGISTRY } from './token-registry';
 
 /** EIP-2612 permit signature, shaped for the escrow's PermitSig tuple. */
 export type PermitSignature = {
@@ -64,16 +65,19 @@ export class ChainService {
     private readonly walletEncryptionService: WalletEncryptionService,
   ) {
     const c = configurationService;
+    const registryTokens = TOKEN_REGISTRY.get(c.CHAIN_ID);
     this.enabled = Boolean(
       c.CHAIN_RPC_URL &&
         c.ESCROW_ADDRESS &&
-        c.KOMBAT_ADDRESS &&
-        c.USDC_ADDRESS &&
-        c.OPERATOR_PRIVATE_KEY,
+        c.OPERATOR_PRIVATE_KEY &&
+        registryTokens,
     );
     if (!this.enabled) {
       this.logger.warn(
-        'Staking disabled: CHAIN_RPC_URL / ESCROW_ADDRESS / KOMBAT_ADDRESS / USDC_ADDRESS / OPERATOR_PRIVATE_KEY not fully configured',
+        'Staking disabled: CHAIN_RPC_URL / ESCROW_ADDRESS / OPERATOR_PRIVATE_KEY not fully configured' +
+          (registryTokens
+            ? ''
+            : ` (and no token registry entry for chain ${c.CHAIN_ID})`),
       );
       return;
     }
@@ -91,8 +95,8 @@ export class ChainService {
     this.escrow = c.ESCROW_ADDRESS as Address;
     this.tokens = {
       [StakeAsset.Native]: null,
-      [StakeAsset.Kombat]: c.KOMBAT_ADDRESS as Address,
-      [StakeAsset.Usdc]: c.USDC_ADDRESS as Address,
+      [StakeAsset.Kombat]: registryTokens![StakeAsset.Kombat] ?? null,
+      [StakeAsset.Usdc]: registryTokens![StakeAsset.Usdc] ?? null,
     };
     this.logger.log(
       `Staking enabled: chain ${c.CHAIN_ID}, escrow ${this.escrow}, operator ${this.operatorAccount.address}`,

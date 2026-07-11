@@ -24,8 +24,6 @@ export class ConfigurationService {
   public readonly CHAIN_RPC_URL: string | undefined;
   public readonly CHAIN_ID: number;
   public readonly ESCROW_ADDRESS: string | undefined;
-  public readonly KOMBAT_ADDRESS: string | undefined;
-  public readonly USDC_ADDRESS: string | undefined;
   /** The escrow operator's hot key — signs create/fund/settle/void. */
   public readonly OPERATOR_PRIVATE_KEY: string | undefined;
   /** Confirmations to await before treating a stake tx as final. */
@@ -67,8 +65,6 @@ export class ConfigurationService {
       10,
     );
     this.ESCROW_ADDRESS = this.configService.get('ESCROW_ADDRESS');
-    this.KOMBAT_ADDRESS = this.configService.get('KOMBAT_ADDRESS');
-    this.USDC_ADDRESS = this.configService.get('USDC_ADDRESS');
     this.OPERATOR_PRIVATE_KEY = this.configService.get('OPERATOR_PRIVATE_KEY');
     this.CHAIN_CONFIRMATIONS = parseInt(
       this.configService.get('CHAIN_CONFIRMATIONS') ?? '1',
