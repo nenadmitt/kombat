@@ -134,18 +134,18 @@ export class GamesService {
     const opponentId =
       room.userId === userId ? room.opponentId : room.userId;
 
-    // Update the in-memory match if it's still around; after a server restart
-    // it may be gone, in which case completing the DB room is enough to end it.
+    // Update the cached match if it's still around; if it expired or never
+    // existed, completing the DB room is enough to end it.
     try {
-      this.battleshipMatchService.forfeit(roomId, userId);
+      await this.battleshipMatchService.forfeit(roomId, userId);
     } catch {
       // No live match — fall through to the DB completion below.
     }
     await this.dbService.completeGameRoom(roomId);
 
-    // Tell the channel so an opponent still in the match sees the win. (The
-    // gateway's turn timer, if any, self-clears on its next tick since the
-    // match is no longer in play.)
+    // Tell the channel so an opponent still in the match sees the win. (Any
+    // scheduled turn deadline goes stale — the sweeper re-validates the phase
+    // and drops it.)
     this.websocketsService.sendToChannel(
       gameChannel(roomId),
       BATTLESHIP_EVENTS.ended,

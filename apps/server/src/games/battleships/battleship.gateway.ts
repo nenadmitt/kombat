@@ -1,4 +1,4 @@
-import { Logger, UsePipes, ValidationPipe } from '@nestjs/common';
+import { UsePipes, ValidationPipe } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -6,7 +6,7 @@ import {
   WebSocketGateway,
 } from '@nestjs/websockets';
 import type { Socket } from 'socket.io';
-import { BATTLESHIP_EVENTS, TURN_SECONDS } from '@gaming-platform/core';
+import { BATTLESHIP_EVENTS } from '@gaming-platform/core';
 
 import { DbService } from '../../db';
 import { GameRoomEntity } from '../../db/entities/game-room.entity';
@@ -27,15 +27,13 @@ type SocketWithUser = Socket & { data: { userId?: string } };
  * handler organization — it shares the same socket.io server and connections
  * as WebsocketsGateway (which owns connection/auth and populates
  * `client.data.userId`). It never implements handleConnection.
+ *
+ * Holds no gameplay state: matches live in the cache (via
+ * BattleshipMatchService) and setup/turn timeouts are enforced by
+ * BattleshipDeadlineSweeper off the shared deadline schedule.
  */
 @WebSocketGateway({ cors: true })
 export class BattleshipGateway {
-  private readonly logger = new Logger(BattleshipGateway.name);
-  // Server-authoritative per-room turn clock.
-  private readonly turnTimers = new Map<string, ReturnType<typeof setTimeout>>();
-  // Per-room fleet-setup clock — a player who never deploys auto-forfeits.
-  private readonly setupTimers = new Map<string, ReturnType<typeof setTimeout>>();
-
   constructor(
     private readonly matchService: BattleshipMatchService,
     private readonly dbService: DbService,
@@ -56,16 +54,16 @@ export class BattleshipGateway {
       const room = await this.loadParticipantRoom(dto.roomId, userId);
       // The match may not exist yet if this is the first player in; create it
       // so presence can be recorded before either side has submitted a fleet.
-      const match = this.matchService.getOrCreate(room);
+      // Creation also schedules the setup deadline.
+      const match = await this.matchService.getOrCreate(room);
       if (match.phase === 'setup') {
-        this.armSetupTimer(dto.roomId, match.setupDeadline);
         // Push the countdown to this player directly — the REST snapshot may
         // have been fetched before the match (and its deadline) existed.
         client.emit(BATTLESHIP_EVENTS.setupState, {
           setupDeadline: match.setupDeadline,
         });
       }
-      this.markOnline(client, dto.roomId, userId);
+      await this.markOnline(client, dto.roomId, userId);
     } catch (error) {
       this.emitError(client, error);
     }
@@ -83,20 +81,22 @@ export class BattleshipGateway {
     }
     try {
       const room = await this.loadParticipantRoom(dto.roomId, userId);
-      const match = this.matchService.getOrCreate(room);
-      const result = this.matchService.setFleet(dto.roomId, userId, dto.placements);
-      this.markOnline(client, dto.roomId, userId);
+      await this.matchService.getOrCreate(room);
+      const result = await this.matchService.setFleet(
+        dto.roomId,
+        userId,
+        dto.placements,
+      );
+      await this.markOnline(client, dto.roomId, userId);
       const channel = gameChannel(dto.roomId);
       if (result.bothReady) {
-        // Setup is complete — the play turn clock takes over.
-        this.clearSetupTimer(dto.roomId);
+        // Setup is complete — the play turn deadline (scheduled by setFleet)
+        // takes over.
         this.websocketsService.sendToChannel(channel, BATTLESHIP_EVENTS.start, {
           firstTurnUserId: result.firstTurnUserId,
           turnDeadline: result.turnDeadline,
         });
-        this.armTurnTimer(dto.roomId);
       } else {
-        this.armSetupTimer(dto.roomId, match.setupDeadline);
         this.websocketsService.sendToChannel(
           channel,
           BATTLESHIP_EVENTS.opponentReady,
@@ -120,7 +120,7 @@ export class BattleshipGateway {
     }
     try {
       await this.loadParticipantRoom(dto.roomId, userId);
-      const payload = this.matchService.fire(
+      const payload = await this.matchService.fire(
         dto.roomId,
         userId,
         dto.kind,
@@ -134,9 +134,6 @@ export class BattleshipGateway {
       );
       if (payload.winnerUserId) {
         await this.endMatch(dto.roomId);
-      } else {
-        // Any accepted move restarts the turn clock.
-        this.armTurnTimer(dto.roomId);
       }
     } catch (error) {
       this.emitError(client, error);
@@ -155,7 +152,10 @@ export class BattleshipGateway {
     }
     try {
       await this.loadParticipantRoom(dto.roomId, userId);
-      const { winnerUserId } = this.matchService.forfeit(dto.roomId, userId);
+      const { winnerUserId } = await this.matchService.forfeit(
+        dto.roomId,
+        userId,
+      );
       this.websocketsService.sendToChannel(
         gameChannel(dto.roomId),
         BATTLESHIP_EVENTS.ended,
@@ -167,107 +167,37 @@ export class BattleshipGateway {
     }
   }
 
-  // --- setup clock -----------------------------------------------------------
-
-  /** Idempotent — the first enter/ready arms it, later calls are no-ops. */
-  private armSetupTimer(roomId: string, deadline: number): void {
-    if (this.setupTimers.has(roomId)) {
-      return;
-    }
-    this.setupTimers.set(
-      roomId,
-      setTimeout(
-        () => {
-          void this.handleSetupTimeout(roomId);
-        },
-        Math.max(0, deadline - Date.now()),
-      ),
-    );
-  }
-
-  private clearSetupTimer(roomId: string): void {
-    const timer = this.setupTimers.get(roomId);
-    if (timer) {
-      clearTimeout(timer);
-      this.setupTimers.delete(roomId);
-    }
-  }
-
-  private async handleSetupTimeout(roomId: string): Promise<void> {
-    this.setupTimers.delete(roomId);
-    try {
-      const { winnerUserId } = this.matchService.timeoutSetup(roomId);
-      this.websocketsService.sendToChannel(
-        gameChannel(roomId),
-        BATTLESHIP_EVENTS.ended,
-        { winnerUserId, reason: 'setup-timeout' },
-      );
-      await this.endMatch(roomId);
-    } catch {
-      // The match started or ended in the meantime — nothing to enforce.
-    }
-  }
-
-  // --- turn clock ------------------------------------------------------------
-
-  private armTurnTimer(roomId: string): void {
-    this.clearTurnTimer(roomId);
-    this.turnTimers.set(
-      roomId,
-      setTimeout(() => {
-        void this.handleTurnTimeout(roomId);
-      }, TURN_SECONDS * 1000),
-    );
-  }
-
-  private clearTurnTimer(roomId: string): void {
-    const timer = this.turnTimers.get(roomId);
-    if (timer) {
-      clearTimeout(timer);
-      this.turnTimers.delete(roomId);
-    }
-  }
-
-  private async handleTurnTimeout(roomId: string): Promise<void> {
-    try {
-      const payload = this.matchService.timeoutTurn(roomId);
-      this.websocketsService.sendToChannel(
-        gameChannel(roomId),
-        BATTLESHIP_EVENTS.turnTimeout,
-        payload,
-      );
-      if (payload.winnerUserId) {
-        await this.endMatch(roomId);
-      } else {
-        this.armTurnTimer(roomId);
-      }
-    } catch {
-      this.clearTurnTimer(roomId);
-    }
-  }
-
+  /**
+   * Mark the room done in the DB. The finished match stays in the cache so
+   * both players can fetch the "over" state; its TTL handles cleanup. Any
+   * still-scheduled deadline goes stale (phase is 'over') and the sweeper
+   * drops it.
+   */
   private async endMatch(roomId: string): Promise<void> {
-    this.clearTurnTimer(roomId);
-    this.clearSetupTimer(roomId);
-    // Keep the finished match in memory so both players can fetch the "over"
-    // state; just mark the room done in the DB.
     await this.dbService.completeGameRoom(roomId);
   }
 
   // --- presence --------------------------------------------------------------
 
-  private markOnline(
+  private async markOnline(
     client: SocketWithUser,
     roomId: string,
     userId: string,
-  ): void {
-    if (this.matchService.setPresence(roomId, userId, true)) {
+  ): Promise<void> {
+    if (await this.matchService.setPresence(roomId, userId, true)) {
       this.broadcastPresence(roomId, userId, true);
     }
     client.once('disconnect', () => {
-      if (this.matchService.setPresence(roomId, userId, false)) {
-        this.broadcastPresence(roomId, userId, false);
-      }
+      void this.matchService
+        .setPresence(roomId, userId, false)
+        .then(active => {
+          if (active) {
+            this.broadcastPresence(roomId, userId, false);
+          }
+        })
+        .catch(() => {
+          // Best effort — presence flags self-correct on the next enter.
+        });
     });
   }
 
