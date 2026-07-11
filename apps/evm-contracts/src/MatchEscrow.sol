@@ -214,9 +214,26 @@ contract MatchEscrow is Ownable, ReentrancyGuardTransient {
         emit MatchCreated(matchId, player1, player2, token, amount);
     }
 
-    /// @notice Primary path for permit tokens (USDC, KOMBAT): create the match
-    ///         and pull both stakes in one transaction. All-or-nothing — if
-    ///         either player can't cover the stake, everything reverts.
+    /// @notice Primary path for ERC20 stakes: create the match and pull both
+    ///         stakes via pre-existing allowances in one transaction (the
+    ///         platform pre-approves the escrow from each custodial wallet).
+    ///         All-or-nothing — if either allowance/balance can't cover the
+    ///         stake, everything reverts.
+    function openWithApprovals(
+        bytes32 matchId,
+        address player1,
+        address player2,
+        address token,
+        uint256 amount
+    ) external onlyOperator {
+        createMatch(matchId, player1, player2, token, amount);
+        _fundFromAllowance(matchId, player1);
+        _fundFromAllowance(matchId, player2);
+    }
+
+    /// @notice Alternative path for permit tokens: create the match and pull
+    ///         both stakes with EIP-2612 signatures in one transaction.
+    ///         All-or-nothing, and tolerant of front-run permit consumption.
     function openWithPermits(
         bytes32 matchId,
         address player1,
@@ -239,13 +256,9 @@ contract MatchEscrow is Ownable, ReentrancyGuardTransient {
         _fundWithPermit(matchId, player, sig);
     }
 
-    /// @notice Pull a player's stake via a pre-existing ERC20 allowance
-    ///         (fallback for allowlisted tokens without permit).
+    /// @notice Pull a single player's stake via a pre-existing ERC20 allowance.
     function fund(bytes32 matchId, address player) external onlyOperator {
-        MatchStake storage s = _requireFundable(matchId, player);
-        if (s.token == NATIVE) revert NativeStake(matchId);
-        _markFunded(matchId, s, player);
-        IERC20(s.token).safeTransferFrom(player, address(this), s.amount);
+        _fundFromAllowance(matchId, player);
     }
 
     /// @notice Stake native ETH. Called by the player wallet itself with the
@@ -293,6 +306,13 @@ contract MatchEscrow is Ownable, ReentrancyGuardTransient {
     }
 
     // ------------------------------------------------------------- internals
+
+    function _fundFromAllowance(bytes32 matchId, address player) private {
+        MatchStake storage s = _requireFundable(matchId, player);
+        if (s.token == NATIVE) revert NativeStake(matchId);
+        _markFunded(matchId, s, player);
+        IERC20(s.token).safeTransferFrom(player, address(this), s.amount);
+    }
 
     function _fundWithPermit(bytes32 matchId, address player, PermitSig calldata sig) private {
         MatchStake storage s = _requireFundable(matchId, player);

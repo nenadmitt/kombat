@@ -5,12 +5,15 @@ import {
   defineChain,
   http,
   keccak256,
+  parseEther,
   parseSignature,
+  parseUnits,
   stringToBytes,
   type Address,
   type Chain,
   type Hex,
 } from 'viem';
+import { STAKE_ASSET_DECIMALS } from '@gaming-platform/core';
 import { privateKeyToAccount, type PrivateKeyAccount } from 'viem/accounts';
 import { StakeAsset } from '@gaming-platform/core';
 
@@ -217,6 +220,119 @@ export class ChainService {
     return createPublicClient({ chain, transport: http() });
   }
 
+  // ---- standing approvals --------------------------------------------------
+
+  /** Current escrow allowance for a player's wallet. */
+  async getAllowance(asset: StakeAsset, owner: Address): Promise<bigint> {
+    const token = this.tokens[asset];
+    if (!token) {
+      throw new Error('Native ETH has no allowance');
+    }
+    return this.publicClient.readContract({
+      address: token,
+      abi: ERC20_ABI,
+      functionName: 'allowance',
+      args: [owner, this.escrow],
+    });
+  }
+
+  /**
+   * Guarantee the wallet's standing escrow allowance covers `minRequired`:
+   * no-op when it already does; otherwise gas-dust the wallet (approve txs
+   * cost gas the wallet may not have) and re-approve the configured amount.
+   * Idempotent — safe to call on every funding attempt.
+   */
+  async ensureStakeApproval(
+    userId: string,
+    asset: StakeAsset,
+    minRequired: bigint,
+  ): Promise<void> {
+    const token = this.tokens[asset];
+    if (!token) {
+      return; // Native ETH — nothing to approve.
+    }
+    const account = await this.playerAccount(userId);
+    const allowance = await this.getAllowance(asset, account.address);
+    if (allowance >= minRequired) {
+      return;
+    }
+
+    const approvalAmount = parseUnits(
+      String(this.configurationService.ESCROW_APPROVAL_AMOUNT),
+      STAKE_ASSET_DECIMALS[asset],
+    );
+    await this.ensureGasFor(account.address);
+
+    const client = createWalletClient({
+      account,
+      chain: this.chain,
+      transport: http(),
+    });
+    const hash = await client.writeContract({
+      address: token,
+      abi: ERC20_ABI,
+      functionName: 'approve',
+      args: [this.escrow, approvalAmount < minRequired ? minRequired : approvalAmount],
+      chain: this.chain,
+      account,
+    });
+    await this.waitForSuccess(hash);
+    this.logger.log(
+      `Approved escrow for ${account.address} (asset ${asset}, tx ${hash})`,
+    );
+  }
+
+  /**
+   * Pre-approve the escrow from a (typically brand-new) custodial wallet for
+   * every ERC20 stake asset — the "bundled approvals" that make match funding
+   * a single operator tx later. Failures are logged, not thrown: the funding
+   * path re-runs ensureStakeApproval anyway.
+   */
+  async prepareWalletForStaking(userId: string): Promise<void> {
+    if (!this.enabled) {
+      return;
+    }
+    for (const asset of [StakeAsset.Kombat, StakeAsset.Usdc]) {
+      try {
+        await this.ensureStakeApproval(userId, asset, 1n);
+      } catch (error) {
+        this.logger.warn(
+          `Pre-approval failed for user ${userId}, asset ${asset}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+  }
+
+  /** Top the wallet up with gas for its own txs (approve / fundNative). */
+  private async ensureGasFor(address: Address): Promise<void> {
+    const dust = parseEther(this.configurationService.ESCROW_GAS_DUST_ETH);
+    const balance = await this.publicClient.getBalance({ address });
+    // Half a dust unit is comfortably more than one approve costs.
+    if (balance >= dust / 2n) {
+      return;
+    }
+    await this.cacheService.withLock(
+      OPERATOR_LOCK_KEY,
+      OPERATOR_LOCK_TTL_MS,
+      async () => {
+        const client = createWalletClient({
+          account: this.operatorAccount,
+          chain: this.chain,
+          transport: http(),
+        });
+        const hash = await client.sendTransaction({
+          to: address,
+          value: dust,
+          chain: this.chain,
+          account: this.operatorAccount,
+        });
+        await this.waitForSuccess(hash);
+      },
+    );
+  }
+
   // ---- escrow reads -------------------------------------------------------
 
   async getStakeState(matchId: Hex): Promise<{
@@ -243,7 +359,33 @@ export class ChainService {
 
   // ---- escrow writes ------------------------------------------------------
 
-  /** One operator tx: create the match and pull both permits (USDC/KOMBAT). */
+  /** One operator tx: create the match and pull both standing allowances. */
+  openWithApprovals(args: {
+    matchId: Hex;
+    player1: Address;
+    player2: Address;
+    asset: StakeAsset;
+    amount: bigint;
+  }): Promise<Hex> {
+    return this.asOperator(client =>
+      client.writeContract({
+        address: this.escrow,
+        abi: ESCROW_ABI,
+        functionName: 'openWithApprovals',
+        args: [
+          args.matchId,
+          args.player1,
+          args.player2,
+          this.tokenAddress(args.asset),
+          args.amount,
+        ],
+        chain: this.chain,
+        account: this.operatorAccount,
+      }),
+    );
+  }
+
+  /** Permit-based open — kept as a fallback; the standing-allowance path is primary. */
   openWithPermits(args: {
     matchId: Hex;
     player1: Address;

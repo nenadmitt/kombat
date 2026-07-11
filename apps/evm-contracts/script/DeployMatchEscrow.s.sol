@@ -30,16 +30,21 @@ contract DeployMatchEscrow is Script {
     /// @dev Existing Sepolia KombatCoin (fixed 100M supply).
     address internal constant DEFAULT_KOMBAT = 0xFE25C2b2400144c6536b9F707F06b751D6eeF943;
 
+    /// @dev Existing Sepolia MockUSDC — reused across escrow redeploys so
+    ///      already-fauceted balances stay valid. Zero address ⇒ deploy fresh.
+    address internal constant DEFAULT_USDC = 0x277c9f3957633C99ef8F7421B980B50C41b31a7b;
+
     /// @dev 5% platform fee (owner-updatable on-chain, hard cap 10%).
     uint16 internal constant FEE_BPS = 500;
 
     function run() external returns (MatchEscrow escrow, MockUSDC usdc) {
         address kombat = vm.envOr("KOMBAT_ADDRESS", DEFAULT_KOMBAT);
+        address usdcAddress = vm.envOr("USDC_ADDRESS", DEFAULT_USDC);
 
         vm.startBroadcast();
         address operator = msg.sender;
 
-        usdc = new MockUSDC();
+        usdc = usdcAddress == address(0) ? new MockUSDC() : MockUSDC(usdcAddress);
         // Broadcaster starts as owner so the allowlist can be set here.
         escrow = new MatchEscrow(operator, operator, FEE_BPS);
         escrow.setTokenAllowed(escrow.NATIVE(), true);

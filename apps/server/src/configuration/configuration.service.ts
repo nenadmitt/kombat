@@ -32,6 +32,11 @@ export class ConfigurationService {
   public readonly CHAIN_CONFIRMATIONS: number;
   /** Max stake per player in human units (applies to every asset). */
   public readonly STAKE_MAX: number;
+  /** Standing escrow allowance pre-approved from each custodial wallet, in
+   *  human units per token. */
+  public readonly ESCROW_APPROVAL_AMOUNT: number;
+  /** ETH sent to a wallet so it can pay its own approve-tx gas. */
+  public readonly ESCROW_GAS_DUST_ETH: string;
 
   constructor(private readonly configService: ConfigService) {
     this.PORT = parseInt(this.configService.get('PORT') ?? '3000', 10);
@@ -73,5 +78,11 @@ export class ConfigurationService {
       this.configService.get('STAKE_MAX') ?? '1000',
       10,
     );
+    this.ESCROW_APPROVAL_AMOUNT = parseInt(
+      this.configService.get('ESCROW_APPROVAL_AMOUNT') ?? '10000',
+      10,
+    );
+    this.ESCROW_GAS_DUST_ETH =
+      this.configService.get('ESCROW_GAS_DUST_ETH') ?? '0.002';
   }
 }

@@ -202,19 +202,18 @@ export class StakesService {
       return this.escrowNativeStakes(room, matchId, amount, onChain);
     }
 
-    // Permit tokens (USDC / KOMBAT): one operator tx pulls both stakes.
-    const [sig1, sig2] = await Promise.all([
-      this.chainService.signPermitAs(room.userId, asset, amount),
-      this.chainService.signPermitAs(room.opponentId!, asset, amount),
-    ]);
-    const hash = await this.chainService.openWithPermits({
+    // ERC20 (USDC / KOMBAT): standing allowances are pre-approved at wallet
+    // creation, so these are normally no-ops — then one operator tx pulls
+    // both stakes. Sequential on purpose: a missing approval may need an
+    // operator gas-dust tx, and the operator nonce lock is single-file.
+    await this.chainService.ensureStakeApproval(room.userId, asset, amount);
+    await this.chainService.ensureStakeApproval(room.opponentId!, asset, amount);
+    const hash = await this.chainService.openWithApprovals({
       matchId,
       player1,
       player2,
       asset,
       amount,
-      sig1,
-      sig2,
     });
     return [hash];
   }

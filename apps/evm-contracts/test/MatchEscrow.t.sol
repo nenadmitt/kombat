@@ -98,6 +98,41 @@ contract MatchEscrowTest is Test {
         (,,,,, state,,) = escrow.stakes(matchId);
     }
 
+    // --------------------------------------------------- open with approvals
+
+    function test_OpenWithApprovals_PullsBothStakesAndActivates() public {
+        vm.prank(alice);
+        kc.approve(address(escrow), type(uint256).max);
+        vm.prank(bob);
+        kc.approve(address(escrow), type(uint256).max);
+
+        vm.prank(operator);
+        escrow.openWithApprovals(MATCH_ID, alice, bob, address(kc), STAKE);
+
+        assertEq(kc.balanceOf(address(escrow)), STAKE * 2);
+        assertEq(kc.balanceOf(alice), 90 ether);
+        assertEq(kc.balanceOf(bob), 90 ether);
+        assertEq(uint8(_state(MATCH_ID)), uint8(MatchEscrow.StakeState.Active));
+    }
+
+    function test_OpenWithApprovals_AllOrNothingWithoutAllowance() public {
+        // Only alice approved — the whole open reverts, she keeps her stake.
+        vm.prank(alice);
+        kc.approve(address(escrow), type(uint256).max);
+
+        vm.prank(operator);
+        vm.expectRevert();
+        escrow.openWithApprovals(MATCH_ID, alice, bob, address(kc), STAKE);
+
+        assertEq(kc.balanceOf(alice), 100 ether);
+        assertEq(uint8(_state(MATCH_ID)), uint8(MatchEscrow.StakeState.None));
+    }
+
+    function test_OpenWithApprovals_RevertsForNonOperator() public {
+        vm.expectRevert(MatchEscrow.NotOperator.selector);
+        escrow.openWithApprovals(MATCH_ID, alice, bob, address(kc), STAKE);
+    }
+
     // ----------------------------------------------------- open with permits
 
     function test_OpenWithPermits_PullsBothStakesAndActivates() public {

@@ -20,6 +20,19 @@ export const ESCROW_ABI = [
   },
   {
     type: 'function',
+    name: 'openWithApprovals',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'matchId', type: 'bytes32' },
+      { name: 'player1', type: 'address' },
+      { name: 'player2', type: 'address' },
+      { name: 'token', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
     name: 'openWithPermits',
     stateMutability: 'nonpayable',
     inputs: [
@@ -116,6 +129,26 @@ export const ERC20_ABI = [
     stateMutability: 'view',
     inputs: [{ name: 'account', type: 'address' }],
     outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'allowance',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'owner', type: 'address' },
+      { name: 'spender', type: 'address' },
+    ],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'approve',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'spender', type: 'address' },
+      { name: 'value', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'bool' }],
   },
   {
     type: 'function',

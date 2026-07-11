@@ -1,9 +1,11 @@
 import {
   ConflictException,
   Injectable,
+  Logger,
   NotImplementedException,
 } from '@nestjs/common';
 
+import { ChainService } from '../chain';
 import { DbService } from '../db';
 import { WalletNetwork, WalletOrigin } from '../db/types/wallet';
 import { generateEthereumWallet } from './ethereum-wallet.util';
@@ -13,9 +15,12 @@ const MAX_WALLETS_PER_USER = 1;
 
 @Injectable()
 export class WalletsService {
+  private readonly logger = new Logger(WalletsService.name);
+
   constructor(
     private readonly dbService: DbService,
     private readonly walletEncryptionService: WalletEncryptionService,
+    private readonly chainService: ChainService,
   ) {}
 
   async createWallet(
@@ -41,6 +46,18 @@ export class WalletsService {
       key: this.walletEncryptionService.encrypt(privateKey),
       type: WalletOrigin.Platform,
       network,
+    });
+
+    // Bundled setup for staking: gas-dust the fresh wallet and pre-approve
+    // the escrow for every ERC20 stake asset, so joining a staked match
+    // later is a single operator tx. Fire-and-forget — the funding path
+    // re-checks allowances anyway; this just front-loads the latency.
+    void this.chainService.prepareWalletForStaking(userId).catch(error => {
+      this.logger.warn(
+        `Wallet staking setup failed for user ${userId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
     });
 
     return { address, mnemonic };
