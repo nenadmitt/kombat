@@ -19,10 +19,18 @@ payouts, platform fees), built with [Foundry](https://book.getfoundry.sh/).
 | Contract | Network | Address |
 | --- | --- | --- |
 | KombatCoin | Sepolia | [`0xFE25C2b2400144c6536b9F707F06b751D6eeF943`](https://sepolia.etherscan.io/address/0xFE25C2b2400144c6536b9F707F06b751D6eeF943) |
-| MatchEscrow | Sepolia | [`0x2889A311De6F49bBbFb9Fe635c12672d079D874A`](https://sepolia.etherscan.io/address/0x2889A311De6F49bBbFb9Fe635c12672d079D874A) |
+| MatchEscrow v2 | Sepolia | [`0x968696cf210a328c57C8Dff3079756BA945cF577`](https://sepolia.etherscan.io/address/0x968696cf210a328c57C8Dff3079756BA945cF577) |
+| MockUSDC | Sepolia | [`0x277c9f3957633C99ef8F7421B980B50C41b31a7b`](https://sepolia.etherscan.io/address/0x277c9f3957633C99ef8F7421B980B50C41b31a7b) |
 
-Platform key (KC treasury, escrow owner and operator):
-`0x0aB34352B087a107302aFF5d155e23a11637Caa1`
+Roles: owner (admin + fee withdrawal) is the platform cold key
+`0x0aB34352B087a107302aFF5d155e23a11637Caa1`; operator (creates/funds/
+settles — the game server's hot signer) is `0x4b9801173b21cBb3f290eaDED98D8f5AdE8D90e5`.
+Allowlisted stake assets: native ETH, KombatCoin, MockUSDC.
+
+The previous v1 escrow (`0x2889A311…D874A`, operator-funded pot) is
+superseded — v2 pulls stakes from the players themselves (permits for
+USDC/KOMBAT, `fundNative` for ETH), the fee is owner-updatable, and the
+operator can `voidStake` for immediate refunds on cancelled matches.
 
 ## Contracts
 
