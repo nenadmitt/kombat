@@ -1,7 +1,13 @@
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ApiError, GameType } from '@gaming-platform/core';
+import {
+  ApiError,
+  GameType,
+  STAKE_ASSET_SYMBOLS,
+  StakeAsset,
+  parseStakeAmount,
+} from '@gaming-platform/core';
 
 import { apiClient } from '../api/client';
 import Icon from '../components/Icon';
@@ -15,27 +21,57 @@ type Props = {
   onClose: () => void;
 };
 
-const BETTING_ASSETS = ['USDC', 'USDT', 'ETH', 'KMBT'] as const;
+/** FREE plus the real stake assets. */
+type AssetChoice = 'free' | StakeAsset;
+
+const ASSET_CHOICES: { key: AssetChoice; label: string }[] = [
+  { key: 'free', label: 'FREE' },
+  { key: StakeAsset.Usdc, label: STAKE_ASSET_SYMBOLS[StakeAsset.Usdc] },
+  { key: StakeAsset.Kombat, label: STAKE_ASSET_SYMBOLS[StakeAsset.Kombat] },
+  { key: StakeAsset.Native, label: STAKE_ASSET_SYMBOLS[StakeAsset.Native] },
+];
+
+/** Per-asset stepper behavior (human units). */
+const FEE_CONFIG: Record<StakeAsset, { initial: number; step: number; min: number; fmt: (v: number) => string }> = {
+  [StakeAsset.Usdc]: { initial: 10, step: 1, min: 1, fmt: v => v.toFixed(2) },
+  [StakeAsset.Kombat]: { initial: 10, step: 1, min: 1, fmt: v => v.toFixed(2) },
+  [StakeAsset.Native]: { initial: 0.01, step: 0.005, min: 0.001, fmt: v => v.toFixed(3) },
+};
 
 /**
- * Bottom-sheet modal for creating a game room. The game type is all the
- * backend accepts today; betting asset, entry fee and private-room are local
- * UI state (design 1d) — collected here and ready to wire up once the create
- * endpoint takes them.
+ * Bottom-sheet modal for creating a game room: game type (only Battleships
+ * exists), the betting asset (or FREE) and the entry fee. Stakes are pulled
+ * on-chain only once an opponent joins.
  */
 export default function CreateGameRoomModal({ visible, onClose }: Props) {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [asset, setAsset] = useState<(typeof BETTING_ASSETS)[number]>('USDC');
+  const [asset, setAsset] = useState<AssetChoice>('free');
   const [fee, setFee] = useState(10);
   const [isPrivate, setIsPrivate] = useState(false);
   const setWaitingRoom = useGameStore(state => state.setWaitingRoom);
+
+  const selectAsset = (choice: AssetChoice) => {
+    setAsset(choice);
+    if (choice !== 'free') {
+      setFee(FEE_CONFIG[choice].initial);
+    }
+  };
 
   const handleCreate = async () => {
     setIsCreating(true);
     setError(null);
     try {
-      const room = await apiClient.createGameRoom(GameType.NavalBattle);
+      // Format through the asset's display precision first — raw float math
+      // (0.01 + 0.005) can carry fp dust that parseStakeAmount would reject.
+      const stake =
+        asset === 'free'
+          ? undefined
+          : {
+              token: asset,
+              amount: parseStakeAmount(FEE_CONFIG[asset].fmt(fee), asset),
+            };
+      const room = await apiClient.createGameRoom(GameType.NavalBattle, stake);
       setWaitingRoom(room);
       onClose();
     } catch (err) {
@@ -44,6 +80,8 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
       setIsCreating(false);
     }
   };
+
+  const feeConfig = asset === 'free' ? null : FEE_CONFIG[asset];
 
   return (
     <Modal
@@ -71,25 +109,43 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
           {/* Betting asset */}
           <Text style={[type.label, styles.label]}>Betting asset</Text>
           <View style={styles.assetRow}>
-            {BETTING_ASSETS.map(a => {
-              const active = a === asset;
+            {ASSET_CHOICES.map(choice => {
+              const active = choice.key === asset;
               return (
                 <Pressable
-                  key={a}
-                  onPress={() => setAsset(a)}
+                  key={String(choice.key)}
+                  onPress={() => selectAsset(choice.key)}
                   style={[styles.assetChip, active && styles.assetChipActive]}
                 >
                   <Text style={[styles.assetText, active && styles.assetTextActive]}>
-                    {a}
+                    {choice.label}
                   </Text>
                 </Pressable>
               );
             })}
           </View>
 
-          {/* Entry fee */}
-          <Text style={[type.label, styles.label]}>Entry fee</Text>
-          <Stepper value={fee} onChange={setFee} step={1} min={1} />
+          {/* Entry fee (staked games only) */}
+          {feeConfig ? (
+            <>
+              <Text style={[type.label, styles.label]}>Entry fee</Text>
+              <Stepper
+                value={fee}
+                onChange={setFee}
+                step={feeConfig.step}
+                min={feeConfig.min}
+                format={feeConfig.fmt}
+              />
+              <Text style={styles.feeHint}>
+                Both players stake this amount — winner takes the pot minus the
+                platform fee.
+              </Text>
+            </>
+          ) : (
+            <Text style={styles.feeHint}>
+              Free game — nothing staked, just bragging rights.
+            </Text>
+          )}
 
           {/* Private room */}
           <View style={styles.privateRow}>
@@ -202,6 +258,11 @@ const styles = StyleSheet.create({
   assetTextActive: {
     fontFamily: mono.bold,
     color: colors.onAccent,
+  },
+  feeHint: {
+    ...type.caption,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
   },
   privateRow: {
     flexDirection: 'row',

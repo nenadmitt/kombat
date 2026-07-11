@@ -5,6 +5,7 @@ import {
   usePreventRemove,
   useRoute,
 } from '@react-navigation/native';
+import type { StakeAsset } from '@gaming-platform/core';
 
 import BattleshipPlayScreen from './game/BattleshipPlayScreen';
 import WaitingForOpponent from './game/WaitingForOpponent';
@@ -19,41 +20,73 @@ import BattleshipSetupScreen from './setup/BattleshipSetupScreen';
  * the demo `BattleshipSetup` route has none (local bot). Drives the shared
  * flow: fleet setup → (waiting) → the pure-UI play screen.
  */
+/** Stake info riding on the route (staked multiplayer matches only). */
+export type MatchStakeInfo = { token: StakeAsset; amount: string };
+
 export default function BattleshipGame() {
   const navigation = useNavigation();
   const route = useRoute();
-  const roomId = (route.params as { roomId?: string } | undefined)?.roomId;
+  const params = route.params as
+    | { roomId?: string; stakeToken?: StakeAsset | null; stakeAmount?: string | null }
+    | undefined;
+  const roomId = params?.roomId;
+  const stake: MatchStakeInfo | null =
+    params?.stakeToken !== undefined &&
+    params?.stakeToken !== null &&
+    params?.stakeAmount
+      ? { token: params.stakeToken, amount: params.stakeAmount }
+      : null;
   const onExit = () => navigation.goBack();
 
   if (!roomId) {
     return <DemoBattleshipGame onExit={onExit} />;
   }
-  return <MultiplayerBattleshipGame roomId={roomId} onExit={onExit} />;
+  return (
+    <MultiplayerBattleshipGame roomId={roomId} stake={stake} onExit={onExit} />
+  );
 }
 
 function DemoBattleshipGame({ onExit }: { onExit: () => void }) {
   const engine = useDemoBattleship();
-  return <BattleshipGameFlow engine={engine} isMultiplayer={false} onExit={onExit} />;
+  return (
+    <BattleshipGameFlow
+      engine={engine}
+      isMultiplayer={false}
+      stake={null}
+      onExit={onExit}
+    />
+  );
 }
 
 function MultiplayerBattleshipGame({
   roomId,
+  stake,
   onExit,
 }: {
   roomId: string;
+  stake: MatchStakeInfo | null;
   onExit: () => void;
 }) {
   const engine = useMultiplayerBattleship(roomId);
-  return <BattleshipGameFlow engine={engine} isMultiplayer onExit={onExit} />;
+  return (
+    <BattleshipGameFlow
+      engine={engine}
+      isMultiplayer
+      stake={stake}
+      onExit={onExit}
+    />
+  );
 }
 
 function BattleshipGameFlow({
   engine,
   isMultiplayer,
+  stake,
   onExit,
 }: {
   engine: BattleshipEngine;
   isMultiplayer: boolean;
+  stake: MatchStakeInfo | null;
   onExit: () => void;
 }) {
   const navigation = useNavigation();
@@ -111,6 +144,7 @@ function BattleshipGameFlow({
     return (
       <BattleshipPlayScreen
         {...engine.playProps}
+        stake={stake}
         // Plain back — the navigation guard owns the forfeit confirmation.
         onExit={onExit}
         onQuit={onExit}

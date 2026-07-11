@@ -69,9 +69,11 @@ export const CHAIN_TOKENS: Record<BalanceChainId, Token[]> = {
     USDT('0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2'),
   ],
   sepolia: [
-    KOMBAT('0x59faBb88F9f72805bBbF5a038BEdd059Af6d4923'),
+    // Must match the MatchEscrow allowlist (apps/evm-contracts/README.md) —
+    // staking pulls these exact tokens.
+    KOMBAT('0xFE25C2b2400144c6536b9F707F06b751D6eeF943'),
     ETH,
-    USDC('0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'),
+    USDC('0x277c9f3957633C99ef8F7421B980B50C41b31a7b'),
     USDT(),
   ],
 };

@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,7 +13,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ApiError, GameType, type GameRoomSummary } from '@gaming-platform/core';
+import {
+  ApiError,
+  GameType,
+  STAKE_ASSET_SYMBOLS,
+  STAKE_EVENTS,
+  formatStakeAmount,
+  type GameRoomSummary,
+} from '@gaming-platform/core';
 
 import { apiClient } from '../api/client';
 import Icon from '../components/Icon';
@@ -23,17 +31,24 @@ import { GAME_TYPE_SCREENS } from '../games/game-type-screens';
 import { formatRoomCode } from '../games/room-code';
 import type { RootStackParamList } from '../navigation/types';
 import { useCurrentUserStore } from '../store/currentUser.store';
+import { useWebsocketStore } from '../store/websocket.store';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
 
 type Status = 'loading' | 'ready' | 'error';
 type Filter = 'all' | GameType;
 
-/** No staking/prize or balance backend yet — shown for visual parity with the
- *  design until real values exist. */
-const HARDCODED_STAKE = '50 USDC';
+/** No balance/pool backend for the header yet — visual parity with the design. */
 const MOCK_USD_BALANCE = '4,240';
 const FEATURED_POOL = '480';
+
+/** "10 USDC" / "0.01 ETH" / "FREE" for a room's per-player stake. */
+function stakeLabel(room: GameRoomSummary): string {
+  if (room.stakeToken === null || room.stakeAmount === null) {
+    return 'FREE';
+  }
+  return `${formatStakeAmount(room.stakeAmount, room.stakeToken)} ${STAKE_ASSET_SYMBOLS[room.stakeToken]}`;
+}
 
 const GAME_ICON = 'crosshair' as const;
 
@@ -65,6 +80,10 @@ export default function GameLobyScreen() {
   const [filter, setFilter] = useState<Filter>('all');
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
+  /** A joined staked room whose escrow is in flight — blocks with an overlay
+   *  until the server broadcasts stake:funded / stake:failed. */
+  const [fundingRoom, setFundingRoom] = useState<GameRoomSummary | null>(null);
+  const onSocketEvent = useWebsocketStore(s => s.on);
 
   const fetchRooms = useCallback(async () => {
     setStatus('loading');
@@ -93,17 +112,61 @@ export default function GameLobyScreen() {
     filter === 'all' ? rooms : rooms.filter(room => room.gameType === filter);
   const initial = (username ?? '?').charAt(0).toUpperCase();
 
-  const handleJoin = async (roomId: string, gameType: GameType) => {
-    setJoiningRoomId(roomId);
-    try {
-      await apiClient.joinGameRoom(roomId);
+  const enterMatch = useCallback(
+    (room: GameRoomSummary) => {
       // navigate's params type is tied to a literal route name; the target
       // is dynamic (per game type), so it can't line up with the specific
       // overload — same pragmatic cast as elsewhere in this file's nav use.
       (navigation.navigate as (screen: string, params: unknown) => void)(
-        GAME_TYPE_SCREENS[gameType],
-        { roomId },
+        GAME_TYPE_SCREENS[room.gameType],
+        {
+          roomId: room.id,
+          stakeToken: room.stakeToken,
+          stakeAmount: room.stakeAmount,
+        },
       );
+    },
+    [navigation],
+  );
+
+  // While a joined staked room is funding, wait for the escrow verdict.
+  useEffect(() => {
+    if (!fundingRoom) {
+      return;
+    }
+    const offFunded = onSocketEvent(STAKE_EVENTS.funded, payload => {
+      if ((payload as { roomId?: string }).roomId !== fundingRoom.id) {
+        return;
+      }
+      setFundingRoom(null);
+      enterMatch(fundingRoom);
+    });
+    const offFailed = onSocketEvent(STAKE_EVENTS.failed, payload => {
+      const p = payload as { roomId?: string; reason?: string };
+      if (p.roomId !== fundingRoom.id) {
+        return;
+      }
+      setFundingRoom(null);
+      Alert.alert('Stakes could not be secured', p.reason ?? 'The match was voided.');
+      fetchRooms();
+    });
+    return () => {
+      offFunded();
+      offFailed();
+    };
+  }, [fundingRoom, onSocketEvent, enterMatch, fetchRooms]);
+
+  const joinRoom = async (room: GameRoomSummary) => {
+    setJoiningRoomId(room.id);
+    try {
+      await apiClient.joinGameRoom(room.id);
+      if (room.stakeToken !== null) {
+        // Staked: the server is escrowing both stakes — hold here until the
+        // stake:funded event; the match is gated server-side anyway.
+        setFundingRoom(room);
+      } else {
+        enterMatch(room);
+      }
     } catch (err) {
       Alert.alert(
         'Could not join room',
@@ -112,6 +175,22 @@ export default function GameLobyScreen() {
     } finally {
       setJoiningRoomId(null);
     }
+  };
+
+  const handleJoin = (room: GameRoomSummary) => {
+    if (room.stakeToken === null) {
+      void joinRoom(room);
+      return;
+    }
+    // Staked rooms confirm before money moves.
+    Alert.alert(
+      `Join for ${stakeLabel(room)}?`,
+      `Your stake is escrowed when the match starts. Winner takes the pot minus the platform fee.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: `Stake ${stakeLabel(room)}`, onPress: () => void joinRoom(room) },
+      ],
+    );
   };
 
   // No join-by-code backend yet — point players at the open-rooms list.
@@ -253,7 +332,7 @@ export default function GameLobyScreen() {
               </Text>
             </View>
             <View style={styles.roomRight}>
-              <Text style={styles.roomStake}>{HARDCODED_STAKE}</Text>
+              <Text style={styles.roomStake}>{stakeLabel(item)}</Text>
               <Button
                 label="Join"
                 size="sm"
@@ -261,7 +340,7 @@ export default function GameLobyScreen() {
                 fullWidth={false}
                 loading={joiningRoomId === item.id}
                 disabled={joiningRoomId !== null}
-                onPress={() => handleJoin(item.id, item.gameType)}
+                onPress={() => handleJoin(item)}
                 style={styles.joinButton}
               />
             </View>
@@ -273,6 +352,20 @@ export default function GameLobyScreen() {
         visible={isCreateModalVisible}
         onClose={() => setIsCreateModalVisible(false)}
       />
+
+      {/* Escrow-in-flight overlay (staked joins). */}
+      <Modal visible={fundingRoom !== null} transparent animationType="fade">
+        <View style={styles.fundingOverlay}>
+          <View style={styles.fundingCard}>
+            <ActivityIndicator color={colors.accent} size="large" />
+            <Text style={styles.fundingTitle}>Securing stakes…</Text>
+            <Text style={styles.fundingText}>
+              {fundingRoom ? `${stakeLabel(fundingRoom)} from each player is being ` : 'Stakes are being '}
+              escrowed on-chain. This usually takes a few seconds.
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -489,5 +582,33 @@ const styles = StyleSheet.create({
   },
   joinButton: {
     minWidth: 72,
+  },
+  fundingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(6,6,9,0.8)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  fundingCard: {
+    width: '100%',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    borderRadius: radius.xl,
+    padding: spacing.xl,
+  },
+  fundingTitle: {
+    fontFamily: display.bold,
+    fontSize: 22,
+    letterSpacing: -0.3,
+    color: colors.textPrimary,
+  },
+  fundingText: {
+    ...type.caption,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
 });

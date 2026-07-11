@@ -16,8 +16,12 @@ type GameState = {
   /** An in-progress match the user can rejoin after reopening the app. */
   resumableMatch: GameRoomSummary | null;
   isForfeiting: boolean;
+  /** A staked room is escrowing both stakes (stake:funding received; waiting
+   *  for stake:funded/failed). Drives the "Securing stakes…" waiting copy. */
+  isSecuringStakes: boolean;
 
   setWaitingRoom: (room: GameRoomSummary) => void;
+  setSecuringStakes: (securing: boolean) => void;
   minimize: () => void;
   expand: () => void;
   /** Closes the room server-side, then clears local state either way. */
@@ -32,19 +36,26 @@ type GameState = {
 
 const EMPTY: Pick<
   GameState,
-  'waitingRoom' | 'isMinimized' | 'isCancelling' | 'resumableMatch' | 'isForfeiting'
+  | 'waitingRoom'
+  | 'isMinimized'
+  | 'isCancelling'
+  | 'resumableMatch'
+  | 'isForfeiting'
+  | 'isSecuringStakes'
 > = {
   waitingRoom: null,
   isMinimized: false,
   isCancelling: false,
   resumableMatch: null,
   isForfeiting: false,
+  isSecuringStakes: false,
 };
 
 export const useGameStore = create<GameState>((set, get) => ({
   ...EMPTY,
 
   setWaitingRoom: room => set({ waitingRoom: room, isMinimized: false }),
+  setSecuringStakes: securing => set({ isSecuringStakes: securing }),
   minimize: () => set({ isMinimized: true }),
   expand: () => set({ isMinimized: false }),
 

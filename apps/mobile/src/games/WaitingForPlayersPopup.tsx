@@ -17,6 +17,7 @@ export default function WaitingForPlayersPopup() {
   const waitingRoom = useGameStore(state => state.waitingRoom);
   const isMinimized = useGameStore(state => state.isMinimized);
   const isCancelling = useGameStore(state => state.isCancelling);
+  const isSecuringStakes = useGameStore(state => state.isSecuringStakes);
   const minimize = useGameStore(state => state.minimize);
   const cancelWaitingRoom = useGameStore(state => state.cancelWaitingRoom);
 
@@ -62,9 +63,13 @@ export default function WaitingForPlayersPopup() {
           ) : null}
 
           <View style={styles.textStack}>
-            <Text style={styles.title}>Waiting for players…</Text>
+            <Text style={styles.title}>
+              {isSecuringStakes ? 'Securing stakes…' : 'Waiting for players…'}
+            </Text>
             <Text style={styles.description}>
-              Share the room code with friends for others to join.
+              {isSecuringStakes
+                ? 'Opponent found! Both stakes are being escrowed on-chain — the match starts in a few seconds.'
+                : 'Share the room code with friends for others to join.'}
             </Text>
           </View>
 
