@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index } from 'typeorm';
 import { BaseEntity } from './base.entity';
-import { GameRoomStatus, GameType } from '../types/game';
+import { GameRoomStatus, GameType, StakeAsset } from '../types/game';
 
 @Entity('game_rooms')
 // Serves the lobby listing: filter by status, already in createdAt order.
@@ -31,6 +31,30 @@ export class GameRoomEntity extends BaseEntity {
   // Naval Battle is exactly 2 players, so one nullable column is enough for now.
   @Column({ name: 'opponent_id', type: 'uuid', nullable: true })
   opponentId: string | null;
+
+  // ---- staking (null on all three = free game) ---------------------------
+
+  /** Stake asset, or null for a free game. */
+  @Column({ name: 'stake_token', type: 'smallint', nullable: true })
+  stakeToken: StakeAsset | null;
+
+  /** Per-player stake in base units. numeric(78,0) covers uint256; TypeORM
+   *  returns numeric as string, which is exactly how it crosses the API. */
+  @Column({ name: 'stake_amount', type: 'numeric', precision: 78, scale: 0, nullable: true })
+  stakeAmount: string | null;
+
+  // ---- result (set when the room completes) ------------------------------
+
+  /** Winner, or null while running / when the match was voided. */
+  @Column({ name: 'winner_user_id', type: 'uuid', nullable: true })
+  winnerUserId: string | null;
+
+  /** BattleshipEndReason string ('complete' | 'forfeit' | 'timeout' | 'setup-timeout'). */
+  @Column({ name: 'end_reason', type: 'varchar', nullable: true })
+  endReason: string | null;
+
+  @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })
+  completedAt: Date | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

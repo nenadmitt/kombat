@@ -9,9 +9,10 @@ import {
 } from '../cache';
 import { EmailLoginTokenEntity } from './entities/email-login-token.entity';
 import { GameRoomEntity } from './entities/game-room.entity';
+import { StakeEscrowEntity } from './entities/stake-escrow.entity';
 import { UserEntity } from './entities/user.entity';
 import { WalletEntity } from './entities/wallet.entity';
-import { GameRoomStatus, GameType } from './types/game';
+import { EscrowStatus, GameRoomStatus, GameType, StakeAsset } from './types/game';
 import { WalletNetwork, WalletOrigin } from './types/wallet';
 
 /**
@@ -31,6 +32,8 @@ export class DbService {
     private readonly walletRepository: Repository<WalletEntity>,
     @InjectRepository(GameRoomEntity)
     private readonly gameRoomRepository: Repository<GameRoomEntity>,
+    @InjectRepository(StakeEscrowEntity)
+    private readonly stakeEscrowRepository: Repository<StakeEscrowEntity>,
     private readonly cacheService: CacheService,
   ) {}
 
@@ -110,6 +113,15 @@ export class DbService {
     });
   }
 
+  /**
+   * Full entity including the encrypted key — used ONLY by the chain module
+   * to sign stakes as the player. Kept as a separate accessor so the common
+   * listing path can never leak key material.
+   */
+  findWalletWithKeyForUser(userId: string): Promise<WalletEntity | null> {
+    return this.walletRepository.findOneBy({ userId });
+  }
+
   // --- game rooms ---
 
   /** A room in Pending or InProgress status — i.e. still "active" for the 1-room-per-user rule. */
@@ -139,8 +151,16 @@ export class DbService {
     gameType: GameType;
     status: GameRoomStatus;
     playerCount: number;
+    stakeToken?: StakeAsset | null;
+    stakeAmount?: string | null;
   }): Promise<GameRoomEntity> {
-    return this.gameRoomRepository.save(this.gameRoomRepository.create(data));
+    return this.gameRoomRepository.save(
+      this.gameRoomRepository.create({
+        stakeToken: null,
+        stakeAmount: null,
+        ...data,
+      }),
+    );
   }
 
   findGameRoomForUser(
@@ -177,13 +197,37 @@ export class DbService {
     await this.cacheService.del(CacheKeys.gameRoom(id));
   }
 
-  /** Flip a room to Completed once its match has a winner. */
-  async completeGameRoom(id: string): Promise<void> {
+  /** Flip a room to Completed and persist its result (History reads these). */
+  async completeGameRoom(
+    id: string,
+    result?: { winnerUserId: string | null; endReason: string | null },
+  ): Promise<void> {
     await this.gameRoomRepository.update(
       { id },
-      { status: GameRoomStatus.Completed },
+      {
+        status: GameRoomStatus.Completed,
+        completedAt: new Date(),
+        ...(result
+          ? { winnerUserId: result.winnerUserId, endReason: result.endReason }
+          : {}),
+      },
     );
     await this.cacheService.del(CacheKeys.gameRoom(id));
+  }
+
+  /** Completed rooms the user played in, newest first — the History feed. */
+  findCompletedGameRoomsForUser(
+    userId: string,
+    limit = 50,
+  ): Promise<GameRoomEntity[]> {
+    return this.gameRoomRepository.find({
+      where: [
+        { userId, status: GameRoomStatus.Completed },
+        { opponentId: userId, status: GameRoomStatus.Completed },
+      ],
+      order: { completedAt: 'DESC' },
+      take: limit,
+    });
   }
 
   async deleteGameRoom(id: string): Promise<void> {
@@ -205,6 +249,53 @@ export class DbService {
         ...(excludeUserId ? { userId: Not(excludeUserId) } : {}),
       },
       order: { createdAt: 'ASC' },
+    });
+  }
+
+  // --- stake escrows ---
+
+  createStakeEscrow(data: {
+    roomId: string;
+    matchId: string;
+    status: EscrowStatus;
+  }): Promise<StakeEscrowEntity> {
+    return this.stakeEscrowRepository.save(
+      this.stakeEscrowRepository.create(data),
+    );
+  }
+
+  findStakeEscrowByRoomId(roomId: string): Promise<StakeEscrowEntity | null> {
+    return this.stakeEscrowRepository.findOneBy({ roomId });
+  }
+
+  async updateStakeEscrow(
+    roomId: string,
+    patch: Partial<
+      Pick<
+        StakeEscrowEntity,
+        | 'status'
+        | 'fundTxHashes'
+        | 'settleTx'
+        | 'voidTx'
+        | 'payout'
+        | 'fee'
+        | 'attempts'
+        | 'error'
+      >
+    >,
+  ): Promise<void> {
+    await this.stakeEscrowRepository.update({ roomId }, patch);
+  }
+
+  /** Sweeper scan: escrows awaiting on-chain work, oldest-touched first. */
+  findStakeEscrowsByStatus(
+    statuses: EscrowStatus[],
+    limit = 20,
+  ): Promise<StakeEscrowEntity[]> {
+    return this.stakeEscrowRepository.find({
+      where: { status: In(statuses) },
+      order: { updatedAt: 'ASC' },
+      take: limit,
     });
   }
 

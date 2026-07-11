@@ -7,9 +7,9 @@ import {
 import { BATTLESHIP_EVENTS } from '@gaming-platform/core';
 
 import { CacheService, parseDeadlineMember } from '../../cache';
-import { DbService } from '../../db';
 import { gameChannel } from '../../websockets/rooms.util';
 import { WebsocketsService } from '../../websockets';
+import { StakesService } from '../stakes/stakes.service';
 import { BattleshipMatchService } from './battleship-match.service';
 
 const SWEEP_INTERVAL_MS = 1_000;
@@ -35,8 +35,8 @@ export class BattleshipDeadlineSweeper implements OnModuleInit, OnModuleDestroy 
   constructor(
     private readonly cacheService: CacheService,
     private readonly matchService: BattleshipMatchService,
-    private readonly dbService: DbService,
     private readonly websocketsService: WebsocketsService,
+    private readonly stakesService: StakesService,
   ) {}
 
   onModuleInit(): void {
@@ -107,7 +107,11 @@ export class BattleshipDeadlineSweeper implements OnModuleInit, OnModuleDestroy 
       payload,
     );
     if (payload.winnerUserId) {
-      await this.dbService.completeGameRoom(roomId);
+      await this.stakesService.completeMatch(
+        roomId,
+        payload.winnerUserId,
+        'timeout',
+      );
     }
   }
 
@@ -121,6 +125,10 @@ export class BattleshipDeadlineSweeper implements OnModuleInit, OnModuleDestroy 
       BATTLESHIP_EVENTS.ended,
       { winnerUserId: result.winnerUserId, reason: 'setup-timeout' },
     );
-    await this.dbService.completeGameRoom(roomId);
+    await this.stakesService.completeMatch(
+      roomId,
+      result.winnerUserId,
+      'setup-timeout',
+    );
   }
 }
