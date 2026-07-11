@@ -2,6 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Not, Repository } from 'typeorm';
 
+import {
+  CacheKeys,
+  CacheService,
+  GAME_ROOM_TTL_SECONDS,
+} from '../cache';
 import { EmailLoginTokenEntity } from './entities/email-login-token.entity';
 import { GameRoomEntity } from './entities/game-room.entity';
 import { UserEntity } from './entities/user.entity';
@@ -26,6 +31,7 @@ export class DbService {
     private readonly walletRepository: Repository<WalletEntity>,
     @InjectRepository(GameRoomEntity)
     private readonly gameRoomRepository: Repository<GameRoomEntity>,
+    private readonly cacheService: CacheService,
   ) {}
 
   // --- users ---
@@ -144,9 +150,23 @@ export class DbService {
     return this.gameRoomRepository.findOneBy({ id, userId });
   }
 
-  /** Generic lookup, regardless of owner — joining checks a room someone else created. */
-  findGameRoomById(id: string): Promise<GameRoomEntity | null> {
-    return this.gameRoomRepository.findOneBy({ id });
+  /**
+   * Generic lookup, regardless of owner — joining checks a room someone else
+   * created. Cached (short TTL): the battleship gateway calls this on every
+   * enter/ready/fire/forfeit, so without the cache each move costs a SELECT.
+   * Write paths below invalidate; the TTL bounds staleness if one is missed.
+   */
+  async findGameRoomById(id: string): Promise<GameRoomEntity | null> {
+    const key = CacheKeys.gameRoom(id);
+    const cached = await this.cacheService.getJson<GameRoomEntity>(key);
+    if (cached) {
+      return this.reviveGameRoom(cached);
+    }
+    const room = await this.gameRoomRepository.findOneBy({ id });
+    if (room) {
+      await this.cacheService.setJson(key, room, GAME_ROOM_TTL_SECONDS);
+    }
+    return room;
   }
 
   async joinGameRoom(id: string, opponentId: string): Promise<void> {
@@ -154,6 +174,7 @@ export class DbService {
       { id },
       { opponentId, status: GameRoomStatus.InProgress },
     );
+    await this.cacheService.del(CacheKeys.gameRoom(id));
   }
 
   /** Flip a room to Completed once its match has a winner. */
@@ -162,10 +183,19 @@ export class DbService {
       { id },
       { status: GameRoomStatus.Completed },
     );
+    await this.cacheService.del(CacheKeys.gameRoom(id));
   }
 
   async deleteGameRoom(id: string): Promise<void> {
     await this.gameRoomRepository.delete({ id });
+    await this.cacheService.del(CacheKeys.gameRoom(id));
+  }
+
+  /** JSON round-trip turns entities into plain objects with string dates — rebuild both. */
+  private reviveGameRoom(json: GameRoomEntity): GameRoomEntity {
+    const room = this.gameRoomRepository.create(json);
+    room.createdAt = new Date(json.createdAt);
+    return room;
   }
 
   findPendingGameRooms(excludeUserId?: string): Promise<GameRoomEntity[]> {

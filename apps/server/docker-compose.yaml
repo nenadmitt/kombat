@@ -15,5 +15,12 @@ services:
       # the old .../data mount point.
       - postgres_data:/var/lib/postgresql
 
+  redis:
+    image: redis:7-alpine
+    container_name: gaming-platform-redis
+    restart: always
+    ports:
+      - '6380:6379'
+
 volumes:
   postgres_data:

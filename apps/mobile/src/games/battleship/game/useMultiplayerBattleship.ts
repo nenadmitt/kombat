@@ -56,6 +56,52 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
   const opponentIdRef = useRef(opponentUserId);
   opponentIdRef.current = opponentUserId;
 
+  // Flipped on unmount/room-change so in-flight snapshot fetches don't write
+  // into a dead (or different room's) hook instance.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [roomId]);
+
+  /** Pull the authoritative snapshot and replace local state wholesale. Used
+   *  on mount and again after every socket reconnect — any events broadcast
+   *  while we were disconnected (shots, turn changes, a finished match) are
+   *  covered by the snapshot instead of being lost. */
+  const syncState = useCallback(async () => {
+    try {
+      const state = await apiClient.getBattleshipRoomState(roomId);
+      if (!mountedRef.current) {
+        return;
+      }
+      setMyPlacements(state.myFleet);
+      setMyShots(state.myShots);
+      setOpponentShots(state.opponentShots);
+      setRevealed(state.revealedOpponentShips);
+      setPointsMap(state.points);
+      setTurnUserId(state.turnUserId);
+      setTurnDeadline(state.turnDeadline);
+      // Normalize a missing field (older server build) to null so the
+      // waiting modal hides the countdown instead of rendering 0:00.
+      setSetupDeadline(state.setupDeadline ?? null);
+      setWinnerUserId(state.winnerUserId);
+      setEndReason(state.endReason);
+      setOpponentUserId(state.opponentUserId);
+      setOpponentOnline(state.online[state.opponentUserId] ?? false);
+      setPhase(
+        state.phase === 'setup'
+          ? state.myFleet
+            ? 'waiting'
+            : 'setup'
+          : 'play',
+      );
+    } catch {
+      // Happy path: assume the room exists; a failed fetch leaves us in setup.
+    }
+  }, [roomId]);
+
   useEffect(() => {
     const channel = `game:${roomId}`;
     joinChannel(channel);
@@ -63,39 +109,8 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
     // shows as connected as soon as they open the match, not only once they've
     // placed their ships.
     emit(BATTLESHIP_EVENTS.enter, { roomId });
-    let mounted = true;
 
-    apiClient
-      .getBattleshipRoomState(roomId)
-      .then(state => {
-        if (!mounted) {
-          return;
-        }
-        setMyPlacements(state.myFleet);
-        setMyShots(state.myShots);
-        setOpponentShots(state.opponentShots);
-        setRevealed(state.revealedOpponentShips);
-        setPointsMap(state.points);
-        setTurnUserId(state.turnUserId);
-        setTurnDeadline(state.turnDeadline);
-        // Normalize a missing field (older server build) to null so the
-        // waiting modal hides the countdown instead of rendering 0:00.
-        setSetupDeadline(state.setupDeadline ?? null);
-        setWinnerUserId(state.winnerUserId);
-        setEndReason(state.endReason);
-        setOpponentUserId(state.opponentUserId);
-        setOpponentOnline(state.online[state.opponentUserId] ?? false);
-        setPhase(
-          state.phase === 'setup'
-            ? state.myFleet
-              ? 'waiting'
-              : 'setup'
-            : 'play',
-        );
-      })
-      .catch(() => {
-        // Happy path: assume the room exists; a failed fetch leaves us in setup.
-      });
+    void syncState();
 
     // The server pushes the setup countdown on enter — more reliable than the
     // REST snapshot, which can be fetched before the match exists.
@@ -160,7 +175,6 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
     });
 
     return () => {
-      mounted = false;
       offSetupState();
       offStart();
       offShot();
@@ -169,7 +183,23 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
       offEnded();
       leaveChannel(channel);
     };
-  }, [roomId, joinChannel, leaveChannel, on, emit]);
+  }, [roomId, joinChannel, leaveChannel, on, emit, syncState]);
+
+  // Resync after a socket reconnect (network blip or server redeploy). The
+  // store re-joins the game channel on `connect`; here we re-announce
+  // presence (`enter`) and replace local state with the server snapshot to
+  // cover any broadcasts missed while disconnected. The initial connection is
+  // excluded ('connecting' → 'connected'): the mount effect already did this.
+  const prevStatusRef = useRef(status);
+  useEffect(() => {
+    const was = prevStatusRef.current;
+    prevStatusRef.current = status;
+    if (status !== 'connected' || was !== 'disconnected') {
+      return;
+    }
+    emit(BATTLESHIP_EVENTS.enter, { roomId });
+    void syncState();
+  }, [status, roomId, emit, syncState]);
 
   const submitFleet = useCallback(
     (placements: FleetPlacements) => {

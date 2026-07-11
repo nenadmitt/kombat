@@ -34,6 +34,12 @@ type WebsocketState = {
 // `status` does.
 let socket: Socket | null = null;
 
+// Channels the app is currently subscribed to. socket.io room membership
+// lives in the server's memory, so any reconnect — network blip or a server
+// redeploy — silently drops every subscription. The `connect` handler
+// replays these so broadcasts resume without each screen having to care.
+const joinedChannels = new Set<string>();
+
 export const useWebsocketStore = create<WebsocketState>(set => ({
   status: 'disconnected',
 
@@ -52,7 +58,15 @@ export const useWebsocketStore = create<WebsocketState>(set => ({
       transports: ['websocket'],
     });
 
-    client.on('connect', () => set({ status: 'connected' }));
+    client.on('connect', () => {
+      // Fires on the initial connect AND every auto-reconnect — re-join all
+      // channels (idempotent server-side) before flipping the status, so
+      // reconnect-driven effects observe a fully subscribed socket.
+      for (const channel of joinedChannels) {
+        client.emit('channel:join', { channel });
+      }
+      set({ status: 'connected' });
+    });
     client.on('disconnect', () => set({ status: 'disconnected' }));
     client.on('connect_error', () => set({ status: 'disconnected' }));
 
@@ -62,14 +76,17 @@ export const useWebsocketStore = create<WebsocketState>(set => ({
   disconnect: () => {
     socket?.disconnect();
     socket = null;
+    joinedChannels.clear();
     set({ status: 'disconnected' });
   },
 
   joinChannel: channel => {
+    joinedChannels.add(channel);
     socket?.emit('channel:join', { channel });
   },
 
   leaveChannel: channel => {
+    joinedChannels.delete(channel);
     socket?.emit('channel:leave', { channel });
   },
 

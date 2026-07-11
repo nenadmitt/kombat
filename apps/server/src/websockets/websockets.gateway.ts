@@ -12,6 +12,11 @@ import {
 } from '@nestjs/websockets';
 import type { Server, Socket } from 'socket.io';
 
+import {
+  CacheKeys,
+  CacheService,
+  CHAT_TTL_SECONDS,
+} from '../cache';
 import { ChannelDto } from './dto/channel.dto';
 import { GameMessageDto } from './dto/game-message.dto';
 import { channelRoom, gameChannel, userRoom } from './rooms.util';
@@ -48,13 +53,10 @@ export class WebsocketsGateway
   @WebSocketServer()
   private readonly server: Server;
 
-  // Throwaway in-memory game state (message log per room) — not persisted,
-  // lost on restart. Placeholder until real game state replaces it.
-  private readonly gameMessages = new Map<string, string[]>();
-
   constructor(
     private readonly jwtService: JwtService,
     private readonly websocketsService: WebsocketsService,
+    private readonly cacheService: CacheService,
   ) {}
 
   afterInit(server: Server): void {
@@ -113,19 +115,23 @@ export class WebsocketsGateway
 
   /**
    * Throwaway message relay for the placeholder Battleship screen — appends
-   * to that room's in-memory log (attributed to the authenticated socket's
-   * own userId, not anything client-supplied) and broadcasts the full,
-   * updated log to everyone subscribed to the room's channel.
+   * to that room's cached log (attributed to the authenticated socket's own
+   * userId, not anything client-supplied) and broadcasts the full, updated
+   * log to everyone subscribed to the room's channel.
    */
   @UsePipes(new ValidationPipe({ whitelist: true }))
   @SubscribeMessage('game:message')
-  handleGameMessage(
+  async handleGameMessage(
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() { roomId, text }: GameMessageDto,
-  ): void {
-    const messages = this.gameMessages.get(roomId) ?? [];
+  ): Promise<void> {
+    // Unlocked read-append-write: two simultaneous messages may drop one.
+    // Acceptable for this placeholder feature — not worth a lock.
+    const key = CacheKeys.battleshipChat(roomId);
+    const messages =
+      (await this.cacheService.getJson<string[]>(key)) ?? [];
     messages.push(`${client.data.userId}: ${text}`);
-    this.gameMessages.set(roomId, messages);
+    await this.cacheService.setJson(key, messages, CHAT_TTL_SECONDS);
 
     this.websocketsService.sendToChannel(
       gameChannel(roomId),

@@ -103,7 +103,7 @@ export class GamesController {
     ) {
       throw new ForbiddenException('You are not part of this room.');
     }
-    this.battleshipMatchService.getOrCreate(room);
+    await this.battleshipMatchService.getOrCreate(room);
     return this.battleshipMatchService.stateFor(id, securityContext.userId);
   }
 }

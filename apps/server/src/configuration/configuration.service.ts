@@ -12,6 +12,8 @@ export class ConfigurationService {
   public readonly WALLET_ENCRYPTION_KEY: string;
   public readonly JWT_SECRET: string;
   public readonly JWT_EXPIRES_IN: string;
+  /** Optional — when unset, the cache falls back to in-memory (single instance). */
+  public readonly REDIS_URL: string | undefined;
   /** Optional — when unset, EmailService logs tokens instead of sending them. */
   public readonly RESEND_API_KEY: string | undefined;
   public readonly EMAIL_FROM: string;
@@ -33,6 +35,7 @@ export class ConfigurationService {
     );
     this.JWT_SECRET = this.configService.getOrThrow('JWT_SECRET');
     this.JWT_EXPIRES_IN = this.configService.get('JWT_EXPIRES_IN') ?? '30d';
+    this.REDIS_URL = this.configService.get('REDIS_URL');
     this.RESEND_API_KEY = this.configService.get('RESEND_API_KEY');
     this.EMAIL_FROM =
       this.configService.get('EMAIL_FROM') ?? 'login@gaming-platform.local';
