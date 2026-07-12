@@ -1,7 +1,11 @@
 import { ActivityIndicator, Modal, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import {
+  STAKE_ASSET_SYMBOLS,
+  formatStakeAmount,
+} from '@gaming-platform/core';
 
 import Icon from '../components/Icon';
-import { Button } from '../components/ui';
+import { Button, StakeFundingOverlay } from '../components/ui';
 import { useGameStore } from '../store/game.store';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
@@ -27,11 +31,21 @@ export default function WaitingForPlayersPopup() {
   const handleShare = () => {
     if (!waitingRoom) return;
     Share.share({
-      message: `Join my KryptoKombat match — room #${roomCode}`,
+      message: `Join my KryptoKombat match - room #${roomCode}`,
     }).catch(() => {
       // User dismissed the share sheet; nothing to do.
     });
   };
+
+  // Opponent joined a staked room: swap the whole popup for the playful
+  // "getting your match ready" overlay (no on-chain wording) until it starts.
+  if (isSecuringStakes) {
+    const stakeSubtitle =
+      waitingRoom && waitingRoom.stakeToken !== null && waitingRoom.stakeAmount
+        ? `${formatStakeAmount(waitingRoom.stakeAmount, waitingRoom.stakeToken)} ${STAKE_ASSET_SYMBOLS[waitingRoom.stakeToken]} on the line`
+        : undefined;
+    return <StakeFundingOverlay visible subtitle={stakeSubtitle} />;
+  }
 
   return (
     <Modal
@@ -63,13 +77,9 @@ export default function WaitingForPlayersPopup() {
           ) : null}
 
           <View style={styles.textStack}>
-            <Text style={styles.title}>
-              {isSecuringStakes ? 'Securing stakes…' : 'Waiting for players…'}
-            </Text>
+            <Text style={styles.title}>Waiting for players...</Text>
             <Text style={styles.description}>
-              {isSecuringStakes
-                ? 'Opponent found! Both stakes are being escrowed on-chain — the match starts in a few seconds.'
-                : 'Share the room code with friends for others to join.'}
+              Share the room code with friends for others to join.
             </Text>
           </View>
 

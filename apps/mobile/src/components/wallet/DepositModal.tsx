@@ -20,7 +20,7 @@ const PROVIDERS = [
   { key: 'ramp', label: 'Ramp', badge: 'R', tint: colors.success },
 ] as const;
 
-/** Direct card/bank deposits aren't wired up — points the user at their address. */
+/** Direct card/bank deposits aren't wired up - points the user at their address. */
 export default function DepositModal({ visible, onClose, chain, address }: Props) {
   const [copied, setCopied] = useState(false);
 

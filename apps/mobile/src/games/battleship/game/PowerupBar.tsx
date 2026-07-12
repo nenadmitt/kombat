@@ -26,7 +26,7 @@ const CHARGE_GRADIENT = {
 } as const;
 
 type Props = {
-  /** Current charge points — earned by hitting enemy ships. */
+  /** Current charge points - earned by hitting enemy ships. */
   points: number;
   armed: PowerupKind | null;
   onArm: (kind: PowerupKind) => void;

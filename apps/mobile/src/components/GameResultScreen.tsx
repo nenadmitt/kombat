@@ -44,7 +44,7 @@ type Props = {
   opponent?: ResultOpponent;
   /** Exactly four reads well in the 2x2 grid, but any count wraps. */
   stats: ResultStat[];
-  /** Primary action — the "Back" button. */
+  /** Primary action - the "Back" button. */
   onBack: () => void;
   backLabel?: string;
   /** Optional secondary actions (rendered only when provided). */

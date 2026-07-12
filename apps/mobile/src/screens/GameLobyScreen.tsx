@@ -1,9 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -24,7 +22,7 @@ import {
 
 import { apiClient } from '../api/client';
 import Icon from '../components/Icon';
-import { Button, Card, Chip } from '../components/ui';
+import { Button, Card, Chip, StakeFundingOverlay, useConfirm } from '../components/ui';
 import CreateGameRoomModal from '../games/CreateGameRoomModal';
 import { GAME_TYPE_LABELS } from '../games/game-type-labels';
 import { GAME_TYPE_SCREENS } from '../games/game-type-screens';
@@ -38,7 +36,7 @@ import { display, mono, type } from '../theme/typography';
 type Status = 'loading' | 'ready' | 'error';
 type Filter = 'all' | GameType;
 
-/** No balance/pool backend for the header yet — visual parity with the design. */
+/** No balance/pool backend for the header yet - visual parity with the design. */
 const MOCK_USD_BALANCE = '4,240';
 const FEATURED_POOL = '480';
 
@@ -68,11 +66,12 @@ function timeAgo(iso: string): string {
 
 export default function GameLobyScreen() {
   // Battleship is a root-level screen (reachable from the global
-  // "opponent joined" push too), not nested under this Games stack — cast
+  // "opponent joined" push too), not nested under this Games stack - cast
   // needed since this screen's own nav type doesn't know about it.
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const username = useCurrentUserStore(state => state.username);
+  const confirm = useConfirm();
 
   const [rooms, setRooms] = useState<GameRoomSummary[]>([]);
   const [status, setStatus] = useState<Status>('loading');
@@ -80,7 +79,7 @@ export default function GameLobyScreen() {
   const [filter, setFilter] = useState<Filter>('all');
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
-  /** A joined staked room whose escrow is in flight — blocks with an overlay
+  /** A joined staked room whose escrow is in flight - blocks with an overlay
    *  until the server broadcasts stake:funded / stake:failed. */
   const [fundingRoom, setFundingRoom] = useState<GameRoomSummary | null>(null);
   const onSocketEvent = useWebsocketStore(s => s.on);
@@ -108,6 +107,36 @@ export default function GameLobyScreen() {
     }, [fetchRooms]),
   );
 
+  // Anti-spam refresh: one tap kicks off a fetch, then the control is on a
+  // short cooldown so it can't be hammered (a burst of taps costs one request).
+  const cooldownRef = useRef(false);
+  const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [refreshCooling, setRefreshCooling] = useState(false);
+
+  const requestRefresh = useCallback(() => {
+    if (cooldownRef.current || status === 'loading') {
+      return;
+    }
+    cooldownRef.current = true;
+    setRefreshCooling(true);
+    fetchRooms();
+    cooldownTimer.current = setTimeout(() => {
+      cooldownRef.current = false;
+      setRefreshCooling(false);
+    }, 2500);
+  }, [fetchRooms, status]);
+
+  useEffect(
+    () => () => {
+      if (cooldownTimer.current) {
+        clearTimeout(cooldownTimer.current);
+      }
+    },
+    [],
+  );
+
+  const refreshDisabled = refreshCooling || status === 'loading';
+
   const filteredRooms =
     filter === 'all' ? rooms : rooms.filter(room => room.gameType === filter);
   const initial = (username ?? '?').charAt(0).toUpperCase();
@@ -116,7 +145,7 @@ export default function GameLobyScreen() {
     (room: GameRoomSummary) => {
       // navigate's params type is tied to a literal route name; the target
       // is dynamic (per game type), so it can't line up with the specific
-      // overload — same pragmatic cast as elsewhere in this file's nav use.
+      // overload - same pragmatic cast as elsewhere in this file's nav use.
       (navigation.navigate as (screen: string, params: unknown) => void)(
         GAME_TYPE_SCREENS[room.gameType],
         {
@@ -147,58 +176,70 @@ export default function GameLobyScreen() {
         return;
       }
       setFundingRoom(null);
-      Alert.alert('Stakes could not be secured', p.reason ?? 'The match was voided.');
+      void confirm({
+        title: 'Stakes could not be secured',
+        message: p.reason ?? 'The match was voided.',
+        icon: 'warning',
+        mode: 'info',
+      });
       fetchRooms();
     });
     return () => {
       offFunded();
       offFailed();
     };
-  }, [fundingRoom, onSocketEvent, enterMatch, fetchRooms]);
+  }, [fundingRoom, onSocketEvent, enterMatch, fetchRooms, confirm]);
 
   const joinRoom = async (room: GameRoomSummary) => {
     setJoiningRoomId(room.id);
     try {
       await apiClient.joinGameRoom(room.id);
       if (room.stakeToken !== null) {
-        // Staked: the server is escrowing both stakes — hold here until the
+        // Staked: the server is escrowing both stakes - hold here until the
         // stake:funded event; the match is gated server-side anyway.
         setFundingRoom(room);
       } else {
         enterMatch(room);
       }
     } catch (err) {
-      Alert.alert(
-        'Could not join room',
-        err instanceof ApiError ? err.message : 'Something went wrong.',
-      );
+      void confirm({
+        title: 'Could not join room',
+        message: err instanceof ApiError ? err.message : 'Something went wrong.',
+        icon: 'warning',
+        mode: 'info',
+      });
     } finally {
       setJoiningRoomId(null);
     }
   };
 
-  const handleJoin = (room: GameRoomSummary) => {
+  const handleJoin = async (room: GameRoomSummary) => {
     if (room.stakeToken === null) {
       void joinRoom(room);
       return;
     }
     // Staked rooms confirm before money moves.
-    Alert.alert(
-      `Join for ${stakeLabel(room)}?`,
-      `Your stake is escrowed when the match starts. Winner takes the pot minus the platform fee.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: `Stake ${stakeLabel(room)}`, onPress: () => void joinRoom(room) },
-      ],
-    );
+    const ok = await confirm({
+      title: `Join for ${stakeLabel(room)}?`,
+      message:
+        'Both players put up the same wager. Win the match and you take the pot, minus a small platform fee.',
+      confirmLabel: `Stake ${stakeLabel(room)}`,
+      icon: 'dollar',
+    });
+    if (ok) {
+      void joinRoom(room);
+    }
   };
 
-  // No join-by-code backend yet — point players at the open-rooms list.
+  // No join-by-code backend yet - point players at the open-rooms list.
   const handleJoinGame = () => {
-    Alert.alert(
-      'Join a game',
-      'Tap any open room below to join, or ask a friend to share their room so it shows up here.',
-    );
+    void confirm({
+      title: 'Join a game',
+      message:
+        'Tap any open room below to join, or ask a friend to share their room so it shows up here.',
+      icon: 'games',
+      mode: 'info',
+    });
   };
 
   return (
@@ -289,7 +330,7 @@ export default function GameLobyScreen() {
               {status === 'ready' ? (
                 <Text style={styles.liveCount}>{filteredRooms.length} LIVE</Text>
               ) : (
-                <Pressable onPress={fetchRooms} disabled={status === 'loading'}>
+                <Pressable onPress={requestRefresh} disabled={refreshDisabled}>
                   <Text style={styles.liveCount}>Refresh</Text>
                 </Pressable>
               )}
@@ -303,7 +344,7 @@ export default function GameLobyScreen() {
               <View style={styles.stateBlock}>
                 <Icon type="warning" color={colors.textMuted} size={32} />
                 <Text style={styles.emptyText}>{errorMessage}</Text>
-                <Pressable onPress={fetchRooms}>
+                <Pressable onPress={requestRefresh} disabled={refreshDisabled}>
                   <Text style={styles.retryText}>Try again</Text>
                 </Pressable>
               </View>
@@ -316,6 +357,16 @@ export default function GameLobyScreen() {
                 <Text style={styles.emptySubtext}>
                   Create one and wait for an opponent to join.
                 </Text>
+                <Button
+                  label="Refresh"
+                  icon="refresh"
+                  variant="secondary"
+                  size="sm"
+                  fullWidth={false}
+                  onPress={requestRefresh}
+                  disabled={refreshDisabled}
+                  style={styles.emptyRefresh}
+                />
               </View>
             ) : null}
           </View>
@@ -340,7 +391,7 @@ export default function GameLobyScreen() {
                 fullWidth={false}
                 loading={joiningRoomId === item.id}
                 disabled={joiningRoomId !== null}
-                onPress={() => handleJoin(item)}
+                onPress={() => void handleJoin(item)}
                 style={styles.joinButton}
               />
             </View>
@@ -353,19 +404,11 @@ export default function GameLobyScreen() {
         onClose={() => setIsCreateModalVisible(false)}
       />
 
-      {/* Escrow-in-flight overlay (staked joins). */}
-      <Modal visible={fundingRoom !== null} transparent animationType="fade">
-        <View style={styles.fundingOverlay}>
-          <View style={styles.fundingCard}>
-            <ActivityIndicator color={colors.accent} size="large" />
-            <Text style={styles.fundingTitle}>Securing stakes…</Text>
-            <Text style={styles.fundingText}>
-              {fundingRoom ? `${stakeLabel(fundingRoom)} from each player is being ` : 'Stakes are being '}
-              escrowed on-chain. This usually takes a few seconds.
-            </Text>
-          </View>
-        </View>
-      </Modal>
+      {/* Staked-join "getting ready" overlay (funny, no on-chain wording). */}
+      <StakeFundingOverlay
+        visible={fundingRoom !== null}
+        subtitle={fundingRoom ? `${stakeLabel(fundingRoom)} on the line` : undefined}
+      />
     </SafeAreaView>
   );
 }
@@ -538,6 +581,9 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
   },
+  emptyRefresh: {
+    marginTop: spacing.sm,
+  },
   retryText: {
     ...type.caption,
     fontFamily: type.button.fontFamily,
@@ -582,33 +628,5 @@ const styles = StyleSheet.create({
   },
   joinButton: {
     minWidth: 72,
-  },
-  fundingOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(6,6,9,0.8)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  fundingCard: {
-    width: '100%',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-  },
-  fundingTitle: {
-    fontFamily: display.bold,
-    fontSize: 22,
-    letterSpacing: -0.3,
-    color: colors.textPrimary,
-  },
-  fundingText: {
-    ...type.caption,
-    color: colors.textSecondary,
-    textAlign: 'center',
   },
 });

@@ -10,6 +10,7 @@ import { StatusBar, useColorScheme } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { ConfirmProvider } from './src/components/ui';
 import RootNavigator from './src/navigation/RootNavigator';
 
 function App(): React.JSX.Element {
@@ -19,7 +20,9 @@ function App(): React.JSX.Element {
     <SafeAreaProvider>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
       <NavigationContainer>
-        <RootNavigator />
+        <ConfirmProvider>
+          <RootNavigator />
+        </ConfirmProvider>
       </NavigationContainer>
     </SafeAreaProvider>
   );

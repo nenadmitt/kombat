@@ -53,13 +53,13 @@ function chooseAim(fleet: FleetPlacements, shots: Shot[]): Aim | null {
     inBounds(row, col) && !fired.has(`${row},${col}`);
 
   const sunk = sunkShipIds(fleet, shots);
-  // Hits on ships that haven't been sunk yet — the trail worth following.
+  // Hits on ships that haven't been sunk yet - the trail worth following.
   const activeHits = shots.filter(
     s => s.result === 'hit' && !sunk.has(shipAt(s.row, s.col, fleet)!),
   );
 
   if (activeHits.length > 0) {
-    // Two hits sharing a row (or column) reveal the ship's axis — extend it.
+    // Two hits sharing a row (or column) reveal the ship's axis - extend it.
     for (const a of activeHits) {
       const sameRow = activeHits.filter(h => h.row === a.row);
       if (sameRow.length >= 2) {

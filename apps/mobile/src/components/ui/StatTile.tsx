@@ -6,7 +6,7 @@ import { mono, type as typePresets } from '../../theme/typography';
 type Props = {
   label: string;
   value: string;
-  /** Value color — defaults to primary text. */
+  /** Value color - defaults to primary text. */
   valueColor?: string;
 };
 

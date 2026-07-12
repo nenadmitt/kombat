@@ -34,7 +34,7 @@ type WalletBalancesState = {
   ) => Promise<void>;
 };
 
-const UNAVAILABLE = '—';
+const UNAVAILABLE = '-';
 
 /** Thousand-separated amount without relying on Intl (limited under Hermes). */
 function formatAmount(raw: bigint, decimals: number): string {
@@ -127,7 +127,7 @@ export const useWalletBalancesStore = create<WalletBalancesState>((set, get) => 
 
 /**
  * Total USD balance: stablecoins pegged at $1 plus ETH valued with the
- * Chainlink price. Other tokens (e.g. KOMBAT) are excluded — no price feed.
+ * Chainlink price. Other tokens (e.g. KOMBAT) are excluded - no price feed.
  */
 export function totalUsd(
   chainId: BalanceChainId,

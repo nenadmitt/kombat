@@ -5,7 +5,7 @@ import ShipHull from './ShipHull';
 type Props = {
   cells: number;
   color: string;
-  /** Length per cell in px — total silhouette length scales with the ship's size. */
+  /** Length per cell in px - total silhouette length scales with the ship's size. */
   cellPx?: number;
   thickness?: number;
 };

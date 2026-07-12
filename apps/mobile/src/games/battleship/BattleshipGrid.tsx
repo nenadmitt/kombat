@@ -24,7 +24,7 @@ import { GRID } from './setup/ship-placement.constants';
 import type { Orientation, Placement, Shot } from './setup/ship-placement.types';
 import { cellsFor } from './setup/ship-placement.utils';
 
-// Gap between grid cells and their corner rounding — matches the design's
+// Gap between grid cells and their corner rounding - matches the design's
 // spaced, rounded-square grid rather than a continuous ruled grid.
 const CELL_GAP = 4;
 const CELL_RADIUS = 6;
@@ -32,7 +32,7 @@ const CELL_RADIUS = 6;
 const HULL_PAD = 3;
 
 // Empty cells are a translucent white overlay (like colors.cardBackground)
-// rather than an opaque fill, so the screen's background glow shows through —
+// rather than an opaque fill, so the screen's background glow shows through -
 // matching the design instead of a flat grey grid.
 const EMPTY_CELL_GRADIENT = ['rgba(255, 255, 255, 0.07)', 'rgba(255, 255, 255, 0.03)'];
 const CELL_BORDER = colors.cardBorder;
@@ -83,7 +83,7 @@ type Props = {
   previewCells?: { row: number; col: number }[];
   /** Most recent shot batch to animate in (gameplay). */
   action?: GridAction | null;
-  /** Ship currently selected for placement — drawn hovering under the finger. */
+  /** Ship currently selected for placement - drawn hovering under the finger. */
   activeShip?: { size: number; color: string } | null;
   orientation?: Orientation;
   /** Whether the active ship may be placed anchored at (row, col). */
@@ -96,7 +96,7 @@ type Props = {
 
 /** The 10x10 board. Placed ships render as hull silhouettes across their
  *  cells. While a finger (or mouse hover) moves over the grid with a ship
- *  selected, that ship's silhouette follows — its own color when the spot is
+ *  selected, that ship's silhouette follows - its own color when the spot is
  *  valid, red when not. Releasing commits; a stationary tap on a placed ship
  *  removes it. */
 function BattleshipGrid({
@@ -135,7 +135,7 @@ function BattleshipGrid({
     }
     const { row, col } = toCell(locationX, locationY);
     const valid = isValidRef.current?.(row, col) ?? false;
-    // Bail out when the finger is still over the same cell — returning the
+    // Bail out when the finger is still over the same cell - returning the
     // previous state reference makes React skip the (expensive) grid re-render.
     setHover(prev =>
       prev && prev.row === row && prev.col === col && prev.valid === valid
@@ -177,7 +177,7 @@ function BattleshipGrid({
     return set;
   }, [placedShips]);
   // Cells that belong to a *fully destroyed* ship (every cell hit). Only these
-  // render as the red X — a hit on a ship still afloat stays a glowing circle.
+  // render as the red X - a hit on a ship still afloat stays a glowing circle.
   // (On the fleet view `placedShips` is the whole fleet, so keying "sunk" off
   //  `occupied` would wrongly X-out every incoming hit.)
   const sunkCells = useMemo(() => {

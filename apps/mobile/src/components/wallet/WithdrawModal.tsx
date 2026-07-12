@@ -96,7 +96,7 @@ export default function WithdrawModal({
     if (token.native && ethUsdPrice != null) {
       return `$${(num * Number(formatUnits(ethUsdPrice, 8))).toFixed(2)}`;
     }
-    return '$—';
+    return '$-';
   })();
 
   const reset = () => {

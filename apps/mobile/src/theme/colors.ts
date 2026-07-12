@@ -1,12 +1,12 @@
 /**
- * KryptoKombat design tokens — a flat "inked canvas" system with one focused
+ * KryptoKombat design tokens - a flat "inked canvas" system with one focused
  * accent (violet). Keep raw values here so screens reference names, not
  * literals. Legacy token names are preserved (re-pointed to the new palette)
  * so older game screens keep compiling while they migrate.
  */
 export const colors = {
   // ---- Canvas & surfaces -------------------------------------------------
-  /** App background — flat near-black. */
+  /** App background - flat near-black. */
   background: '#08080B',
   /** Phone/section canvas, one step up from the pure background. */
   canvas: '#0A0A0C',
@@ -34,16 +34,16 @@ export const colors = {
   accentLight: '#A594FF',
 
   // ---- Semantic ----------------------------------------------------------
-  /** Positive — wins, gains, "your turn". */
+  /** Positive - wins, gains, "your turn". */
   success: '#24E08A',
   successSoft: 'rgba(36, 224, 138, 0.14)',
-  /** Negative — losses, destructive. */
+  /** Negative - losses, destructive. */
   danger: '#FF5468',
   dangerSoft: 'rgba(255, 84, 104, 0.14)',
-  /** Gold — earnings, achievements, KOMBAT token. */
+  /** Gold - earnings, achievements, KOMBAT token. */
   gold: '#FBBF24',
   goldSoft: 'rgba(251, 191, 36, 0.12)',
-  /** Blue — informational (alt accent). */
+  /** Blue - informational (alt accent). */
   info: '#2E8BFF',
 
   // ---- Text --------------------------------------------------------------
@@ -73,7 +73,7 @@ export const colors = {
 
 /**
  * "Gradient" tokens kept for API compatibility with GradientView callers.
- * The design is flat/single-accent, so these are near-solid violet — a subtle
+ * The design is flat/single-accent, so these are near-solid violet - a subtle
  * top-to-bottom shift keeps large fills from looking dead-flat.
  */
 export const brandGradient = {

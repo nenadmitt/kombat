@@ -139,7 +139,7 @@ async function step(hash: Hex, chainId: BalanceChainId) {
     }
     patch(chainId, hash, { confirmations });
   } catch {
-    // tx not yet propagated / transient RPC error — keep polling.
+    // tx not yet propagated / transient RPC error - keep polling.
   }
   setTimeout(() => void step(hash, chainId), POLL_MS);
 }

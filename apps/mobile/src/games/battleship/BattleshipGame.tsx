@@ -1,5 +1,4 @@
 import { useRef } from 'react';
-import { Alert } from 'react-native';
 import {
   useNavigation,
   usePreventRemove,
@@ -7,6 +6,7 @@ import {
 } from '@react-navigation/native';
 import type { StakeAsset } from '@gaming-platform/core';
 
+import { useConfirm } from '../../components/ui';
 import BattleshipPlayScreen from './game/BattleshipPlayScreen';
 import WaitingForOpponent from './game/WaitingForOpponent';
 import type { BattleshipEngine } from './game/battleship-engine';
@@ -90,6 +90,7 @@ function BattleshipGameFlow({
   onExit: () => void;
 }) {
   const navigation = useNavigation();
+  const confirm = useConfirm();
   // Set when the user has already confirmed leaving (e.g. the waiting screen's
   // own cancel dialog) so the navigation guard lets that exit pass silently.
   const exitConfirmed = useRef(false);
@@ -108,21 +109,19 @@ function BattleshipGameFlow({
       navigation.dispatch(data.action);
       return;
     }
-    Alert.alert(
-      'Leave match?',
-      'If you leave now you forfeit and lose the match.',
-      [
-        { text: 'Stay', style: 'cancel' },
-        {
-          text: 'Leave',
-          style: 'destructive',
-          onPress: () => {
-            engine.forfeit();
-            navigation.dispatch(data.action);
-          },
-        },
-      ],
-    );
+    void confirm({
+      title: 'Leave match?',
+      message: 'If you leave now you forfeit and lose the match.',
+      confirmLabel: 'Leave',
+      cancelLabel: 'Stay',
+      icon: 'flag',
+      destructive: true,
+    }).then(ok => {
+      if (ok) {
+        engine.forfeit();
+        navigation.dispatch(data.action);
+      }
+    });
   });
 
   if (engine.phase === 'waiting') {
@@ -145,7 +144,7 @@ function BattleshipGameFlow({
       <BattleshipPlayScreen
         {...engine.playProps}
         stake={stake}
-        // Plain back — the navigation guard owns the forfeit confirmation.
+        // Plain back - the navigation guard owns the forfeit confirmation.
         onExit={onExit}
         onQuit={onExit}
       />

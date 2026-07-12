@@ -15,7 +15,7 @@ export type RootStackParamList = {
     stakeAmount?: string | null;
   };
   // Demo/preview of the fleet-deployment UI, reachable from the Demo Games
-  // tab — not part of the real room/join flow.
+  // tab - not part of the real room/join flow.
   BattleshipSetup: undefined;
 };
 

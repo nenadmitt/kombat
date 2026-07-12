@@ -26,7 +26,7 @@ type Props = {
 };
 
 /**
- * Mono pill/badge — the design's recurring micro-label (DEMO, WIN, KEEP SECRET,
+ * Mono pill/badge - the design's recurring micro-label (DEMO, WIN, KEEP SECRET,
  * feature tags). Filled soft-tint by default; `outline` for a hairline chip.
  */
 export default function Chip({

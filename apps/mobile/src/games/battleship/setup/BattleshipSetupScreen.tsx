@@ -37,7 +37,7 @@ const GLOW_COLOR = 'rgba(124, 92, 255, 0.35)';
 const GLOW_TRANSPARENT = 'rgba(124, 92, 255, 0)';
 const GLOW_HEIGHT = 480;
 
-/** "Deploy Your Fleet" — select a ship, then tap the grid to place it. */
+/** "Deploy Your Fleet" - select a ship, then tap the grid to place it. */
 export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
   const { width } = useWindowDimensions();
   const boardSize = Math.min(width - spacing.md * 2 - LABEL_GUTTER, 340);
@@ -100,7 +100,7 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
 
   const handleGridCommit = useCallback(
     (row: number, col: number, isTap: boolean) => {
-      // Only a deliberate tap removes a placed ship — releasing a drag over an
+      // Only a deliberate tap removes a placed ship - releasing a drag over an
       // occupied cell is just an invalid drop and should do nothing, otherwise
       // a missed drop silently deletes a ship the player already placed.
       if (isTap) {

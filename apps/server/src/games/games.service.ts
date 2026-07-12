@@ -151,9 +151,17 @@ export class GamesService {
     return room ? toGameRoomSummary(room) : null;
   }
 
-  /** Completed matches for the History screen, newest first. */
-  async getHistory(userId: string): Promise<MatchHistoryEntry[]> {
-    const rooms = await this.dbService.findCompletedGameRoomsForUser(userId);
+  /** Completed matches for the History screen, newest first (paginated). */
+  async getHistory(
+    userId: string,
+    limit = 10,
+    offset = 0,
+  ): Promise<MatchHistoryEntry[]> {
+    const rooms = await this.dbService.findCompletedGameRoomsForUser(
+      userId,
+      limit,
+      offset,
+    );
     const entries = await Promise.all(
       rooms.map(async room => {
         const opponentId =

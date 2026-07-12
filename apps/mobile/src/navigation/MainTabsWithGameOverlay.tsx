@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -9,6 +9,7 @@ import {
 } from '@gaming-platform/core';
 
 import { apiClient } from '../api/client';
+import { useConfirm } from '../components/ui';
 import { GAME_TYPE_SCREENS } from '../games/game-type-screens';
 import ResumeMatchModal from '../games/ResumeMatchModal';
 import WaitingForPlayersMinimizedBar from '../games/WaitingForPlayersMinimizedBar';
@@ -21,17 +22,17 @@ import type { RootStackParamList } from './types';
 /**
  * Wraps the tab navigator so the "Waiting for Players" popup/minimized-bar
  * render above every tab (Games/Wallet/History/Profile) instead of being
- * tied to a single screen — this is what lets it survive tab switches.
+ * tied to a single screen - this is what lets it survive tab switches.
  *
  * Also checks once on mount (i.e. once per login session, since this only
  * mounts once the user reaches the main tabs) whether the user already has
- * an open room from before — e.g. they created one, then killed/reopened
- * the app — and if so, resumes the popup immediately instead of leaving it
+ * an open room from before - e.g. they created one, then killed/reopened
+ * the app - and if so, resumes the popup immediately instead of leaving it
  * silently orphaned.
  */
 export default function MainTabsWithGameOverlay() {
   // This component *is* the "MainTabs" root-stack screen, so it already has
-  // direct root-navigation access — no cross-navigator hop needed to reach
+  // direct root-navigation access - no cross-navigator hop needed to reach
   // the root-level Battleship screen.
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -41,11 +42,12 @@ export default function MainTabsWithGameOverlay() {
   const clearWaitingRoom = useGameStore(state => state.clear);
   const setSecuringStakes = useGameStore(state => state.setSecuringStakes);
   const onSocketEvent = useWebsocketStore(state => state.on);
+  const confirm = useConfirm();
 
   // Stake lifecycle for the room CREATOR: their app sits in the waiting
-  // popup while the joiner triggers escrow. funding flips the popup copy to
-  // "Securing stakes…"; funded clears it (the deferred game:opponent-joined
-  // below does the navigation); failed means the room was voided.
+  // popup while the joiner triggers escrow. funding swaps the popup for the
+  // playful "setting up your match" overlay; funded clears it (the deferred
+  // game:opponent-joined below does the navigation); failed means voided.
   useEffect(() => {
     const offFunding = onSocketEvent(STAKE_EVENTS.funding, () =>
       setSecuringStakes(true),
@@ -55,7 +57,7 @@ export default function MainTabsWithGameOverlay() {
     );
     const offFailed = onSocketEvent(STAKE_EVENTS.failed, payload => {
       setSecuringStakes(false);
-      // Only the creator holds a waitingRoom — the joiner's lobby screen
+      // Only the creator holds a waitingRoom - the joiner's lobby screen
       // shows its own alert for this event.
       if (useGameStore.getState().waitingRoom) {
         clearWaitingRoom();
@@ -63,7 +65,12 @@ export default function MainTabsWithGameOverlay() {
           payload && typeof payload === 'object' && 'reason' in payload
             ? String((payload as { reason: unknown }).reason)
             : 'The match was voided.';
-        Alert.alert('Stakes could not be secured', reason);
+        void confirm({
+          title: 'Stakes could not be secured',
+          message: reason,
+          icon: 'warning',
+          mode: 'info',
+        });
       }
     });
     return () => {
@@ -71,7 +78,7 @@ export default function MainTabsWithGameOverlay() {
       offFunded();
       offFailed();
     };
-  }, [onSocketEvent, setSecuringStakes, clearWaitingRoom]);
+  }, [onSocketEvent, setSecuringStakes, clearWaitingRoom, confirm]);
 
   useEffect(() => {
     apiClient
@@ -89,7 +96,7 @@ export default function MainTabsWithGameOverlay() {
         }
       })
       .catch(() => {
-        // Non-critical — just means we won't resume anything this session.
+        // Non-critical - just means we won't resume anything this session.
       });
   }, [setWaitingRoom, setResumableMatch]);
 
@@ -108,7 +115,7 @@ export default function MainTabsWithGameOverlay() {
     [clearResumableMatch, navigation],
   );
 
-  // Someone joined the room this user is waiting in — stop waiting and
+  // Someone joined the room this user is waiting in - stop waiting and
   // transfer them into whichever screen their game type uses.
   useEffect(() => {
     return onSocketEvent('game:opponent-joined', payload => {
@@ -119,7 +126,7 @@ export default function MainTabsWithGameOverlay() {
       if (typeof roomId !== 'string') {
         return;
       }
-      // Read live, not via a reactive selector — this only needs the value
+      // Read live, not via a reactive selector - this only needs the value
       // at the moment the event fires, not to resubscribe when it changes.
       const waitingRoom = useGameStore.getState().waitingRoom;
       clearWaitingRoom();

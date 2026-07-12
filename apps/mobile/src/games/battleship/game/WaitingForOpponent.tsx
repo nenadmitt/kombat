@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -24,6 +23,7 @@ import Svg, {
 } from 'react-native-svg';
 
 import Icon from '../../../components/Icon';
+import { useConfirm } from '../../../components/ui';
 import { colors, radius, spacing } from '../../../theme/colors';
 import { display, mono } from '../../../theme/typography';
 import TurnTimer from './TurnTimer';
@@ -32,11 +32,11 @@ type Props = {
   opponent: { initial: string; name: string };
   /** Epoch ms when fleet setup auto-forfeits (null hides the countdown). */
   deadline: number | null;
-  /** Confirmed cancel — forfeits the match. */
+  /** Confirmed cancel - forfeits the match. */
   onCancel: () => void;
 };
 
-// Accent tints derived from colors.accent (#7C5CFF) — same precedent as the
+// Accent tints derived from colors.accent (#7C5CFF) - same precedent as the
 // play screen's glow.
 const BRAND_TINT_BG = 'rgba(124, 92, 255, 0.10)';
 const BRAND_TINT_BORDER = 'rgba(124, 92, 255, 0.35)';
@@ -116,19 +116,23 @@ function Radar() {
 /**
  * Shown after a player submits their fleet, until the opponent is ready: a
  * modal-style card with a sonar radar, the shared auto-forfeit countdown
- * (server-enforced — see SETUP_SECONDS) and a cancel-with-confirm that
+ * (server-enforced - see SETUP_SECONDS) and a cancel-with-confirm that
  * forfeits the match.
  */
 export default function WaitingForOpponent({ opponent, deadline, onCancel }: Props) {
-  const confirmCancel = () => {
-    Alert.alert(
-      'Cancel match?',
-      'Cancelling forfeits the match and counts as a loss.',
-      [
-        { text: 'Keep waiting', style: 'cancel' },
-        { text: 'Cancel match', style: 'destructive', onPress: onCancel },
-      ],
-    );
+  const confirm = useConfirm();
+  const confirmCancel = async () => {
+    const ok = await confirm({
+      title: 'Cancel match?',
+      message: 'Cancelling forfeits the match and counts as a loss.',
+      confirmLabel: 'Cancel match',
+      cancelLabel: 'Keep waiting',
+      icon: 'flag',
+      destructive: true,
+    });
+    if (ok) {
+      onCancel();
+    }
   };
 
   return (
@@ -190,12 +194,12 @@ export default function WaitingForOpponent({ opponent, deadline, onCancel }: Pro
           </View>
 
           {/* Cancel (forfeits the match) */}
-          <Pressable style={styles.cancelButton} onPress={confirmCancel}>
+          <Pressable style={styles.cancelButton} onPress={() => void confirmCancel()}>
             <Icon type="flag" color={colors.defeatRed} size={17} />
             <Text style={styles.cancelText}>CANCEL MATCH</Text>
           </Pressable>
           <Text style={styles.footnote}>
-            Cancelling forfeits the match — it counts as a loss.
+            Cancelling forfeits the match - it counts as a loss.
           </Text>
         </View>
       </View>

@@ -1,13 +1,13 @@
 import type { TokenSymbol } from './tokens';
 
 /**
- * MOCK market movement — placeholder until a price-history feed exists. Used
+ * MOCK market movement - placeholder until a price-history feed exists. Used
  * only for the growth badge and the decorative asset/balance sparklines; real
  * balances are always on-chain. Zero these out or wire real data later.
  */
 export const MOCK_WEEK_CHANGE = { pct: '12.4%', abs: '+$676.40', up: true };
 
-/** MOCK gas estimate — no fee estimation yet. */
+/** MOCK gas estimate - no fee estimation yet. */
 export const NETWORK_FEE_USD = '~$0.12';
 
 export const MOCK_BALANCE_SPARK = [3, 3.4, 3.2, 3.9, 3.7, 4.4, 4.2, 4.9, 5.2, 5.6];

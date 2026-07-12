@@ -95,9 +95,29 @@ export class ApiClient {
     );
   }
 
-  /** Completed matches (result, stake, prize) for the History screen. */
-  getMatchHistory(): Promise<MatchHistoryEntry[]> {
-    return this.request('GET', '/games/rooms/history', undefined, true);
+  /**
+   * Completed matches (result, stake, prize) for the History screen, newest
+   * first. Paginated: pass a `limit` and `offset` to page through the feed
+   * (the History screen loads a first page then appends on scroll).
+   */
+  getMatchHistory(options?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<MatchHistoryEntry[]> {
+    const params = new URLSearchParams();
+    if (options?.limit !== undefined) {
+      params.set('limit', String(options.limit));
+    }
+    if (options?.offset !== undefined) {
+      params.set('offset', String(options.offset));
+    }
+    const query = params.toString();
+    return this.request(
+      'GET',
+      `/games/rooms/history${query ? `?${query}` : ''}`,
+      undefined,
+      true,
+    );
   }
 
   /** On-chain balances for the user's wallet. */

@@ -293,7 +293,7 @@ export default function WalletScreen() {
                 </View>
                 <View style={styles.assetRight}>
                   <Text style={styles.assetBalance}>
-                    {balance?.formatted ?? '—'}
+                    {balance?.formatted ?? '-'}
                   </Text>
                   <Text style={styles.assetUsd}>
                     {token.stable && balance?.raw != null

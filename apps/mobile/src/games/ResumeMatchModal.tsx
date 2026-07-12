@@ -1,8 +1,8 @@
-import { Alert, Modal, StyleSheet, Text, View } from 'react-native';
+import { Modal, StyleSheet, Text, View } from 'react-native';
 import type { GameRoomSummary } from '@gaming-platform/core';
 
 import Icon from '../components/Icon';
-import { Button } from '../components/ui';
+import { Button, useConfirm } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
 import { useGameStore } from '../store/game.store';
@@ -10,7 +10,7 @@ import { GAME_TYPE_LABELS } from './game-type-labels';
 import { formatRoomCode } from './room-code';
 
 type Props = {
-  /** Enter the match — navigation is owned by the mounting screen. */
+  /** Enter the match - navigation is owned by the mounting screen. */
   onRejoin: (room: GameRoomSummary) => void;
 };
 
@@ -26,24 +26,21 @@ export default function ResumeMatchModal({ onRejoin }: Props) {
   const forfeitResumableMatch = useGameStore(
     state => state.forfeitResumableMatch,
   );
+  const confirm = useConfirm();
 
   const visible = resumableMatch !== null;
 
-  const confirmForfeit = () => {
-    Alert.alert(
-      'Forfeit match?',
-      'You will lose this match and it cannot be resumed.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Forfeit',
-          style: 'destructive',
-          onPress: () => {
-            void forfeitResumableMatch();
-          },
-        },
-      ],
-    );
+  const confirmForfeit = async () => {
+    const ok = await confirm({
+      title: 'Forfeit match?',
+      message: 'You will lose this match and it cannot be resumed.',
+      confirmLabel: 'Forfeit',
+      icon: 'flag',
+      destructive: true,
+    });
+    if (ok) {
+      void forfeitResumableMatch();
+    }
   };
 
   return (
@@ -82,10 +79,10 @@ export default function ResumeMatchModal({ onRejoin }: Props) {
                 onPress={() => onRejoin(resumableMatch)}
               />
               <Button
-                label={isForfeiting ? 'Forfeiting…' : 'Forfeit'}
+                label={isForfeiting ? 'Forfeiting...' : 'Forfeit'}
                 variant="danger"
                 disabled={isForfeiting}
-                onPress={confirmForfeit}
+                onPress={() => void confirmForfeit()}
               />
             </>
           ) : null}

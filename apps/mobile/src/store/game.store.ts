@@ -17,7 +17,7 @@ type GameState = {
   resumableMatch: GameRoomSummary | null;
   isForfeiting: boolean;
   /** A staked room is escrowing both stakes (stake:funding received; waiting
-   *  for stake:funded/failed). Drives the "Securing stakes…" waiting copy. */
+   *  for stake:funded/failed). Drives the "setting up your match" overlay. */
   isSecuringStakes: boolean;
 
   setWaitingRoom: (room: GameRoomSummary) => void;
@@ -30,7 +30,7 @@ type GameState = {
   clearResumableMatch: () => void;
   /** Forfeits the resumable match server-side, then clears it either way. */
   forfeitResumableMatch: () => Promise<void>;
-  /** Hard reset — used on logout so a stale popup can't follow a new session. */
+  /** Hard reset - used on logout so a stale popup can't follow a new session. */
   clear: () => void;
 };
 
@@ -68,7 +68,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     try {
       await apiClient.closeGameRoom(waitingRoom.id);
     } catch {
-      // Room may have already started/closed elsewhere — clear the local
+      // Room may have already started/closed elsewhere - clear the local
       // guess either way so the UI doesn't offer to cancel a stale room.
     } finally {
       set({ waitingRoom: null, isMinimized: false, isCancelling: false });
@@ -87,7 +87,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     try {
       await apiClient.forfeitGameRoom(resumableMatch.id);
     } catch {
-      // Match may already be over (e.g. lost by timeout while away) — clear the
+      // Match may already be over (e.g. lost by timeout while away) - clear the
       // local guess either way so we don't keep prompting for a dead match.
     } finally {
       set({ resumableMatch: null, isForfeiting: false });

@@ -15,7 +15,7 @@ import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-/** Grace period before a load failure turns into a full error screen — avoids
+/** Grace period before a load failure turns into a full error screen - avoids
  *  flashing an alarming UI for a request that's simply a little slow. */
 const ERROR_SCREEN_DELAY_MS = 6000;
 
@@ -65,7 +65,7 @@ export default function RootNavigator() {
   }, [authStatus, profileStatus, walletStatus, loadProfile, ensureWallet]);
 
   // One socket connection per logged-in session, reused everywhere (games
-  // etc.) — connect once authenticated, tear down on logout.
+  // etc.) - connect once authenticated, tear down on logout.
   useEffect(() => {
     if (authStatus === 'authenticated') {
       connectSocket();

@@ -143,7 +143,7 @@ export function useDemoBattleship(): BattleshipEngine {
       setAction({ id: actionId.current, kind, cells: added });
       setTurnStartedAt(Date.now());
 
-      // If that sank the whole enemy fleet, the game is over — no bot reply.
+      // If that sank the whole enemy fleet, the game is over - no bot reply.
       if (sunkShipIds(OPPONENT_FLEET, nextShots).size === FLEET.length) {
         return;
       }
@@ -166,7 +166,7 @@ export function useDemoBattleship(): BattleshipEngine {
     if (next >= MAX_TIMEOUTS) {
       return; // loss handled by the derived `lost`
     }
-    // Missed the window — hand the turn to the bot.
+    // Missed the window - hand the turn to the bot.
     setTurn('bot');
     setTurnStartedAt(Date.now());
     scheduleBotTurn();
