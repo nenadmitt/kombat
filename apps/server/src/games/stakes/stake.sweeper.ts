@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   Injectable,
   Logger,
   OnModuleDestroy,
@@ -12,8 +13,14 @@ import { StakesService } from './stakes.service';
 
 const SWEEP_INTERVAL_MS = 5_000;
 const SWEEP_BATCH_LIMIT = 10;
-/** A Funding row untouched this long is presumed orphaned (crash) — retry it. */
-const FUNDING_STALE_MS = 45_000;
+/**
+ * A Funding row untouched this long is presumed orphaned (crash) and retried.
+ * Must stay ABOVE the funding lock's TTL (FUNDING_LOCK_TTL_MS = 120s in
+ * stakes.service): while a real funding job is still running it holds that
+ * lock, so a shorter window here just makes the sweeper collide with a healthy
+ * job. We only treat funding as orphaned once its lock could no longer exist.
+ */
+const FUNDING_STALE_MS = 130_000;
 
 /**
  * Drains pending on-chain stake work from the stake_escrows table:
@@ -75,6 +82,15 @@ export class StakeSweeper implements OnModuleInit, OnModuleDestroy {
             await this.stakesService.fundRoom(escrow.roomId);
           }
         } catch (error) {
+          if (error instanceof ConflictException) {
+            // The room lock is held by an in-flight action (e.g. funding still
+            // working through its txs). Not a failure - this row is being
+            // handled; leave it untouched and retry on the next sweep.
+            this.logger.debug(
+              `Room ${escrow.roomId} busy, skipping this sweep`,
+            );
+            continue;
+          }
           await this.stakesService.recordSweepFailure(escrow.roomId, error);
         }
       }
