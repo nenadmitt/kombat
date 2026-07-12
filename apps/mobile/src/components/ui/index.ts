@@ -11,7 +11,10 @@ export {
 } from './ConfirmSheet';
 export { default as Screen } from './Screen';
 export { default as SectionLabel } from './SectionLabel';
-export { default as StakeFundingOverlay } from './StakeFundingOverlay';
+export {
+  default as StakeFundingOverlay,
+  StakeFundingCard,
+} from './StakeFundingOverlay';
 export { default as StatTile } from './StatTile';
 export { default as Stepper } from './Stepper';
 export { default as Toggle } from './Toggle';

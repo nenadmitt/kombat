@@ -37,12 +37,35 @@ const ConfirmContext = createContext<ConfirmFn | null>(null);
 export function ConfirmProvider({ children }: { children: ReactNode }) {
   const [options, setOptions] = useState<ConfirmOptions | null>(null);
   const resolverRef = useRef<((value: boolean) => void) | null>(null);
+  const pendingValueRef = useRef(false);
+  const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const settle = useCallback((value: boolean) => {
-    resolverRef.current?.(value);
+  // Resolve only once the sheet is fully off-screen. Callers often present
+  // another Modal right after awaiting confirm(); presenting while this one
+  // is still animating out wedges iOS's modal presentation stack (frozen,
+  // touch-dead app). iOS signals real dismissal via onDismiss; the timer is the
+  // Android/safety fallback. First one wins.
+  const finishSettle = useCallback(() => {
+    if (fallbackTimerRef.current) {
+      clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
+    }
+    const resolve = resolverRef.current;
     resolverRef.current = null;
-    setOptions(null);
+    resolve?.(pendingValueRef.current);
   }, []);
+
+  const settle = useCallback(
+    (value: boolean) => {
+      if (!resolverRef.current) {
+        return;
+      }
+      pendingValueRef.current = value;
+      setOptions(null);
+      fallbackTimerRef.current = setTimeout(finishSettle, 450);
+    },
+    [finishSettle],
+  );
 
   const confirm = useCallback<ConfirmFn>(options => {
     setOptions(options);
@@ -60,7 +83,11 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   return (
     <ConfirmContext.Provider value={value}>
       {children}
-      <BottomSheet visible={options !== null} onClose={() => settle(false)}>
+      <BottomSheet
+        visible={options !== null}
+        onClose={() => settle(false)}
+        onDismissed={finishSettle}
+      >
         {options ? (
           <View style={styles.body}>
             {options.icon ? (

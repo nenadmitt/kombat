@@ -23,39 +23,31 @@ const MESSAGES = [
 
 const ROTATE_MS = 1800;
 
-type Props = {
-  visible: boolean;
+type CardProps = {
   /** Small line under the rotating message (e.g. the wager). Optional. */
   subtitle?: string;
 };
 
 /**
- * Full-screen "getting your match ready" overlay for staked games. Spins a
- * cheerful icon and rotates a random funny message. Reused by the lobby join
- * flow and the create/waiting popup.
+ * The "getting your match ready" card by itself (no Modal). Use this inside
+ * an already-presented Modal (e.g. the waiting popup) - never present two
+ * native Modals at once, iOS wedges its presentation stack and the app stops
+ * receiving touches.
  */
-export default function StakeFundingOverlay({ visible, subtitle }: Props) {
+export function StakeFundingCard({ subtitle }: CardProps) {
   const [index, setIndex] = useState(0);
   const spin = useRef(new Animated.Value(0)).current;
 
-  // Rotate the message while visible; reset to a fresh start each time it opens.
+  // Rotate the message while mounted.
   useEffect(() => {
-    if (!visible) {
-      return;
-    }
-    setIndex(i => (i + 1) % MESSAGES.length);
     const timer = setInterval(() => {
       setIndex(i => (i + 1) % MESSAGES.length);
     }, ROTATE_MS);
     return () => clearInterval(timer);
-  }, [visible]);
+  }, []);
 
   // Continuous spin of the coin icon.
   useEffect(() => {
-    if (!visible) {
-      spin.setValue(0);
-      return;
-    }
     const loop = Animated.loop(
       Animated.timing(spin, {
         toValue: 1,
@@ -66,7 +58,7 @@ export default function StakeFundingOverlay({ visible, subtitle }: Props) {
     );
     loop.start();
     return () => loop.stop();
-  }, [visible, spin]);
+  }, [spin]);
 
   const rotate = spin.interpolate({
     inputRange: [0, 1],
@@ -74,16 +66,32 @@ export default function StakeFundingOverlay({ visible, subtitle }: Props) {
   });
 
   return (
+    <View style={styles.card}>
+      <Animated.View style={[styles.iconRing, { transform: [{ rotate }] }]}>
+        <Icon type="dollar" color={colors.accent} size={34} />
+      </Animated.View>
+      <Text style={styles.title}>Setting up your match</Text>
+      <Text style={styles.message}>{MESSAGES[index]}</Text>
+      {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+    </View>
+  );
+}
+
+type Props = CardProps & {
+  visible: boolean;
+};
+
+/**
+ * Full-screen "getting your match ready" overlay for staked games, presented
+ * as its own Modal. Only mount this where no other Modal can be up at the
+ * same time (the lobby join flow); anywhere a Modal already exists, render
+ * StakeFundingCard inside it instead.
+ */
+export default function StakeFundingOverlay({ visible, subtitle }: Props) {
+  return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
-        <View style={styles.card}>
-          <Animated.View style={[styles.iconRing, { transform: [{ rotate }] }]}>
-            <Icon type="dollar" color={colors.accent} size={34} />
-          </Animated.View>
-          <Text style={styles.title}>Setting up your match</Text>
-          <Text style={styles.message}>{MESSAGES[index]}</Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-        </View>
+        <StakeFundingCard subtitle={subtitle} />
       </View>
     </Modal>
   );

@@ -12,6 +12,8 @@ type Props = {
   title?: string;
   /** Show a round X in the title row. */
   showClose?: boolean;
+  /** Fired once the sheet has fully animated away (iOS Modal onDismiss). */
+  onDismissed?: () => void;
   children: ReactNode;
 };
 
@@ -21,6 +23,7 @@ export default function BottomSheet({
   onClose,
   title,
   showClose,
+  onDismissed,
   children,
 }: Props) {
   return (
@@ -29,6 +32,7 @@ export default function BottomSheet({
       transparent
       animationType="slide"
       onRequestClose={onClose}
+      onDismiss={onDismissed}
     >
       <Pressable style={styles.overlay} onPress={onClose} />
       <SafeAreaView style={styles.wrapper} pointerEvents="box-none" edges={['bottom']}>

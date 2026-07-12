@@ -65,12 +65,16 @@ export default function MainTabsWithGameOverlay() {
           payload && typeof payload === 'object' && 'reason' in payload
             ? String((payload as { reason: unknown }).reason)
             : 'The match was voided.';
-        void confirm({
-          title: 'Stakes could not be secured',
-          message: reason,
-          icon: 'warning',
-          mode: 'info',
-        });
+        // Let the waiting popup finish dismissing before presenting the
+        // notice sheet - overlapping Modal transitions wedge iOS touches.
+        setTimeout(() => {
+          void confirm({
+            title: 'Stakes could not be secured',
+            message: reason,
+            icon: 'warning',
+            mode: 'info',
+          });
+        }, 500);
       }
     });
     return () => {

@@ -167,8 +167,13 @@ export default function GameLobyScreen() {
       if ((payload as { roomId?: string }).roomId !== fundingRoom.id) {
         return;
       }
+      // Dismiss the funding overlay first, then navigate once it has fully
+      // faded out. Pushing the match screen while a transparent Modal is
+      // still mid-dismiss wedges iOS's presentation stack - the classic
+      // "I can see the screen but nothing is tappable" freeze.
+      const room = fundingRoom;
       setFundingRoom(null);
-      enterMatch(fundingRoom);
+      setTimeout(() => enterMatch(room), 350);
     });
     const offFailed = onSocketEvent(STAKE_EVENTS.failed, payload => {
       const p = payload as { roomId?: string; reason?: string };
@@ -176,13 +181,17 @@ export default function GameLobyScreen() {
         return;
       }
       setFundingRoom(null);
-      void confirm({
-        title: 'Stakes could not be secured',
-        message: p.reason ?? 'The match was voided.',
-        icon: 'warning',
-        mode: 'info',
-      });
       fetchRooms();
+      // Let the funding overlay finish dismissing before presenting the
+      // notice sheet - overlapping Modal transitions wedge iOS touches.
+      setTimeout(() => {
+        void confirm({
+          title: 'Stakes could not be secured',
+          message: p.reason ?? 'The match was voided.',
+          icon: 'warning',
+          mode: 'info',
+        });
+      }, 500);
     });
     return () => {
       offFunded();
