@@ -23,6 +23,7 @@ import { DbService } from '../db';
 import { BattleshipMatchService } from './battleships/battleship-match.service';
 import { CreateGameRoomDto } from './dto/create-game-room.dto';
 import { ListGameRoomsDto } from './dto/list-game-rooms.dto';
+import { MatchHistoryQueryDto } from './dto/match-history-query.dto';
 import { GamesService } from './games.service';
 import { StakesService } from './stakes/stakes.service';
 
@@ -54,8 +55,13 @@ export class GamesController {
   @Get('history')
   async getHistory(
     @SecurityContext() securityContext: ISecurityContext,
+    @Query() dto: MatchHistoryQueryDto,
   ): Promise<MatchHistoryEntry[]> {
-    return this.gamesService.getHistory(securityContext.userId);
+    return this.gamesService.getHistory(
+      securityContext.userId,
+      dto.limit,
+      dto.offset,
+    );
   }
 
   @Post(':id/join')

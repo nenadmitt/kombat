@@ -33,11 +33,11 @@ type Props = {
 
 /**
  * The one button used across the app. Flat, single-accent design:
- * - primary   — solid violet fill, dark label
- * - secondary — outlined, transparent fill
- * - tinted    — soft violet wash, violet label
- * - danger    — soft red wash, red label
- * - ghost     — text only
+ * - primary   - solid violet fill, dark label
+ * - secondary - outlined, transparent fill
+ * - tinted    - soft violet wash, violet label
+ * - danger    - soft red wash, red label
+ * - ghost     - text only
  */
 export default function Button({
   label,

@@ -6,13 +6,13 @@ type Props = {
   length: number;
   /** Short dimension in px. */
   thickness: number;
-  /** Cell count — controls how many deck dots are drawn. */
+  /** Cell count - controls how many deck dots are drawn. */
   cells: number;
   color: string;
 };
 
 /** Skia subtree (no Canvas of its own) drawing a ship hull pointing right:
- *  rounded stern, pointed bow, deck dots. Drawn at origin (0,0) — wrap in a
+ *  rounded stern, pointed bow, deck dots. Drawn at origin (0,0) - wrap in a
  *  Group transform to position/rotate it. Shared by the tray cards and the
  *  board (hover preview + placed ships). */
 export default function ShipHull({ length, thickness, cells, color }: Props) {

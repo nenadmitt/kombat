@@ -5,7 +5,7 @@ import { fonts } from './typography';
 /**
  * Makes Sora the default font app-wide by patching the default `style` for
  * `Text`/`TextInput`, instead of touching every screen's stylesheet. Any
- * screen-level `fontFamily` still wins — this only fills in the default.
+ * screen-level `fontFamily` still wins - this only fills in the default.
  * Must be imported once, before any component renders (see index.js).
  */
 export function applyDefaultFont(): void {

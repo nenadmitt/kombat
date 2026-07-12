@@ -10,7 +10,7 @@ import {
 } from '@gaming-platform/core';
 
 import { apiClient } from '../api/client';
-import Icon from '../components/Icon';
+import Icon, { type IconName } from '../components/Icon';
 import { Button, Stepper, Toggle } from '../components/ui';
 import { useGameStore } from '../store/game.store';
 import { colors, radius, spacing } from '../theme/colors';
@@ -24,11 +24,11 @@ type Props = {
 /** FREE plus the real stake assets. */
 type AssetChoice = 'free' | StakeAsset;
 
-const ASSET_CHOICES: { key: AssetChoice; label: string }[] = [
-  { key: 'free', label: 'FREE' },
-  { key: StakeAsset.Usdc, label: STAKE_ASSET_SYMBOLS[StakeAsset.Usdc] },
-  { key: StakeAsset.Kombat, label: STAKE_ASSET_SYMBOLS[StakeAsset.Kombat] },
-  { key: StakeAsset.Native, label: STAKE_ASSET_SYMBOLS[StakeAsset.Native] },
+const ASSET_CHOICES: { key: AssetChoice; label: string; icon: IconName }[] = [
+  { key: 'free', label: 'FREE', icon: 'gift' },
+  { key: StakeAsset.Usdc, label: STAKE_ASSET_SYMBOLS[StakeAsset.Usdc], icon: 'dollar' },
+  { key: StakeAsset.Kombat, label: STAKE_ASSET_SYMBOLS[StakeAsset.Kombat], icon: 'swords' },
+  { key: StakeAsset.Native, label: STAKE_ASSET_SYMBOLS[StakeAsset.Native], icon: 'gem' },
 ];
 
 /** Per-asset stepper behavior (human units). */
@@ -62,7 +62,7 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
     setIsCreating(true);
     setError(null);
     try {
-      // Format through the asset's display precision first — raw float math
+      // Format through the asset's display precision first - raw float math
       // (0.01 + 0.005) can carry fp dust that parseStakeAmount would reject.
       const stake =
         asset === 'free'
@@ -106,8 +106,8 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
             <Icon type="chevron-down" color={colors.textMuted} size={20} />
           </View>
 
-          {/* Betting asset */}
-          <Text style={[type.label, styles.label]}>Betting asset</Text>
+          {/* Asset */}
+          <Text style={[type.label, styles.label]}>Asset</Text>
           <View style={styles.assetRow}>
             {ASSET_CHOICES.map(choice => {
               const active = choice.key === asset;
@@ -117,6 +117,11 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
                   onPress={() => selectAsset(choice.key)}
                   style={[styles.assetChip, active && styles.assetChipActive]}
                 >
+                  <Icon
+                    type={choice.icon}
+                    size={16}
+                    color={active ? colors.onAccent : colors.textSecondary}
+                  />
                   <Text style={[styles.assetText, active && styles.assetTextActive]}>
                     {choice.label}
                   </Text>
@@ -135,15 +140,16 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
                 step={feeConfig.step}
                 min={feeConfig.min}
                 format={feeConfig.fmt}
+                editable
               />
               <Text style={styles.feeHint}>
-                Both players stake this amount — winner takes the pot minus the
+                Both players stake this amount - winner takes the pot minus the
                 platform fee.
               </Text>
             </>
           ) : (
             <Text style={styles.feeHint}>
-              Free game — nothing staked, just bragging rights.
+              Free game - nothing staked, just bragging rights.
             </Text>
           )}
 
@@ -240,7 +246,8 @@ const styles = StyleSheet.create({
   assetChip: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 11,
+    gap: 5,
+    paddingVertical: 10,
     borderRadius: radius.sm,
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
@@ -252,7 +259,7 @@ const styles = StyleSheet.create({
   },
   assetText: {
     fontFamily: mono.semiBold,
-    fontSize: 13,
+    fontSize: 12,
     color: colors.textSecondary,
   },
   assetTextActive: {

@@ -2,7 +2,7 @@ import Config from 'react-native-config';
 
 /**
  * Typed, validated access to build-time env vars (from `.env` via
- * react-native-config). Client-safe values only — secrets never live here.
+ * react-native-config). Client-safe values only - secrets never live here.
  */
 function required(key: keyof typeof Config): string {
   const value = Config[key];

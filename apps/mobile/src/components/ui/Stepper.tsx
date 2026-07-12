@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import Icon from '../Icon';
 import { colors, radius, spacing } from '../../theme/colors';
@@ -12,9 +13,11 @@ type Props = {
   max?: number;
   /** Formats the numeric value for display (e.g. two decimals). */
   format?: (v: number) => string;
+  /** Let the user type into the value box (numeric keypad) as well as tap -/+. */
+  editable?: boolean;
 };
 
-/** −/+ numeric stepper (Create Room entry fee). Value is mono, + is accent. */
+/** -/+ numeric stepper (Create Room entry fee). Value is mono, + is accent. */
 export default function Stepper({
   value,
   onChange,
@@ -22,8 +25,34 @@ export default function Stepper({
   min = 0,
   max = Number.MAX_SAFE_INTEGER,
   format = v => v.toFixed(2),
+  editable = false,
 }: Props) {
   const clamp = (n: number) => Math.min(max, Math.max(min, n));
+  // While the field is focused we hold the raw keystrokes so the user can type
+  // freely (partial values like "0." or an empty box); null means "not editing,
+  // show the formatted value".
+  const [draft, setDraft] = useState<string | null>(null);
+
+  const handleChangeText = (text: string) => {
+    // Keep digits, one dot - drop anything else the keypad might allow.
+    const cleaned = text.replace(/[^0-9.]/g, '');
+    setDraft(cleaned);
+    const parsed = Number.parseFloat(cleaned);
+    if (Number.isFinite(parsed)) {
+      // Cap the top while typing, but don't force the min yet (that would fight
+      // the user mid-keystroke); the min is applied on blur.
+      onChange(Math.min(max, parsed));
+    }
+  };
+
+  const commit = () => {
+    if (draft !== null) {
+      const parsed = Number.parseFloat(draft);
+      onChange(clamp(Number.isFinite(parsed) ? parsed : value));
+    }
+    setDraft(null);
+  };
+
   return (
     <View style={styles.row}>
       <Pressable
@@ -35,9 +64,26 @@ export default function Stepper({
         <Icon type="minus" color={colors.textPrimary} size={20} />
       </Pressable>
 
-      <View style={styles.valueBox}>
-        <Text style={styles.value}>{format(value)}</Text>
-      </View>
+      {editable ? (
+        <TextInput
+          style={[styles.valueBox, styles.value, styles.input]}
+          value={draft ?? format(value)}
+          onChangeText={handleChangeText}
+          onFocus={() => setDraft(format(value))}
+          onBlur={commit}
+          keyboardType="decimal-pad"
+          inputMode="decimal"
+          selectTextOnFocus
+          returnKeyType="done"
+          submitBehavior="blurAndSubmit"
+          accessibilityLabel="Amount"
+          selectionColor={colors.accent}
+        />
+      ) : (
+        <View style={styles.valueBox}>
+          <Text style={styles.value}>{format(value)}</Text>
+        </View>
+      )}
 
       <Pressable
         accessibilityRole="button"
@@ -83,6 +129,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.cardBorder,
+  },
+  input: {
+    textAlign: 'center',
+    paddingVertical: 0,
   },
   value: {
     fontFamily: mono.bold,

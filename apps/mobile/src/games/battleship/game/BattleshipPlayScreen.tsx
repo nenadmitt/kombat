@@ -76,11 +76,11 @@ export type BattleshipPlayScreenProps = {
   result: 'win' | 'lose' | null;
   /** Why the match ended (drives the result-screen copy). */
   resultReason: BattleshipEndReason | null;
-  /** Per-player stake (staked multiplayer matches) — shown on the result screen. */
+  /** Per-player stake (staked multiplayer matches) - shown on the result screen. */
   stake?: { token: StakeAsset; amount: string } | null;
   onFire: (kind: FireKind, row: number, col: number) => void;
   onTimerExpire?: () => void;
-  /** Header back — leaving an in-progress match forfeits it. */
+  /** Header back - leaving an in-progress match forfeits it. */
   onExit: () => void;
   onQuit: () => void;
 };
@@ -140,7 +140,7 @@ const RESULT_COPY: Record<
 
 /**
  * Pure-UI battle screen: renders entirely from props and reports intents via
- * callbacks. It never resolves shots — an engine (demo bot or multiplayer
+ * callbacks. It never resolves shots - an engine (demo bot or multiplayer
  * socket) owns the game state and feeds it back in. Only view-local interaction
  * state (mode, selection, armed power-up) lives here.
  */
@@ -189,7 +189,7 @@ export default function BattleshipPlayScreen({
   }, [myTurn]);
 
   // Nudge: a short buzz when the battle screen appears and whenever the turn
-  // becomes mine (no-op on simulators — vibration needs a physical device).
+  // becomes mine (no-op on simulators - vibration needs a physical device).
   const prevTurn = useRef<boolean | null>(null);
   useEffect(() => {
     if (result) {
@@ -295,7 +295,7 @@ export default function BattleshipPlayScreen({
   // Banner shows my last shot on the attack view, the opponent's on fleet.
   const bannerShot = isAttack ? lastShot : lastIncoming;
 
-  // Cross-fade the two stacked boards instead of hard-swapping their opacity —
+  // Cross-fade the two stacked boards instead of hard-swapping their opacity -
   // 1 = attack (enemy waters) on top, 0 = fleet on top.
   const attackFade = useSharedValue(isAttack ? 1 : 0);
   useEffect(() => {
@@ -306,7 +306,7 @@ export default function BattleshipPlayScreen({
     opacity: 1 - attackFade.value,
   }));
 
-  // Plain back — the navigation guard in BattleshipGame owns the
+  // Plain back - the navigation guard in BattleshipGame owns the
   // leave-forfeits confirmation for every exit path.
   const handleHeaderBack = onExit;
 
@@ -321,7 +321,7 @@ export default function BattleshipPlayScreen({
       { value: `${sunkByMe} / ${SHIPS.length}`, label: 'SHIPS SUNK', highlight: true },
     ];
     if (stake) {
-      // Pot (2×stake) rather than net winnings — the fee is applied on-chain
+      // Pot (2×stake) rather than net winnings - the fee is applied on-chain
       // at settlement, so the exact net lands in History once settled.
       const symbol = STAKE_ASSET_SYMBOLS[stake.token];
       const amount = formatStakeAmount(stake.amount, stake.token);

@@ -218,7 +218,8 @@ export class DbService {
   /** Completed rooms the user played in, newest first — the History feed. */
   findCompletedGameRoomsForUser(
     userId: string,
-    limit = 50,
+    limit = 10,
+    offset = 0,
   ): Promise<GameRoomEntity[]> {
     return this.gameRoomRepository.find({
       where: [
@@ -227,6 +228,7 @@ export class DbService {
       ],
       order: { completedAt: 'DESC' },
       take: limit,
+      skip: offset,
     });
   }
 

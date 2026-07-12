@@ -15,10 +15,10 @@ export type Token = {
   brand?: BrandIconName;
   glyph?: string;
   tint: string;
-  /** Native coin (ETH) — read via multicall3.getEthBalance, no token address. */
+  /** Native coin (ETH) - read via multicall3.getEthBalance, no token address. */
   native?: boolean;
   address?: Address;
-  /** Pegged to $1 — used for the USD total until a price feed exists. */
+  /** Pegged to $1 - used for the USD total until a price feed exists. */
   stable?: boolean;
 };
 
@@ -69,7 +69,7 @@ export const CHAIN_TOKENS: Record<BalanceChainId, Token[]> = {
     USDT('0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2'),
   ],
   sepolia: [
-    // Must match the MatchEscrow allowlist (apps/evm-contracts/README.md) —
+    // Must match the MatchEscrow allowlist (apps/evm-contracts/README.md) -
     // staking pulls these exact tokens.
     KOMBAT('0xFE25C2b2400144c6536b9F707F06b751D6eeF943'),
     ETH,

@@ -9,8 +9,8 @@ type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
 /**
  * One socket.io connection per logged-in user, reused across the app (games
  * etc.) instead of each screen opening its own. Lifecycle is driven by auth
- * state in RootNavigator — connect() once authenticated, disconnect() on
- * logout — so callers just join/leave channels and send/receive on top of
+ * state in RootNavigator - connect() once authenticated, disconnect() on
+ * logout - so callers just join/leave channels and send/receive on top of
  * whatever connection is already there.
  */
 type WebsocketState = {
@@ -23,20 +23,20 @@ type WebsocketState = {
   joinChannel: (channel: string) => void;
   leaveChannel: (channel: string) => void;
 
-  /** Generic send — `event` is whatever the server/game expects. */
+  /** Generic send - `event` is whatever the server/game expects. */
   emit: (event: string, payload?: unknown) => void;
   /** Generic subscribe. Returns an unsubscribe function. */
   on: (event: string, handler: (payload: unknown) => void) => () => void;
 };
 
-// Not part of the store's reactive state on purpose — nothing needs to
+// Not part of the store's reactive state on purpose - nothing needs to
 // re-render when the underlying Socket instance itself changes, only when
 // `status` does.
 let socket: Socket | null = null;
 
 // Channels the app is currently subscribed to. socket.io room membership
-// lives in the server's memory, so any reconnect — network blip or a server
-// redeploy — silently drops every subscription. The `connect` handler
+// lives in the server's memory, so any reconnect - network blip or a server
+// redeploy - silently drops every subscription. The `connect` handler
 // replays these so broadcasts resume without each screen having to care.
 const joinedChannels = new Set<string>();
 
@@ -59,7 +59,7 @@ export const useWebsocketStore = create<WebsocketState>(set => ({
     });
 
     client.on('connect', () => {
-      // Fires on the initial connect AND every auto-reconnect — re-join all
+      // Fires on the initial connect AND every auto-reconnect - re-join all
       // channels (idempotent server-side) before flipping the status, so
       // reconnect-driven effects observe a fully subscribed socket.
       for (const channel of joinedChannels) {

@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { GameType } from '@gaming-platform/core';
 
 import Icon, { type IconName } from '../components/Icon';
-import { Card, Chip, Screen, SectionLabel, Toggle } from '../components/ui';
+import { Card, Chip, Screen, SectionLabel, Toggle, useConfirm } from '../components/ui';
 import { GAME_TYPE_DEMO_SCREENS } from '../games/game-type-demo-screens';
 import type { RootStackParamList } from '../navigation/types';
 import { colors, radius, spacing } from '../theme/colors';
@@ -22,7 +22,7 @@ type GameCard = {
 };
 
 /**
- * Only Battleships (NavalBattle) is a real, playable game type — the others
+ * Only Battleships (NavalBattle) is a real, playable game type - the others
  * are design-showcase previews and open a "coming soon" notice rather than
  * pretending to launch. The GameType catalog stays honest; these extra cards
  * live only in this screen to match the design's library grid.
@@ -38,10 +38,16 @@ export default function DemoGamesScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [demoMode, setDemoMode] = useState(true);
+  const confirm = useConfirm();
 
   const playDemo = (game: GameCard) => {
     if (game.gameType === undefined) {
-      Alert.alert(game.name, 'This game is coming soon.');
+      void confirm({
+        title: game.name,
+        message: 'This game is coming soon.',
+        icon: 'rocket',
+        mode: 'info',
+      });
       return;
     }
     (navigation.navigate as (screen: string, params?: unknown) => void)(
@@ -61,7 +67,7 @@ export default function DemoGamesScreen() {
         <View style={styles.demoText}>
           <Text style={styles.demoTitle}>Demo Mode</Text>
           <Text style={styles.demoSubtitle}>
-            Practice any game free — no crypto staked.
+            Practice any game free - no crypto staked.
           </Text>
         </View>
         <Toggle value={demoMode} onValueChange={setDemoMode} />

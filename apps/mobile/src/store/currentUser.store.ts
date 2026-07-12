@@ -35,7 +35,7 @@ function toLoadError(err: unknown, fallbackMessage: string): LoadError {
 /**
  * Everything about the current user: auth (JWT persisted in AsyncStorage),
  * profile (email/username), and wallet (mnemonic/private key persisted in
- * Keychain). Kept as one store since they're tightly coupled — logging out
+ * Keychain). Kept as one store since they're tightly coupled - logging out
  * clears auth + profile, but not the wallet (see `logout` below).
  */
 type CurrentUserState = {
@@ -55,11 +55,11 @@ type CurrentUserState = {
   load: () => Promise<void>;
   /** Persists the JWT after a successful login and marks the user authenticated. */
   loginWithToken: (accessToken: string) => Promise<void>;
-  /** Clears the persisted JWT and profile state (wallet is left intact — see below). */
+  /** Clears the persisted JWT and profile state (wallet is left intact - see below). */
   logout: () => Promise<void>;
   /** Fetches the user's email/username. */
   loadProfile: () => Promise<void>;
-  /** Sets the username (onboarding) — 409s (via ApiError) if already taken. */
+  /** Sets the username (onboarding) - 409s (via ApiError) if already taken. */
   updateUsername: (username: string) => Promise<void>;
   /** Lists the user's wallets; creates one (Ethereum) if they have none yet. */
   ensureWallet: () => Promise<void>;
@@ -80,7 +80,7 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
 
   load: async () => {
     // TODO: this only checks whether a token is present, not whether it's
-    // expired — a stale JWT is currently only caught the first time an API
+    // expired - a stale JWT is currently only caught the first time an API
     // call 401s, not here. Revisit once refresh tokens are implemented.
     const accessToken = await AsyncStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
     set({
@@ -97,7 +97,7 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
   logout: async () => {
     await AsyncStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
     // Wallet state (and its Keychain-backed secret) is intentionally left
-    // alone — the wallet persists across logout so logging back in as the
+    // alone - the wallet persists across logout so logging back in as the
     // same user doesn't need to re-fetch/re-create it.
     set({
       accessToken: null,
@@ -129,7 +129,7 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
   },
 
   updateUsername: async username => {
-    // Let ApiError (e.g. 409 taken) propagate — the caller (OnboardingScreen) shows it inline.
+    // Let ApiError (e.g. 409 taken) propagate - the caller (OnboardingScreen) shows it inline.
     const updated = await apiClient.updateUsername(username);
     set({ username: updated.username });
   },

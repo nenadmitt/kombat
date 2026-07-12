@@ -26,7 +26,7 @@ export default function NotchTabBar({
 
   return (
     // Outer wrapper paints the screen background behind the bar's rounded
-    // corners — otherwise the navigator's default (light) background bleeds
+    // corners - otherwise the navigator's default (light) background bleeds
     // through the corner cutouts.
     <View style={styles.wrapper}>
       <View style={[styles.bar, { paddingBottom: insets.bottom }]}>

@@ -43,7 +43,7 @@ export default function OnboardingScreen() {
     setBusy(true);
     try {
       await updateUsername(username.trim());
-      // No manual navigation — RootNavigator reacts to `username` becoming non-null.
+      // No manual navigation - RootNavigator reacts to `username` becoming non-null.
     } catch (err) {
       setErrorMessage(err instanceof ApiError ? err.message : 'Something went wrong');
     } finally {

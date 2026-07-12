@@ -1,16 +1,16 @@
 import type { TextStyle } from 'react-native';
 
 /**
- * Three type roles, all on Sora (Google Fonts) — each weight linked natively
+ * Three type roles, all on Sora (Google Fonts) - each weight linked natively
  * as its own family (Google's naming), so weights are chosen via `fontFamily`,
  * not `fontWeight`, because custom fonts don't get synthesized bold/semibold by
  * RN. See assets/fonts and react-native.config.js.
  *
  * The whole system is one family, Sora, matching the pre-redesign look:
- * - `display` — headings & titles.
- * - `body`    — paragraphs, descriptions, labels.
- * - `mono`    — numbers, codes, and uppercase micro-labels (balances, stakes,
- *               room codes, section eyebrows). Not truly monospaced — kept as a
+ * - `display` - headings & titles.
+ * - `body`    - paragraphs, descriptions, labels.
+ * - `mono`    - numbers, codes, and uppercase micro-labels (balances, stakes,
+ *               room codes, section eyebrows). Not truly monospaced - kept as a
  *               separate role so it can diverge again later without touching
  *               call sites.
  */
@@ -44,7 +44,7 @@ export const mono = {
 } as const;
 
 /**
- * Backwards-compatible alias — existing screens/components import `fonts` and
+ * Backwards-compatible alias - existing screens/components import `fonts` and
  * expect the Sora weight keys. Kept pointing at the body (Sora) family so
  * nothing breaks while screens migrate to the semantic `type` presets below.
  */
@@ -56,14 +56,14 @@ export const fonts = body;
  * screens stay visually consistent.
  */
 export const type = {
-  /** Hero display — onboarding titles, "Play. Compete. Win". */
+  /** Hero display - onboarding titles, "Play. Compete. Win". */
   hero: {
     fontFamily: display.extraBold,
     fontSize: 40,
     lineHeight: 44,
     letterSpacing: -0.5,
   },
-  /** Screen titles — "Wallet", "Match History". */
+  /** Screen titles - "Wallet", "Match History". */
   title: {
     fontFamily: display.extraBold,
     fontSize: 30,
@@ -101,7 +101,7 @@ export const type = {
     fontSize: 16,
     lineHeight: 20,
   },
-  /** Uppercase mono eyebrow — "TOTAL BALANCE", "SELECT GAME". */
+  /** Uppercase mono eyebrow - "TOTAL BALANCE", "SELECT GAME". */
   label: {
     fontFamily: mono.medium,
     fontSize: 11,
@@ -115,7 +115,7 @@ export const type = {
     fontSize: 14,
     lineHeight: 18,
   },
-  /** Big mono metric — balances, earnings. */
+  /** Big mono metric - balances, earnings. */
   metric: {
     fontFamily: mono.bold,
     fontSize: 34,

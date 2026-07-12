@@ -1,7 +1,11 @@
 import { ActivityIndicator, Modal, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import {
+  STAKE_ASSET_SYMBOLS,
+  formatStakeAmount,
+} from '@gaming-platform/core';
 
 import Icon from '../components/Icon';
-import { Button } from '../components/ui';
+import { Button, StakeFundingCard } from '../components/ui';
 import { useGameStore } from '../store/game.store';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
@@ -21,82 +25,104 @@ export default function WaitingForPlayersPopup() {
   const minimize = useGameStore(state => state.minimize);
   const cancelWaitingRoom = useGameStore(state => state.cancelWaitingRoom);
 
-  const visible = waitingRoom !== null && !isMinimized;
+  // Securing is only this popup's business for the room CREATOR (they hold a
+  // waitingRoom). The joiner's lobby screen presents its own funding overlay;
+  // if we mounted a second Modal here at the same time, iOS wedges its modal
+  // presentation stack and the whole app stops responding to touches.
+  const showSecuring = isSecuringStakes && waitingRoom !== null;
+  const visible = (waitingRoom !== null && !isMinimized) || showSecuring;
   const roomCode = waitingRoom ? formatRoomCode(waitingRoom.id) : '';
 
   const handleShare = () => {
     if (!waitingRoom) return;
     Share.share({
-      message: `Join my KryptoKombat match — room #${roomCode}`,
+      message: `Join my KryptoKombat match - room #${roomCode}`,
     }).catch(() => {
       // User dismissed the share sheet; nothing to do.
     });
   };
 
+  const stakeSubtitle =
+    waitingRoom && waitingRoom.stakeToken !== null && waitingRoom.stakeAmount
+      ? `${formatStakeAmount(waitingRoom.stakeAmount, waitingRoom.stakeToken)} ${STAKE_ASSET_SYMBOLS[waitingRoom.stakeToken]} on the line`
+      : undefined;
+
+  // ONE Modal for both faces of this popup. When the opponent joins a staked
+  // room we swap the CONTENT to the playful "getting your match ready" card
+  // (no on-chain wording) instead of mounting a different Modal - swapping or
+  // stacking native Modals mid-flight wedges iOS's presentation stack.
   return (
     <Modal
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={minimize}
+      // No minimizing away while stakes are being locked in.
+      onRequestClose={showSecuring ? () => {} : minimize}
     >
-      <Pressable style={styles.overlay} onPress={minimize} />
-      <View style={styles.container} pointerEvents="box-none">
-        <View style={styles.card}>
-          <Pressable
-            onPress={minimize}
-            style={styles.minimizeControl}
-            accessibilityLabel="Minimize"
-          >
-            <Icon type="chevron-down" color={colors.textMuted} size={18} />
-          </Pressable>
-
-          {/* Spinner ring */}
-          <View style={styles.spinnerRing}>
-            <ActivityIndicator color={colors.accent} size="large" />
+      {showSecuring ? (
+        <>
+          <View style={styles.overlay} />
+          <View style={styles.container} pointerEvents="box-none">
+            <StakeFundingCard subtitle={stakeSubtitle} />
           </View>
+        </>
+      ) : (
+        <>
+          <Pressable style={styles.overlay} onPress={minimize} />
+          <View style={styles.container} pointerEvents="box-none">
+            <View style={styles.card}>
+              <Pressable
+                onPress={minimize}
+                style={styles.minimizeControl}
+                accessibilityLabel="Minimize"
+              >
+                <Icon type="chevron-down" color={colors.textMuted} size={18} />
+              </Pressable>
 
-          {waitingRoom ? (
-            <Text style={styles.gameLabel}>
-              {GAME_TYPE_LABELS[waitingRoom.gameType].toUpperCase()}
-            </Text>
-          ) : null}
+              {/* Spinner ring */}
+              <View style={styles.spinnerRing}>
+                <ActivityIndicator color={colors.accent} size="large" />
+              </View>
 
-          <View style={styles.textStack}>
-            <Text style={styles.title}>
-              {isSecuringStakes ? 'Securing stakes…' : 'Waiting for players…'}
-            </Text>
-            <Text style={styles.description}>
-              {isSecuringStakes
-                ? 'Opponent found! Both stakes are being escrowed on-chain — the match starts in a few seconds.'
-                : 'Share the room code with friends for others to join.'}
-            </Text>
-          </View>
+              {waitingRoom ? (
+                <Text style={styles.gameLabel}>
+                  {GAME_TYPE_LABELS[waitingRoom.gameType].toUpperCase()}
+                </Text>
+              ) : null}
 
-          {waitingRoom ? (
-            <View style={styles.roomCodeBox}>
-              <Text style={styles.roomCodeLabel}>ROOM</Text>
-              <Text style={styles.roomCodeText}>#{roomCode}</Text>
+              <View style={styles.textStack}>
+                <Text style={styles.title}>Waiting for players...</Text>
+                <Text style={styles.description}>
+                  Share the room code with friends for others to join.
+                </Text>
+              </View>
+
+              {waitingRoom ? (
+                <View style={styles.roomCodeBox}>
+                  <Text style={styles.roomCodeLabel}>ROOM</Text>
+                  <Text style={styles.roomCodeText}>#{roomCode}</Text>
+                </View>
+              ) : null}
+
+              <View style={styles.actions}>
+                <Button
+                  label="Share"
+                  icon="share"
+                  onPress={handleShare}
+                  style={styles.actionFlex}
+                />
+                <Button
+                  label={isCancelling ? 'Cancelling…' : 'Cancel'}
+                  variant="secondary"
+                  onPress={cancelWaitingRoom}
+                  disabled={isCancelling}
+                  style={styles.actionFlex}
+                />
+              </View>
             </View>
-          ) : null}
-
-          <View style={styles.actions}>
-            <Button
-              label="Share"
-              icon="share"
-              onPress={handleShare}
-              style={styles.actionFlex}
-            />
-            <Button
-              label={isCancelling ? 'Cancelling…' : 'Cancel'}
-              variant="secondary"
-              onPress={cancelWaitingRoom}
-              disabled={isCancelling}
-              style={styles.actionFlex}
-            />
           </View>
-        </View>
-      </View>
+        </>
+      )}
     </Modal>
   );
 }

@@ -1,7 +1,7 @@
 import { bytesToHex } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
 
-/** Re-derives the private key from a mnemonic — same derivation the server uses. */
+/** Re-derives the private key from a mnemonic - same derivation the server uses. */
 export function derivePrivateKeyFromMnemonic(mnemonic: string): string {
   const account = mnemonicToAccount(mnemonic);
   const privateKeyBytes = account.getHdKey().privateKey;

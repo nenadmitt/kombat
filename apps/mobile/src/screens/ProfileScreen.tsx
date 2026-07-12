@@ -6,7 +6,7 @@ import { useCurrentUserStore } from '../store/currentUser.store';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
 
-/** Mocked — no XP/stats/achievements system yet. Values mirror the design. */
+/** Mocked - no XP/stats/achievements system yet. Values mirror the design. */
 const MOCK_LEVEL = 24;
 const MOCK_STATS = [
   { value: '156', label: 'Games' },
@@ -32,7 +32,7 @@ export default function ProfileScreen() {
   const logout = useCurrentUserStore(state => state.logout);
 
   const initial = (username ?? '?').charAt(0).toUpperCase();
-  const referralCode = username ? `${username.toUpperCase()}_REF` : '—';
+  const referralCode = username ? `${username.toUpperCase()}_REF` : '-';
 
   return (
     <Screen scroll>

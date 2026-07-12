@@ -23,7 +23,7 @@ import { revealedToPlaced, toPlacedShips } from './battleship-view';
 /**
  * Multiplayer engine: everything flows through the single app websocket. The
  * board updates only when the server echoes a shot back. There are exactly two
- * players, so "not the opponent" means "me" — which avoids needing our own
+ * players, so "not the opponent" means "me" - which avoids needing our own
  * userId on the client.
  */
 export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
@@ -67,7 +67,7 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
   }, [roomId]);
 
   /** Pull the authoritative snapshot and replace local state wholesale. Used
-   *  on mount and again after every socket reconnect — any events broadcast
+   *  on mount and again after every socket reconnect - any events broadcast
    *  while we were disconnected (shots, turn changes, a finished match) are
    *  covered by the snapshot instead of being lost. */
   const syncState = useCallback(async () => {
@@ -112,7 +112,7 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
 
     void syncState();
 
-    // The server pushes the setup countdown on enter — more reliable than the
+    // The server pushes the setup countdown on enter - more reliable than the
     // REST snapshot, which can be fetched before the match exists.
     const offSetupState = on(BATTLESHIP_EVENTS.setupState, payload => {
       setSetupDeadline((payload as SetupStatePayload).setupDeadline);
@@ -143,7 +143,7 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
           cells: p.cells,
         });
       } else {
-        // My shot echoed back — replay animation + reveal any sinks.
+        // My shot echoed back - replay animation + reveal any sinks.
         setMyShots(prev => [...prev, ...p.cells]);
         actionId.current += 1;
         setAction({ id: actionId.current, kind: p.kind, cells: p.cells });
@@ -256,7 +256,7 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
     turnUserId !== opponentUserId;
 
   return {
-    // A match can end during setup/waiting (forfeit or setup timeout) — jump
+    // A match can end during setup/waiting (forfeit or setup timeout) - jump
     // to the play phase so the result screen renders.
     phase: result ? 'play' : phase,
     submitFleet,
