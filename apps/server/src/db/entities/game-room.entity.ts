@@ -7,6 +7,8 @@ import { GameRoomStatus, GameType, StakeAsset } from '../types/game';
 @Index(['status', 'createdAt'])
 // Serves the 1-open-room-per-user checks (create/close) keyed on userId + status.
 @Index(['userId', 'status'])
+// Serves join-by-code lookups; unique so a code resolves to one room.
+@Index(['code'], { unique: true, where: '"code" IS NOT NULL' })
 export class GameRoomEntity extends BaseEntity {
   // Plain column, no FK relation to users — same choice as WalletEntity.
   @Column({ name: 'user_id', type: 'uuid' })
@@ -14,6 +16,15 @@ export class GameRoomEntity extends BaseEntity {
 
   @Column({ name: 'game_type', type: 'smallint' })
   gameType: GameType;
+
+  /** Short shareable invite code (uppercase, unambiguous alphabet). Nullable
+   *  only so legacy rooms without one don't break; new rooms always get one. */
+  @Column({ name: 'code', type: 'varchar', nullable: true })
+  code: string | null;
+
+  /** Private rooms are hidden from the lobby listing and joinable only by code. */
+  @Column({ name: 'is_private', type: 'boolean', default: false })
+  isPrivate: boolean;
 
   @Column({
     name: 'status',

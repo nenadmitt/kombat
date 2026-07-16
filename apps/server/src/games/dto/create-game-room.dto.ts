@@ -1,4 +1,10 @@
-import { IsEnum, IsNumberString, IsOptional, ValidateIf } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsNumberString,
+  IsOptional,
+  ValidateIf,
+} from 'class-validator';
 
 import { GameType, StakeAsset } from '../../db/types/game';
 
@@ -15,4 +21,9 @@ export class CreateGameRoomDto {
   @ValidateIf(dto => dto.stakeToken !== undefined)
   @IsNumberString()
   stakeAmount?: string;
+
+  /** Private rooms are hidden from the lobby; joinable only via their code. */
+  @IsOptional()
+  @IsBoolean()
+  isPrivate?: boolean;
 }

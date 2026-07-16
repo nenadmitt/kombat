@@ -69,7 +69,7 @@ export default function ResumeMatchModal({ onRejoin }: Props) {
               <View style={styles.roomCodeBox}>
                 <Text style={styles.roomCodeLabel}>ROOM</Text>
                 <Text style={styles.roomCodeText}>
-                  #{formatRoomCode(resumableMatch.id)}
+                  #{resumableMatch.code ?? formatRoomCode(resumableMatch.id)}
                 </Text>
               </View>
 

@@ -1,3 +1,5 @@
+import { randomInt } from 'node:crypto';
+
 import {
   ConflictException,
   ForbiddenException,
@@ -33,6 +35,7 @@ export class GamesService {
     userId: string,
     gameType: GameType,
     stake?: { token: StakeAsset; amount: string } | null,
+    isPrivate = false,
   ): Promise<GameRoomSummary> {
     const existing = await this.dbService.findOpenGameRoomForUser(userId);
     if (existing) {
@@ -59,9 +62,37 @@ export class GamesService {
       playerCount: getPlayerCountForGameType(gameType),
       stakeToken: stake?.token ?? null,
       stakeAmount: stake?.amount ?? null,
+      code: await this.generateUniqueRoomCode(),
+      isPrivate,
     });
 
     return toGameRoomSummary(room);
+  }
+
+  /** Resolve a shared invite code to a still-joinable (Pending) room. */
+  async getRoomByCode(code: string): Promise<GameRoomSummary> {
+    const normalized = code.trim().toUpperCase();
+    const room = normalized
+      ? await this.dbService.findPendingGameRoomByCode(normalized)
+      : null;
+    if (!room) {
+      throw new NotFoundException(
+        'No open room with that code. Check the code and try again.',
+      );
+    }
+    return toGameRoomSummary(room);
+  }
+
+  /** A short unshoulder-surfable code, unique across live rooms (retry on clash). */
+  private async generateUniqueRoomCode(): Promise<string> {
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const code = generateRoomCode();
+      if (!(await this.dbService.findGameRoomByCode(code))) {
+        return code;
+      }
+    }
+    // Astronomically unlikely with a 32^6 space; fail loudly rather than loop.
+    throw new ConflictException('Could not allocate a room code, try again.');
   }
 
   /**
@@ -260,6 +291,20 @@ function toGameRoomSummary(room: GameRoomEntity): GameRoomSummary {
     playerCount: room.playerCount,
     stakeToken: room.stakeToken,
     stakeAmount: room.stakeAmount,
+    code: room.code,
+    isPrivate: room.isPrivate,
     createdAt: room.createdAt.toISOString(),
   };
+}
+
+/** Uppercase, unambiguous alphabet (no I/O/0/1) so codes are easy to read/type. */
+const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const ROOM_CODE_LENGTH = 6;
+
+function generateRoomCode(): string {
+  let code = '';
+  for (let i = 0; i < ROOM_CODE_LENGTH; i++) {
+    code += ROOM_CODE_ALPHABET[randomInt(ROOM_CODE_ALPHABET.length)];
+  }
+  return code;
 }

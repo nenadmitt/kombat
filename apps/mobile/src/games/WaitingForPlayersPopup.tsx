@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
 import {
   STAKE_ASSET_SYMBOLS,
   formatStakeAmount,
@@ -24,6 +26,7 @@ export default function WaitingForPlayersPopup() {
   const isSecuringStakes = useGameStore(state => state.isSecuringStakes);
   const minimize = useGameStore(state => state.minimize);
   const cancelWaitingRoom = useGameStore(state => state.cancelWaitingRoom);
+  const [copied, setCopied] = useState(false);
 
   // Securing is only this popup's business for the room CREATOR (they hold a
   // waitingRoom). The joiner's lobby screen presents its own funding overlay;
@@ -31,12 +34,23 @@ export default function WaitingForPlayersPopup() {
   // presentation stack and the whole app stops responding to touches.
   const showSecuring = isSecuringStakes && waitingRoom !== null;
   const visible = (waitingRoom !== null && !isMinimized) || showSecuring;
-  const roomCode = waitingRoom ? formatRoomCode(waitingRoom.id) : '';
+  // Prefer the real, shareable code; fall back to the derived one for any
+  // legacy room that predates stored codes.
+  const roomCode = waitingRoom
+    ? waitingRoom.code ?? formatRoomCode(waitingRoom.id)
+    : '';
+
+  const handleCopy = () => {
+    if (!roomCode) return;
+    Clipboard.setString(roomCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
 
   const handleShare = () => {
     if (!waitingRoom) return;
     Share.share({
-      message: `Join my KryptoKombat match - room #${roomCode}`,
+      message: `Join my KryptoKombat match - room code ${roomCode}`,
     }).catch(() => {
       // User dismissed the share sheet; nothing to do.
     });
@@ -93,16 +107,32 @@ export default function WaitingForPlayersPopup() {
               <View style={styles.textStack}>
                 <Text style={styles.title}>Waiting for players...</Text>
                 <Text style={styles.description}>
-                  Share the room code with friends for others to join.
+                  {waitingRoom?.isPrivate
+                    ? 'Private room. Share the code so a friend can join.'
+                    : 'Share the room code with friends for others to join.'}
                 </Text>
               </View>
 
               {waitingRoom ? (
-                <View style={styles.roomCodeBox}>
-                  <Text style={styles.roomCodeLabel}>ROOM</Text>
-                  <Text style={styles.roomCodeText}>#{roomCode}</Text>
-                </View>
+                <Pressable
+                  onPress={handleCopy}
+                  accessibilityRole="button"
+                  accessibilityLabel="Copy room code"
+                  style={({ pressed }) => [
+                    styles.roomCodeBox,
+                    pressed && styles.roomCodePressed,
+                  ]}
+                >
+                  <Text style={styles.roomCodeLabel}>CODE</Text>
+                  <Text style={styles.roomCodeText}>{roomCode}</Text>
+                  <Icon
+                    type={copied ? 'check' : 'copy'}
+                    color={copied ? colors.success : colors.accentLight}
+                    size={15}
+                  />
+                </Pressable>
               ) : null}
+              {copied ? <Text style={styles.copiedHint}>Copied to clipboard</Text> : null}
 
               <View style={styles.actions}>
                 <Button
@@ -206,6 +236,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
+  },
+  roomCodePressed: {
+    opacity: 0.7,
+  },
+  copiedHint: {
+    ...type.caption,
+    color: colors.success,
   },
   roomCodeLabel: {
     fontFamily: mono.semiBold,

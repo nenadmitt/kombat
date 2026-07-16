@@ -48,7 +48,16 @@ export class GamesController {
       dto.stakeToken !== undefined && dto.stakeAmount !== undefined
         ? { token: dto.stakeToken, amount: dto.stakeAmount }
         : null,
+      dto.isPrivate ?? false,
     );
+  }
+
+  /** Resolve a shareable invite code to a still-joinable room (private or public). */
+  @Get('by-code/:code')
+  async getRoomByCode(
+    @Param('code') code: string,
+  ): Promise<GameRoomSummary> {
+    return this.gamesService.getRoomByCode(code);
   }
 
   /** Completed matches (result, stake, prize) — the History screen's feed. */
