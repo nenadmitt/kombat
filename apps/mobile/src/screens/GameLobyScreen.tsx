@@ -24,6 +24,7 @@ import { apiClient } from '../api/client';
 import Icon from '../components/Icon';
 import { Button, Card, Chip, StakeFundingOverlay, useConfirm } from '../components/ui';
 import CreateGameRoomModal from '../games/CreateGameRoomModal';
+import JoinByCodeSheet from '../games/JoinByCodeSheet';
 import { GAME_TYPE_LABELS } from '../games/game-type-labels';
 import { GAME_TYPE_SCREENS } from '../games/game-type-screens';
 import { formatRoomCode } from '../games/room-code';
@@ -78,6 +79,7 @@ export default function GameLobyScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+  const [joinCodeVisible, setJoinCodeVisible] = useState(false);
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
   /** A joined staked room whose escrow is in flight - blocks with an overlay
    *  until the server broadcasts stake:funded / stake:failed. */
@@ -240,15 +242,15 @@ export default function GameLobyScreen() {
     }
   };
 
-  // No join-by-code backend yet - point players at the open-rooms list.
-  const handleJoinGame = () => {
-    void confirm({
-      title: 'Join a game',
-      message:
-        'Tap any open room below to join, or ask a friend to share their room so it shows up here.',
-      icon: 'games',
-      mode: 'info',
-    });
+  const handleJoinGame = () => setJoinCodeVisible(true);
+
+  // A code resolved to a room: close the sheet first, then run the normal join
+  // flow once it has dismissed. Presenting the staked-confirm sheet while this
+  // one is still animating away wedges iOS's modal stack (see the overlay
+  // report), so we serialize with a short delay.
+  const handleCodeResolved = (room: GameRoomSummary) => {
+    setJoinCodeVisible(false);
+    setTimeout(() => void handleJoin(room), 350);
   };
 
   return (
@@ -388,7 +390,7 @@ export default function GameLobyScreen() {
             <View style={styles.roomInfo}>
               <Text style={styles.roomName}>{GAME_TYPE_LABELS[item.gameType]}</Text>
               <Text style={styles.roomMeta}>
-                #{formatRoomCode(item.id)} · {item.playerCount}/2 · {timeAgo(item.createdAt)}
+                #{item.code ?? formatRoomCode(item.id)} · {item.playerCount}/2 · {timeAgo(item.createdAt)}
               </Text>
             </View>
             <View style={styles.roomRight}>
@@ -411,6 +413,12 @@ export default function GameLobyScreen() {
       <CreateGameRoomModal
         visible={isCreateModalVisible}
         onClose={() => setIsCreateModalVisible(false)}
+      />
+
+      <JoinByCodeSheet
+        visible={joinCodeVisible}
+        onClose={() => setJoinCodeVisible(false)}
+        onResolved={handleCodeResolved}
       />
 
       {/* Staked-join "getting ready" overlay (funny, no on-chain wording). */}

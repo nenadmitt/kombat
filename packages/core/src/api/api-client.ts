@@ -83,14 +83,31 @@ export class ApiClient {
     gameType: GameType,
     /** Omit for a free game. Amount is base units (see parseStakeAmount). */
     stake?: { token: StakeAsset; amount: string },
+    /** Private rooms are hidden from the lobby; joinable only via their code. */
+    isPrivate = false,
   ): Promise<GameRoomSummary> {
     return this.request(
       'POST',
       '/games/rooms',
       {
         gameType,
+        isPrivate,
         ...(stake ? { stakeToken: stake.token, stakeAmount: stake.amount } : {}),
       },
+      true,
+    );
+  }
+
+  /**
+   * Resolve a shareable room code to its (still-joinable) room. Throws
+   * ApiError 404 when no pending room has that code. The caller then joins via
+   * the normal joinGameRoom(id) path, so staked-room confirmation still runs.
+   */
+  getGameRoomByCode(code: string): Promise<GameRoomSummary> {
+    return this.request(
+      'GET',
+      `/games/rooms/by-code/${encodeURIComponent(code.trim().toUpperCase())}`,
+      undefined,
       true,
     );
   }

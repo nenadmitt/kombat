@@ -153,11 +153,15 @@ export class DbService {
     playerCount: number;
     stakeToken?: StakeAsset | null;
     stakeAmount?: string | null;
+    code?: string | null;
+    isPrivate?: boolean;
   }): Promise<GameRoomEntity> {
     return this.gameRoomRepository.save(
       this.gameRoomRepository.create({
         stakeToken: null,
         stakeAmount: null,
+        code: null,
+        isPrivate: false,
         ...data,
       }),
     );
@@ -168,6 +172,19 @@ export class DbService {
     userId: string,
   ): Promise<GameRoomEntity | null> {
     return this.gameRoomRepository.findOneBy({ id, userId });
+  }
+
+  /** Any room with this code (used to guarantee code uniqueness at creation). */
+  findGameRoomByCode(code: string): Promise<GameRoomEntity | null> {
+    return this.gameRoomRepository.findOneBy({ code });
+  }
+
+  /** A still-joinable room for this code - the join-by-code lookup. */
+  findPendingGameRoomByCode(code: string): Promise<GameRoomEntity | null> {
+    return this.gameRoomRepository.findOneBy({
+      code,
+      status: GameRoomStatus.Pending,
+    });
   }
 
   /**
@@ -248,6 +265,8 @@ export class DbService {
     return this.gameRoomRepository.find({
       where: {
         status: GameRoomStatus.Pending,
+        // Private rooms are invite-only: never surface them in the lobby.
+        isPrivate: false,
         ...(excludeUserId ? { userId: Not(excludeUserId) } : {}),
       },
       order: { createdAt: 'ASC' },

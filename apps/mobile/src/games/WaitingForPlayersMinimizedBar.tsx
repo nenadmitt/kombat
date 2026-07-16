@@ -27,7 +27,9 @@ export default function WaitingForPlayersMinimizedBar() {
         <ActivityIndicator color={colors.accent} size="small" />
         <View style={styles.textGroup}>
           <Text style={styles.title}>Waiting for players…</Text>
-          <Text style={styles.subtitle}>ROOM #{formatRoomCode(waitingRoom.id)}</Text>
+          <Text style={styles.subtitle}>
+            CODE {waitingRoom.code ?? formatRoomCode(waitingRoom.id)}
+          </Text>
         </View>
         <Icon type="chevron-up" color={colors.textMuted} size={18} />
       </Pressable>

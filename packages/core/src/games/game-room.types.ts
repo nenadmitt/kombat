@@ -25,5 +25,9 @@ export type GameRoomSummary = {
   stakeToken: StakeAsset | null;
   /** Per-player stake in base units (decimal string), or null for free. */
   stakeAmount: string | null;
+  /** Short shareable invite code (e.g. "K7P2QX"); null only for legacy rooms. */
+  code: string | null;
+  /** Private rooms are hidden from the lobby and joinable only via their code. */
+  isPrivate: boolean;
   createdAt: string;
 };

@@ -71,7 +71,11 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
               token: asset,
               amount: parseStakeAmount(FEE_CONFIG[asset].fmt(fee), asset),
             };
-      const room = await apiClient.createGameRoom(GameType.NavalBattle, stake);
+      const room = await apiClient.createGameRoom(
+        GameType.NavalBattle,
+        stake,
+        isPrivate,
+      );
       setWaitingRoom(room);
       onClose();
     } catch (err) {
@@ -157,7 +161,7 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
           <View style={styles.privateRow}>
             <View style={styles.privateText}>
               <Text style={styles.privateTitle}>Private Room</Text>
-              <Text style={styles.privateSub}>Invite friends via link</Text>
+              <Text style={styles.privateSub}>Hidden from the lobby, share the code to invite</Text>
             </View>
             <Toggle value={isPrivate} onValueChange={setIsPrivate} />
           </View>
