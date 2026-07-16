@@ -4,32 +4,22 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ApiError,
   GameType,
-  STAKE_ASSET_SYMBOLS,
   StakeAsset,
   parseStakeAmount,
 } from '@gaming-platform/core';
 
 import { apiClient } from '../api/client';
-import Icon, { type IconName } from '../components/Icon';
+import Icon from '../components/Icon';
 import { Button, Stepper, Toggle } from '../components/ui';
 import { useGameStore } from '../store/game.store';
 import { colors, radius, spacing } from '../theme/colors';
-import { display, mono, type } from '../theme/typography';
+import { display, type } from '../theme/typography';
+import AssetSelector, { type AssetChoice } from './AssetSelector';
 
 type Props = {
   visible: boolean;
   onClose: () => void;
 };
-
-/** FREE plus the real stake assets. */
-type AssetChoice = 'free' | StakeAsset;
-
-const ASSET_CHOICES: { key: AssetChoice; label: string; icon: IconName }[] = [
-  { key: 'free', label: 'FREE', icon: 'gift' },
-  { key: StakeAsset.Usdc, label: STAKE_ASSET_SYMBOLS[StakeAsset.Usdc], icon: 'dollar' },
-  { key: StakeAsset.Kombat, label: STAKE_ASSET_SYMBOLS[StakeAsset.Kombat], icon: 'swords' },
-  { key: StakeAsset.Native, label: STAKE_ASSET_SYMBOLS[StakeAsset.Native], icon: 'gem' },
-];
 
 /** Per-asset stepper behavior (human units). */
 const FEE_CONFIG: Record<StakeAsset, { initial: number; step: number; min: number; fmt: (v: number) => string }> = {
@@ -112,27 +102,7 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
 
           {/* Asset */}
           <Text style={[type.label, styles.label]}>Asset</Text>
-          <View style={styles.assetRow}>
-            {ASSET_CHOICES.map(choice => {
-              const active = choice.key === asset;
-              return (
-                <Pressable
-                  key={String(choice.key)}
-                  onPress={() => selectAsset(choice.key)}
-                  style={[styles.assetChip, active && styles.assetChipActive]}
-                >
-                  <Icon
-                    type={choice.icon}
-                    size={16}
-                    color={active ? colors.onAccent : colors.textSecondary}
-                  />
-                  <Text style={[styles.assetText, active && styles.assetTextActive]}>
-                    {choice.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <AssetSelector value={asset} onChange={selectAsset} />
 
           {/* Entry fee (staked games only) */}
           {feeConfig ? (
@@ -153,7 +123,7 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
             </>
           ) : (
             <Text style={styles.feeHint}>
-              Free game - nothing staked, just bragging rights.
+              No stake - nothing wagered, just bragging rights.
             </Text>
           )}
 
@@ -242,33 +212,6 @@ const styles = StyleSheet.create({
     flex: 1,
     ...type.subheading,
     color: colors.textPrimary,
-  },
-  assetRow: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  assetChip: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 5,
-    paddingVertical: 10,
-    borderRadius: radius.sm,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  assetChipActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  assetText: {
-    fontFamily: mono.semiBold,
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  assetTextActive: {
-    fontFamily: mono.bold,
-    color: colors.onAccent,
   },
   feeHint: {
     ...type.caption,

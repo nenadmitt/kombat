@@ -13,7 +13,8 @@ export type BrandIconName =
   | 'solana'
   | 'usdc'
   | 'usdt'
-  | 'eth';
+  | 'eth'
+  | 'kombat';
 
 type Props = {
   type: BrandIconName;
@@ -70,6 +71,24 @@ const RENDERERS: Record<
           d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z"
           fill={color ?? 'url(#sol)'}
         />
+      </>
+    ),
+  }),
+
+  // Platform token has no real-world logo; a faceted gold gem matches the
+  // "◆" glyph + gold tint used for KOMBAT elsewhere.
+  kombat: color => ({
+    viewBox: '0 0 24 24',
+    body: (
+      <>
+        <Path d="M12 1.5 L22 12 L12 22.5 L2 12 Z" fill={color ?? '#FBBF24'} />
+        {!color && (
+          <Path
+            d="M12 1.5 L22 12 L12 12 Z M2 12 L12 12 L12 22.5 Z"
+            fill="#000000"
+            opacity={0.12}
+          />
+        )}
       </>
     ),
   }),
