@@ -61,7 +61,9 @@ export default function ShipCard({
 
 const styles = StyleSheet.create({
   card: {
-    flex: 1,
+    // Sized for a wrapping 3-per-row grid in the tray (30% + gaps).
+    flexGrow: 1,
+    flexBasis: '30%',
     alignItems: 'center',
     gap: spacing.xs,
     backgroundColor: colors.cardBackground,

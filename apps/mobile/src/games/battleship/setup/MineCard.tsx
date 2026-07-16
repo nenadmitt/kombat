@@ -1,130 +1,123 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Canvas } from '@shopify/react-native-skia';
-import { MINES_PER_PLAYER } from '@gaming-platform/core';
+import { MINES_PER_PLAYER, type MinePlacement } from '@gaming-platform/core';
 
 import Icon from '../../../components/Icon';
 import { colors, radius, spacing } from '../../../theme/colors';
-import { fonts } from '../../../theme/typography';
+import { display, fonts } from '../../../theme/typography';
 import { MineMarker } from '../battleship-markers';
-import { MINE_COLOR } from './ship-placement.constants';
+import { COLUMN_LABELS, MINE_COLOR } from './ship-placement.constants';
 
-const ICON_SIZE = 26;
+const ICON_BOX = 40;
 
 type Props = {
-  /** Mines armed so far (0..MINES_PER_PLAYER). */
-  placedCount: number;
+  /** Mines armed so far. */
+  mines: MinePlacement[];
   selected: boolean;
   onSelect: () => void;
 };
 
-/** The single "Mines ×2" card in the "YOUR SHIPS" tray. Tap it to arm mine
- *  placement; tap an armed mine on the grid to remove it. */
-export default function MineCard({ placedCount, selected, onSelect }: Props) {
-  const allPlaced = placedCount >= MINES_PER_PLAYER;
+const cellLabel = (m: MinePlacement) => `${COLUMN_LABELS[m.col]}${m.row + 1}`;
+
+/** The wide "Mines 2×" card in the DEFENSES section below the ship tray.
+ *  Tap it to arm mine placement; tap an armed mine on the grid to remove it. */
+export default function MineCard({ mines, selected, onSelect }: Props) {
+  const left = MINES_PER_PLAYER - mines.length;
+  const allPlaced = left <= 0;
+  const active = selected && !allPlaced;
+  const status = allPlaced
+    ? `Armed at ${mines.map(cellLabel).join(' · ')}`
+    : active
+      ? `Tap a cell · ${left} left`
+      : `${left} left to arm`;
+
   return (
     <Pressable
       disabled={allPlaced}
       onPress={onSelect}
-      style={[styles.card, selected && !allPlaced && styles.cardSelected]}
+      style={[styles.card, active && styles.cardSelected]}
     >
-      {allPlaced ? (
-        <View style={styles.badgeDone}>
-          <Icon type="check" color={colors.success} size={11} />
-        </View>
-      ) : selected ? (
-        <View style={styles.badgeNext}>
-          <Text style={styles.badgeNextText}>PLACE</Text>
-        </View>
-      ) : null}
-
-      <View style={[styles.iconWrapper, allPlaced && styles.placedDim]}>
+      <View style={styles.iconWrap}>
         <Canvas style={styles.iconCanvas}>
           <MineMarker
-            cx={ICON_SIZE / 2}
-            cy={ICON_SIZE / 2}
-            cellSize={ICON_SIZE * 0.8}
+            cx={ICON_BOX / 2}
+            cy={ICON_BOX / 2}
+            cellSize={ICON_BOX * 0.62}
           />
         </Canvas>
       </View>
-      <Text style={styles.label}>Mines {MINES_PER_PLAYER}×</Text>
-      <View style={styles.dotsRow}>
-        {Array.from({ length: MINES_PER_PLAYER }, (_, i) => (
-          <View
-            key={i}
-            style={[
-              styles.dot,
-              {
-                backgroundColor:
-                  i < placedCount ? MINE_COLOR : colors.textFaint,
-              },
-            ]}
-          />
-        ))}
+      <View style={styles.cardText}>
+        <Text style={styles.title}>Mines {MINES_PER_PLAYER}×</Text>
+        <Text style={[styles.status, allPlaced && styles.statusArmed]}>
+          {status}
+        </Text>
       </View>
+      {allPlaced ? (
+        <View style={styles.checkBadge}>
+          <Icon type="check" color={colors.background} size={12} />
+        </View>
+      ) : active ? (
+        <Text style={styles.placeBadge}>PLACE</Text>
+      ) : null}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
     backgroundColor: colors.cardBackground,
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    borderRadius: radius.chip,
-    paddingTop: 22,
-    paddingBottom: 12,
-    paddingHorizontal: spacing.xs,
+    borderRadius: radius.card,
+    padding: spacing.sm,
   },
   cardSelected: {
     borderColor: MINE_COLOR,
     backgroundColor: 'rgba(251, 191, 36, 0.08)',
   },
-  badgeDone: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-  },
-  badgeNext: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    borderWidth: 1,
-    borderColor: MINE_COLOR,
+  iconWrap: {
+    width: ICON_BOX,
+    height: ICON_BOX,
     borderRadius: radius.chip,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-  },
-  badgeNextText: {
-    fontSize: 8,
-    fontFamily: fonts.extraBold,
-    color: MINE_COLOR,
-  },
-  iconWrapper: {
-    height: 20,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
     justifyContent: 'center',
   },
   iconCanvas: {
-    width: ICON_SIZE,
-    height: ICON_SIZE,
+    width: ICON_BOX,
+    height: ICON_BOX,
   },
-  placedDim: {
-    opacity: 0.35,
+  cardText: {
+    flex: 1,
+    gap: 2,
   },
-  label: {
-    fontSize: 11,
-    fontFamily: fonts.semiBold,
+  title: {
+    fontSize: 15,
+    fontFamily: display.semiBold,
     color: colors.textPrimary,
   },
-  dotsRow: {
-    flexDirection: 'row',
-    gap: 3,
+  status: {
+    fontSize: 12,
+    color: colors.textMuted,
   },
-  dot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+  statusArmed: {
+    color: colors.success,
+  },
+  placeBadge: {
+    fontSize: 10,
+    fontFamily: fonts.extraBold,
+    color: MINE_COLOR,
+    letterSpacing: 1,
+  },
+  checkBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.success,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

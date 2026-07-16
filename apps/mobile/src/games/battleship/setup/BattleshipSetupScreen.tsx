@@ -1,5 +1,12 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Canvas, Fill, RadialGradient, vec } from '@shopify/react-native-skia';
 import { MINES_PER_PLAYER, type MinePlacement } from '@gaming-platform/core';
@@ -242,7 +249,10 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
         </Pressable>
       </View>
 
-      <View style={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.title}>Deploy Your Fleet</Text>
         <Text style={styles.subtitle}>
           Select a ship or your mines below, then tap or drag on the grid to
@@ -333,7 +343,7 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
         )}
 
         <View style={styles.fleetPanel}>
-          <Text style={styles.sectionLabel}>YOUR FLEET & MINES</Text>
+          <Text style={styles.sectionLabel}>YOUR FLEET</Text>
           <View style={styles.tray}>
             {SHIPS.map(ship => (
               <ShipCard
@@ -345,12 +355,20 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
                 onRemove={() => handleRemove(ship.id)}
               />
             ))}
-            <MineCard
-              placedCount={mines.length}
-              selected={placingMine}
-              onSelect={() => handleSelect(MINES_ID)}
-            />
           </View>
+
+          <Text style={[styles.sectionLabel, styles.minesLabel]}>
+            DEFENSES · SEA MINES
+          </Text>
+          <Text style={styles.minesBlurb}>
+            An enemy shot that strikes a mine blasts a 3×3 area of their own
+            fleet and ends their turn.
+          </Text>
+          <MineCard
+            mines={mines}
+            selected={placingMine}
+            onSelect={() => handleSelect(MINES_ID)}
+          />
         </View>
 
         <View style={styles.actionsRow}>
@@ -372,7 +390,7 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
             </GradientView>
           </Pressable>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -424,7 +442,6 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   content: {
-    flex: 1,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
   },
@@ -529,7 +546,18 @@ const styles = StyleSheet.create({
   },
   tray: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.xs,
+  },
+  minesLabel: {
+    marginTop: spacing.sm,
+    marginBottom: 2,
+  },
+  minesBlurb: {
+    fontSize: 12,
+    color: colors.textMuted,
+    lineHeight: 16,
+    marginBottom: spacing.xs,
   },
   actionsRow: {
     flexDirection: 'row',

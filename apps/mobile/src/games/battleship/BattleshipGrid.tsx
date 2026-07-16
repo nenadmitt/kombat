@@ -178,6 +178,9 @@ function BattleshipGrid({
         onCommitRef.current?.(row, col, !movedRef.current);
         setHover(null);
       },
+      // Keep the gesture when an enclosing ScrollView asks to take over -
+      // otherwise dragging a ship down the board scrolls the screen instead.
+      onPanResponderTerminationRequest: () => false,
       onPanResponderTerminate: () => setHover(null),
     }),
   ).current;
