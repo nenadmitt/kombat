@@ -20,7 +20,9 @@ import {
   formatStakeAmount,
   type BattleshipEndReason,
   type FireKind,
+  type MinePlacement,
   type StakeAsset,
+  type VolleyStats,
 } from '@gaming-platform/core';
 
 import Icon from '../../../components/Icon';
@@ -37,19 +39,27 @@ import {
   COLUMN_LABELS,
   GRID,
   LABEL_GUTTER,
+  MINE_COLOR,
   ROW_LABELS,
   SHIPS,
 } from '../setup/ship-placement.constants';
 import type { Shot } from '../setup/ship-placement.types';
 import PowerupBar from './PowerupBar';
 import TurnTimer from './TurnTimer';
-import { bombCells, POWERUP_COST, type PowerupKind } from './powerups';
+import {
+  bombCells,
+  POWERUP_COSTS,
+  POWERUP_MAX_USES,
+  type PowerupKind,
+} from './powerups';
 
 type Mode = 'attack' | 'fleet';
 
 export type BattleshipPlayScreenProps = {
   /** My own placed fleet (fleet view). */
   myFleet: PlacedShip[];
+  /** My still-armed sea mines (fleet view). */
+  myMines: MinePlacement[];
   /** Shots I have fired (attack view markers). */
   myShots: Shot[];
   /** Shots the opponent has fired at me (fleet view markers). */
@@ -58,6 +68,10 @@ export type BattleshipPlayScreenProps = {
   revealedEnemyShips: PlacedShip[];
   /** My charge points. */
   points: number;
+  /** My power-up uses so far (each kind capped per match). */
+  powerupsUsed: Record<PowerupKind, number>;
+  /** My fire-action tally (drives the result screen's accuracy). */
+  volleys: VolleyStats;
   /** Whether it's my turn (gates FIRE + hint treatment). */
   myTurn: boolean;
   /** Animation batch for my most recent shot (attack view). */
@@ -146,10 +160,13 @@ const RESULT_COPY: Record<
  */
 export default function BattleshipPlayScreen({
   myFleet,
+  myMines,
   myShots,
   opponentShots,
   revealedEnemyShips,
   points,
+  powerupsUsed,
+  volleys,
   myTurn,
   action,
   opponentAction,
@@ -212,6 +229,22 @@ export default function BattleshipPlayScreen({
     return () => clearTimeout(timer);
   }, [myTurn]);
 
+  // A mine blast yanks attention straight to the board it tore up, so the
+  // explosion animation is actually seen (the regular follow-the-action switch
+  // above would arrive after it finished).
+  useEffect(() => {
+    if (opponentAction?.kind === 'mine') {
+      setMode('fleet');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opponentAction?.id]);
+  useEffect(() => {
+    if (action?.kind === 'mine') {
+      setMode('attack');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [action?.id]);
+
   const shotAt = useMemo(
     () => new Set(myShots.map(s => `${s.row},${s.col}`)),
     [myShots],
@@ -226,7 +259,7 @@ export default function BattleshipPlayScreen({
     : null;
 
   const handleArm = (kind: PowerupKind) => {
-    if (points < POWERUP_COST) {
+    if (points < POWERUP_COSTS[kind] || powerupsUsed[kind] >= POWERUP_MAX_USES) {
       return;
     }
     setArmed(prev => (prev === kind ? null : kind));
@@ -273,11 +306,13 @@ export default function BattleshipPlayScreen({
   const canFire =
     myTurn &&
     mode === 'attack' &&
-    (armed ? powerupTarget !== null && points >= POWERUP_COST : selected !== null);
+    (armed
+      ? powerupTarget !== null && points >= POWERUP_COSTS[armed]
+      : selected !== null);
 
   const handleFire = () => {
     if (armed && powerupTarget) {
-      if (points < POWERUP_COST) {
+      if (points < POWERUP_COSTS[armed]) {
         return;
       }
       onFire(armed, powerupTarget.row, powerupTarget.col);
@@ -311,8 +346,11 @@ export default function BattleshipPlayScreen({
   const handleHeaderBack = onExit;
 
   if (result) {
-    const shotsFired = myShots.length;
-    const hitsLanded = myShots.filter(s => s.result === 'hit').length;
+    // Accuracy is per fire action: a volley (single shot / torpedo / bomb)
+    // counts as a hit when at least one of its cells struck a ship, so a
+    // bomb's splash misses don't drag the stat down.
+    const shotsFired = volleys.fired;
+    const hitsLanded = volleys.hit;
     const accuracy = shotsFired ? Math.round((hitsLanded / shotsFired) * 100) : 0;
     const stats = [
       { value: `${shotsFired}`, label: 'SHOTS FIRED' },
@@ -555,6 +593,7 @@ export default function BattleshipPlayScreen({
                 boardSize={boardSize}
                 cell={cell}
                 placedShips={myFleet}
+                mines={myMines}
                 shots={opponentShots}
                 action={opponentAction}
               />
@@ -567,7 +606,11 @@ export default function BattleshipPlayScreen({
           <View
             style={[
               styles.banner,
-              bannerShot.result === 'hit' ? styles.bannerHit : styles.bannerMiss,
+              bannerShot.result === 'hit'
+                ? styles.bannerHit
+                : bannerShot.result === 'mine'
+                  ? styles.bannerMine
+                  : styles.bannerMiss,
             ]}
           >
             <View
@@ -577,20 +620,31 @@ export default function BattleshipPlayScreen({
                   backgroundColor:
                     bannerShot.result === 'hit'
                       ? colors.danger
-                      : colors.textMuted,
+                      : bannerShot.result === 'mine'
+                        ? MINE_COLOR
+                        : colors.textMuted,
                 },
               ]}
             />
             <Text style={styles.bannerText}>
-              {bannerShot.result === 'hit' ? 'DIRECT HIT' : 'MISS'} ·{' '}
-              {cellLabel(bannerShot.row, bannerShot.col)}
+              {bannerShot.result === 'hit'
+                ? 'DIRECT HIT'
+                : bannerShot.result === 'mine'
+                  ? 'MINE STRUCK'
+                  : 'MISS'}{' '}
+              · {cellLabel(bannerShot.row, bannerShot.col)}
             </Text>
           </View>
         )}
 
         {/* Power-ups (attack only) */}
         {isAttack && (
-          <PowerupBar points={points} armed={armed} onArm={handleArm} />
+          <PowerupBar
+            points={points}
+            used={powerupsUsed}
+            armed={armed}
+            onArm={handleArm}
+          />
         )}
 
         {/* Enemy fleet remaining */}
@@ -874,6 +928,10 @@ const styles = StyleSheet.create({
   bannerMiss: {
     borderColor: colors.cardBorder,
     backgroundColor: colors.cardBackground,
+  },
+  bannerMine: {
+    borderColor: 'rgba(251, 191, 36, 0.5)',
+    backgroundColor: 'rgba(251, 191, 36, 0.1)',
   },
   bannerDot: {
     width: 8,

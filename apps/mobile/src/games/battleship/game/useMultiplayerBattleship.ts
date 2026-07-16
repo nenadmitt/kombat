@@ -4,6 +4,8 @@ import {
   type BattleshipEndReason,
   type EndedPayload,
   type FleetPlacements,
+  type MinePlacement,
+  type PowerupKind,
   type PresencePayload,
   type RevealedShip,
   type SetupStatePayload,
@@ -11,6 +13,7 @@ import {
   type ShotPayload,
   type StartPayload,
   type TurnTimeoutPayload,
+  type VolleyStats,
   sunkShipIds,
 } from '@gaming-platform/core';
 
@@ -34,10 +37,15 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
 
   const [phase, setPhase] = useState<EnginePhase>('setup');
   const [myPlacements, setMyPlacements] = useState<FleetPlacements | null>(null);
+  const [myMines, setMyMines] = useState<MinePlacement[]>([]);
   const [myShots, setMyShots] = useState<Shot[]>([]);
   const [opponentShots, setOpponentShots] = useState<Shot[]>([]);
   const [revealed, setRevealed] = useState<RevealedShip[]>([]);
   const [pointsMap, setPointsMap] = useState<Record<string, number>>({});
+  const [powerupsUsedMap, setPowerupsUsedMap] = useState<
+    Record<string, Record<PowerupKind, number>>
+  >({});
+  const [volleysMap, setVolleysMap] = useState<Record<string, VolleyStats>>({});
   const [turnUserId, setTurnUserId] = useState<string | null>(null);
   const [turnDeadline, setTurnDeadline] = useState<number | null>(null);
   const [setupDeadline, setSetupDeadline] = useState<number | null>(null);
@@ -77,10 +85,13 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
         return;
       }
       setMyPlacements(state.myFleet);
+      setMyMines(state.myMines ?? []);
       setMyShots(state.myShots);
       setOpponentShots(state.opponentShots);
       setRevealed(state.revealedOpponentShips);
       setPointsMap(state.points);
+      setPowerupsUsedMap(state.powerupsUsed ?? {});
+      setVolleysMap(state.volleys ?? {});
       setTurnUserId(state.turnUserId);
       setTurnDeadline(state.turnDeadline);
       // Normalize a missing field (older server build) to null so the
@@ -126,7 +137,11 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
     });
     const offShot = on(BATTLESHIP_EVENTS.shot, payload => {
       const p = payload as ShotPayload;
+      const mineBlasts = p.mineBlasts ?? [];
+      const blastCells = mineBlasts.flatMap(b => b.cells);
       setPointsMap(p.points);
+      setPowerupsUsedMap(p.powerupsUsed ?? {});
+      setVolleysMap(p.volleys ?? {});
       setTurnUserId(p.nextTurnUserId);
       setTurnDeadline(p.turnDeadline);
       if (p.winnerUserId) {
@@ -142,6 +157,26 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
           kind: p.kind,
           cells: p.cells,
         });
+        if (mineBlasts.length > 0) {
+          // The opponent struck MY mine(s): each blast tears into their own
+          // board - free damage (and reveals) on my attack view - and the
+          // struck mines are spent.
+          setMyShots(prev => [...prev, ...blastCells]);
+          const blastSunk = mineBlasts.flatMap(b => b.sunkShips);
+          if (blastSunk.length > 0) {
+            setRevealed(prev => [...prev, ...blastSunk]);
+          }
+          setMyMines(prev =>
+            prev.filter(
+              m =>
+                !mineBlasts.some(
+                  b => b.center.row === m.row && b.center.col === m.col,
+                ),
+            ),
+          );
+          actionId.current += 1;
+          setAction({ id: actionId.current, kind: 'mine', cells: blastCells });
+        }
       } else {
         // My shot echoed back - replay animation + reveal any sinks.
         setMyShots(prev => [...prev, ...p.cells]);
@@ -149,6 +184,17 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
         setAction({ id: actionId.current, kind: p.kind, cells: p.cells });
         if (p.sunkShips.length > 0) {
           setRevealed(prev => [...prev, ...p.sunkShips]);
+        }
+        if (mineBlasts.length > 0) {
+          // I struck the opponent's mine(s): each blast tears into MY board,
+          // arriving as opponent shots on my fleet view.
+          setOpponentShots(prev => [...prev, ...blastCells]);
+          opponentActionId.current += 1;
+          setOpponentAction({
+            id: opponentActionId.current,
+            kind: 'mine',
+            cells: blastCells,
+          });
         }
       }
     });
@@ -202,9 +248,10 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
   }, [status, roomId, emit, syncState]);
 
   const submitFleet = useCallback(
-    (placements: FleetPlacements) => {
+    (placements: FleetPlacements, mines: MinePlacement[]) => {
       setMyPlacements(placements);
-      emit(BATTLESHIP_EVENTS.ready, { roomId, placements });
+      setMyMines(mines);
+      emit(BATTLESHIP_EVENTS.ready, { roomId, placements, mines });
       // The authoritative flip to "play" (with turn info) comes from `start`.
       setPhase('waiting');
     },
@@ -240,6 +287,18 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
     );
     return mine ? mine[1] : 0;
   }, [pointsMap, opponentUserId]);
+  const myPowerupsUsed = useMemo(() => {
+    const mine = Object.entries(powerupsUsedMap).find(
+      ([id]) => id !== opponentUserId,
+    );
+    return mine ? mine[1] : { torpedo: 0, bomb: 0 };
+  }, [powerupsUsedMap, opponentUserId]);
+  const myVolleys = useMemo(() => {
+    const mine = Object.entries(volleysMap).find(
+      ([id]) => id !== opponentUserId,
+    );
+    return mine ? mine[1] : { fired: 0, hit: 0 };
+  }, [volleysMap, opponentUserId]);
 
   const result: 'win' | 'lose' | null = winnerUserId
     ? winnerUserId === opponentUserId
@@ -264,10 +323,13 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
     setupDeadline,
     playProps: {
       myFleet,
+      myMines,
       myShots,
       opponentShots,
       revealedEnemyShips,
       points: myPoints,
+      powerupsUsed: myPowerupsUsed,
+      volleys: myVolleys,
       myTurn,
       action,
       opponentAction,

@@ -1,8 +1,11 @@
 import type {
   Cell,
+  FireKind,
   FleetPlacements,
+  MinePlacement,
   Orientation,
   Placement,
+  PowerupKind,
   ShipSpec,
   Shot,
   ShotResult,
@@ -11,21 +14,31 @@ import type {
 /** Board is GRID x GRID. */
 export const GRID = 10;
 
-/** The standard fleet — shared by every Battleship mode. */
+/** The standard fleet - shared by every Battleship mode. */
 export const FLEET: ShipSpec[] = [
-  { id: 'battleship', label: 'Battleship', size: 5 },
-  { id: 'destroyer', label: 'Destroyer', size: 4 },
-  { id: 'frigate', label: 'Frigate', size: 3 },
-  { id: 'scout', label: 'Scout', size: 2 },
+  { id: 'carrier', label: 'Carrier', size: 5 },
+  { id: 'battleship', label: 'Battleship', size: 4 },
+  { id: 'cruiser', label: 'Cruiser', size: 3 },
+  { id: 'submarine', label: 'Submarine', size: 3 },
+  { id: 'destroyer', label: 'Destroyer', size: 2 },
 ];
 
 export const SHIP_BY_ID: Record<string, ShipSpec> = Object.fromEntries(
   FLEET.map(s => [s.id, s]),
 );
 
+/** Sea mines each player arms on their own board during setup. */
+export const MINES_PER_PLAYER = 2;
+
 /** Charge economy: land a hit to earn a point, spend points to fire a power-up. */
 export const POINTS_PER_HIT = 1;
-export const POWERUP_COST = 3;
+/** What each power-up costs in charge points. */
+export const POWERUP_COSTS: Record<PowerupKind, number> = {
+  torpedo: 3,
+  bomb: 4,
+};
+/** How many times each power-up kind may be fired per match. */
+export const POWERUP_MAX_USES = 2;
 /** Points that fill the charge bar completely (it can still hold more). */
 export const CHARGE_BAR_MAX = 9;
 
@@ -94,12 +107,25 @@ export function shipAt(
   return null;
 }
 
-/** Resolve a single shot against a fleet. */
+/** Whether an (untriggered) mine sits at a cell. */
+export function mineAt(
+  row: number,
+  col: number,
+  mines: MinePlacement[],
+): boolean {
+  return mines.some(m => m.row === row && m.col === col);
+}
+
+/** Resolve a single shot against a fleet and its defending mines. */
 export function resolveShot(
   row: number,
   col: number,
   fleet: FleetPlacements,
+  mines: MinePlacement[] = [],
 ): ShotResult {
+  if (mineAt(row, col, mines)) {
+    return 'mine';
+  }
   return shipAt(row, col, fleet) ? 'hit' : 'miss';
 }
 
@@ -120,15 +146,20 @@ export function sunkShipIds(fleet: FleetPlacements, shots: Shot[]): Set<string> 
 
 /**
  * Torpedo path along a row: it marches from the left edge, missing on open
- * water and stopping the instant it strikes a ship (that cell is a hit). If
- * the row holds no ships, it passes straight through — every cell a miss.
+ * water and stopping the instant it strikes a ship (hit) or a mine (which it
+ * sets off). If the row holds neither, it passes straight through - every
+ * cell a miss.
  */
-export function torpedoCells(row: number, fleet: FleetPlacements): Shot[] {
+export function torpedoCells(
+  row: number,
+  fleet: FleetPlacements,
+  mines: MinePlacement[] = [],
+): Shot[] {
   const cells: Shot[] = [];
   for (let col = 0; col < GRID; col++) {
-    const isShip = shipAt(row, col, fleet) !== null;
-    cells.push({ row, col, result: isShip ? 'hit' : 'miss' });
-    if (isShip) {
+    const result = resolveShot(row, col, fleet, mines);
+    cells.push({ row, col, result });
+    if (result !== 'miss') {
       break;
     }
   }
@@ -137,12 +168,13 @@ export function torpedoCells(row: number, fleet: FleetPlacements): Shot[] {
 
 /**
  * Bomb blast: a 3x3 block centered on (row, col), clamped so it stays fully on
- * the board when detonated near an edge.
+ * the board when detonated near an edge. Any mine inside the block is set off.
  */
 export function bombCells(
   row: number,
   col: number,
   fleet: FleetPlacements,
+  mines: MinePlacement[] = [],
 ): Shot[] {
   const clamp = (v: number) => Math.max(0, Math.min(v, GRID - BOMB_SIZE));
   const r0 = clamp(row - 1);
@@ -150,10 +182,38 @@ export function bombCells(
   const cells: Shot[] = [];
   for (let r = r0; r < r0 + BOMB_SIZE; r++) {
     for (let c = c0; c < c0 + BOMB_SIZE; c++) {
-      cells.push({ row: r, col: c, result: shipAt(r, c, fleet) ? 'hit' : 'miss' });
+      cells.push({ row: r, col: c, result: resolveShot(r, c, fleet, mines) });
     }
   }
   return cells;
+}
+
+/** Resolve any fire action (single / torpedo / bomb) against a fleet and its
+ *  defending mines. */
+export function resolveFire(
+  kind: FireKind,
+  row: number,
+  col: number,
+  fleet: FleetPlacements,
+  mines: MinePlacement[] = [],
+): Shot[] {
+  return kind === 'single'
+    ? [{ row, col, result: resolveShot(row, col, fleet, mines) }]
+    : kind === 'torpedo'
+      ? torpedoCells(row, fleet, mines)
+      : bombCells(row, col, fleet, mines);
+}
+
+/**
+ * A triggered mine's blast against its victim's own board: a 3x3 bomb block
+ * centered on the mine's coordinates, mirrored onto the victim's grid. The
+ * victim's own remaining mines don't chain - only ships take damage.
+ */
+export function mineBlastCells(
+  mine: MinePlacement,
+  victimFleet: FleetPlacements,
+): Shot[] {
+  return bombCells(mine.row, mine.col, victimFleet);
 }
 
 /**
@@ -180,6 +240,57 @@ export function isValidFleet(placements: FleetPlacements): boolean {
     }
   }
   return true;
+}
+
+/**
+ * A legal mine set: exactly MINES_PER_PLAYER mines, each in-bounds, distinct,
+ * and on open water (not under any ship of the accompanying fleet).
+ */
+export function isValidMines(
+  mines: MinePlacement[],
+  placements: FleetPlacements,
+): boolean {
+  if (mines.length !== MINES_PER_PLAYER) {
+    return false;
+  }
+  const occupied = buildOccupied(placements);
+  const seen = new Set<string>();
+  for (const { row, col } of mines) {
+    const key = `${row},${col}`;
+    if (
+      !Number.isInteger(row) ||
+      !Number.isInteger(col) ||
+      row < 0 ||
+      row >= GRID ||
+      col < 0 ||
+      col >= GRID ||
+      occupied.has(key) ||
+      seen.has(key)
+    ) {
+      return false;
+    }
+    seen.add(key);
+  }
+  return true;
+}
+
+/** Random legal mines for a fleet (open-water cells, no duplicates). */
+export function randomMines(placements: FleetPlacements): MinePlacement[] {
+  const occupied = buildOccupied(placements);
+  const open: MinePlacement[] = [];
+  for (let row = 0; row < GRID; row++) {
+    for (let col = 0; col < GRID; col++) {
+      if (!occupied.has(`${row},${col}`)) {
+        open.push({ row, col });
+      }
+    }
+  }
+  const mines: MinePlacement[] = [];
+  while (mines.length < MINES_PER_PLAYER && open.length > 0) {
+    const idx = Math.floor(Math.random() * open.length);
+    mines.push(open.splice(idx, 1)[0]!);
+  }
+  return mines;
 }
 
 /** A random legal fleet (retries each ship until it fits). */

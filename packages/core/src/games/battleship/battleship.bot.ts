@@ -1,14 +1,18 @@
 import {
-  bombCells,
-  type FleetPlacements,
   GRID,
   POINTS_PER_HIT,
-  POWERUP_COST,
+  POWERUP_COSTS,
+  POWERUP_MAX_USES,
+  bombCells,
   resolveShot,
-  type Shot,
   shipAt,
   sunkShipIds,
-} from '@gaming-platform/core';
+} from './battleship.rules';
+import type {
+  FleetPlacements,
+  MinePlacement,
+  Shot,
+} from './battleship.types';
 
 /** How the bot decided to aim: chasing a wounded ship vs. searching. */
 type AimMode = 'hunt' | 'target';
@@ -107,21 +111,30 @@ function chooseAim(fleet: FleetPlacements, shots: Shot[]): Aim | null {
 }
 
 /**
- * The single-player demo opponent. It has full knowledge of the player's fleet
- * (this is a local bot, not a networked player) and resolves its own shots.
+ * A scripted Battleship opponent. It has full knowledge of the target fleet
+ * (it is a local bot, not a networked player) and resolves its own shots.
  * It hunts for ships, chases the ones it wounds, and spends its charge on a
  * bomb to finish a wounded ship once it can afford one.
  */
 export class BattleshipBot {
   /** Charge earned from hits; never shown, spent on power-ups. */
   private points = 0;
+  /** Bombs dropped so far (capped like a real player's power-ups). */
+  private bombsUsed = 0;
 
   /**
-   * Decide and resolve the bot's next shot against `fleet`, given the shots it
-   * has already fired. Returns the newly struck cells (with results) and the
-   * weapon used, or null when the board is exhausted. Updates internal charge.
+   * Decide and resolve the bot's next shot against `fleet` (defended by the
+   * target player's still-armed `mines`), given the shots it has already
+   * fired. Returns the newly struck cells (with results) and the weapon used,
+   * or null when the board is exhausted. Updates internal charge. A struck
+   * mine shows up as a 'mine' cell - the caller resolves the blast against
+   * the bot's own board.
    */
-  decideMove(fleet: FleetPlacements, priorShots: Shot[]): BotMove | null {
+  decideMove(
+    fleet: FleetPlacements,
+    priorShots: Shot[],
+    mines: MinePlacement[] = [],
+  ): BotMove | null {
     const aim = chooseAim(fleet, priorShots);
     if (!aim) {
       return null;
@@ -129,14 +142,17 @@ export class BattleshipBot {
 
     // Spend a power-up to press an advantage: once charged, a bomb dropped on a
     // wounded ship tends to finish it and expose its neighbors.
-    const usePower = aim.mode === 'target' && this.points >= POWERUP_COST;
+    const usePower =
+      aim.mode === 'target' &&
+      this.points >= POWERUP_COSTS.bomb &&
+      this.bombsUsed < POWERUP_MAX_USES;
     const resolved = usePower
-      ? bombCells(aim.row, aim.col, fleet)
+      ? bombCells(aim.row, aim.col, fleet, mines)
       : [
           {
             row: aim.row,
             col: aim.col,
-            result: resolveShot(aim.row, aim.col, fleet),
+            result: resolveShot(aim.row, aim.col, fleet, mines),
           },
         ];
 
@@ -147,7 +163,8 @@ export class BattleshipBot {
     }
 
     if (usePower) {
-      this.points -= POWERUP_COST;
+      this.points -= POWERUP_COSTS.bomb;
+      this.bombsUsed += 1;
     }
     this.points += cells.filter(s => s.result === 'hit').length * POINTS_PER_HIT;
 
@@ -157,5 +174,6 @@ export class BattleshipBot {
   /** Clear the bot's charge for a fresh match. */
   reset() {
     this.points = 0;
+    this.bombsUsed = 0;
   }
 }

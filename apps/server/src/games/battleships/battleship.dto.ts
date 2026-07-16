@@ -1,14 +1,19 @@
-import { IsIn, IsInt, IsObject, IsUUID, Max, Min } from 'class-validator';
-import { FireKind, FleetPlacements } from '@gaming-platform/core';
+import { IsArray, IsIn, IsInt, IsObject, IsUUID, Max, Min } from 'class-validator';
+import { FireKind, FleetPlacements, MinePlacement } from '@gaming-platform/core';
 
 export class BattleshipReadyDto {
   @IsUUID()
   roomId: string;
 
-  // Structural check only — the fleet's legality (all ships, in-bounds,
+  // Structural check only - the fleet's legality (all ships, in-bounds,
   // non-overlapping) is validated by isValidFleet in the match service.
   @IsObject()
   placements: FleetPlacements;
+
+  // Structural check only - mine legality (count, in-bounds, off ships) is
+  // validated by isValidMines in the match service.
+  @IsArray()
+  mines: MinePlacement[];
 }
 
 export class BattleshipFireDto {

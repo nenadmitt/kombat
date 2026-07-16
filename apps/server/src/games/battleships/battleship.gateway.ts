@@ -91,6 +91,7 @@ export class BattleshipGateway {
         dto.roomId,
         userId,
         dto.placements,
+        dto.mines,
       );
       await this.markOnline(client, dto.roomId, userId);
       const channel = gameChannel(dto.roomId);

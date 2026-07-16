@@ -5,9 +5,45 @@ const HIT_FILL = 'rgba(255, 84, 104, 0.9)';
 const HIT_GLOW = 'rgba(255, 84, 104, 0.55)';
 const MISS_DOT = 'rgba(148, 163, 184, 0.7)';
 const TORPEDO = '#FBBF24';
+const MINE_GLOW = 'rgba(251, 191, 36, 0.45)';
 const CELL_RADIUS = 6;
 
-export type MarkerKind = 'miss' | 'hit' | 'sunk';
+export type MarkerKind = 'miss' | 'hit' | 'sunk' | 'mine';
+
+type MineMarkerProps = {
+  cx: number;
+  cy: number;
+  cellSize: number;
+  opacity?: number;
+  /** Override the amber (e.g. danger red for an invalid placement hover). */
+  color?: string;
+};
+
+/** A sea mine: a glowing amber starburst - a core with four long orthogonal
+ *  arms and four short diagonal nubs (the "puffy star" from the design). */
+export function MineMarker({ cx, cy, cellSize, opacity, color }: MineMarkerProps) {
+  const fill = color ?? TORPEDO;
+  const core = cellSize * 0.16;
+  const arm = cellSize * 0.3;
+  const nub = cellSize * 0.19;
+  const d = nub * Math.SQRT1_2;
+  return (
+    <Group opacity={opacity}>
+      {!color && (
+        <Circle cx={cx} cy={cy} r={cellSize * 0.32} color={MINE_GLOW}>
+          <BlurMask blur={6} style="normal" />
+        </Circle>
+      )}
+      {/* orthogonal arms */}
+      <Line p1={vec(cx - arm, cy)} p2={vec(cx + arm, cy)} color={fill} strokeWidth={core} strokeCap="round" />
+      <Line p1={vec(cx, cy - arm)} p2={vec(cx, cy + arm)} color={fill} strokeWidth={core} strokeCap="round" />
+      {/* diagonal nubs */}
+      <Line p1={vec(cx - d, cy - d)} p2={vec(cx + d, cy + d)} color={fill} strokeWidth={core} strokeCap="round" />
+      <Line p1={vec(cx - d, cy + d)} p2={vec(cx + d, cy - d)} color={fill} strokeWidth={core} strokeCap="round" />
+      <Circle cx={cx} cy={cy} r={core} color={fill} />
+    </Group>
+  );
+}
 
 type Geo = {
   cellX: number;
@@ -27,10 +63,11 @@ type AnimatedShotProps = Geo & {
 };
 
 /**
- * A single hit/miss/sunk marker whose entrance is driven by a shared timeline:
+ * A single hit/miss/sunk/mine marker whose entrance is driven by a shared timeline:
  * - miss: a grey X cross-fades into the settled grey dot.
  * - hit: an oversized glowing red circle springs back to normal size.
  * - sunk: the red square scales in, then the white X fades on top.
+ * - mine: the revealed starburst springs back from oversized (it just went off).
  * A settled marker is just this with `progress` pinned at 1.
  */
 export function AnimatedShot({
@@ -103,6 +140,14 @@ export function AnimatedShot({
     );
   }
 
+  if (kind === 'mine') {
+    return (
+      <Group origin={origin} transform={hitScale}>
+        <MineMarker cx={cx} cy={cy} cellSize={cellSize} />
+      </Group>
+    );
+  }
+
   return (
     <Group>
       <Group origin={origin} transform={squareScale}>
@@ -157,6 +202,37 @@ export function BombBlast({ cx, cy, cellSize, progress }: BombBlastProps) {
         <BlurMask blur={8} style="normal" />
       </Circle>
       <Circle cx={cx} cy={cy} r={cellSize * 0.34} color={TORPEDO} />
+    </Group>
+  );
+}
+
+type MineExplosionProps = {
+  cx: number;
+  cy: number;
+  /** Cell size - the blast expands to cover the full 3x3 block. */
+  cellSize: number;
+  progress: SharedValue<number>;
+};
+
+/** A mine going off: one glowing yellow circle that expands from the blast
+ *  center out over the 3x3 area, then fades to reveal the damage beneath. */
+export function MineExplosion({ cx, cy, cellSize, progress }: MineExplosionProps) {
+  const r = useDerivedValue(
+    () => cellSize * (0.25 + 1.6 * progress.value),
+  );
+  const glowR = useDerivedValue(() => r.value * 1.35);
+  const opacity = useDerivedValue(() => {
+    const p = progress.value;
+    const fadeOut = p > 0.6 ? 1 - (p - 0.6) / 0.4 : 1;
+    return Math.min(1, p * 6) * fadeOut;
+  });
+
+  return (
+    <Group opacity={opacity}>
+      <Circle cx={cx} cy={cy} r={glowR} color={MINE_GLOW}>
+        <BlurMask blur={12} style="normal" />
+      </Circle>
+      <Circle cx={cx} cy={cy} r={r} color="rgba(250, 204, 21, 0.75)" />
     </Group>
   );
 }
