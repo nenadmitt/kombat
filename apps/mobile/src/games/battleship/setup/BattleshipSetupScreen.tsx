@@ -343,7 +343,7 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
         )}
 
         <View style={styles.fleetPanel}>
-          <Text style={styles.sectionLabel}>YOUR FLEET</Text>
+          <Text style={styles.sectionLabel}>YOUR FLEET & MINES</Text>
           <View style={styles.tray}>
             {SHIPS.map(ship => (
               <ShipCard
@@ -355,20 +355,16 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
                 onRemove={() => handleRemove(ship.id)}
               />
             ))}
+            <MineCard
+              placedCount={mines.length}
+              selected={placingMine}
+              onSelect={() => handleSelect(MINES_ID)}
+            />
           </View>
-
-          <Text style={[styles.sectionLabel, styles.minesLabel]}>
-            DEFENSES · SEA MINES
-          </Text>
           <Text style={styles.minesBlurb}>
             An enemy shot that strikes a mine blasts a 3×3 area of their own
             fleet and ends their turn.
           </Text>
-          <MineCard
-            mines={mines}
-            selected={placingMine}
-            onSelect={() => handleSelect(MINES_ID)}
-          />
         </View>
 
         <View style={styles.actionsRow}>
@@ -549,15 +545,11 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.xs,
   },
-  minesLabel: {
-    marginTop: spacing.sm,
-    marginBottom: 2,
-  },
   minesBlurb: {
     fontSize: 12,
     color: colors.textMuted,
     lineHeight: 16,
-    marginBottom: spacing.xs,
+    marginTop: spacing.sm,
   },
   actionsRow: {
     flexDirection: 'row',
