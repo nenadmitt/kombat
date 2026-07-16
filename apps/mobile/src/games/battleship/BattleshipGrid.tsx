@@ -438,7 +438,8 @@ function BattleshipGrid({
               />
             );
           }
-          // Settled markers render statically.
+          // Settled markers render statically. A mine in the shot log has
+          // gone off, so it renders blown open (dark hole in the core).
           if (shot.result === 'mine') {
             return (
               <MineMarker
@@ -446,6 +447,7 @@ function BattleshipGrid({
                 cx={cx}
                 cy={cy}
                 cellSize={size}
+                exploded
               />
             );
           }

@@ -1,6 +1,8 @@
 import { BlurMask, Circle, Group, Line, RoundedRect, vec } from '@shopify/react-native-skia';
 import { useDerivedValue, type SharedValue } from 'react-native-reanimated';
 
+import { colors } from '../../theme/colors';
+
 const HIT_FILL = 'rgba(255, 84, 104, 0.9)';
 const HIT_GLOW = 'rgba(255, 84, 104, 0.55)';
 const MISS_DOT = 'rgba(148, 163, 184, 0.7)';
@@ -17,11 +19,22 @@ type MineMarkerProps = {
   opacity?: number;
   /** Override the amber (e.g. danger red for an invalid placement hover). */
   color?: string;
+  /** A spent mine: the core is blown open into a dark hole. */
+  exploded?: boolean;
 };
 
 /** A sea mine: a glowing amber starburst - a core with four long orthogonal
- *  arms and four short diagonal nubs (the "puffy star" from the design). */
-export function MineMarker({ cx, cy, cellSize, opacity, color }: MineMarkerProps) {
+ *  arms and four short diagonal nubs (the "puffy star" from the design).
+ *  An exploded one keeps the starburst but has a dark hole blown through
+ *  its core. */
+export function MineMarker({
+  cx,
+  cy,
+  cellSize,
+  opacity,
+  color,
+  exploded = false,
+}: MineMarkerProps) {
   const fill = color ?? TORPEDO;
   const core = cellSize * 0.16;
   const arm = cellSize * 0.3;
@@ -29,7 +42,7 @@ export function MineMarker({ cx, cy, cellSize, opacity, color }: MineMarkerProps
   const d = nub * Math.SQRT1_2;
   return (
     <Group opacity={opacity}>
-      {!color && (
+      {!color && !exploded && (
         <Circle cx={cx} cy={cy} r={cellSize * 0.32} color={MINE_GLOW}>
           <BlurMask blur={6} style="normal" />
         </Circle>
@@ -40,7 +53,10 @@ export function MineMarker({ cx, cy, cellSize, opacity, color }: MineMarkerProps
       {/* diagonal nubs */}
       <Line p1={vec(cx - d, cy - d)} p2={vec(cx + d, cy + d)} color={fill} strokeWidth={core} strokeCap="round" />
       <Line p1={vec(cx - d, cy + d)} p2={vec(cx + d, cy - d)} color={fill} strokeWidth={core} strokeCap="round" />
-      <Circle cx={cx} cy={cy} r={core} color={fill} />
+      <Circle cx={cx} cy={cy} r={core * 1.15} color={fill} />
+      {exploded && (
+        <Circle cx={cx} cy={cy} r={core * 0.7} color={colors.background} />
+      )}
     </Group>
   );
 }
@@ -141,9 +157,10 @@ export function AnimatedShot({
   }
 
   if (kind === 'mine') {
+    // A mine in the shot log is always one that just went off.
     return (
       <Group origin={origin} transform={hitScale}>
-        <MineMarker cx={cx} cy={cy} cellSize={cellSize} />
+        <MineMarker cx={cx} cy={cy} cellSize={cellSize} exploded />
       </Group>
     );
   }
