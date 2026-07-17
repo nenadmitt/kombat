@@ -29,6 +29,8 @@ export type LudoPlayProps = {
   stage: LudoStage;
   /** Last rolled value - stays on the die face until the next roll. */
   die: number | null;
+  /** Bumps on every roll (two equal values in a row still re-animate). */
+  rollId: number;
   /** My movable token indices while I must pick one (else empty). */
   movableTokens: number[];
   /** Transient event line ("Three sixes - turn lost", "Captured Green!"). */

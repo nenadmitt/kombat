@@ -42,6 +42,7 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
   const [turnUserId, setTurnUserId] = useState<string | null>(null);
   const [stage, setStage] = useState<LudoStage>('roll');
   const [die, setDie] = useState<number | null>(null);
+  const [rollId, setRollId] = useState(0);
   const [movable, setMovable] = useState<number[]>([]);
   const [eliminated, setEliminated] = useState<LudoColor[]>([]);
   const [online, setOnline] = useState<Record<string, boolean>>({});
@@ -114,6 +115,7 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
     const offRolled = on(LUDO_EVENTS.rolled, payload => {
       const p = payload as LudoRolledPayload;
       setDie(p.die);
+      setRollId(id => id + 1);
       setStage(p.stage);
       setTurnUserId(p.nextTurnUserId);
       setTurnDeadline(p.turnDeadline);
@@ -285,6 +287,7 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
       myTurn,
       stage,
       die,
+      rollId,
       movableTokens: myTurn ? movable : [],
       notice,
       turnDeadline: result ? null : turnDeadline,

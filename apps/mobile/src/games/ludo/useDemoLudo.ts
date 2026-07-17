@@ -41,6 +41,8 @@ type DemoState = {
   turnColor: LudoColor;
   stage: LudoStage;
   die: number | null;
+  /** Bumps on every roll so the die animates even for repeated values. */
+  rollId: number;
   sixChain: number;
   movable: number[];
   notice: string | null;
@@ -54,6 +56,7 @@ const freshState = (): DemoState => ({
   turnColor: MY_COLOR,
   stage: 'roll',
   die: null,
+  rollId: 0,
   sixChain: 0,
   movable: [],
   notice: null,
@@ -93,11 +96,13 @@ export function useDemoLudo(): LudoEngine {
   /** Resolve a roll for whoever's turn it is (pure state transition). */
   const applyRoll = (prev: DemoState): DemoState => {
     const die = rollDie();
+    const rollId = prev.rollId + 1;
     const sixChain = die === DIE_SIDES ? prev.sixChain + 1 : 0;
     if (die === DIE_SIDES && sixChain >= MAX_CONSECUTIVE_SIXES) {
       return {
         ...prev,
         die,
+        rollId,
         stage: 'roll',
         sixChain: 0,
         movable: [],
@@ -109,11 +114,12 @@ export function useDemoLudo(): LudoEngine {
     const movable = legalMoves(prev.tokens, prev.turnColor, die);
     if (movable.length === 0) {
       if (die === DIE_SIDES) {
-        return { ...prev, die, sixChain, movable: [], notice: null, stage: 'roll' };
+        return { ...prev, die, rollId, sixChain, movable: [], notice: null, stage: 'roll' };
       }
       return {
         ...prev,
         die,
+        rollId,
         sixChain: 0,
         movable: [],
         notice: `${BOT_NAMES[prev.turnColor]} rolled ${die} - no moves`,
@@ -122,7 +128,7 @@ export function useDemoLudo(): LudoEngine {
         turnStartedAt: Date.now(),
       };
     }
-    return { ...prev, die, sixChain, movable, stage: 'move', notice: null };
+    return { ...prev, die, rollId, sixChain, movable, stage: 'move', notice: null };
   };
 
   /** Resolve a chosen token move for whoever's turn it is. */
@@ -264,6 +270,7 @@ export function useDemoLudo(): LudoEngine {
       myTurn: !result && state.turnColor === MY_COLOR,
       stage: state.stage,
       die: state.die,
+      rollId: state.rollId,
       movableTokens: state.turnColor === MY_COLOR ? state.movable : [],
       notice: state.notice,
       turnDeadline: result ? null : state.turnStartedAt + TURN_SECONDS * 1000,

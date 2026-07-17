@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, Pressable, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Canvas, Fill, RadialGradient, vec } from '@shopify/react-native-skia';
@@ -49,6 +50,7 @@ export default function LudoPlayScreen({
   myTurn,
   stage,
   die,
+  rollId,
   movableTokens,
   notice,
   turnDeadline,
@@ -66,6 +68,20 @@ export default function LudoPlayScreen({
 }: LudoPlayScreenProps) {
   const { width } = useWindowDimensions();
   const boardSize = Math.min(width - spacing.md * 2 - 18, 356);
+
+  // Every roll (anyone's) shakes the die and shuffles its face briefly
+  // before it settles on the real value.
+  const [rolling, setRolling] = useState(false);
+  const prevRollId = useRef(rollId);
+  useEffect(() => {
+    if (rollId === prevRollId.current) {
+      return;
+    }
+    prevRollId.current = rollId;
+    setRolling(true);
+    const timer = setTimeout(() => setRolling(false), 550);
+    return () => clearTimeout(timer);
+  }, [rollId]);
 
   if (result) {
     const me = seats.find(s => s.isMe);
@@ -268,7 +284,7 @@ export default function LudoPlayScreen({
               {hint}
             </Text>
           </View>
-          <LudoDice value={die} />
+          <LudoDice value={die} rolling={rolling} />
         </View>
       </ScrollView>
 

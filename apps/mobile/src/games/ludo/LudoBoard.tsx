@@ -10,10 +10,13 @@ import {
   Skia,
 } from '@shopify/react-native-skia';
 import {
+  Easing,
+  useDerivedValue,
   useSharedValue,
   withRepeat,
   withSequence,
   withTiming,
+  type SharedValue,
 } from 'react-native-reanimated';
 import {
   BASE_CORNER,
@@ -188,11 +191,12 @@ function LudoBoard({
         }
         const stack = byCell.get(`${boardCell.row},${boardCell.col}`)!;
         const fan = stack.length > 1 ? stack.indexOf(tokenIndex) - (stack.length - 1) / 2 : 0;
+        // A wide fan so a stack reads as distinct pawns, not one green blob.
         anchors.push({
           color,
           tokenIndex,
-          x: (boardCell.col + 0.5) * cell + fan * cell * 0.24,
-          y: (boardCell.row + 0.5) * cell,
+          x: (boardCell.col + 0.5) * cell + fan * cell * 0.38,
+          y: (boardCell.row + 0.5) * cell - Math.abs(fan) * cell * 0.06,
         });
       });
     }
@@ -287,35 +291,122 @@ function LudoBoard({
           color="rgba(255, 255, 255, 0.92)"
         />
 
-        {tokenAnchors.map(anchor => {
-          const isMovable =
-            anchor.color === myColor && movableSet.has(anchor.tokenIndex);
-          const dim = eliminated.includes(anchor.color);
-          return (
-            <Group key={`${anchor.color}-${anchor.tokenIndex}`}>
-              {isMovable && (
-                <Circle
-                  cx={anchor.x}
-                  cy={anchor.y}
-                  r={cell * 0.62}
-                  color="rgba(255, 255, 255, 0.85)"
-                  opacity={pulse}
-                >
-                  <BlurMask blur={7} style="normal" />
-                </Circle>
-              )}
-              <LudoPawn
-                x={anchor.x - pawnW / 2}
-                y={anchor.y - pawnH * 0.62}
-                width={pawnW}
-                color={LUDO_COLOR_HEX[anchor.color]}
-                opacity={dim ? 0.35 : 1}
-              />
-            </Group>
-          );
-        })}
+        {tokenAnchors.map(anchor => (
+          <AnimatedPawn
+            key={`${anchor.color}-${anchor.tokenIndex}`}
+            targetX={anchor.x - pawnW / 2}
+            targetY={anchor.y - pawnH * 0.62}
+            width={pawnW}
+            height={pawnH}
+            hop={cell * 0.6}
+            color={LUDO_COLOR_HEX[anchor.color]}
+            dimmed={eliminated.includes(anchor.color)}
+            highlighted={
+              anchor.color === myColor && movableSet.has(anchor.tokenIndex)
+            }
+            pulse={pulse}
+            glowRadius={cell * 0.62}
+          />
+        ))}
       </Canvas>
     </View>
+  );
+}
+
+/**
+ * A pawn that hops to wherever its target moves: position changes animate
+ * along a sine arc (a jump), covering normal moves, base releases and
+ * captures being sent home alike. A movable (highlighted) pawn enlarges and
+ * glows in step with the board's shared pulse.
+ */
+function AnimatedPawn({
+  targetX,
+  targetY,
+  width,
+  height,
+  hop,
+  color,
+  dimmed,
+  highlighted,
+  pulse,
+  glowRadius,
+}: {
+  targetX: number;
+  targetY: number;
+  width: number;
+  height: number;
+  hop: number;
+  color: string;
+  dimmed: boolean;
+  highlighted: boolean;
+  pulse: SharedValue<number>;
+  glowRadius: number;
+}) {
+  const fromX = useSharedValue(targetX);
+  const fromY = useSharedValue(targetY);
+  const toX = useSharedValue(targetX);
+  const toY = useSharedValue(targetY);
+  const progress = useSharedValue(1);
+
+  useEffect(() => {
+    if (toX.value === targetX && toY.value === targetY) {
+      return;
+    }
+    // Start the jump from wherever the pawn is rendered right now, so a
+    // target change mid-flight doesn't teleport it.
+    const p = progress.value;
+    fromX.value = fromX.value + (toX.value - fromX.value) * p;
+    fromY.value = fromY.value + (toY.value - fromY.value) * p;
+    toX.value = targetX;
+    toY.value = targetY;
+    progress.value = 0;
+    progress.value = withTiming(1, {
+      duration: 420,
+      easing: Easing.out(Easing.quad),
+    });
+  }, [targetX, targetY, fromX, fromY, toX, toY, progress]);
+
+  // Scale about the pawn's visual center (where it stands on its cell).
+  const cx = width / 2;
+  const cy = height * 0.62;
+  const transform = useDerivedValue(() => {
+    const p = progress.value;
+    const x = fromX.value + (toX.value - fromX.value) * p;
+    const y =
+      fromY.value +
+      (toY.value - fromY.value) * p -
+      Math.sin(Math.min(1, Math.max(0, p)) * Math.PI) * hop;
+    const scale = highlighted ? 1 + 0.18 * pulse.value : 1;
+    return [
+      { translateX: x + cx },
+      { translateY: y + cy },
+      { scale },
+      { translateX: -cx },
+      { translateY: -cy },
+    ];
+  });
+
+  return (
+    <Group transform={transform}>
+      {highlighted && (
+        <Circle
+          cx={cx}
+          cy={cy}
+          r={glowRadius}
+          color="rgba(255, 255, 255, 0.85)"
+          opacity={pulse}
+        >
+          <BlurMask blur={7} style="normal" />
+        </Circle>
+      )}
+      <LudoPawn
+        x={0}
+        y={0}
+        width={width}
+        color={color}
+        opacity={dimmed ? 0.35 : 1}
+      />
+    </Group>
   );
 }
 

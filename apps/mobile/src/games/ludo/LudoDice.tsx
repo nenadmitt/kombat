@@ -1,4 +1,12 @@
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 
 /** Which of the 3x3 pip positions light up per die value (design's die). */
 const PIPS: Record<number, number[]> = {
@@ -10,56 +18,94 @@ const PIPS: Record<number, number[]> = {
   6: [0, 2, 3, 5, 6, 8],
 };
 
+const SHUFFLE_MS = 90;
+
 type Props = {
   /** 1-6, or null before the first roll (renders an empty face). */
   value: number | null;
+  /** While true the face shuffles and the die wobbles in place. */
+  rolling?: boolean;
   size?: number;
 };
 
-/** The white die face from the design: rounded ivory square, dark pips. */
-export default function LudoDice({ value, size = 78 }: Props) {
-  const lit = value ? PIPS[value] ?? [] : [];
+/** The white die from the design: rounded ivory square, dark pips laid out
+ *  with computed pixel sizes (percent+wrap collapses on some RN versions). */
+export default function LudoDice({ value, rolling = false, size = 78 }: Props) {
+  const [face, setFace] = useState(value);
+
+  useEffect(() => {
+    if (!rolling) {
+      setFace(value);
+      return;
+    }
+    const id = setInterval(
+      () => setFace(1 + Math.floor(Math.random() * 6)),
+      SHUFFLE_MS,
+    );
+    return () => clearInterval(id);
+  }, [rolling, value]);
+
+  const tilt = useSharedValue(0);
+  useEffect(() => {
+    if (rolling) {
+      tilt.value = withRepeat(
+        withSequence(
+          withTiming(-0.14, { duration: SHUFFLE_MS }),
+          withTiming(0.14, { duration: SHUFFLE_MS }),
+        ),
+        -1,
+        true,
+      );
+    } else {
+      tilt.value = withTiming(0, { duration: 140 });
+    }
+  }, [rolling, tilt]);
+  const wobble = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${tilt.value}rad` }],
+  }));
+
+  const pad = size * 0.19;
+  const gap = size * 0.065;
+  const pip = (size - pad * 2 - gap * 2) / 3;
+  const lit = face ? (PIPS[face] ?? []) : [];
+
   return (
-    <View style={[styles.die, { width: size, height: size, borderRadius: size * 0.26 }]}>
-      <View style={styles.grid}>
-        {Array.from({ length: 9 }, (_, i) => (
+    <Animated.View
+      style={[
+        styles.die,
+        { width: size, height: size, borderRadius: size * 0.26 },
+        wobble,
+      ]}
+    >
+      {Array.from({ length: 9 }, (_, i) => {
+        const row = Math.floor(i / 3);
+        const col = i % 3;
+        return (
           <View
             key={i}
-            style={[
-              styles.pip,
-              { backgroundColor: lit.includes(i) ? '#2a2140' : 'transparent' },
-            ]}
+            style={{
+              position: 'absolute',
+              left: pad + col * (pip + gap),
+              top: pad + row * (pip + gap),
+              width: pip,
+              height: pip,
+              borderRadius: pip / 2,
+              backgroundColor: lit.includes(i) ? '#2a2140' : 'transparent',
+            }}
           />
-        ))}
-      </View>
-    </View>
+        );
+      })}
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   die: {
     backgroundColor: '#f4f5fa',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 14,
     shadowColor: '#000',
     shadowOpacity: 0.45,
     shadowRadius: 13,
     shadowOffset: { width: 0, height: 10 },
     elevation: 8,
-  },
-  grid: {
-    width: '100%',
-    aspectRatio: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 5,
-  },
-  pip: {
-    // 3 per row inside the padded square (gap-aware thirds).
-    width: '28%',
-    aspectRatio: 1,
-    borderRadius: 999,
-    flexGrow: 1,
   },
 });
