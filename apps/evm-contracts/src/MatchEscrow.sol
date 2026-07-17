@@ -8,22 +8,22 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { ReentrancyGuardTransient } from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 
 /**
- * @title MatchEscrow (v2)
- * @notice Escrows both players' stakes for a 1v1 match and pays the winner
- *         (minus the platform fee) when the operator settles it.
+ * @title MatchEscrow (v3)
+ * @notice Escrows every player's stake for a 2..8-player match and pays the
+ *         winner (minus the platform fee) when the operator settles it.
  *
  *         Trust model: the platform's `operator` key creates, funds and
  *         settles matches, but the contract caps what a compromised operator
- *         can do — escrowed stakes only ever move to one of the two staked
+ *         can do — escrowed stakes only ever move to one of the staked
  *         players (settle / void), and the fee slice (hard-capped at
  *         MAX_FEE_BPS) accrues to the owner-withdrawable `feePot`. If the
  *         platform goes dark, anyone can `withdrawStake` an unsettled match
- *         after WITHDRAW_DELAY and both players are refunded in full.
+ *         after WITHDRAW_DELAY and every funded player is refunded in full.
  *
  *         Stakes are pulled from the players themselves (never fronted by
  *         the operator). Funding paths per token type:
  *         - EIP-2612 tokens (USDC, KOMBAT): `openWithPermits` — one operator
- *           tx creates the match and pulls both stakes with gasless permit
+ *           tx creates the match and pulls every stake with gasless permit
  *           signatures; player wallets never need ETH.
  *         - Plain ERC20s without permit: `createMatch` + `fund`, after the
  *           player wallet has approved the escrow.
@@ -41,23 +41,24 @@ contract MatchEscrow is Ownable, ReentrancyGuardTransient {
     enum StakeState {
         None, // never created
         Created, // declared, waiting for stakes
-        Active, // both stakes in escrow, game on
+        Active, // all stakes in escrow, game on
         Settled, // winner paid
         Voided // stakes refunded
 
     }
 
     struct MatchStake {
-        address player1;
-        address player2;
+        /// @dev 2..MAX_PLAYERS distinct, nonzero wallets. Arrays are omitted
+        ///      from the auto-generated `stakes` getter — read `getMatchPlayers`.
+        address[] players;
         /// @dev address(0) = native ETH.
         address token;
-        /// @dev Per-player stake; the escrowed pot is 2×amount once Active.
+        /// @dev Per-player stake; the escrowed pot is players.length × amount once Active.
         uint256 amount;
         uint64 createdAt;
         StakeState state;
-        bool player1Funded;
-        bool player2Funded;
+        /// @dev Stakes in escrow so far; the match activates at players.length.
+        uint8 fundedCount;
     }
 
     /// @dev An EIP-2612 permit signature authorizing the escrow to pull `amount`.
@@ -72,6 +73,9 @@ contract MatchEscrow is Ownable, ReentrancyGuardTransient {
 
     /// @notice Native-ETH sentinel for `MatchStake.token`.
     address public constant NATIVE = address(0);
+
+    /// @notice Largest roster a match may declare.
+    uint256 public constant MAX_PLAYERS = 8;
 
     /// @notice Hard cap on the platform fee: 10%.
     uint16 public constant MAX_FEE_BPS = 1000;
@@ -96,6 +100,11 @@ contract MatchEscrow is Ownable, ReentrancyGuardTransient {
 
     mapping(bytes32 matchId => MatchStake) public stakes;
 
+    /// @dev Per-player funded flags, kept out of MatchStake so the struct
+    ///      stays copyable and the `stakes` getter stays auto-generated.
+    ///      Exposed via `isFunded`.
+    mapping(bytes32 matchId => mapping(address player => bool)) private _fundedOf;
+
     /// @notice Accrued platform fees per token, withdrawable by the owner.
     ///         Kept separate from escrowed stakes so fee withdrawals can
     ///         never touch an unsettled match's pot.
@@ -106,13 +115,7 @@ contract MatchEscrow is Ownable, ReentrancyGuardTransient {
     event OperatorSet(address indexed operator);
     event FeeBpsSet(uint16 feeBps);
     event TokenAllowed(address indexed token, bool allowed);
-    event MatchCreated(
-        bytes32 indexed matchId,
-        address indexed player1,
-        address indexed player2,
-        address token,
-        uint256 amount
-    );
+    event MatchCreated(bytes32 indexed matchId, address[] players, address token, uint256 amount);
     event StakeFunded(bytes32 indexed matchId, address indexed player);
     event MatchActivated(bytes32 indexed matchId);
     event StakeSettled(bytes32 indexed matchId, address indexed winner, uint256 payout, uint256 fee);
@@ -129,6 +132,7 @@ contract MatchEscrow is Ownable, ReentrancyGuardTransient {
     error StakeNotFound(bytes32 matchId);
     error InvalidPlayers();
     error InvalidStake();
+    error PermitCountMismatch(uint256 expected, uint256 actual);
     error WrongStakeState(bytes32 matchId, StakeState actual);
     error NotAPlayer(bytes32 matchId, address account);
     error AlreadyFunded(bytes32 matchId, address player);
@@ -189,63 +193,68 @@ contract MatchEscrow is Ownable, ReentrancyGuardTransient {
     // ------------------------------------------------------------- lifecycle
 
     /// @notice Declare a match. Stakes arrive via the fund* paths; the match
-    ///         activates once both are in.
-    function createMatch(bytes32 matchId, address player1, address player2, address token, uint256 amount)
+    ///         activates once every player's stake is in.
+    function createMatch(bytes32 matchId, address[] calldata players, address token, uint256 amount)
         public
         onlyOperator
     {
         if (stakes[matchId].state != StakeState.None) revert StakeAlreadyExists(matchId);
-        if (player1 == address(0) || player2 == address(0) || player1 == player2) {
-            revert InvalidPlayers();
+        uint256 n = players.length;
+        if (n < 2 || n > MAX_PLAYERS) revert InvalidPlayers();
+        // O(n²) duplicate scan — fine at n ≤ MAX_PLAYERS.
+        for (uint256 i = 0; i < n; i++) {
+            if (players[i] == address(0)) revert InvalidPlayers();
+            for (uint256 j = i + 1; j < n; j++) {
+                if (players[i] == players[j]) revert InvalidPlayers();
+            }
         }
         if (!allowedTokens[token]) revert TokenNotAllowed(token);
         if (amount == 0) revert InvalidStake();
 
-        stakes[matchId] = MatchStake({
-            player1: player1,
-            player2: player2,
-            token: token,
-            amount: amount,
-            createdAt: uint64(block.timestamp),
-            state: StakeState.Created,
-            player1Funded: false,
-            player2Funded: false
-        });
-        emit MatchCreated(matchId, player1, player2, token, amount);
+        MatchStake storage s = stakes[matchId];
+        s.players = players;
+        s.token = token;
+        s.amount = amount;
+        s.createdAt = uint64(block.timestamp);
+        s.state = StakeState.Created;
+        emit MatchCreated(matchId, players, token, amount);
     }
 
-    /// @notice Primary path for ERC20 stakes: create the match and pull both
-    ///         stakes via pre-existing allowances in one transaction (the
+    /// @notice Primary path for ERC20 stakes: create the match and pull every
+    ///         stake via pre-existing allowances in one transaction (the
     ///         platform pre-approves the escrow from each custodial wallet).
-    ///         All-or-nothing — if either allowance/balance can't cover the
+    ///         All-or-nothing — if any allowance/balance can't cover the
     ///         stake, everything reverts.
     function openWithApprovals(
         bytes32 matchId,
-        address player1,
-        address player2,
+        address[] calldata players,
         address token,
         uint256 amount
     ) external onlyOperator {
-        createMatch(matchId, player1, player2, token, amount);
-        _fundFromAllowance(matchId, player1);
-        _fundFromAllowance(matchId, player2);
+        createMatch(matchId, players, token, amount);
+        for (uint256 i = 0; i < players.length; i++) {
+            _fundFromAllowance(matchId, players[i]);
+        }
     }
 
     /// @notice Alternative path for permit tokens: create the match and pull
-    ///         both stakes with EIP-2612 signatures in one transaction.
-    ///         All-or-nothing, and tolerant of front-run permit consumption.
+    ///         every stake with EIP-2612 signatures in one transaction.
+    ///         `sigs[i]` must belong to `players[i]`. All-or-nothing, and
+    ///         tolerant of front-run permit consumption.
     function openWithPermits(
         bytes32 matchId,
-        address player1,
-        address player2,
+        address[] calldata players,
         address token,
         uint256 amount,
-        PermitSig calldata sig1,
-        PermitSig calldata sig2
+        PermitSig[] calldata sigs
     ) external onlyOperator {
-        createMatch(matchId, player1, player2, token, amount);
-        _fundWithPermit(matchId, player1, sig1);
-        _fundWithPermit(matchId, player2, sig2);
+        if (sigs.length != players.length) {
+            revert PermitCountMismatch(players.length, sigs.length);
+        }
+        createMatch(matchId, players, token, amount);
+        for (uint256 i = 0; i < players.length; i++) {
+            _fundWithPermit(matchId, players[i], sigs[i]);
+        }
     }
 
     /// @notice Pull a player's stake using an EIP-2612 permit signature.
@@ -276,11 +285,11 @@ contract MatchEscrow is Ownable, ReentrancyGuardTransient {
     function settleStake(bytes32 matchId, address winner) external onlyOperator nonReentrant {
         MatchStake storage s = stakes[matchId];
         if (s.state != StakeState.Active) revert WrongStakeState(matchId, s.state);
-        if (winner != s.player1 && winner != s.player2) revert NotAPlayer(matchId, winner);
+        if (!_isPlayer(s, winner)) revert NotAPlayer(matchId, winner);
 
         s.state = StakeState.Settled;
 
-        uint256 pot = s.amount * 2;
+        uint256 pot = s.amount * s.players.length;
         uint256 fee = (pot * feeBps) / BPS_DENOMINATOR;
         if (fee > 0) {
             feePot[s.token] += fee;
@@ -289,7 +298,7 @@ contract MatchEscrow is Ownable, ReentrancyGuardTransient {
         emit StakeSettled(matchId, winner, pot - fee, fee);
     }
 
-    /// @notice Void a match immediately (cancelled, funding failed halfway,
+    /// @notice Void a match immediately (cancelled, funding failed partway,
     ///         or ended with no winner). Refunds whoever has funded.
     function voidStake(bytes32 matchId) external onlyOperator nonReentrant {
         _void(matchId);
@@ -303,6 +312,18 @@ contract MatchEscrow is Ownable, ReentrancyGuardTransient {
         uint256 withdrawableAt = uint256(s.createdAt) + WITHDRAW_DELAY;
         if (block.timestamp < withdrawableAt) revert WithdrawTooEarly(matchId, withdrawableAt);
         _void(matchId);
+    }
+
+    // ----------------------------------------------------------------- views
+
+    /// @notice A match's roster (the auto-generated `stakes` getter omits arrays).
+    function getMatchPlayers(bytes32 matchId) external view returns (address[] memory) {
+        return stakes[matchId].players;
+    }
+
+    /// @notice Whether `player`'s stake for `matchId` is in escrow.
+    function isFunded(bytes32 matchId, address player) external view returns (bool) {
+        return _fundedOf[matchId][player];
     }
 
     // ------------------------------------------------------------- internals
@@ -337,19 +358,15 @@ contract MatchEscrow is Ownable, ReentrancyGuardTransient {
         s = stakes[matchId];
         if (s.state == StakeState.None) revert StakeNotFound(matchId);
         if (s.state != StakeState.Created) revert WrongStakeState(matchId, s.state);
-        if (player != s.player1 && player != s.player2) revert NotAPlayer(matchId, player);
-        bool isPlayer1 = player == s.player1;
-        if (isPlayer1 ? s.player1Funded : s.player2Funded) revert AlreadyFunded(matchId, player);
+        if (!_isPlayer(s, player)) revert NotAPlayer(matchId, player);
+        if (_fundedOf[matchId][player]) revert AlreadyFunded(matchId, player);
     }
 
     function _markFunded(bytes32 matchId, MatchStake storage s, address player) private {
-        if (player == s.player1) {
-            s.player1Funded = true;
-        } else {
-            s.player2Funded = true;
-        }
+        _fundedOf[matchId][player] = true;
+        s.fundedCount += 1;
         emit StakeFunded(matchId, player);
-        if (s.player1Funded && s.player2Funded) {
+        if (s.fundedCount == s.players.length) {
             s.state = StakeState.Active;
             emit MatchActivated(matchId);
         }
@@ -362,13 +379,22 @@ contract MatchEscrow is Ownable, ReentrancyGuardTransient {
         }
         s.state = StakeState.Voided;
 
-        if (s.player1Funded) {
-            _payout(s.token, s.player1, s.amount);
-        }
-        if (s.player2Funded) {
-            _payout(s.token, s.player2, s.amount);
+        uint256 n = s.players.length;
+        for (uint256 i = 0; i < n; i++) {
+            address player = s.players[i];
+            if (_fundedOf[matchId][player]) {
+                _payout(s.token, player, s.amount);
+            }
         }
         emit StakeVoided(matchId);
+    }
+
+    function _isPlayer(MatchStake storage s, address account) private view returns (bool) {
+        uint256 n = s.players.length;
+        for (uint256 i = 0; i < n; i++) {
+            if (s.players[i] == account) return true;
+        }
+        return false;
     }
 
     function _payout(address token, address to, uint256 amount) private {

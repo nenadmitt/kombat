@@ -1,8 +1,16 @@
 /**
  * Minimal ABIs for the on-chain surface the server touches. Kept by hand (not
  * generated) — only the functions the server calls, matching
- * apps/evm-contracts/src/MatchEscrow.sol (v2) and standard ERC20/ERC20Permit.
+ * apps/evm-contracts/src/MatchEscrow.sol (N-player) and standard
+ * ERC20/ERC20Permit.
  */
+
+const PERMIT_SIG_COMPONENTS = [
+  { name: 'deadline', type: 'uint256' },
+  { name: 'v', type: 'uint8' },
+  { name: 'r', type: 'bytes32' },
+  { name: 's', type: 'bytes32' },
+] as const;
 
 export const ESCROW_ABI = [
   {
@@ -11,8 +19,7 @@ export const ESCROW_ABI = [
     stateMutability: 'nonpayable',
     inputs: [
       { name: 'matchId', type: 'bytes32' },
-      { name: 'player1', type: 'address' },
-      { name: 'player2', type: 'address' },
+      { name: 'players', type: 'address[]' },
       { name: 'token', type: 'address' },
       { name: 'amount', type: 'uint256' },
     ],
@@ -24,8 +31,7 @@ export const ESCROW_ABI = [
     stateMutability: 'nonpayable',
     inputs: [
       { name: 'matchId', type: 'bytes32' },
-      { name: 'player1', type: 'address' },
-      { name: 'player2', type: 'address' },
+      { name: 'players', type: 'address[]' },
       { name: 'token', type: 'address' },
       { name: 'amount', type: 'uint256' },
     ],
@@ -37,29 +43,13 @@ export const ESCROW_ABI = [
     stateMutability: 'nonpayable',
     inputs: [
       { name: 'matchId', type: 'bytes32' },
-      { name: 'player1', type: 'address' },
-      { name: 'player2', type: 'address' },
+      { name: 'players', type: 'address[]' },
       { name: 'token', type: 'address' },
       { name: 'amount', type: 'uint256' },
       {
-        name: 'sig1',
-        type: 'tuple',
-        components: [
-          { name: 'deadline', type: 'uint256' },
-          { name: 'v', type: 'uint8' },
-          { name: 'r', type: 'bytes32' },
-          { name: 's', type: 'bytes32' },
-        ],
-      },
-      {
-        name: 'sig2',
-        type: 'tuple',
-        components: [
-          { name: 'deadline', type: 'uint256' },
-          { name: 'v', type: 'uint8' },
-          { name: 'r', type: 'bytes32' },
-          { name: 's', type: 'bytes32' },
-        ],
+        name: 'sigs',
+        type: 'tuple[]',
+        components: PERMIT_SIG_COMPONENTS,
       },
     ],
     outputs: [],
@@ -93,16 +83,32 @@ export const ESCROW_ABI = [
     name: 'stakes',
     stateMutability: 'view',
     inputs: [{ name: 'matchId', type: 'bytes32' }],
+    // The auto-generated struct getter omits the players array; read the
+    // roster via getMatchPlayers.
     outputs: [
-      { name: 'player1', type: 'address' },
-      { name: 'player2', type: 'address' },
       { name: 'token', type: 'address' },
       { name: 'amount', type: 'uint256' },
       { name: 'createdAt', type: 'uint64' },
       { name: 'state', type: 'uint8' },
-      { name: 'player1Funded', type: 'bool' },
-      { name: 'player2Funded', type: 'bool' },
+      { name: 'fundedCount', type: 'uint8' },
     ],
+  },
+  {
+    type: 'function',
+    name: 'getMatchPlayers',
+    stateMutability: 'view',
+    inputs: [{ name: 'matchId', type: 'bytes32' }],
+    outputs: [{ name: '', type: 'address[]' }],
+  },
+  {
+    type: 'function',
+    name: 'isFunded',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'matchId', type: 'bytes32' },
+      { name: 'player', type: 'address' },
+    ],
+    outputs: [{ name: '', type: 'bool' }],
   },
   {
     type: 'function',

@@ -13,6 +13,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ApiError,
+  GameRoomStatus,
   GameType,
   STAKE_ASSET_SYMBOLS,
   STAKE_EVENTS,
@@ -30,6 +31,7 @@ import { GAME_TYPE_SCREENS } from '../games/game-type-screens';
 import { formatRoomCode } from '../games/room-code';
 import type { RootStackParamList } from '../navigation/types';
 import { useCurrentUserStore } from '../store/currentUser.store';
+import { useGameStore } from '../store/game.store';
 import { useWebsocketStore } from '../store/websocket.store';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
@@ -50,10 +52,16 @@ function stakeLabel(room: GameRoomSummary): string {
 }
 
 const GAME_ICON = 'crosshair' as const;
+/** Card glyph per game type (the featured banner keeps the crosshair). */
+const GAME_TYPE_ICONS: Record<GameType, 'crosshair' | 'dice'> = {
+  [GameType.NavalBattle]: 'crosshair',
+  [GameType.Ludo]: 'dice',
+};
 
 const FILTERS: { key: Filter; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: GameType.NavalBattle, label: 'Battleships' },
+  { key: GameType.Ludo, label: 'Ludo' },
 ];
 
 function timeAgo(iso: string): string {
@@ -204,9 +212,18 @@ export default function GameLobyScreen() {
   const joinRoom = async (room: GameRoomSummary) => {
     setJoiningRoomId(room.id);
     try {
-      await apiClient.joinGameRoom(room.id);
-      if (room.stakeToken !== null) {
-        // Staked: the server is escrowing both stakes - hold here until the
+      const joined = await apiClient.joinGameRoom(room.id);
+      // A Ludo room can stay Pending after a join (waiting for more players):
+      // the joiner parks in the waiting popup until game:started arrives.
+      // A join that fills the room comes back InProgress and flows on like
+      // any other match entry.
+      if (
+        room.gameType === GameType.Ludo &&
+        joined.status === GameRoomStatus.Pending
+      ) {
+        useGameStore.getState().setWaitingRoom(joined, true);
+      } else if (room.stakeToken !== null) {
+        // Staked: the server is escrowing all stakes - hold here until the
         // stake:funded event; the match is gated server-side anyway.
         setFundingRoom(room);
       } else {
@@ -233,7 +250,9 @@ export default function GameLobyScreen() {
     const ok = await confirm({
       title: `Join for ${stakeLabel(room)}?`,
       message:
-        'Both players put up the same wager. Win the match and you take the pot, minus a small platform fee.',
+        room.gameType === GameType.Ludo
+          ? 'Every player puts up the same wager when the match starts. Win and you take the whole pot, minus a small platform fee.'
+          : 'Both players put up the same wager. Win the match and you take the pot, minus a small platform fee.',
       confirmLabel: `Stake ${stakeLabel(room)}`,
       icon: 'dollar',
     });
@@ -385,12 +404,12 @@ export default function GameLobyScreen() {
         renderItem={({ item }) => (
           <Card style={styles.roomCard}>
             <View style={styles.roomIcon}>
-              <Icon type={GAME_ICON} color={colors.accent} size={20} />
+              <Icon type={GAME_TYPE_ICONS[item.gameType]} color={colors.accent} size={20} />
             </View>
             <View style={styles.roomInfo}>
               <Text style={styles.roomName}>{GAME_TYPE_LABELS[item.gameType]}</Text>
               <Text style={styles.roomMeta}>
-                #{item.code ?? formatRoomCode(item.id)} · {item.playerCount}/2 · {timeAgo(item.createdAt)}
+                #{item.code ?? formatRoomCode(item.id)} · {item.joinedCount}/{item.playerCount} · {timeAgo(item.createdAt)}
               </Text>
             </View>
             <View style={styles.roomRight}>

@@ -4,8 +4,10 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   GameRoomStatus,
+  ROOM_EVENTS,
   STAKE_EVENTS,
   type GameRoomSummary,
+  type RoomPlayerJoinedPayload,
 } from '@gaming-platform/core';
 
 import { apiClient } from '../api/client';
@@ -14,6 +16,7 @@ import { GAME_TYPE_SCREENS } from '../games/game-type-screens';
 import ResumeMatchModal from '../games/ResumeMatchModal';
 import WaitingForPlayersMinimizedBar from '../games/WaitingForPlayersMinimizedBar';
 import WaitingForPlayersPopup from '../games/WaitingForPlayersPopup';
+import { useCurrentUserStore } from '../store/currentUser.store';
 import { useGameStore } from '../store/game.store';
 import { useWebsocketStore } from '../store/websocket.store';
 import MainTabNavigator from './MainTabNavigator';
@@ -90,18 +93,64 @@ export default function MainTabsWithGameOverlay() {
         if (!room) {
           return;
         }
-        // A Pending room means we're still waiting for an opponent (resume the
+        // A Pending room means we're still waiting for players (resume the
         // waiting popup); an InProgress one is a live match to rejoin/forfeit.
         if (room.status === GameRoomStatus.InProgress) {
           setResumableMatch(room);
         } else {
-          setWaitingRoom(room);
+          // In a Ludo room the user may be a joiner, not the creator - that
+          // flips the popup's Cancel to Leave and hides Start.
+          const myUserId = useCurrentUserStore.getState().userId;
+          setWaitingRoom(room, myUserId !== null && room.creatorUserId !== myUserId);
         }
       })
       .catch(() => {
         // Non-critical - just means we won't resume anything this session.
       });
   }, [setWaitingRoom, setResumableMatch]);
+
+  // Multi-player (Ludo) waiting-room lifecycle: roster pushes keep the
+  // popup's count fresh; the started push transfers everyone into the match.
+  useEffect(() => {
+    const matchesWaiting = (payload: unknown): payload is { roomId: string } =>
+      payload !== null &&
+      typeof payload === 'object' &&
+      'roomId' in payload &&
+      (payload as { roomId: unknown }).roomId ===
+        useGameStore.getState().waitingRoom?.id;
+
+    const onRoster = (payload: unknown) => {
+      if (matchesWaiting(payload)) {
+        useGameStore
+          .getState()
+          .setWaitingJoinedCount(
+            (payload as RoomPlayerJoinedPayload).joinedCount,
+          );
+      }
+    };
+    const offJoined = onSocketEvent(ROOM_EVENTS.playerJoined, onRoster);
+    const offLeft = onSocketEvent(ROOM_EVENTS.playerLeft, onRoster);
+    const offStarted = onSocketEvent(ROOM_EVENTS.started, payload => {
+      if (!matchesWaiting(payload)) {
+        return;
+      }
+      const waitingRoom = useGameStore.getState().waitingRoom!;
+      clearWaitingRoom();
+      (navigation.navigate as (screen: string, params: unknown) => void)(
+        GAME_TYPE_SCREENS[waitingRoom.gameType],
+        {
+          roomId: waitingRoom.id,
+          stakeToken: waitingRoom.stakeToken,
+          stakeAmount: waitingRoom.stakeAmount,
+        },
+      );
+    });
+    return () => {
+      offJoined();
+      offLeft();
+      offStarted();
+    };
+  }, [onSocketEvent, clearWaitingRoom, navigation]);
 
   // Fired by ResumeMatchModal only after its Modal has fully dismissed -
   // navigating earlier would overlap two native transitions and wedge iOS

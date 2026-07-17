@@ -43,6 +43,9 @@ type CurrentUserState = {
   accessToken: string | null;
 
   profileStatus: ProfileStatus;
+  /** The user's own id - lets screens tell "mine" from "theirs" (e.g. room
+   *  creator vs joiner) without decoding the JWT. */
+  userId: string | null;
   email: string | null;
   username: string | null;
   profileError: LoadError | null;
@@ -70,6 +73,7 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
   accessToken: null,
 
   profileStatus: 'idle',
+  userId: null,
   email: null,
   username: null,
   profileError: null,
@@ -102,6 +106,7 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
     set({
       accessToken: null,
       authStatus: 'unauthenticated',
+      userId: null,
       email: null,
       username: null,
       profileStatus: 'idle',
@@ -118,8 +123,8 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
     }
     set({ profileStatus: 'loading', profileError: null });
     try {
-      const { email, username } = await apiClient.getCurrentUser();
-      set({ email, username, profileStatus: 'ready' });
+      const { id, email, username } = await apiClient.getCurrentUser();
+      set({ userId: id, email, username, profileStatus: 'ready' });
     } catch (err) {
       set({
         profileStatus: 'error',

@@ -9,7 +9,10 @@ import {
 import {
   BATTLESHIP_EVENTS,
   GameRoomSummary,
+  LUDO_EVENTS,
+  LUDO_MIN_PLAYERS,
   MatchHistoryEntry,
+  ROOM_EVENTS,
   StakeAsset,
 } from '@gaming-platform/core';
 
@@ -20,6 +23,8 @@ import { WebsocketsService } from '../websockets';
 import { gameChannel } from '../websockets/rooms.util';
 import { BattleshipMatchService } from './battleships/battleship-match.service';
 import { getPlayerCountForGameType } from './game-type.util';
+import { LudoMatchService } from './ludo/ludo-match.service';
+import { participantsOf } from './room.util';
 import { StakesService } from './stakes/stakes.service';
 
 @Injectable()
@@ -28,6 +33,7 @@ export class GamesService {
     private readonly dbService: DbService,
     private readonly websocketsService: WebsocketsService,
     private readonly battleshipMatchService: BattleshipMatchService,
+    private readonly ludoMatchService: LudoMatchService,
     private readonly stakesService: StakesService,
   ) {}
 
@@ -150,7 +156,17 @@ export class GamesService {
       );
     }
 
-    await this.dbService.joinGameRoom(roomId, userId);
+    if (room.gameType === GameType.Ludo) {
+      return this.joinLudoRoom(userId, room);
+    }
+
+    // Conditional seat-taking: if another joiner won the race between the
+    // Pending check above and here, this affects 0 rows and we bail out
+    // rather than overwriting their seat.
+    const seated = await this.dbService.joinGameRoom(roomId, userId);
+    if (!seated) {
+      throw new ConflictException('This room is no longer accepting players.');
+    }
     const joined: GameRoomEntity = Object.assign(room, {
       opponentId: userId,
       status: GameRoomStatus.InProgress,
@@ -159,12 +175,146 @@ export class GamesService {
     if (room.stakeToken !== null) {
       await this.stakesService.beginFunding(joined);
     } else {
-      this.websocketsService.sendToUser(room.userId, 'game:opponent-joined', {
-        roomId,
-      });
+      this.websocketsService.sendToUser(
+        room.userId,
+        ROOM_EVENTS.opponentJoined,
+        { roomId },
+      );
     }
 
     return toGameRoomSummary(joined);
+  }
+
+  /**
+   * A Ludo room accumulates joiners without starting: the appended join is
+   * atomic (capacity/duplicate enforced in SQL), everyone already in gets a
+   * roster update, and the match starts only when the room fills - or when
+   * the creator starts early via startRoom.
+   */
+  private async joinLudoRoom(
+    userId: string,
+    room: GameRoomEntity,
+  ): Promise<GameRoomSummary> {
+    const appended = await this.dbService.appendGameRoomOpponent(
+      room.id,
+      userId,
+    );
+    if (!appended) {
+      throw new ConflictException('This room is no longer accepting players.');
+    }
+    const updated = await this.dbService.findGameRoomById(room.id);
+    if (!updated) {
+      throw new NotFoundException('Game room not found');
+    }
+
+    const joinedCount = participantsOf(updated).length;
+    for (const participant of participantsOf(updated)) {
+      if (participant !== userId) {
+        this.websocketsService.sendToUser(
+          participant,
+          ROOM_EVENTS.playerJoined,
+          {
+            roomId: room.id,
+            userId,
+            joinedCount,
+            playerCount: updated.playerCount,
+          },
+        );
+      }
+    }
+
+    if (joinedCount >= updated.playerCount) {
+      await this.startLudoMatch(updated);
+    }
+    return toGameRoomSummary(updated);
+  }
+
+  /**
+   * Creator-triggered early start for a multi-player room (Ludo): allowed
+   * from LUDO_MIN_PLAYERS joined players up.
+   */
+  async startRoom(userId: string, roomId: string): Promise<GameRoomSummary> {
+    const room = await this.dbService.findGameRoomById(roomId);
+    if (!room) {
+      throw new NotFoundException('Game room not found');
+    }
+    if (room.gameType !== GameType.Ludo) {
+      throw new ConflictException('This game starts when the room is full.');
+    }
+    if (room.userId !== userId) {
+      throw new ForbiddenException('Only the room creator can start early.');
+    }
+    if (room.status !== GameRoomStatus.Pending) {
+      throw new ConflictException('The room has already started.');
+    }
+    if (participantsOf(room).length < LUDO_MIN_PLAYERS) {
+      throw new ConflictException(
+        'At least one other player must join before starting.',
+      );
+    }
+    await this.startLudoMatch(room);
+    const started = await this.dbService.findGameRoomById(roomId);
+    return toGameRoomSummary(started ?? room);
+  }
+
+  /** A joiner backs out of a still-waiting Ludo room. */
+  async leaveRoom(userId: string, roomId: string): Promise<void> {
+    const room = await this.dbService.findGameRoomById(roomId);
+    if (!room) {
+      throw new NotFoundException('Game room not found');
+    }
+    if (room.gameType !== GameType.Ludo || room.userId === userId) {
+      // The creator closes the room instead of leaving it.
+      throw new ConflictException('You cannot leave this room.');
+    }
+    const removed = await this.dbService.removeGameRoomOpponent(
+      roomId,
+      userId,
+    );
+    if (!removed) {
+      throw new ConflictException('The room has already started.');
+    }
+    const updated = await this.dbService.findGameRoomById(roomId);
+    if (updated) {
+      const joinedCount = participantsOf(updated).length;
+      for (const participant of participantsOf(updated)) {
+        this.websocketsService.sendToUser(
+          participant,
+          ROOM_EVENTS.playerLeft,
+          {
+            roomId,
+            userId,
+            joinedCount,
+            playerCount: updated.playerCount,
+          },
+        );
+      }
+    }
+  }
+
+  /**
+   * Flip a Ludo room to InProgress exactly once and kick the match off.
+   * Free rooms notify every participant immediately; staked rooms first
+   * escrow every player's stake - StakesService emits stake:funding now and
+   * (once the pot is on-chain) stake:funded plus the started event.
+   */
+  private async startLudoMatch(room: GameRoomEntity): Promise<void> {
+    const flipped = await this.dbService.startGameRoom(room.id);
+    if (!flipped) {
+      return; // Lost a race with another start - the winner handles kickoff.
+    }
+    const started: GameRoomEntity = Object.assign(room, {
+      status: GameRoomStatus.InProgress,
+    });
+    if (started.stakeToken !== null) {
+      await this.stakesService.beginFunding(started);
+      return;
+    }
+    for (const participant of participantsOf(started)) {
+      this.websocketsService.sendToUser(participant, ROOM_EVENTS.started, {
+        roomId: room.id,
+      });
+    }
   }
 
   async listPendingRooms(excludeUserId?: string): Promise<GameRoomSummary[]> {
@@ -195,8 +345,9 @@ export class GamesService {
     );
     const entries = await Promise.all(
       rooms.map(async room => {
+        // Multi-player rooms have several opponents; History names the first.
         const opponentId =
-          room.userId === userId ? room.opponentId : room.userId;
+          participantsOf(room).find(id => id !== userId) ?? null;
         const opponent = opponentId
           ? await this.dbService.findUserById(opponentId)
           : null;
@@ -246,20 +397,27 @@ export class GamesService {
   async forfeitRoom(
     userId: string,
     roomId: string,
-  ): Promise<{ winnerUserId: string }> {
+  ): Promise<{ winnerUserId: string | null }> {
     const room = await this.dbService.findGameRoomById(roomId);
     if (!room) {
       throw new NotFoundException('Game room not found');
     }
-    if (room.userId !== userId && room.opponentId !== userId) {
+    if (!participantsOf(room).includes(userId)) {
       throw new ForbiddenException('You are not part of this room.');
     }
-    if (room.status !== GameRoomStatus.InProgress || !room.opponentId) {
+    if (
+      room.status !== GameRoomStatus.InProgress ||
+      participantsOf(room).length < 2
+    ) {
       throw new ConflictException('Only an in-progress match can be forfeited.');
     }
 
+    if (room.gameType === GameType.Ludo) {
+      return this.forfeitLudoRoom(userId, room);
+    }
+
     const opponentId =
-      room.userId === userId ? room.opponentId : room.userId;
+      room.userId === userId ? room.opponentId! : room.userId;
 
     // Update the cached match if it's still around; if it expired or never
     // existed, completing the DB room is enough to end it.
@@ -281,6 +439,43 @@ export class GamesService {
 
     return { winnerUserId: opponentId };
   }
+
+  /**
+   * A Ludo forfeit eliminates the leaver; the match only completes when one
+   * player is left standing (2-player rooms complete immediately). If the
+   * cached match is gone (expired), the room is voided instead - with more
+   * than two players there is no "the other one wins" shortcut.
+   */
+  private async forfeitLudoRoom(
+    userId: string,
+    room: GameRoomEntity,
+  ): Promise<{ winnerUserId: string | null }> {
+    try {
+      const payload = await this.ludoMatchService.forfeit(room.id, userId);
+      this.websocketsService.sendToChannel(
+        gameChannel(room.id),
+        LUDO_EVENTS.eliminated,
+        payload,
+      );
+      if (payload.winnerUserId) {
+        this.websocketsService.sendToChannel(
+          gameChannel(room.id),
+          LUDO_EVENTS.ended,
+          { winnerUserId: payload.winnerUserId, reason: 'forfeit' },
+        );
+        await this.stakesService.completeMatch(
+          room.id,
+          payload.winnerUserId,
+          'forfeit',
+        );
+      }
+      return { winnerUserId: payload.winnerUserId };
+    } catch {
+      // No live match state - void the room so stakes come back.
+      await this.stakesService.completeMatch(room.id, null, 'forfeit');
+      return { winnerUserId: null };
+    }
+  }
 }
 
 function toGameRoomSummary(room: GameRoomEntity): GameRoomSummary {
@@ -289,6 +484,8 @@ function toGameRoomSummary(room: GameRoomEntity): GameRoomSummary {
     gameType: room.gameType,
     status: room.status,
     playerCount: room.playerCount,
+    joinedCount: participantsOf(room).length,
+    creatorUserId: room.userId,
     stakeToken: room.stakeToken,
     stakeAmount: room.stakeAmount,
     code: room.code,

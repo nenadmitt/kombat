@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Not, Repository } from 'typeorm';
+import { DataSource, In, IsNull, Not, Repository } from 'typeorm';
 
 import {
   CacheKeys,
@@ -41,6 +41,13 @@ export class DbService {
 
   findUserById(id: string): Promise<UserEntity | null> {
     return this.userRepository.findOneBy({ id });
+  }
+
+  findUsersByIds(ids: string[]): Promise<UserEntity[]> {
+    if (ids.length === 0) {
+      return Promise.resolve([]);
+    }
+    return this.userRepository.findBy({ id: In(ids) });
   }
 
   findUserByEmail(email: string): Promise<UserEntity | null> {
@@ -139,11 +146,16 @@ export class DbService {
   findActiveGameRoomForParticipant(
     userId: string,
   ): Promise<GameRoomEntity | null> {
-    const status = In([GameRoomStatus.Pending, GameRoomStatus.InProgress]);
-    return this.gameRoomRepository.findOneBy([
-      { userId, status },
-      { opponentId: userId, status },
-    ]);
+    return this.gameRoomRepository
+      .createQueryBuilder('room')
+      .where('room.status IN (:...statuses)', {
+        statuses: [GameRoomStatus.Pending, GameRoomStatus.InProgress],
+      })
+      .andWhere(
+        '(room.user_id = :userId OR room.opponent_id = :userId OR :userId = ANY(room.opponent_ids))',
+        { userId },
+      )
+      .getOne();
   }
 
   createGameRoom(data: {
@@ -206,12 +218,64 @@ export class DbService {
     return room;
   }
 
-  async joinGameRoom(id: string, opponentId: string): Promise<void> {
-    await this.gameRoomRepository.update(
-      { id },
+  /**
+   * Seat the opponent in a 2-player room and start it, in one conditional
+   * UPDATE. The WHERE guards status + an empty seat so two joiners racing
+   * the same Pending room can't both win: the second UPDATE affects 0 rows.
+   * Returns whether this call took the seat.
+   */
+  async joinGameRoom(id: string, opponentId: string): Promise<boolean> {
+    const result = await this.gameRoomRepository.update(
+      { id, status: GameRoomStatus.Pending, opponentId: IsNull() },
       { opponentId, status: GameRoomStatus.InProgress },
     );
     await this.cacheService.del(CacheKeys.gameRoom(id));
+    return (result.affected ?? 0) > 0;
+  }
+
+  /**
+   * Append a joiner to a multi-player room. The single UPDATE enforces
+   * capacity, no-duplicate and not-the-creator atomically, so two racing
+   * joins can't oversubscribe the room. Returns whether the join landed.
+   */
+  async appendGameRoomOpponent(id: string, userId: string): Promise<boolean> {
+    const result = await this.gameRoomRepository.query(
+      `UPDATE "game_rooms"
+         SET "opponent_ids" = array_append("opponent_ids", $2)
+       WHERE "id" = $1
+         AND "status" = $3
+         AND "user_id" != $2
+         AND NOT ($2 = ANY("opponent_ids"))
+         AND cardinality("opponent_ids") < "player_count" - 1
+       RETURNING "id"`,
+      [id, userId, GameRoomStatus.Pending],
+    );
+    await this.cacheService.del(CacheKeys.gameRoom(id));
+    return (result as unknown[]).length > 0;
+  }
+
+  /** Remove a joiner from a still-Pending multi-player room. */
+  async removeGameRoomOpponent(id: string, userId: string): Promise<boolean> {
+    const result = await this.gameRoomRepository.query(
+      `UPDATE "game_rooms"
+         SET "opponent_ids" = array_remove("opponent_ids", $2)
+       WHERE "id" = $1 AND "status" = $3 AND $2 = ANY("opponent_ids")
+       RETURNING "id"`,
+      [id, userId, GameRoomStatus.Pending],
+    );
+    await this.cacheService.del(CacheKeys.gameRoom(id));
+    return (result as unknown[]).length > 0;
+  }
+
+  /** Flip a Pending room to InProgress (multi-player start). Returns whether
+   *  this call performed the flip (false = already started/gone). */
+  async startGameRoom(id: string): Promise<boolean> {
+    const result = await this.gameRoomRepository.update(
+      { id, status: GameRoomStatus.Pending },
+      { status: GameRoomStatus.InProgress },
+    );
+    await this.cacheService.del(CacheKeys.gameRoom(id));
+    return (result.affected ?? 0) > 0;
   }
 
   /** Flip a room to Completed and persist its result (History reads these). */
@@ -238,15 +302,17 @@ export class DbService {
     limit = 10,
     offset = 0,
   ): Promise<GameRoomEntity[]> {
-    return this.gameRoomRepository.find({
-      where: [
-        { userId, status: GameRoomStatus.Completed },
-        { opponentId: userId, status: GameRoomStatus.Completed },
-      ],
-      order: { completedAt: 'DESC' },
-      take: limit,
-      skip: offset,
-    });
+    return this.gameRoomRepository
+      .createQueryBuilder('room')
+      .where('room.status = :status', { status: GameRoomStatus.Completed })
+      .andWhere(
+        '(room.user_id = :userId OR room.opponent_id = :userId OR :userId = ANY(room.opponent_ids))',
+        { userId },
+      )
+      .orderBy('room.completed_at', 'DESC')
+      .take(limit)
+      .skip(offset)
+      .getMany();
   }
 
   async deleteGameRoom(id: string): Promise<void> {

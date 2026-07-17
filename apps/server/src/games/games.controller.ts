@@ -13,6 +13,7 @@ import {
 import {
   BattleshipRoomState,
   GameRoomSummary,
+  LudoRoomState,
   MatchHistoryEntry,
 } from '@gaming-platform/core';
 
@@ -20,11 +21,14 @@ import { ISecurityContext } from '../authentication/authentication.types';
 import { SecurityContext } from '../authentication/decorators/security-context.decorator';
 import { JwtTokenGuard } from '../authentication/guards/jwt-token.guard';
 import { DbService } from '../db';
+import { GameType } from '../db/types/game';
 import { BattleshipMatchService } from './battleships/battleship-match.service';
 import { CreateGameRoomDto } from './dto/create-game-room.dto';
 import { ListGameRoomsDto } from './dto/list-game-rooms.dto';
 import { MatchHistoryQueryDto } from './dto/match-history-query.dto';
 import { GamesService } from './games.service';
+import { LudoMatchService } from './ludo/ludo-match.service';
+import { participantsOf } from './room.util';
 import { StakesService } from './stakes/stakes.service';
 
 @Controller('games/rooms')
@@ -34,6 +38,7 @@ export class GamesController {
     private readonly gamesService: GamesService,
     private readonly dbService: DbService,
     private readonly battleshipMatchService: BattleshipMatchService,
+    private readonly ludoMatchService: LudoMatchService,
     private readonly stakesService: StakesService,
   ) {}
 
@@ -81,6 +86,25 @@ export class GamesController {
     return this.gamesService.joinRoom(securityContext.userId, id);
   }
 
+  /** Creator-only early start for a multi-player (Ludo) room. */
+  @Post(':id/start')
+  async startRoom(
+    @Param('id') id: string,
+    @SecurityContext() securityContext: ISecurityContext,
+  ): Promise<GameRoomSummary> {
+    return this.gamesService.startRoom(securityContext.userId, id);
+  }
+
+  /** A joiner backs out of a still-waiting multi-player (Ludo) room. */
+  @Post(':id/leave')
+  async leaveRoom(
+    @Param('id') id: string,
+    @SecurityContext() securityContext: ISecurityContext,
+  ): Promise<{ success: true }> {
+    await this.gamesService.leaveRoom(securityContext.userId, id);
+    return { success: true };
+  }
+
   @Delete(':id')
   async closeRoom(
     @Param('id') id: string,
@@ -90,12 +114,13 @@ export class GamesController {
     return { success: true };
   }
 
-  /** Forfeit an in-progress match (the opponent wins) — e.g. from the resume prompt. */
+  /** Forfeit an in-progress match — e.g. from the resume prompt. In Ludo the
+   *  leaver is eliminated; the winner is set only once one player remains. */
   @Post(':id/forfeit')
   async forfeitRoom(
     @Param('id') id: string,
     @SecurityContext() securityContext: ISecurityContext,
-  ): Promise<{ winnerUserId: string }> {
+  ): Promise<{ winnerUserId: string | null }> {
     return this.gamesService.forfeitRoom(securityContext.userId, id);
   }
 
@@ -119,24 +144,25 @@ export class GamesController {
   }
 
   /**
-   * The requester's personalized snapshot of a match — the mount/resume source
-   * of truth. Only the two participants may read it; the opponent's fleet is
-   * revealed only as sunk ships.
+   * The requester's snapshot of a match — the mount/resume source of truth,
+   * shaped per game type. Participants only; Battleship personalizes (the
+   * opponent's fleet is revealed only as sunk ships), Ludo hides nothing.
    */
   @Get(':id/state')
   async getRoomState(
     @Param('id') id: string,
     @SecurityContext() securityContext: ISecurityContext,
-  ): Promise<BattleshipRoomState> {
+  ): Promise<BattleshipRoomState | LudoRoomState> {
     const room = await this.dbService.findGameRoomById(id);
     if (!room) {
       throw new NotFoundException('Game room not found');
     }
-    if (
-      room.userId !== securityContext.userId &&
-      room.opponentId !== securityContext.userId
-    ) {
+    if (!participantsOf(room).includes(securityContext.userId)) {
       throw new ForbiddenException('You are not part of this room.');
+    }
+    if (room.gameType === GameType.Ludo) {
+      await this.ludoMatchService.getOrCreate(room);
+      return this.ludoMatchService.stateFor(id, securityContext.userId);
     }
     await this.battleshipMatchService.getOrCreate(room);
     return this.battleshipMatchService.stateFor(id, securityContext.userId);

@@ -18,6 +18,7 @@ import {
 } from '@gaming-platform/core';
 
 import { apiClient } from '../../../api/client';
+import { useUsernames } from '../../../store/username-cache';
 import { useWebsocketStore } from '../../../store/websocket.store';
 import type { GridAction } from '../BattleshipGrid';
 import type { BattleshipEngine, EnginePhase } from './battleship-engine';
@@ -59,6 +60,12 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
   const opponentActionId = useRef(0);
 
   const status = useWebsocketStore(s => s.status);
+
+  // The opponent's real username via the shared cache; placeholder until
+  // resolved (or if they never picked one).
+  const usernames = useUsernames(opponentUserId ? [opponentUserId] : []);
+  const opponentName =
+    (opponentUserId ? usernames[opponentUserId] : null) ?? 'Opponent';
 
   // The delayed socket handlers read the opponent id via a ref.
   const opponentIdRef = useRef(opponentUserId);
@@ -334,8 +341,8 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
       action,
       opponentAction,
       opponent: {
-        initial: opponentUserId ? opponentUserId.charAt(0).toUpperCase() : 'O',
-        name: 'Opponent',
+        initial: opponentName.charAt(0).toUpperCase(),
+        name: opponentName,
       },
       sunkByMe: revealed.length,
       sunkByOpponent,

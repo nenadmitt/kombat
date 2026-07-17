@@ -3,6 +3,16 @@
 Entry format: date, one-line summary, location, why it's wrong, suggested
 fix. Remove an entry in the same change that fixes it.
 
+## 2026-07-17 - History shows only the first opponent for Ludo matches
+
+- **Where:** `apps/server/src/games/games.service.ts#getHistory` (opponent
+  resolution) and `MatchHistoryEntry.opponentUsername` (singular) in
+  `packages/core/src/games/stake.types.ts`.
+- **Why it's wrong:** a 3-4 player Ludo match lists one opponent name; the
+  others are invisible in History.
+- **Suggested fix:** add `opponentUsernames: string[]` to the entry (keep
+  the singular field for compatibility) and render "vs A, B, C" on mobile.
+
 ## 2026-07-17 - In-memory cache fallback is unsafe once multiple instances run
 
 - **Where:** `apps/server/src/cache/cache.module.ts` (Redis-unreachable
