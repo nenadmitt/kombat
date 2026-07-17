@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Canvas, Fill, RadialGradient, vec } from '@shopify/react-native-skia';
@@ -76,6 +77,15 @@ export default function RpsPlayScreen({
 }: RpsPlayScreenProps) {
   const { width } = useWindowDimensions();
 
+  // A move is only committed by pressing LOCK IN - selecting a card just
+  // arms it. Clear the local selection whenever a fresh round begins.
+  const [selected, setSelected] = useState<RpsMove | null>(null);
+  useEffect(() => {
+    if (stage === 'choosing' && myMove === null) {
+      setSelected(null);
+    }
+  }, [stage, round, myMove]);
+
   if (result) {
     const stats = [
       { value: `${myScore} - ${opponentScore}`, label: 'FINAL SCORE', highlight: true },
@@ -135,6 +145,8 @@ export default function RpsPlayScreen({
   }
 
   const revealing = stage === 'revealing' && reveal !== null;
+  // The arena shows the committed move once locked, otherwise the armed pick.
+  const activePick = myMove ?? selected;
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -228,9 +240,9 @@ export default function RpsPlayScreen({
               </View>
 
               <View style={styles.arenaSide}>
-                <View style={[styles.handSlot, myMove && styles.handSlotPicked]}>
-                  {myMove ? (
-                    <RpsIcon move={myMove} size={52} color={colors.accent} />
+                <View style={[styles.handSlot, activePick && styles.handSlotPicked]}>
+                  {activePick ? (
+                    <RpsIcon move={activePick} size={52} color={colors.accent} />
                   ) : (
                     <Text style={styles.qMark}>·</Text>
                   )}
@@ -247,14 +259,18 @@ export default function RpsPlayScreen({
             <Text style={styles.chooseLabel}>CHOOSE YOUR MOVE</Text>
             <View style={styles.choices}>
               {RPS_MOVES.map(move => {
-                const on = myMove === move;
+                const on = activePick === move;
                 const locked = myMove !== null;
                 return (
                   <Pressable
                     key={move}
                     disabled={locked}
-                    onPress={() => onLock(move)}
-                    style={[styles.choiceCard, on && styles.choiceCardOn]}
+                    onPress={() => setSelected(move)}
+                    style={[
+                      styles.choiceCard,
+                      on && styles.choiceCardOn,
+                      locked && !on && styles.choiceCardDim,
+                    ]}
                   >
                     <RpsIcon
                       move={move}
@@ -269,7 +285,7 @@ export default function RpsPlayScreen({
               })}
             </View>
 
-            {/* Timer + lock hint */}
+            {/* Countdown + LOCK IN */}
             <View style={styles.footerRow}>
               <View style={styles.timerBox}>
                 <TurnTimer
@@ -279,16 +295,29 @@ export default function RpsPlayScreen({
                 />
                 <Text style={styles.timerLabel}>LEFT</Text>
               </View>
-              <View style={styles.hintPill}>
-                <Icon
-                  type={myMove ? 'check' : 'hand'}
-                  color={myMove ? colors.success : colors.textMuted}
-                  size={16}
-                />
-                <Text style={styles.hintText}>
-                  {myMove ? 'Locked — waiting for opponent' : 'Tap a move to lock it in'}
-                </Text>
-              </View>
+              <Pressable
+                style={styles.lockWrap}
+                disabled={myMove !== null || selected === null}
+                onPress={() => selected && onLock(selected)}
+              >
+                <GradientView
+                  colors={brandGradient.colors}
+                  positions={brandGradient.positions}
+                  style={[
+                    styles.lockButton,
+                    (myMove !== null || selected === null) && styles.lockButtonDisabled,
+                  ]}
+                >
+                  <Icon
+                    type={myMove ? 'check' : 'hand'}
+                    color={colors.textPrimary}
+                    size={18}
+                  />
+                  <Text style={styles.lockButtonText}>
+                    {myMove ? 'LOCKED' : 'LOCK IN'}
+                  </Text>
+                </GradientView>
+              </Pressable>
             </View>
           </>
         )}
@@ -504,26 +533,35 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
     borderWidth: 1.5,
   },
+  choiceCardDim: { opacity: 0.4 },
   choiceLabel: { fontSize: 11, fontFamily: fonts.bold, letterSpacing: 0.4, color: colors.textMuted },
   choiceLabelOn: { color: colors.textPrimary },
 
   footerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: 'auto', marginBottom: spacing.md },
-  timerBox: { alignItems: 'center', gap: 2 },
-  timer: { fontSize: 20, fontFamily: mono.bold, color: colors.textPrimary, fontVariant: ['tabular-nums'] },
-  timerLabel: { fontSize: 9, fontFamily: mono.bold, color: colors.textMuted, letterSpacing: 1 },
-  hintPill: {
-    flex: 1,
+  timerBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 1,
+    minWidth: 62,
+    paddingVertical: 8,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.brandStart,
+    backgroundColor: colors.cardBackground,
+  },
+  timer: { fontSize: 22, fontFamily: mono.bold, color: colors.textPrimary, fontVariant: ['tabular-nums'] },
+  timerLabel: { fontSize: 9, fontFamily: mono.bold, color: colors.accent, letterSpacing: 1 },
+  lockWrap: { flex: 1 },
+  lockButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 14,
-    borderRadius: radius.card,
-    backgroundColor: colors.cardBackground,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
+    height: 54,
+    borderRadius: radius.button,
   },
-  hintText: { fontSize: 12, fontFamily: fonts.semiBold, color: colors.textSecondary },
+  lockButtonDisabled: { opacity: 0.4 },
+  lockButtonText: { fontSize: 16, fontFamily: fonts.bold, color: colors.textPrimary, letterSpacing: 1 },
 
   // reveal
   reveal: { alignItems: 'center', gap: spacing.md, paddingTop: spacing.sm },

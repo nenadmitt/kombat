@@ -47,27 +47,10 @@ export function describeOutcome(winner: RpsMove, loser: RpsMove): string {
   return `${cap(winner)} ${verb} ${cap(loser)}`;
 }
 
-/** A uniformly random move (demo bot + tie-break flourish). */
+/**
+ * The demo bot: a uniformly random move. Simple and fair - a demo opponent to
+ * practice against, not one to beat. (Also handy as a tie-break flourish.)
+ */
 export function randomMove(): RpsMove {
   return RPS_MOVES[Math.floor(Math.random() * RPS_MOVES.length)]!;
-}
-
-/**
- * Demo bot move. Mostly random, but with a mild counter-tendency: it slightly
- * favors the move that would beat the human's most-frequent past move, so the
- * bot feels reactive without being unbeatable.
- */
-export function botMove(opponentHistory: RpsMove[]): RpsMove {
-  if (opponentHistory.length === 0 || Math.random() < 0.5) {
-    return randomMove();
-  }
-  const counts: Record<RpsMove, number> = { rock: 0, paper: 0, scissors: 0 };
-  for (const move of opponentHistory) {
-    counts[move]++;
-  }
-  const favorite = RPS_MOVES.reduce((best, move) =>
-    counts[move] > counts[best] ? move : best,
-  );
-  // The move that beats the favorite (invert BEATS).
-  return RPS_MOVES.find(move => beats(move, favorite))!;
 }

@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
-  botMove,
-  describeOutcome,
   MAX_TIMEOUTS,
+  randomMove,
   resolveRound,
   TURN_SECONDS,
   WIN_TARGET,
@@ -23,10 +22,10 @@ type RevealInfo = {
 };
 
 /**
- * Single-player demo engine: full local best-of-5 vs a bot (core botMove
- * policy). The player picks a move; the bot picks concurrently and the round
- * reveals. 30s per round; three timeouts and the player loses - mirroring the
- * multiplayer rules.
+ * Single-player demo engine: full local best-of-5 vs a bot that plays a
+ * uniformly random move (core randomMove). The player picks a move; the bot
+ * picks concurrently and the round reveals. 30s per round; three timeouts and
+ * the player loses - mirroring the multiplayer rules.
  */
 export function useDemoRps(): RpsEngine {
   const [round, setRound] = useState(1);
@@ -40,16 +39,10 @@ export function useDemoRps(): RpsEngine {
   const [ended, setEnded] = useState<'win' | 'lose' | null>(null);
   const [endReason, setEndReason] = useState<RpsEndReason | null>(null);
 
-  // The bot adapts to the human's past picks.
-  const historyRef = useRef<RpsMove[]>([]);
-
   /** Resolve a round given the player's move (or null for a timeout). */
   const resolve = useCallback(
     (mine: RpsMove | null, timedOut: boolean) => {
-      const theirs = botMove(historyRef.current);
-      if (mine) {
-        historyRef.current = [...historyRef.current, mine];
-      }
+      const theirs = randomMove();
       const outcome = resolveRound(mine, theirs);
       const result: RevealInfo['result'] =
         outcome === 1 ? 'win' : outcome === -1 ? 'loss' : 'tie';
