@@ -32,10 +32,9 @@ export const BATTLESHIP_EVENTS = {
   error: 'battleship:error',
 } as const;
 
-/** How long a player has to move before the turn times out. */
-export const TURN_SECONDS = 30;
-/** Total turn timeouts a player may accrue before forfeiting the match. */
-export const MAX_TIMEOUTS = 3;
+// The turn clock is platform-wide policy, not battleship's - re-exported so
+// existing imports keep working.
+export { MAX_TIMEOUTS, TURN_SECONDS } from '../turn-based';
 /** How long both players have to deploy their fleets before auto-forfeiting. */
 export const SETUP_SECONDS = 90;
 

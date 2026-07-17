@@ -3,6 +3,7 @@ import type { StakeAsset } from './stake.types';
 /** Which game a room is for. Stored server-side as smallint, not a Postgres enum. */
 export enum GameType {
   NavalBattle = 0,
+  Ludo = 1,
 }
 
 /**
@@ -19,8 +20,12 @@ export type GameRoomSummary = {
   id: string;
   gameType: GameType;
   status: GameRoomStatus;
-  /** How many players this game type requires (e.g. NavalBattle = 2). */
+  /** Room capacity for this game type (NavalBattle = 2, Ludo = 4). */
   playerCount: number;
+  /** Players currently in the room, creator included. */
+  joinedCount: number;
+  /** The room's creator - the only player who may start a Ludo room early. */
+  creatorUserId: string;
   /** Stake asset, or null for a free game. */
   stakeToken: StakeAsset | null;
   /** Per-player stake in base units (decimal string), or null for free. */
@@ -30,4 +35,37 @@ export type GameRoomSummary = {
   /** Private rooms are hidden from the lobby and joinable only via their code. */
   isPrivate: boolean;
   createdAt: string;
+};
+
+/**
+ * Room lifecycle socket events (game-agnostic, sent outside any match
+ * channel - to the affected users directly).
+ */
+export const ROOM_EVENTS = {
+  /**
+   * Legacy 2-player flow (NavalBattle): the room filled and the match starts
+   * now. Sent to the creator; the joiner navigates from the join response.
+   */
+  opponentJoined: 'game:opponent-joined',
+  /** A player joined a multi-player (Ludo) room that is still waiting. */
+  playerJoined: 'game:player-joined',
+  /** A player left a still-Pending multi-player room. */
+  playerLeft: 'game:player-left',
+  /** A multi-player room started (room full, or the creator started early). */
+  started: 'game:started',
+} as const;
+
+export type RoomPlayerJoinedPayload = {
+  roomId: string;
+  userId: string;
+  /** Players now in the room, creator included. */
+  joinedCount: number;
+  /** Room capacity. */
+  playerCount: number;
+};
+
+export type RoomPlayerLeftPayload = RoomPlayerJoinedPayload;
+
+export type RoomStartedPayload = {
+  roomId: string;
 };

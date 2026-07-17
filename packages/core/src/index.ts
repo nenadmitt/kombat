@@ -12,6 +12,8 @@ export * from './api/api-client';
 export * from './api/error-codes';
 export * from './authentication/authentication.types';
 export * from './games/game-room.types';
+export * from './games/turn-based';
 export * from './games/battleship';
+export * from './games/ludo';
 export * from './games/stake.types';
 export * from './wallets/wallet.types';
