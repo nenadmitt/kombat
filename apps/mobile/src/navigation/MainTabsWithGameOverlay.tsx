@@ -38,7 +38,6 @@ export default function MainTabsWithGameOverlay() {
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const setWaitingRoom = useGameStore(state => state.setWaitingRoom);
   const setResumableMatch = useGameStore(state => state.setResumableMatch);
-  const clearResumableMatch = useGameStore(state => state.clearResumableMatch);
   const clearWaitingRoom = useGameStore(state => state.clear);
   const setSecuringStakes = useGameStore(state => state.setSecuringStakes);
   const onSocketEvent = useWebsocketStore(state => state.on);
@@ -104,9 +103,11 @@ export default function MainTabsWithGameOverlay() {
       });
   }, [setWaitingRoom, setResumableMatch]);
 
+  // Fired by ResumeMatchModal only after its Modal has fully dismissed -
+  // navigating earlier would overlap two native transitions and wedge iOS
+  // touches. The modal also owns clearing the store, so this just navigates.
   const handleRejoin = useCallback(
     (room: GameRoomSummary) => {
-      clearResumableMatch();
       (navigation.navigate as (screen: string, params: unknown) => void)(
         GAME_TYPE_SCREENS[room.gameType],
         {
@@ -116,7 +117,7 @@ export default function MainTabsWithGameOverlay() {
         },
       );
     },
-    [clearResumableMatch, navigation],
+    [navigation],
   );
 
   // Someone joined the room this user is waiting in - stop waiting and
