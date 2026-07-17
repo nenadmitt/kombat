@@ -37,10 +37,7 @@ export function chooseBotMove(
       score += 80;
     }
     if (from === -1) {
-      // Releasing is only urgent while the start cell is clear - otherwise
-      // pawns pile up there six after six instead of racing.
-      const startOccupied = (tokens[color] ?? []).some(p => p === 0);
-      score += startOccupied ? 8 : 50;
+      score += 50;
     }
     if (result.toProgress > TRACK_END && result.toProgress < HOME_PROGRESS) {
       score += 40;

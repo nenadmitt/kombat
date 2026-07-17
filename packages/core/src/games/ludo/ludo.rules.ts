@@ -39,8 +39,12 @@ export function initialTokens(colors: LudoColor[]): LudoTokens {
 
 /**
  * Token indices `color` may legally move with `die`: a 6 releases a token
- * from base onto the (safe) start cell; a token on the path moves forward
- * only if it would not overshoot home (exact roll finishes).
+ * from base onto the start cell; a token on the path moves forward only if
+ * it would not overshoot home (exact roll finishes). A destination already
+ * holding one of the player's OWN tokens is illegal - no stacking (home
+ * itself excepted; different colors may still share safe cells). Same color
+ * + same progress is always the same cell, so occupancy is a progress
+ * comparison.
  */
 export function legalMoves(
   tokens: LudoTokens,
@@ -51,10 +55,18 @@ export function legalMoves(
   const moves: number[] = [];
   for (let i = 0; i < own.length; i++) {
     const p = own[i]!;
-    if (p === -1 ? die === DIE_SIDES : p + die <= HOME_PROGRESS) {
-      if (p !== HOME_PROGRESS) {
-        moves.push(i);
-      }
+    if (p === HOME_PROGRESS) {
+      continue;
+    }
+    if (p === -1 ? die !== DIE_SIDES : p + die > HOME_PROGRESS) {
+      continue;
+    }
+    const target = p === -1 ? 0 : p + die;
+    const blockedByOwn =
+      target !== HOME_PROGRESS &&
+      own.some((other, j) => j !== i && other === target);
+    if (!blockedByOwn) {
+      moves.push(i);
     }
   }
   return moves;
