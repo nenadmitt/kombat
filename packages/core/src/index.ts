@@ -15,5 +15,6 @@ export * from './games/game-room.types';
 export * from './games/turn-based';
 export * from './games/battleship';
 export * from './games/ludo';
+export * from './games/rps';
 export * from './games/stake.types';
 export * from './wallets/wallet.types';

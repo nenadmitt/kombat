@@ -10,6 +10,8 @@ import { GamesController } from './games.controller';
 import { GamesService } from './games.service';
 import { LudoGateway } from './ludo/ludo.gateway';
 import { LudoMatchService } from './ludo/ludo-match.service';
+import { RpsGateway } from './rps/rps.gateway';
+import { RpsMatchService } from './rps/rps-match.service';
 import { StakeSweeper } from './stakes/stake.sweeper';
 import { StakesService } from './stakes/stakes.service';
 
@@ -24,6 +26,8 @@ import { StakesService } from './stakes/stakes.service';
     BattleshipGateway,
     LudoMatchService,
     LudoGateway,
+    RpsMatchService,
+    RpsGateway,
     GameDeadlineSweeper,
   ],
 })

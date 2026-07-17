@@ -4,13 +4,18 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
-import { BATTLESHIP_EVENTS, LUDO_EVENTS } from '@gaming-platform/core';
+import {
+  BATTLESHIP_EVENTS,
+  LUDO_EVENTS,
+  RPS_EVENTS,
+} from '@gaming-platform/core';
 
 import { CacheService, parseDeadlineMember } from '../cache';
 import { gameChannel } from '../websockets/rooms.util';
 import { WebsocketsService } from '../websockets';
 import { BattleshipMatchService } from './battleships/battleship-match.service';
 import { LudoMatchService } from './ludo/ludo-match.service';
+import { RpsMatchService } from './rps/rps-match.service';
 import { StakesService } from './stakes/stakes.service';
 
 const SWEEP_INTERVAL_MS = 1_000;
@@ -38,6 +43,7 @@ export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
     private readonly cacheService: CacheService,
     private readonly battleshipMatchService: BattleshipMatchService,
     private readonly ludoMatchService: LudoMatchService,
+    private readonly rpsMatchService: RpsMatchService,
     private readonly websocketsService: WebsocketsService,
     private readonly stakesService: StakesService,
   ) {}
@@ -99,6 +105,8 @@ export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
         return this.enforceBattleshipTurnTimeout(parsed.roomId, parsed.seq);
       case 'ludo-turn':
         return this.enforceLudoTurnTimeout(parsed.roomId, parsed.seq);
+      case 'rps-round':
+        return this.enforceRpsRoundTimeout(parsed.roomId, parsed.seq);
     }
   }
 
@@ -167,6 +175,35 @@ export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
       await this.stakesService.completeMatch(
         roomId,
         payload.winnerUserId,
+        'timeout',
+      );
+    }
+  }
+
+  // --- triple cut (rps) ------------------------------------------------------
+
+  private async enforceRpsRoundTimeout(
+    roomId: string,
+    seq: number,
+  ): Promise<void> {
+    const reveal = await this.rpsMatchService.timeoutRound(roomId, seq);
+    if (!reveal) {
+      return; // Stale — the round advanced or the match ended/expired.
+    }
+    this.websocketsService.sendToChannel(
+      gameChannel(roomId),
+      RPS_EVENTS.reveal,
+      reveal,
+    );
+    if (reveal.winnerUserId) {
+      this.websocketsService.sendToChannel(
+        gameChannel(roomId),
+        RPS_EVENTS.ended,
+        { winnerUserId: reveal.winnerUserId, reason: 'timeout' },
+      );
+      await this.stakesService.completeMatch(
+        roomId,
+        reveal.winnerUserId,
         'timeout',
       );
     }
