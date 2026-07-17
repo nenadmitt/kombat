@@ -9,7 +9,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Canvas, Fill, RadialGradient, vec } from '@shopify/react-native-skia';
-import { MINES_PER_PLAYER, type MinePlacement } from '@gaming-platform/core';
+import {
+  MINES_PER_PLAYER,
+  randomFleet,
+  randomMines,
+  type MinePlacement,
+} from '@gaming-platform/core';
 
 import Icon from '../../../components/Icon';
 import { GradientView } from '../../../components/GradientView';
@@ -30,12 +35,7 @@ import {
 } from './ship-placement.constants';
 import TurnTimer from '../game/TurnTimer';
 import type { Orientation, Placement } from './ship-placement.types';
-import {
-  buildOccupied,
-  canPlace,
-  cellsFor,
-  randomPlacement,
-} from './ship-placement.utils';
+import { buildOccupied, canPlace, cellsFor } from './ship-placement.utils';
 
 type Props = {
   onReady: (
@@ -167,44 +167,12 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
     [placements, mines, handleRemove, handlePlaceActive],
   );
 
+  // A full reshuffle every tap - existing placements are thrown away so the
+  // player can keep rolling layouts until one looks right, then hit READY.
   const handleAutoPlace = () => {
-    let next = { ...placements };
-    const occupied = buildOccupied(next);
-    for (const m of mines) {
-      occupied.add(`${m.row},${m.col}`);
-    }
-    for (const ship of SHIPS) {
-      if (next[ship.id]) {
-        continue;
-      }
-      for (let attempt = 0; attempt < 200; attempt++) {
-        const candidate = randomPlacement(ship.size);
-        const cells = cellsFor(candidate, ship.size);
-        if (canPlace(cells, occupied)) {
-          next = { ...next, [ship.id]: candidate };
-          for (const { r, c } of cells) {
-            occupied.add(`${r},${c}`);
-          }
-          break;
-        }
-      }
-    }
-    // Fill any remaining mine slots on random open water.
-    const nextMines = [...mines];
-    const open: MinePlacement[] = [];
-    for (let row = 0; row < GRID; row++) {
-      for (let col = 0; col < GRID; col++) {
-        if (!occupied.has(`${row},${col}`)) {
-          open.push({ row, col });
-        }
-      }
-    }
-    while (nextMines.length < MINES_PER_PLAYER && open.length > 0) {
-      const idx = Math.floor(Math.random() * open.length);
-      nextMines.push(open.splice(idx, 1)[0]!);
-    }
+    const next = randomFleet();
     setPlacements(next);
-    setMines(nextMines);
+    setMines(randomMines(next));
     setSelectedId(null);
   };
 
