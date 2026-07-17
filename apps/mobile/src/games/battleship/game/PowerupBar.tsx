@@ -5,7 +5,12 @@ import Icon, { type IconName } from '../../../components/Icon';
 import { GradientView } from '../../../components/GradientView';
 import { colors, radius, spacing } from '../../../theme/colors';
 import { display, mono } from '../../../theme/typography';
-import { CHARGE_BAR_MAX, POWERUP_COST, type PowerupKind } from './powerups';
+import {
+  CHARGE_BAR_MAX,
+  POWERUP_COSTS,
+  POWERUP_MAX_USES,
+  type PowerupKind,
+} from './powerups';
 
 type PowerupDef = {
   kind: PowerupKind;
@@ -28,13 +33,16 @@ const CHARGE_GRADIENT = {
 type Props = {
   /** Current charge points - earned by hitting enemy ships. */
   points: number;
+  /** Uses spent so far per power-up (each is capped at POWERUP_MAX_USES). */
+  used: Record<PowerupKind, number>;
   armed: PowerupKind | null;
   onArm: (kind: PowerupKind) => void;
 };
 
-/** Power-ups with a charge bar. Each hit adds a point; a power-up costs
- *  POWERUP_COST points. A card is armable only once you can afford it. */
-export default function PowerupBar({ points, armed, onArm }: Props) {
+/** Power-ups with a charge bar. Each hit adds a point; each power-up has its
+ *  own cost and a per-match use cap. A card is armable only while you can
+ *  afford it and have uses left. */
+export default function PowerupBar({ points, used, armed, onArm }: Props) {
   const fill = Math.min(points / CHARGE_BAR_MAX, 1);
   const [showTip, setShowTip] = useState(false);
 
@@ -56,8 +64,9 @@ export default function PowerupBar({ points, armed, onArm }: Props) {
       {showTip && (
         <View style={styles.tooltip}>
           <Text style={styles.tooltipText}>
-            Land a hit on an enemy ship to earn 1 charge point. Spend{' '}
-            {POWERUP_COST} points to launch a power-up.
+            Land a hit on an enemy ship to earn 1 charge point. A torpedo costs{' '}
+            {POWERUP_COSTS.torpedo} points and a bomb {POWERUP_COSTS.bomb};
+            each can be fired {POWERUP_MAX_USES}× per match.
           </Text>
         </View>
       )}
@@ -73,7 +82,8 @@ export default function PowerupBar({ points, armed, onArm }: Props) {
       <View style={styles.row}>
         {POWERUPS.map(p => {
           const isArmed = armed === p.kind;
-          const disabled = points < POWERUP_COST;
+          const left = POWERUP_MAX_USES - (used[p.kind] ?? 0);
+          const disabled = left <= 0 || points < POWERUP_COSTS[p.kind];
           return (
             <Pressable
               key={p.kind}
@@ -93,10 +103,12 @@ export default function PowerupBar({ points, armed, onArm }: Props) {
                   <Text style={styles.title}>{p.label}</Text>
                   <View style={styles.costBadge}>
                     <Icon type="zap" color={colors.textMuted} size={9} />
-                    <Text style={styles.costText}>{POWERUP_COST}</Text>
+                    <Text style={styles.costText}>{POWERUP_COSTS[p.kind]}</Text>
                   </View>
                 </View>
-                <Text style={styles.blurb}>{p.blurb}</Text>
+                <Text style={styles.blurb}>
+                  {left > 0 ? `${p.blurb} · ${left} left` : 'No uses left'}
+                </Text>
               </View>
             </Pressable>
           );

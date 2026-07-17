@@ -12,10 +12,14 @@ import {
 } from '@shopify/react-native-skia';
 import { useSharedValue, withTiming } from 'react-native-reanimated';
 
+import type { MinePlacement } from '@gaming-platform/core';
+
 import { colors } from '../../theme/colors';
 import {
   AnimatedShot,
   BombBlast,
+  MineExplosion,
+  MineMarker,
   TorpedoProjectile,
   type MarkerKind,
 } from './battleship-markers';
@@ -54,14 +58,17 @@ export type PlacedShip = {
 
 /** The most recent shot batch, replayed as an entrance animation. `id` bumps
  *  every action so repeats still animate. Torpedo cells reveal left→right with
- *  a projectile; single/bomb cells pop in together. */
+ *  a projectile; single/bomb cells pop in together; `mine` is a triggered
+ *  mine's blast - its cells pop in under an expanding yellow explosion. */
 export type GridAction = {
   id: number;
-  kind: 'single' | 'torpedo' | 'bomb';
+  kind: 'single' | 'torpedo' | 'bomb' | 'mine';
   cells: Shot[];
 };
 
 const ENTRY_MS = 300;
+/** A mine blast's expanding-circle explosion plays slower for drama. */
+const MINE_BLAST_MS = 900;
 const TORPEDO_PER_CELL_MS = 90;
 const SINK_PER_CELL_MS = 150;
 
@@ -75,7 +82,9 @@ type Props = {
   cell: number;
   /** Ships to draw as full hull silhouettes (own fleet, or revealed sunk ships). */
   placedShips?: PlacedShip[];
-  /** Hit/miss markers overlaid on cells (gameplay). */
+  /** Armed sea mines to draw (setup + own-fleet views). */
+  mines?: MinePlacement[];
+  /** Hit/miss/mine markers overlaid on cells (gameplay). */
   shots?: Shot[];
   /** Highlighted target cell (attack mode). */
   selectedCell?: { row: number; col: number } | null;
@@ -85,6 +94,8 @@ type Props = {
   action?: GridAction | null;
   /** Ship currently selected for placement - drawn hovering under the finger. */
   activeShip?: { size: number; color: string } | null;
+  /** Whether a mine is being placed - drawn hovering under the finger. */
+  activeMine?: boolean;
   orientation?: Orientation;
   /** Whether the active ship may be placed anchored at (row, col). */
   isValidPlacement?: (row: number, col: number) => boolean;
@@ -103,11 +114,13 @@ function BattleshipGrid({
   boardSize,
   cell,
   placedShips = [],
+  mines = [],
   shots = [],
   selectedCell = null,
   previewCells,
   action = null,
   activeShip = null,
+  activeMine = false,
   orientation = 'h',
   isValidPlacement,
   onCommit,
@@ -118,6 +131,8 @@ function BattleshipGrid({
   // latest props/callbacks instead of the ones captured at first render.
   const activeShipRef = useRef(activeShip);
   activeShipRef.current = activeShip;
+  const activeMineRef = useRef(activeMine);
+  activeMineRef.current = activeMine;
   const isValidRef = useRef(isValidPlacement);
   isValidRef.current = isValidPlacement;
   const onCommitRef = useRef(onCommit);
@@ -130,7 +145,7 @@ function BattleshipGrid({
   });
 
   const updateHover = (locationX: number, locationY: number) => {
-    if (!activeShipRef.current) {
+    if (!activeShipRef.current && !activeMineRef.current) {
       return;
     }
     const { row, col } = toCell(locationX, locationY);
@@ -163,6 +178,9 @@ function BattleshipGrid({
         onCommitRef.current?.(row, col, !movedRef.current);
         setHover(null);
       },
+      // Keep the gesture when an enclosing ScrollView asks to take over -
+      // otherwise dragging a ship down the board scrolls the screen instead.
+      onPanResponderTerminationRequest: () => false,
       onPanResponderTerminate: () => setHover(null),
     }),
   ).current;
@@ -193,7 +211,7 @@ function BattleshipGrid({
     }
     return set;
   }, [placedShips, shots]);
-  const active = activeShip !== null;
+  const active = activeShip !== null || activeMine;
   // Only wire up touch handlers when the board is interactive.
   const touchHandlers = onCommit ? responder.panHandlers : {};
 
@@ -215,7 +233,7 @@ function BattleshipGrid({
     const keys = new Set(action.cells.map(c => `${c.row},${c.col}`));
     setBatch({ keys, cells: action.cells, kind: action.kind });
 
-    let duration = ENTRY_MS;
+    let duration = action.kind === 'mine' ? MINE_BLAST_MS : ENTRY_MS;
     if (action.kind === 'torpedo') {
       const cols = action.cells.map(c => c.col);
       setProjectile({
@@ -353,6 +371,15 @@ function BattleshipGrid({
           ),
         )}
 
+        {mines.map(m => (
+          <MineMarker
+            key={`m${m.row},${m.col}`}
+            cx={m.col * cell + cell / 2}
+            cy={m.row * cell + cell / 2}
+            cellSize={cell - CELL_GAP}
+          />
+        ))}
+
         {shots.map(shot => {
           const cellKey = `${shot.row},${shot.col}`;
           const key = `s${cellKey}`;
@@ -383,11 +410,14 @@ function BattleshipGrid({
           }
           // A freshly-fired cell plays its entrance animation.
           if (batch && batch.keys.has(cellKey)) {
-            const markerKind: MarkerKind = isSunkCell
-              ? 'sunk'
-              : shot.result === 'hit'
-                ? 'hit'
-                : 'miss';
+            const markerKind: MarkerKind =
+              shot.result === 'mine'
+                ? 'mine'
+                : isSunkCell
+                  ? 'sunk'
+                  : shot.result === 'hit'
+                    ? 'hit'
+                    : 'miss';
             const stagger = batch.kind === 'torpedo';
             const idx = stagger
               ? batch.cells.findIndex(c => `${c.row},${c.col}` === cellKey)
@@ -408,7 +438,19 @@ function BattleshipGrid({
               />
             );
           }
-          // Settled markers render statically.
+          // Settled markers render statically. A mine in the shot log has
+          // gone off, so it renders blown open (dark hole in the core).
+          if (shot.result === 'mine') {
+            return (
+              <MineMarker
+                key={key}
+                cx={cx}
+                cy={cy}
+                cellSize={size}
+                exploded
+              />
+            );
+          }
           if (shot.result === 'miss') {
             return <Circle key={key} cx={cx} cy={cy} r={cell * 0.12} color={MISS_DOT} />;
           }
@@ -444,6 +486,28 @@ function BattleshipGrid({
               progress={entry}
             />
           ))}
+
+        {batch?.kind === 'mine' && batch.cells.length > 0 && (
+          <MineExplosion
+            // Center of the blast area (its cells' bounding box).
+            cx={
+              ((Math.min(...batch.cells.map(c => c.col)) +
+                Math.max(...batch.cells.map(c => c.col))) /
+                2 +
+                0.5) *
+              cell
+            }
+            cy={
+              ((Math.min(...batch.cells.map(c => c.row)) +
+                Math.max(...batch.cells.map(c => c.row))) /
+                2 +
+                0.5) *
+              cell
+            }
+            cellSize={cell}
+            progress={entry}
+          />
+        )}
 
         {projectile && (
           <TorpedoProjectile
@@ -493,6 +557,16 @@ function BattleshipGrid({
             orientation,
             0.85,
           )}
+
+        {hover && !activeShip && activeMine && (
+          <MineMarker
+            cx={hover.col * cell + cell / 2}
+            cy={hover.row * cell + cell / 2}
+            cellSize={cell - CELL_GAP}
+            opacity={0.85}
+            color={hover.valid ? undefined : colors.danger}
+          />
+        )}
       </Canvas>
     </View>
   );

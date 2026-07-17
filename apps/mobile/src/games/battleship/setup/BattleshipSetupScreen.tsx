@@ -1,18 +1,28 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Canvas, Fill, RadialGradient, vec } from '@shopify/react-native-skia';
+import { MINES_PER_PLAYER, type MinePlacement } from '@gaming-platform/core';
 
 import Icon from '../../../components/Icon';
 import { GradientView } from '../../../components/GradientView';
 import { brandGradient, colors, radius, spacing } from '../../../theme/colors';
 import { display, fonts, mono } from '../../../theme/typography';
 import BattleshipGrid from '../BattleshipGrid';
+import MineCard from './MineCard';
 import ShipCard from './ShipCard';
 import {
   COLUMN_LABELS,
   GRID,
   LABEL_GUTTER,
+  MINE_COLOR,
   ROW_LABELS,
   SETUP_DURATION_SECONDS,
   SHIPS,
@@ -28,9 +38,15 @@ import {
 } from './ship-placement.utils';
 
 type Props = {
-  onReady: (placements: Record<string, Placement>) => void;
+  onReady: (
+    placements: Record<string, Placement>,
+    mines: MinePlacement[],
+  ) => void;
   onExit: () => void;
 };
+
+/** Pseudo-id for the mines tray card (ship ids come from the fleet spec). */
+const MINES_ID = 'mines';
 
 // colors.accent at reduced opacity, for the top glow behind the header.
 const GLOW_COLOR = 'rgba(124, 92, 255, 0.35)';
@@ -44,19 +60,34 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
   const cell = boardSize / GRID;
 
   const [placements, setPlacements] = useState<Record<string, Placement>>({});
+  const [mines, setMines] = useState<MinePlacement[]>([]);
   // A single orientation shared by every ship, toggled from the "Placing" row.
   const [orientation, setOrientation] = useState<Orientation>('h');
-  const [selectedShipId, setSelectedShipId] = useState<string | null>(null);
+  // A ship id, MINES_ID, or null (auto-advance to the next unplaced item).
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   // A fixed deadline for the setup countdown, computed once on mount.
   const setupDeadline = useRef(
     Date.now() + SETUP_DURATION_SECONDS * 1000,
   ).current;
 
-  const nextShipId = SHIPS.find(s => !placements[s.id])?.id;
-  const activeShipId = selectedShipId ?? nextShipId;
+  const minesLeft = MINES_PER_PLAYER - mines.length;
+  const nextId =
+    SHIPS.find(s => !placements[s.id])?.id ??
+    (minesLeft > 0 ? MINES_ID : undefined);
+  const activeId = selectedId ?? nextId;
+  const placingMine = activeId === MINES_ID;
 
-  const handleSelect = (shipId: string) => {
-    setSelectedShipId(shipId);
+  // Ships and mines block each other, so placement checks span both.
+  const occupiedAll = useMemo(() => {
+    const set = buildOccupied(placements);
+    for (const m of mines) {
+      set.add(`${m.row},${m.col}`);
+    }
+    return set;
+  }, [placements, mines]);
+
+  const handleSelect = (id: string) => {
+    setSelectedId(id);
   };
 
   const handleRotate = () => {
@@ -72,38 +103,55 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
 
   const handlePlaceActive = useCallback(
     (row: number, col: number) => {
-      if (!activeShipId) {
+      if (!activeId) {
         return;
       }
-      const ship = SHIP_BY_ID[activeShipId]!;
+      if (activeId === MINES_ID) {
+        if (mines.length >= MINES_PER_PLAYER || occupiedAll.has(`${row},${col}`)) {
+          return;
+        }
+        setMines(prev => [...prev, { row, col }]);
+        // Keep placing mines until the full set is armed.
+        setSelectedId(mines.length + 1 < MINES_PER_PLAYER ? MINES_ID : null);
+        return;
+      }
+      const ship = SHIP_BY_ID[activeId]!;
       const cells = cellsFor({ row, col, orientation }, ship.size);
-      if (!canPlace(cells, buildOccupied(placements))) {
+      if (!canPlace(cells, occupiedAll)) {
         return;
       }
-      setPlacements(prev => ({ ...prev, [activeShipId]: { row, col, orientation } }));
-      setSelectedShipId(null);
+      setPlacements(prev => ({ ...prev, [activeId]: { row, col, orientation } }));
+      setSelectedId(null);
     },
-    [activeShipId, orientation, placements],
+    [activeId, orientation, mines, occupiedAll],
   );
 
   const isValidPlacement = useCallback(
     (row: number, col: number) => {
-      if (!activeShipId) {
+      if (!activeId) {
         return false;
       }
-      const ship = SHIP_BY_ID[activeShipId]!;
+      if (activeId === MINES_ID) {
+        return !occupiedAll.has(`${row},${col}`);
+      }
+      const ship = SHIP_BY_ID[activeId]!;
       const cells = cellsFor({ row, col, orientation }, ship.size);
-      return canPlace(cells, buildOccupied(placements));
+      return canPlace(cells, occupiedAll);
     },
-    [activeShipId, orientation, placements],
+    [activeId, orientation, occupiedAll],
   );
 
   const handleGridCommit = useCallback(
     (row: number, col: number, isTap: boolean) => {
-      // Only a deliberate tap removes a placed ship - releasing a drag over an
-      // occupied cell is just an invalid drop and should do nothing, otherwise
-      // a missed drop silently deletes a ship the player already placed.
+      // Only a deliberate tap removes a placed ship or mine - releasing a drag
+      // over an occupied cell is just an invalid drop and should do nothing,
+      // otherwise a missed drop silently deletes something already placed.
       if (isTap) {
+        const mineIdx = mines.findIndex(m => m.row === row && m.col === col);
+        if (mineIdx !== -1) {
+          setMines(prev => prev.filter((_, i) => i !== mineIdx));
+          return;
+        }
         const occupantId = Object.keys(placements).find(id =>
           cellsFor(placements[id]!, SHIP_BY_ID[id]!.size).some(
             c => c.r === row && c.c === col,
@@ -116,11 +164,15 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
       }
       handlePlaceActive(row, col);
     },
-    [placements, handleRemove, handlePlaceActive],
+    [placements, mines, handleRemove, handlePlaceActive],
   );
 
   const handleAutoPlace = () => {
     let next = { ...placements };
+    const occupied = buildOccupied(next);
+    for (const m of mines) {
+      occupied.add(`${m.row},${m.col}`);
+    }
     for (const ship of SHIPS) {
       if (next[ship.id]) {
         continue;
@@ -128,19 +180,39 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
       for (let attempt = 0; attempt < 200; attempt++) {
         const candidate = randomPlacement(ship.size);
         const cells = cellsFor(candidate, ship.size);
-        if (canPlace(cells, buildOccupied(next))) {
+        if (canPlace(cells, occupied)) {
           next = { ...next, [ship.id]: candidate };
+          for (const { r, c } of cells) {
+            occupied.add(`${r},${c}`);
+          }
           break;
         }
       }
     }
+    // Fill any remaining mine slots on random open water.
+    const nextMines = [...mines];
+    const open: MinePlacement[] = [];
+    for (let row = 0; row < GRID; row++) {
+      for (let col = 0; col < GRID; col++) {
+        if (!occupied.has(`${row},${col}`)) {
+          open.push({ row, col });
+        }
+      }
+    }
+    while (nextMines.length < MINES_PER_PLAYER && open.length > 0) {
+      const idx = Math.floor(Math.random() * open.length);
+      nextMines.push(open.splice(idx, 1)[0]!);
+    }
     setPlacements(next);
-    setSelectedShipId(null);
+    setMines(nextMines);
+    setSelectedId(null);
   };
 
-  const placedCount = Object.keys(placements).length;
-  const allPlaced = placedCount === SHIPS.length;
-  const activeShip = activeShipId ? SHIP_BY_ID[activeShipId] : undefined;
+  const placedCount = Object.keys(placements).length + mines.length;
+  const totalToPlace = SHIPS.length + MINES_PER_PLAYER;
+  const allPlaced = placedCount === totalToPlace;
+  const activeShip =
+    activeId && activeId !== MINES_ID ? SHIP_BY_ID[activeId] : undefined;
   const placedShips = useMemo(
     () =>
       SHIPS.filter(s => placements[s.id]).map(s => ({
@@ -177,10 +249,14 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
         </Pressable>
       </View>
 
-      <View style={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.title}>Deploy Your Fleet</Text>
         <Text style={styles.subtitle}>
-          Select a ship below, then tap or drag on the grid to place it.
+          Select a ship or your mines below, then tap or drag on the grid to
+          place them.
         </Text>
 
         <View style={styles.progressRow}>
@@ -190,12 +266,12 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
               positions={brandGradient.positions}
               style={[
                 styles.progressFill,
-                { width: `${(placedCount / SHIPS.length) * 100}%` },
+                { width: `${(placedCount / totalToPlace) * 100}%` },
               ]}
             />
           </View>
           <Text style={styles.progressLabel}>
-            {placedCount} / {SHIPS.length} placed
+            {placedCount} / {totalToPlace} placed
           </Text>
         </View>
 
@@ -223,7 +299,9 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
             boardSize={boardSize}
             cell={cell}
             placedShips={placedShips}
+            mines={mines}
             activeShip={activeShip ?? null}
+            activeMine={placingMine}
             orientation={orientation}
             isValidPlacement={isValidPlacement}
             onCommit={handleGridCommit}
@@ -245,29 +323,48 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
               </Text>
             </Pressable>
           </View>
+        ) : placingMine ? (
+          <View style={styles.placingRow}>
+            <Text style={styles.placingText}>
+              Placing{' '}
+              <Text style={[styles.placingName, { color: MINE_COLOR }]}>
+                Sea Mine
+              </Text>{' '}
+              · {minesLeft} left
+            </Text>
+          </View>
         ) : (
           <View style={styles.placingRow}>
             <View style={styles.deployedRow}>
               <Icon type="check" color={colors.success} size={14} />
-              <Text style={styles.deployedText}>All ships deployed</Text>
+              <Text style={styles.deployedText}>Fleet and mines deployed</Text>
             </View>
           </View>
         )}
 
         <View style={styles.fleetPanel}>
-          <Text style={styles.sectionLabel}>YOUR SHIPS</Text>
+          <Text style={styles.sectionLabel}>YOUR FLEET & MINES</Text>
           <View style={styles.tray}>
             {SHIPS.map(ship => (
               <ShipCard
                 key={ship.id}
                 ship={ship}
                 placed={Boolean(placements[ship.id])}
-                selected={ship.id === activeShipId}
+                selected={ship.id === activeId}
                 onSelect={() => handleSelect(ship.id)}
                 onRemove={() => handleRemove(ship.id)}
               />
             ))}
+            <MineCard
+              placedCount={mines.length}
+              selected={placingMine}
+              onSelect={() => handleSelect(MINES_ID)}
+            />
           </View>
+          <Text style={styles.minesBlurb}>
+            An enemy shot that strikes a mine blasts a 3×3 area of their own
+            fleet and ends their turn.
+          </Text>
         </View>
 
         <View style={styles.actionsRow}>
@@ -278,7 +375,7 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
           <Pressable
             style={styles.readyButtonWrapper}
             disabled={!allPlaced}
-            onPress={() => onReady(placements)}
+            onPress={() => onReady(placements, mines)}
           >
             <GradientView
               colors={brandGradient.colors}
@@ -289,7 +386,7 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
             </GradientView>
           </Pressable>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -341,7 +438,6 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   content: {
-    flex: 1,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
   },
@@ -446,7 +542,14 @@ const styles = StyleSheet.create({
   },
   tray: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.xs,
+  },
+  minesBlurb: {
+    fontSize: 12,
+    color: colors.textMuted,
+    lineHeight: 16,
+    marginTop: spacing.sm,
   },
   actionsRow: {
     flexDirection: 'row',

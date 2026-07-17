@@ -12,20 +12,25 @@ import {
   FireKind,
   FleetPlacements,
   isValidFleet,
+  isValidMines,
   MAX_TIMEOUTS,
+  MineBlast,
+  MinePlacement,
   POINTS_PER_HIT,
-  POWERUP_COST,
+  POWERUP_COSTS,
+  POWERUP_MAX_USES,
+  PowerupKind,
   RevealedShip,
-  resolveShot,
+  resolveFire,
   SETUP_SECONDS,
   SHIP_BY_ID,
   Shot,
   ShotPayload,
   TURN_SECONDS,
   TurnTimeoutPayload,
-  bombCells,
+  VolleyStats,
+  mineBlastCells,
   sunkShipIds,
-  torpedoCells,
 } from '@gaming-platform/core';
 
 import {
@@ -43,9 +48,17 @@ export type MatchState = {
   /** [creatorId, opponentId] — the creator fires first. */
   players: [string, string];
   fleets: Record<string, FleetPlacements | null>;
-  /** Shots FIRED BY each user (against the opponent). */
+  /** Sea mines armed on each user's OWN board (with triggered flags). */
+  mines: Record<string, (MinePlacement & { triggered: boolean })[]>;
+  /** Shots FIRED BY each user (against the opponent). Blast cells from a
+   *  triggered mine are appended here too - they damage the opponent's board
+   *  on the opponent's behalf. */
   shots: Record<string, Shot[]>;
   points: Record<string, number>;
+  /** Power-up uses so far per user (POWERUP_MAX_USES each per match). */
+  powerupsUsed: Record<string, Record<PowerupKind, number>>;
+  /** Fire-action tallies per user (for end-screen accuracy). */
+  volleys: Record<string, VolleyStats>;
   /** Accrued turn-timeout counts per user (MAX_TIMEOUTS → forfeit). */
   timeouts: Record<string, number>;
   /** Socket connection state per user (for the presence indicator). */
@@ -96,8 +109,17 @@ export class BattleshipMatchService {
         roomId: room.id,
         players: [creator, opponent],
         fleets: { [creator]: null, [opponent]: null },
+        mines: { [creator]: [], [opponent]: [] },
         shots: { [creator]: [], [opponent]: [] },
         points: { [creator]: 0, [opponent]: 0 },
+        powerupsUsed: {
+          [creator]: { torpedo: 0, bomb: 0 },
+          [opponent]: { torpedo: 0, bomb: 0 },
+        },
+        volleys: {
+          [creator]: { fired: 0, hit: 0 },
+          [opponent]: { fired: 0, hit: 0 },
+        },
         timeouts: { [creator]: 0, [opponent]: 0 },
         online: { [creator]: false, [opponent]: false },
         phase: 'setup',
@@ -117,11 +139,12 @@ export class BattleshipMatchService {
     });
   }
 
-  /** Submit a fleet. Returns whether both players are now ready (→ play). */
+  /** Submit a fleet + mines. Returns whether both players are now ready (→ play). */
   setFleet(
     roomId: string,
     userId: string,
     placements: FleetPlacements,
+    mines: MinePlacement[],
   ): Promise<{
     bothReady: boolean;
     firstTurnUserId: string;
@@ -136,7 +159,11 @@ export class BattleshipMatchService {
       if (!isValidFleet(placements)) {
         throw new BadRequestException('Invalid fleet placement.');
       }
+      if (!isValidMines(mines, placements)) {
+        throw new BadRequestException('Invalid mine placement.');
+      }
       match.fleets[userId] = placements;
+      match.mines[userId] = mines.map(m => ({ ...m, triggered: false }));
       const bothReady = this.players(match).every(p => match.fleets[p]);
       if (bothReady) {
         match.phase = 'play';
@@ -174,19 +201,22 @@ export class BattleshipMatchService {
       if (match.turnUserId !== userId) {
         throw new ConflictException('It is not your turn.');
       }
-      if (kind !== 'single' && match.points[userId]! < POWERUP_COST) {
-        throw new ConflictException('Not enough charge points.');
+      if (kind !== 'single') {
+        if (match.points[userId]! < POWERUP_COSTS[kind]) {
+          throw new ConflictException('Not enough charge points.');
+        }
+        if (match.powerupsUsed[userId]![kind] >= POWERUP_MAX_USES) {
+          throw new ConflictException(
+            'You have no uses of that power-up left.',
+          );
+        }
       }
 
       const opponentId = this.opponentOf(match, userId);
       const opponentFleet = match.fleets[opponentId]!;
+      const liveMines = match.mines[opponentId]!.filter(m => !m.triggered);
 
-      const resolved =
-        kind === 'single'
-          ? [{ row, col, result: resolveShot(row, col, opponentFleet) }]
-          : kind === 'torpedo'
-            ? torpedoCells(row, opponentFleet)
-            : bombCells(row, col, opponentFleet);
+      const resolved = resolveFire(kind, row, col, opponentFleet, liveMines);
 
       const alreadyShot = new Set(
         match.shots[userId]!.map(s => `${s.row},${s.col}`),
@@ -199,10 +229,15 @@ export class BattleshipMatchService {
       }
 
       if (kind !== 'single') {
-        match.points[userId]! -= POWERUP_COST;
+        match.points[userId]! -= POWERUP_COSTS[kind];
+        match.powerupsUsed[userId]![kind] += 1;
       }
       const hits = added.filter(s => s.result === 'hit').length;
       match.points[userId]! += hits * POINTS_PER_HIT;
+      match.volleys[userId]!.fired += 1;
+      if (hits > 0) {
+        match.volleys[userId]!.hit += 1;
+      }
 
       const before = sunkShipIds(opponentFleet, match.shots[userId]!);
       match.shots[userId] = [...match.shots[userId]!, ...added];
@@ -211,17 +246,59 @@ export class BattleshipMatchService {
         .filter(id => !before.has(id))
         .map(id => this.revealed(id, opponentFleet));
 
-      // Hit → keep firing; only a wholly-missed shot passes the turn.
+      // Any struck mine explodes against the FIRER's own board: its blast
+      // cells count as shots by the opponent (no charge points awarded) and
+      // can sink the firer's ships.
+      const myFleet = match.fleets[userId]!;
+      const mineBlasts: MineBlast[] = [];
+      for (const cell of added.filter(s => s.result === 'mine')) {
+        const mine = match.mines[opponentId]!.find(
+          m => m.row === cell.row && m.col === cell.col,
+        )!;
+        mine.triggered = true;
+        const blastResolved = mineBlastCells(mine, myFleet);
+        const opponentShot = new Set(
+          match.shots[opponentId]!.map(s => `${s.row},${s.col}`),
+        );
+        const blastAdded = blastResolved.filter(
+          s => !opponentShot.has(`${s.row},${s.col}`),
+        );
+        const sunkBefore = sunkShipIds(myFleet, match.shots[opponentId]!);
+        match.shots[opponentId] = [...match.shots[opponentId]!, ...blastAdded];
+        const sunkAfter = sunkShipIds(myFleet, match.shots[opponentId]!);
+        mineBlasts.push({
+          center: { row: mine.row, col: mine.col },
+          cells: blastAdded,
+          sunkShips: [...sunkAfter]
+            .filter(id => !sunkBefore.has(id))
+            .map(id => this.revealed(id, myFleet)),
+        });
+      }
+
+      // Hit → keep firing; a wholly-missed shot passes the turn - and setting
+      // off a mine always ends the turn, hits or not.
       const anyHit = added.some(s => s.result === 'hit');
+      const mineTriggered = mineBlasts.length > 0;
+      const myShipsAllSunk =
+        mineTriggered &&
+        sunkShipIds(myFleet, match.shots[opponentId]!).size === FLEET.length;
       let winnerUserId: string | null = null;
       let nextTurnUserId: string;
       if (after.size === FLEET.length) {
+        // Sinking the enemy's last ship wins even if the same volley struck a mine.
         match.phase = 'over';
         match.winnerUserId = userId;
         match.endReason = 'complete';
         winnerUserId = userId;
         nextTurnUserId = userId;
-      } else if (anyHit) {
+      } else if (myShipsAllSunk) {
+        // The mine blast finished off the firer's own fleet - opponent wins.
+        match.phase = 'over';
+        match.winnerUserId = opponentId;
+        match.endReason = 'complete';
+        winnerUserId = opponentId;
+        nextTurnUserId = opponentId;
+      } else if (anyHit && !mineTriggered) {
         nextTurnUserId = userId;
       } else {
         nextTurnUserId = opponentId;
@@ -241,7 +318,10 @@ export class BattleshipMatchService {
         kind,
         cells: added,
         sunkShips,
+        mineBlasts,
         points: { ...match.points },
+        powerupsUsed: { ...match.powerupsUsed },
+        volleys: { ...match.volleys },
         nextTurnUserId,
         turnDeadline: this.deadline(match),
         winnerUserId,
@@ -369,11 +449,20 @@ export class BattleshipMatchService {
       roomId,
       phase: match.phase,
       myFleet: match.fleets[userId] ?? null,
+      // Only still-armed mines: a triggered mine is spent, and its cell is
+      // already covered by the blast markers.
+      myMines: match.fleets[userId]
+        ? match.mines[userId]!
+            .filter(m => !m.triggered)
+            .map(({ row, col }) => ({ row, col }))
+        : null,
       opponentReady: Boolean(opponentFleet),
       myShots,
       opponentShots: match.shots[opponentId]!,
       revealedOpponentShips,
       points: { ...match.points },
+      powerupsUsed: { ...match.powerupsUsed },
+      volleys: { ...match.volleys },
       turnUserId: match.turnUserId,
       turnDeadline: match.phase === 'play' ? this.deadline(match) : null,
       setupDeadline: match.phase === 'setup' ? match.setupDeadline : null,
@@ -402,10 +491,22 @@ export class BattleshipMatchService {
     );
   }
 
-  private load(roomId: string): Promise<MatchState | null> {
-    return this.cacheService.getJson<MatchState>(
+  private async load(roomId: string): Promise<MatchState | null> {
+    const match = await this.cacheService.getJson<MatchState>(
       CacheKeys.battleshipMatch(roomId),
     );
+    if (match) {
+      // Backfill fields for matches cached by an older build, so an in-flight
+      // match survives a deploy instead of crashing on the next mutation.
+      match.mines ??= Object.fromEntries(match.players.map(p => [p, []]));
+      match.powerupsUsed ??= Object.fromEntries(
+        match.players.map(p => [p, { torpedo: 0, bomb: 0 }]),
+      );
+      match.volleys ??= Object.fromEntries(
+        match.players.map(p => [p, { fired: 0, hit: 0 }]),
+      );
+    }
+    return match;
   }
 
   private persist(match: MatchState): Promise<void> {

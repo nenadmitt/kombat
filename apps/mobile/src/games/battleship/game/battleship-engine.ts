@@ -1,4 +1,4 @@
-import type { FleetPlacements } from '@gaming-platform/core';
+import type { FleetPlacements, MinePlacement } from '@gaming-platform/core';
 
 import type { BattleshipPlayScreenProps } from './BattleshipPlayScreen';
 
@@ -17,8 +17,8 @@ export type EnginePlayProps = Omit<
  */
 export type BattleshipEngine = {
   phase: EnginePhase;
-  /** Called from the setup screen when the player confirms their fleet. */
-  submitFleet: (placements: FleetPlacements) => void;
+  /** Called from the setup screen when the player confirms their fleet + mines. */
+  submitFleet: (placements: FleetPlacements, mines: MinePlacement[]) => void;
   /** Leave the match early (multiplayer forfeits to the opponent). */
   forfeit: () => void;
   /** Epoch ms fleet setup auto-forfeits (null in demo / once play begins). */

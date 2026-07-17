@@ -1,4 +1,14 @@
-import type { FleetPlacements, Placement, PowerupKind, Shot } from './battleship.types';
+import type {
+  FireKind,
+  FleetPlacements,
+  MinePlacement,
+  Placement,
+  PowerupKind,
+  Shot,
+  VolleyStats,
+} from './battleship.types';
+
+export type { FireKind } from './battleship.types';
 
 /**
  * Socket event names + payload types shared by the server gateway and the
@@ -39,9 +49,6 @@ export type BattleshipEndReason =
   | 'timeout'
   | 'setup-timeout';
 
-/** A shot kind: a normal shot or one of the power-ups. */
-export type FireKind = 'single' | PowerupKind;
-
 /** A revealed ship (sent only once fully sunk). */
 export type RevealedShip = {
   id: string;
@@ -60,6 +67,8 @@ export type EnterPayload = {
 export type ReadyPayload = {
   roomId: string;
   placements: FleetPlacements;
+  /** The player's armed sea mines (exactly MINES_PER_PLAYER). */
+  mines: MinePlacement[];
 };
 
 export type FirePayload = {
@@ -85,6 +94,16 @@ export type StartPayload = {
   turnDeadline: number;
 };
 
+/** A mine set off by a shot: its blast strikes the FIRER's own board. */
+export type MineBlast = {
+  /** Where the mine sat (also the blast center, mirrored onto the firer's board). */
+  center: MinePlacement;
+  /** Blast cells resolved against the firer's fleet (fresh cells only). */
+  cells: Shot[];
+  /** The firer's ships that became fully sunk from this blast. */
+  sunkShips: RevealedShip[];
+};
+
 export type ShotPayload = {
   byUserId: string;
   kind: FireKind;
@@ -92,8 +111,14 @@ export type ShotPayload = {
   cells: Shot[];
   /** Ships that became fully sunk on this shot (the target's ships). */
   sunkShips: RevealedShip[];
+  /** Mines this shot set off - each blast damages the FIRER's own board. */
+  mineBlasts: MineBlast[];
   /** Charge points for both players after this shot, keyed by userId. */
   points: Record<string, number>;
+  /** Power-up uses so far per player, keyed by userId. */
+  powerupsUsed: Record<string, Record<PowerupKind, number>>;
+  /** Per-player fire-action tallies (for end-screen accuracy), keyed by userId. */
+  volleys: Record<string, VolleyStats>;
   nextTurnUserId: string;
   /** Epoch ms when the next turn times out. */
   turnDeadline: number;
@@ -145,9 +170,11 @@ export type BattleshipRoomState = {
   phase: BattleshipPhase;
   /** The requester's own fleet, or null before they've submitted. */
   myFleet: FleetPlacements | null;
+  /** The requester's own mines, or null before they've submitted. */
+  myMines: MinePlacement[] | null;
   /** Whether the opponent has submitted their fleet. */
   opponentReady: boolean;
-  /** Shots the requester has fired. */
+  /** Shots the requester has fired (mine-triggering cells carry result 'mine'). */
   myShots: Shot[];
   /** Shots the opponent has fired at the requester. */
   opponentShots: Shot[];
@@ -155,6 +182,10 @@ export type BattleshipRoomState = {
   revealedOpponentShips: RevealedShip[];
   /** Charge points for both players, keyed by userId. */
   points: Record<string, number>;
+  /** Power-up uses so far per player, keyed by userId. */
+  powerupsUsed: Record<string, Record<PowerupKind, number>>;
+  /** Per-player fire-action tallies (for end-screen accuracy), keyed by userId. */
+  volleys: Record<string, VolleyStats>;
   turnUserId: string | null;
   /** Epoch ms when the current turn times out (null outside play). */
   turnDeadline: number | null;

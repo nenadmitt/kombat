@@ -15,14 +15,18 @@ export const ROW_LABELS = Array.from({ length: GRID }, (_, i) => i + 1);
 
 export const SETUP_DURATION_SECONDS = 90;
 
-// Ship-class colors. brandEnd is now green (collides with Scout's green) so
-// the Frigate keeps the old brand blue, and the Destroyer gets its own indigo.
+// Ship-class colors. brandEnd is now green (collides with the Destroyer's
+// green), so the mid-fleet gets its own indigo/blue/cyan ladder.
 export const SHIP_COLORS: Record<string, string> = {
-  battleship: colors.brandStart,
-  destroyer: '#6366f1', // indigo
-  frigate: '#3b82f6', // blue
-  scout: colors.success,
+  carrier: colors.brandStart,
+  battleship: '#6366f1', // indigo
+  cruiser: '#3b82f6', // blue
+  submarine: '#06b6d4', // cyan
+  destroyer: colors.success,
 };
+
+/** Amber used for armed sea mines (matches the torpedo/blast effects). */
+export const MINE_COLOR = '#FBBF24';
 
 /** The shared fleet spec paired with mobile display colors. */
 export const SHIPS: ShipDef[] = FLEET.map(s => ({
