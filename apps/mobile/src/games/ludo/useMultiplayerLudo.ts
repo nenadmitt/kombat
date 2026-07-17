@@ -16,6 +16,7 @@ import {
 
 import { apiClient } from '../../api/client';
 import { useCurrentUserStore } from '../../store/currentUser.store';
+import { useUsernames, usernameCache } from '../../store/username-cache';
 import { useWebsocketStore } from '../../store/websocket.store';
 import { LUDO_COLOR_NAMES } from './ludo-theme';
 import type { LudoEngine, LudoSeatView } from './ludo-engine';
@@ -51,6 +52,9 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
   const [myCaptures, setMyCaptures] = useState(0);
   const [loaded, setLoaded] = useState(false);
 
+  // Seat usernames resolve through the shared cache (usually already warm).
+  const usernames = useUsernames(players.map(p => p.userId));
+
   // Socket handlers read these without re-subscribing.
   const myUserIdRef = useRef(myUserId);
   myUserIdRef.current = myUserId;
@@ -60,6 +64,10 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
   const nameOf = useCallback((userId: string): string => {
     if (userId === myUserIdRef.current) {
       return 'You';
+    }
+    const username = usernameCache.usernameOf(userId);
+    if (username) {
+      return username;
     }
     const seat = playersRef.current.find(p => p.userId === userId);
     return seat ? LUDO_COLOR_NAMES[seat.color] : 'Player';
@@ -239,18 +247,26 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
       : (endReason ?? 'complete')
     : null;
 
-  const seats: LudoSeatView[] = players.map(p => ({
-    userId: p.userId,
-    color: p.color,
-    name: p.userId === myUserId ? 'You' : LUDO_COLOR_NAMES[p.color],
-    initial:
-      p.userId === myUserId ? 'Y' : LUDO_COLOR_NAMES[p.color].charAt(0),
-    isMe: p.userId === myUserId,
-    online: p.userId === myUserId ? status === 'connected' : (online[p.userId] ?? false),
-    eliminated: eliminated.includes(p.color),
-    homeCount: (tokens[p.color] ?? []).filter(pr => pr === HOME_PROGRESS)
-      .length,
-  }));
+  const seats: LudoSeatView[] = players.map(p => {
+    const name =
+      p.userId === myUserId
+        ? 'You'
+        : (usernames[p.userId] ?? LUDO_COLOR_NAMES[p.color]);
+    return {
+      userId: p.userId,
+      color: p.color,
+      name,
+      initial: name.charAt(0).toUpperCase(),
+      isMe: p.userId === myUserId,
+      online:
+        p.userId === myUserId
+          ? status === 'connected'
+          : (online[p.userId] ?? false),
+      eliminated: eliminated.includes(p.color),
+      homeCount: (tokens[p.color] ?? []).filter(pr => pr === HOME_PROGRESS)
+        .length,
+    };
+  });
 
   const myTurn =
     !result && loaded && turnUserId !== null && turnUserId === myUserId;

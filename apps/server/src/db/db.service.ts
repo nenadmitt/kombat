@@ -43,6 +43,13 @@ export class DbService {
     return this.userRepository.findOneBy({ id });
   }
 
+  findUsersByIds(ids: string[]): Promise<UserEntity[]> {
+    if (ids.length === 0) {
+      return Promise.resolve([]);
+    }
+    return this.userRepository.findBy({ id: In(ids) });
+  }
+
   findUserByEmail(email: string): Promise<UserEntity | null> {
     return this.userRepository.findOneBy({ email });
   }

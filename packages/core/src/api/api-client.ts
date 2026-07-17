@@ -1,5 +1,6 @@
 import type {
   ExchangeTokenResponse,
+  PublicUserProfile,
   UserProfile,
 } from '../authentication/authentication.types';
 import type { GameRoomSummary, GameType } from '../games/game-room.types';
@@ -78,6 +79,20 @@ export class ApiClient {
 
   updateUsername(username: string): Promise<UserProfile> {
     return this.request('PATCH', '/users/me/username', { username }, true);
+  }
+
+  /** Batch-resolve public profiles (username/avatar) for a set of user ids.
+   *  Unknown ids are simply omitted from the result. */
+  getUserProfiles(ids: string[]): Promise<PublicUserProfile[]> {
+    if (ids.length === 0) {
+      return Promise.resolve([]);
+    }
+    return this.request(
+      'GET',
+      `/users/profiles?ids=${encodeURIComponent(ids.join(','))}`,
+      undefined,
+      true,
+    );
   }
 
   createGameRoom(

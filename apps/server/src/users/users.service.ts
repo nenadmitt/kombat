@@ -1,4 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { PublicUserProfile } from '@gaming-platform/core';
 
 import { DbService } from '../db';
 import { UserEntity } from '../db/entities/user.entity';
@@ -13,6 +14,17 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
     return user;
+  }
+
+  /** Public (no-email) profiles for a batch of ids; unknown ids are omitted. */
+  async getPublicProfiles(ids: string[]): Promise<PublicUserProfile[]> {
+    const users = await this.dbService.findUsersByIds([...new Set(ids)]);
+    return users.map(user => ({
+      id: user.id,
+      username: user.username,
+      // No avatar storage yet - the field is reserved in the API shape.
+      avatarUrl: null,
+    }));
   }
 
   async updateUsername(userId: string, username: string): Promise<UserEntity> {
