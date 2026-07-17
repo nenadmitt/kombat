@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import {
   EscrowStatus,
+  GameType,
+  ROOM_EVENTS,
   STAKE_ASSET_DECIMALS,
   STAKE_ASSET_MIN,
   STAKE_ASSET_SYMBOLS,
@@ -21,6 +23,7 @@ import { ConfigurationService } from '../../configuration/configuration.service'
 import { DbService } from '../../db';
 import { GameRoomEntity } from '../../db/entities/game-room.entity';
 import { WebsocketsService } from '../../websockets';
+import { participantsOf } from '../room.util';
 
 /** Per-room funding lock — funding is idempotent but must not run twice at once. */
 const fundingLockKey = (roomId: string) => `stake:fund:${roomId}`;
@@ -155,7 +158,11 @@ export class StakesService {
           return; // Already funded/failed elsewhere.
         }
         const room = await this.dbService.findGameRoomById(roomId);
-        if (!room || room.stakeToken === null || !room.opponentId) {
+        if (
+          !room ||
+          room.stakeToken === null ||
+          participantsOf(room).length < 2
+        ) {
           return;
         }
 
@@ -167,12 +174,25 @@ export class StakesService {
             error: null,
           });
           this.notifyPlayers(room, STAKE_EVENTS.funded, { roomId });
-          // The creator's app has been in "waiting" since it created the
-          // room — this is the (delayed) signal that transfers it into the
-          // match, mirroring the free-game flow.
-          this.websocketsService.sendToUser(room.userId, 'game:opponent-joined', {
-            roomId,
-          });
+          // The waiting apps get their (delayed) transfer-into-the-match
+          // signal only once the pot is on-chain, mirroring the free-game
+          // flow: the creator's opponent-joined for 2-player games, the
+          // started broadcast for multi-player (Ludo) rooms.
+          if (room.gameType === GameType.Ludo) {
+            for (const participant of participantsOf(room)) {
+              this.websocketsService.sendToUser(
+                participant,
+                ROOM_EVENTS.started,
+                { roomId },
+              );
+            }
+          } else {
+            this.websocketsService.sendToUser(
+              room.userId,
+              ROOM_EVENTS.opponentJoined,
+              { roomId },
+            );
+          }
         } catch (error) {
           await this.handleFundingFailure(room, escrow.attempts + 1, error);
         }
@@ -187,10 +207,7 @@ export class StakesService {
   ): Promise<string[]> {
     const asset = room.stakeToken!;
     const amount = BigInt(room.stakeAmount!);
-    const [player1, player2] = await Promise.all([
-      this.chainService.playerAddress(room.userId),
-      this.chainService.playerAddress(room.opponentId!),
-    ]);
+    const userIds = participantsOf(room);
 
     // Re-entry after a crash: the pot may already be escrowed.
     const onChain = await this.chainService.getStakeState(matchId);
@@ -199,19 +216,21 @@ export class StakesService {
     }
 
     if (asset === StakeAsset.Native) {
-      return this.escrowNativeStakes(room, matchId, amount, onChain);
+      return this.escrowNativeStakes(room, matchId, amount, onChain.state);
     }
 
     // ERC20 (USDC / KOMBAT): standing allowances are pre-approved at wallet
     // creation, so these are normally no-ops — then one operator tx pulls
-    // both stakes. Sequential on purpose: a missing approval may need an
+    // every stake. Sequential on purpose: a missing approval may need an
     // operator gas-dust tx, and the operator nonce lock is single-file.
-    await this.chainService.ensureStakeApproval(room.userId, asset, amount);
-    await this.chainService.ensureStakeApproval(room.opponentId!, asset, amount);
+    const players: Address[] = [];
+    for (const userId of userIds) {
+      await this.chainService.ensureStakeApproval(userId, asset, amount);
+      players.push(await this.chainService.playerAddress(userId));
+    }
     const hash = await this.chainService.openWithApprovals({
       matchId,
-      player1,
-      player2,
+      players,
       asset,
       amount,
     });
@@ -223,35 +242,33 @@ export class StakesService {
     room: GameRoomEntity,
     matchId: Hex,
     amount: bigint,
-    onChain: { state: OnChainStakeState; player1Funded: boolean; player2Funded: boolean },
+    state: OnChainStakeState,
   ): Promise<string[]> {
     const hashes: string[] = [];
-    let state = onChain;
+    const userIds = participantsOf(room);
 
-    if (state.state === OnChainStakeState.None) {
-      const [player1, player2] = await Promise.all([
-        this.chainService.playerAddress(room.userId),
-        this.chainService.playerAddress(room.opponentId!),
-      ]);
+    if (state === OnChainStakeState.None) {
+      const players = await Promise.all(
+        userIds.map(userId => this.chainService.playerAddress(userId)),
+      );
       hashes.push(
         await this.chainService.createMatch({
           matchId,
-          player1,
-          player2,
+          players,
           asset: StakeAsset.Native,
           amount,
         }),
       );
-      state = { state: OnChainStakeState.Created, player1Funded: false, player2Funded: false };
     }
 
-    if (!state.player1Funded) {
-      hashes.push(await this.chainService.fundNativeAs(room.userId, matchId, amount));
-    }
-    if (!state.player2Funded) {
-      hashes.push(
-        await this.chainService.fundNativeAs(room.opponentId!, matchId, amount),
-      );
+    // Re-entry safe: skip anyone whose stake already landed.
+    for (const userId of userIds) {
+      const address = await this.chainService.playerAddress(userId);
+      if (!(await this.chainService.isFunded(matchId, address))) {
+        hashes.push(
+          await this.chainService.fundNativeAs(userId, matchId, amount),
+        );
+      }
     }
     return hashes;
   }
@@ -351,7 +368,8 @@ export class StakesService {
     )) as Address;
     const hash = await this.chainService.settleStake(matchId, winner);
 
-    const pot = BigInt(room.stakeAmount!) * 2n;
+    const pot =
+      BigInt(room.stakeAmount!) * BigInt(participantsOf(room).length);
     const fee = (pot * BigInt(await this.chainService.getFeeBps())) / 10_000n;
     await this.dbService.updateStakeEscrow(roomId, {
       status: EscrowStatus.Settled,
@@ -428,9 +446,8 @@ export class StakesService {
   ): void {
     // User rooms, not the game channel — players haven't necessarily entered
     // the match screen (and its channel) during funding.
-    this.websocketsService.sendToUser(room.userId, event, payload);
-    if (room.opponentId) {
-      this.websocketsService.sendToUser(room.opponentId, event, payload);
+    for (const participant of participantsOf(room)) {
+      this.websocketsService.sendToUser(participant, event, payload);
     }
   }
 }

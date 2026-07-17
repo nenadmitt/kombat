@@ -38,28 +38,44 @@ export const CacheKeys = {
   battleshipChat: (roomId: string): string => `bs:chat:${roomId}`,
   /** Per-room mutex guarding read-mutate-write cycles on the match. */
   battleshipLock: (roomId: string): string => `lock:bs:${roomId}`,
+  /** Authoritative Ludo MatchState JSON. */
+  ludoMatch: (roomId: string): string => `ludo:match:${roomId}`,
+  /** Per-room mutex guarding read-mutate-write cycles on the Ludo match. */
+  ludoLock: (roomId: string): string => `lock:ludo:${roomId}`,
   /** Cached GameRoomEntity JSON (short TTL — bounds staleness). */
   gameRoom: (id: string): string => `room:${id}`,
 } as const;
 
-/** Single ZSET holding every scheduled Battleship deadline. */
+/** Single ZSET holding every scheduled game deadline (all games share it so
+ *  one sweeper drains everything; the member's kind routes enforcement). */
 export const DEADLINES_KEY = 'bs:deadlines';
+
+/** Deadline kinds: `setup`/`turn` are Battleship's, `ludo-turn` is Ludo's.
+ *  A new turn-based game adds its own kind here and an enforcer in the
+ *  deadline sweeper. */
+export type DeadlineKind = 'setup' | 'turn' | 'ludo-turn';
+
+const DEADLINE_KINDS: readonly DeadlineKind[] = ['setup', 'turn', 'ludo-turn'];
 
 /** Member format for DEADLINES_KEY: `{roomId}|{kind}|{turnSeq}`. */
 export const deadlineMember = (
   roomId: string,
-  kind: 'setup' | 'turn',
+  kind: DeadlineKind,
   seq: number,
 ): string => `${roomId}|${kind}|${seq}`;
 
 export const parseDeadlineMember = (
   member: string,
-): { roomId: string; kind: 'setup' | 'turn'; seq: number } | null => {
+): { roomId: string; kind: DeadlineKind; seq: number } | null => {
   const [roomId, kind, seq] = member.split('|');
-  if (!roomId || (kind !== 'setup' && kind !== 'turn') || seq === undefined) {
+  if (
+    !roomId ||
+    !DEADLINE_KINDS.includes(kind as DeadlineKind) ||
+    seq === undefined
+  ) {
     return null;
   }
-  return { roomId, kind, seq: Number(seq) };
+  return { roomId, kind: kind as DeadlineKind, seq: Number(seq) };
 };
 
 // --- TTLs ----------------------------------------------------------------------

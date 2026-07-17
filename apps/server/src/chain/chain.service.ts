@@ -341,8 +341,7 @@ export class ChainService {
 
   async getStakeState(matchId: Hex): Promise<{
     state: OnChainStakeState;
-    player1Funded: boolean;
-    player2Funded: boolean;
+    fundedCount: number;
   }> {
     const s = await this.publicClient.readContract({
       address: this.escrow,
@@ -350,7 +349,17 @@ export class ChainService {
       functionName: 'stakes',
       args: [matchId],
     });
-    return { state: s[5] as OnChainStakeState, player1Funded: s[6], player2Funded: s[7] };
+    return { state: s[3] as OnChainStakeState, fundedCount: s[4] };
+  }
+
+  /** Whether a specific player's stake is already in escrow. */
+  isFunded(matchId: Hex, player: Address): Promise<boolean> {
+    return this.publicClient.readContract({
+      address: this.escrow,
+      abi: ESCROW_ABI,
+      functionName: 'isFunded',
+      args: [matchId, player],
+    });
   }
 
   async getFeeBps(): Promise<number> {
@@ -363,11 +372,10 @@ export class ChainService {
 
   // ---- escrow writes ------------------------------------------------------
 
-  /** One operator tx: create the match and pull both standing allowances. */
+  /** One operator tx: create the match and pull every standing allowance. */
   openWithApprovals(args: {
     matchId: Hex;
-    player1: Address;
-    player2: Address;
+    players: Address[];
     asset: StakeAsset;
     amount: bigint;
   }): Promise<Hex> {
@@ -378,8 +386,7 @@ export class ChainService {
         functionName: 'openWithApprovals',
         args: [
           args.matchId,
-          args.player1,
-          args.player2,
+          args.players,
           this.tokenAddress(args.asset),
           args.amount,
         ],
@@ -389,15 +396,14 @@ export class ChainService {
     );
   }
 
-  /** Permit-based open — kept as a fallback; the standing-allowance path is primary. */
+  /** Permit-based open — kept as a fallback; the standing-allowance path is
+   *  primary. `sigs[i]` must belong to `players[i]`. */
   openWithPermits(args: {
     matchId: Hex;
-    player1: Address;
-    player2: Address;
+    players: Address[];
     asset: StakeAsset;
     amount: bigint;
-    sig1: PermitSignature;
-    sig2: PermitSignature;
+    sigs: PermitSignature[];
   }): Promise<Hex> {
     return this.asOperator(client =>
       client.writeContract({
@@ -406,12 +412,10 @@ export class ChainService {
         functionName: 'openWithPermits',
         args: [
           args.matchId,
-          args.player1,
-          args.player2,
+          args.players,
           this.tokenAddress(args.asset),
           args.amount,
-          args.sig1,
-          args.sig2,
+          args.sigs,
         ],
         chain: this.chain,
         account: this.operatorAccount,
@@ -421,8 +425,7 @@ export class ChainService {
 
   createMatch(args: {
     matchId: Hex;
-    player1: Address;
-    player2: Address;
+    players: Address[];
     asset: StakeAsset;
     amount: bigint;
   }): Promise<Hex> {
@@ -433,8 +436,7 @@ export class ChainService {
         functionName: 'createMatch',
         args: [
           args.matchId,
-          args.player1,
-          args.player2,
+          args.players,
           this.tokenAddress(args.asset),
           args.amount,
         ],

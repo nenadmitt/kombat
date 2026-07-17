@@ -43,6 +43,11 @@ export class GameRoomEntity extends BaseEntity {
   @Column({ name: 'opponent_id', type: 'uuid', nullable: true })
   opponentId: string | null;
 
+  /** Joiners of a multi-player room (Ludo), in join order, creator excluded.
+   *  NavalBattle keeps using the single opponentId column above. */
+  @Column({ name: 'opponent_ids', type: 'uuid', array: true, default: () => "'{}'" })
+  opponentIds: string[];
+
   // ---- staking (null on all three = free game) ---------------------------
 
   /** Stake asset, or null for a free game. */

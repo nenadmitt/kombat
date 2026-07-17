@@ -30,8 +30,8 @@ type SocketWithUser = Socket & { data: { userId?: string } };
  * `client.data.userId`). It never implements handleConnection.
  *
  * Holds no gameplay state: matches live in the cache (via
- * BattleshipMatchService) and setup/turn timeouts are enforced by
- * BattleshipDeadlineSweeper off the shared deadline schedule.
+ * BattleshipMatchService) and setup/turn timeouts are enforced by the shared
+ * GameDeadlineSweeper off the shared deadline schedule.
  */
 @WebSocketGateway({ cors: true })
 export class BattleshipGateway {
