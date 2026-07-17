@@ -46,6 +46,12 @@ export const colors = {
   /** Blue - informational (alt accent). */
   info: '#2E8BFF',
 
+  // ---- Ludo player colors (from the Ludo Royale design) ------------------
+  ludoRed: '#FF4D6D',
+  ludoGreen: '#22E39A',
+  ludoYellow: '#FBBF24',
+  ludoBlue: '#38BDF8',
+
   // ---- Text --------------------------------------------------------------
   /** Primary text. */
   textPrimary: '#F5F5F7',

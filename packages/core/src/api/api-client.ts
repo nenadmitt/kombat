@@ -9,6 +9,7 @@ import type {
   WalletBalances,
 } from '../games/stake.types';
 import type { BattleshipRoomState } from '../games/battleship/battleship.protocol';
+import type { LudoRoomState } from '../games/ludo/ludo.protocol';
 import type {
   CreateWalletResponse,
   WalletNetwork,
@@ -154,13 +155,24 @@ export class ApiClient {
     return this.request('DELETE', `/games/rooms/${id}`, undefined, true);
   }
 
-  /** Forfeit an in-progress match (the opponent wins). */
-  forfeitGameRoom(id: string): Promise<{ winnerUserId: string }> {
+  /** Forfeit an in-progress match. In Ludo the leaver is eliminated and the
+   *  winner is set only once a single player remains. */
+  forfeitGameRoom(id: string): Promise<{ winnerUserId: string | null }> {
     return this.request('POST', `/games/rooms/${id}/forfeit`, undefined, true);
   }
 
   joinGameRoom(id: string): Promise<GameRoomSummary> {
     return this.request('POST', `/games/rooms/${id}/join`, undefined, true);
+  }
+
+  /** Creator-only early start for a multi-player (Ludo) room. */
+  startGameRoom(id: string): Promise<GameRoomSummary> {
+    return this.request('POST', `/games/rooms/${id}/start`, undefined, true);
+  }
+
+  /** Back out of a still-waiting multi-player (Ludo) room (joiners only). */
+  leaveGameRoom(id: string): Promise<{ success: true }> {
+    return this.request('POST', `/games/rooms/${id}/leave`, undefined, true);
   }
 
   /** The current user's own open room, if any — null when they don't have one. */
@@ -170,6 +182,11 @@ export class ApiClient {
 
   /** The requester's personalized Battleship match state — used to mount/resume. */
   getBattleshipRoomState(roomId: string): Promise<BattleshipRoomState> {
+    return this.request('GET', `/games/rooms/${roomId}/state`, undefined, true);
+  }
+
+  /** The Ludo match snapshot (same endpoint, Ludo-shaped) — mount/resume. */
+  getLudoRoomState(roomId: string): Promise<LudoRoomState> {
     return this.request('GET', `/games/rooms/${roomId}/state`, undefined, true);
   }
 

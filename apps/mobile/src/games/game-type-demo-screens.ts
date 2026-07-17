@@ -9,4 +9,5 @@ import type { RootStackParamList } from '../navigation/types';
  */
 export const GAME_TYPE_DEMO_SCREENS: Record<GameType, keyof RootStackParamList> = {
   [GameType.NavalBattle]: 'BattleshipSetup',
+  [GameType.Ludo]: 'LudoSetup',
 };

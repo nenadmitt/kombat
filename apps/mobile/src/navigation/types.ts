@@ -17,6 +17,13 @@ export type RootStackParamList = {
   // Demo/preview of the fleet-deployment UI, reachable from the Demo Games
   // tab - not part of the real room/join flow.
   BattleshipSetup: undefined;
+  // Same split for Ludo: multiplayer room vs. the bot demo.
+  Ludo: {
+    roomId: string;
+    stakeToken?: StakeAsset | null;
+    stakeAmount?: string | null;
+  };
+  LudoSetup: undefined;
 };
 
 /** Bottom tabs shown once the user is authenticated and onboarded. */

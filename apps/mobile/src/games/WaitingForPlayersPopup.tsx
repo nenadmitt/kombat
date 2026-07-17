@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import {
+  GameType,
+  LUDO_MIN_PLAYERS,
   STAKE_ASSET_SYMBOLS,
   formatStakeAmount,
 } from '@gaming-platform/core';
@@ -21,12 +23,22 @@ import { formatRoomCode } from './room-code';
  */
 export default function WaitingForPlayersPopup() {
   const waitingRoom = useGameStore(state => state.waitingRoom);
+  const waitingJoinedCount = useGameStore(state => state.waitingJoinedCount);
+  const waitingAsJoiner = useGameStore(state => state.waitingAsJoiner);
   const isMinimized = useGameStore(state => state.isMinimized);
   const isCancelling = useGameStore(state => state.isCancelling);
+  const isStarting = useGameStore(state => state.isStarting);
   const isSecuringStakes = useGameStore(state => state.isSecuringStakes);
   const minimize = useGameStore(state => state.minimize);
   const cancelWaitingRoom = useGameStore(state => state.cancelWaitingRoom);
+  const startWaitingRoom = useGameStore(state => state.startWaitingRoom);
   const [copied, setCopied] = useState(false);
+
+  // Ludo rooms fill gradually: show the roster count, and give the CREATOR a
+  // start-early action once enough players are in.
+  const isLudo = waitingRoom?.gameType === GameType.Ludo;
+  const canStartEarly =
+    isLudo && !waitingAsJoiner && waitingJoinedCount >= LUDO_MIN_PLAYERS;
 
   // Securing is only this popup's business for the room CREATOR (they hold a
   // waitingRoom). The joiner's lobby screen presents its own funding overlay;
@@ -113,6 +125,15 @@ export default function WaitingForPlayersPopup() {
                 </Text>
               </View>
 
+              {isLudo && waitingRoom ? (
+                <View style={styles.rosterPill}>
+                  <Icon type="users" color={colors.accentLight} size={14} />
+                  <Text style={styles.rosterText}>
+                    {waitingJoinedCount} / {waitingRoom.playerCount} joined
+                  </Text>
+                </View>
+              ) : null}
+
               {waitingRoom ? (
                 <Pressable
                   onPress={handleCopy}
@@ -134,6 +155,24 @@ export default function WaitingForPlayersPopup() {
               ) : null}
               {copied ? <Text style={styles.copiedHint}>Copied to clipboard</Text> : null}
 
+              {canStartEarly ? (
+                <Button
+                  label={
+                    isStarting
+                      ? 'Starting…'
+                      : `Start with ${waitingJoinedCount} players`
+                  }
+                  disabled={isStarting || isCancelling}
+                  onPress={() =>
+                    startWaitingRoom().catch(() => {
+                      // Room may have filled/closed meanwhile - the pushes
+                      // (started / player events) reconcile the popup.
+                    })
+                  }
+                  style={styles.startButton}
+                />
+              ) : null}
+
               <View style={styles.actions}>
                 <Button
                   label="Share"
@@ -142,10 +181,18 @@ export default function WaitingForPlayersPopup() {
                   style={styles.actionFlex}
                 />
                 <Button
-                  label={isCancelling ? 'Cancelling…' : 'Cancel'}
+                  label={
+                    isCancelling
+                      ? waitingAsJoiner
+                        ? 'Leaving…'
+                        : 'Cancelling…'
+                      : waitingAsJoiner
+                        ? 'Leave'
+                        : 'Cancel'
+                  }
                   variant="secondary"
                   onPress={cancelWaitingRoom}
-                  disabled={isCancelling}
+                  disabled={isCancelling || isStarting}
                   style={styles.actionFlex}
                 />
               </View>
@@ -254,6 +301,26 @@ const styles = StyleSheet.create({
     fontFamily: mono.bold,
     fontSize: 18,
     color: colors.textPrimary,
+  },
+  rosterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.accentSoft,
+    borderWidth: 1,
+    borderColor: colors.accentBorder,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+  },
+  rosterText: {
+    fontFamily: mono.bold,
+    fontSize: 13,
+    color: colors.textPrimary,
+    letterSpacing: 0.5,
+  },
+  startButton: {
+    width: '100%',
   },
   actions: {
     flexDirection: 'row',

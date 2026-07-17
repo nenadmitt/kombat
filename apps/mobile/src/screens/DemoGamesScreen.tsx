@@ -29,8 +29,8 @@ type GameCard = {
  */
 const GAMES: GameCard[] = [
   { name: 'Battleships', tag: 'Strategy', players: '2.4k playing', icon: 'crosshair', tint: colors.accentSoft, gameType: GameType.NavalBattle },
-  { name: 'Ludo Classic', tag: 'Board', players: '1.8k playing', icon: 'grid', tint: 'rgba(56,189,248,0.12)' },
-  { name: 'Yahtzee Arena', tag: 'Dice', players: '960 playing', icon: 'dice', tint: 'rgba(251,191,36,0.12)' },
+  { name: 'Ludo Royale', tag: 'Board', players: '1.8k playing', icon: 'dice', tint: 'rgba(56,189,248,0.12)', gameType: GameType.Ludo },
+  { name: 'Yahtzee Arena', tag: 'Dice', players: '960 playing', icon: 'grid', tint: 'rgba(251,191,36,0.12)' },
   { name: 'Poker High', tag: 'Cards', players: '3.1k playing', icon: 'target', tint: 'rgba(36,224,138,0.12)' },
 ];
 

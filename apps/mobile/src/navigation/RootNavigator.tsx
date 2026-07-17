@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ErrorCode } from '@gaming-platform/core';
 
 import BattleshipGame from '../games/battleship/BattleshipGame';
+import LudoGame from '../games/ludo/LudoGame';
 import ErrorScreen from '../screens/ErrorScreen';
 import LoginScreen from '../screens/LoginScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
@@ -142,6 +143,17 @@ export default function RootNavigator() {
           <Stack.Screen
             name="BattleshipSetup"
             component={BattleshipGame}
+            options={{ gestureEnabled: false }}
+          />
+          {/* Ludo mirrors the same multiplayer/demo split. */}
+          <Stack.Screen
+            name="Ludo"
+            component={LudoGame}
+            options={{ gestureEnabled: false }}
+          />
+          <Stack.Screen
+            name="LudoSetup"
+            component={LudoGame}
             options={{ gestureEnabled: false }}
           />
         </>
