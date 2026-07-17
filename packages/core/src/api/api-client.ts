@@ -11,6 +11,7 @@ import type {
 } from '../games/stake.types';
 import type { BattleshipRoomState } from '../games/battleship/battleship.protocol';
 import type { LudoRoomState } from '../games/ludo/ludo.protocol';
+import type { RpsRoomState } from '../games/rps/rps.protocol';
 import type {
   CreateWalletResponse,
   WalletNetwork,
@@ -202,6 +203,11 @@ export class ApiClient {
 
   /** The Ludo match snapshot (same endpoint, Ludo-shaped) — mount/resume. */
   getLudoRoomState(roomId: string): Promise<LudoRoomState> {
+    return this.request('GET', `/games/rooms/${roomId}/state`, undefined, true);
+  }
+
+  /** The Triple Cut match snapshot (same endpoint, RPS-shaped) — mount/resume. */
+  getRpsRoomState(roomId: string): Promise<RpsRoomState> {
     return this.request('GET', `/games/rooms/${roomId}/state`, undefined, true);
   }
 

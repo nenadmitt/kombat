@@ -1,0 +1,574 @@
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Canvas, Fill, RadialGradient, vec } from '@shopify/react-native-skia';
+import {
+  BEST_OF,
+  RPS_MOVES,
+  STAKE_ASSET_SYMBOLS,
+  WIN_TARGET,
+  formatStakeAmount,
+  type RpsMove,
+  type StakeAsset,
+} from '@gaming-platform/core';
+
+import Icon from '../../components/Icon';
+import GameResultScreen from '../../components/GameResultScreen';
+import { GradientView } from '../../components/GradientView';
+import { brandGradient, colors, radius, spacing } from '../../theme/colors';
+import { display, fonts, mono } from '../../theme/typography';
+import TurnTimer from '../battleship/game/TurnTimer';
+import RpsIcon from './RpsIcon';
+import type { RpsPlayProps } from './rps-engine';
+
+export type RpsPlayScreenProps = RpsPlayProps & {
+  roomCode: string | null;
+  stake?: { token: StakeAsset; amount: string } | null;
+  onExit: () => void;
+  onQuit: () => void;
+};
+
+const GLOW_COLOR = 'rgba(124, 92, 255, 0.28)';
+const GLOW_TRANSPARENT = 'rgba(124, 92, 255, 0)';
+const GLOW_HEIGHT = 380;
+
+const MOVE_LABEL: Record<RpsMove, string> = {
+  rock: 'ROCK',
+  paper: 'PAPER',
+  scissors: 'SCISSORS',
+};
+
+/** Row of BEST_OF/2-rounded score pips for one player. */
+function ScorePips({ score }: { score: number }) {
+  return (
+    <View style={styles.pipRow}>
+      {Array.from({ length: WIN_TARGET }, (_, i) => (
+        <View key={i} style={[styles.pip, i < score && styles.pipOn]} />
+      ))}
+    </View>
+  );
+}
+
+/**
+ * Pure-UI Triple Cut screen: the live match (choose + lock) and the round
+ * reveal, driven entirely by engine props. The demo bot engine and the
+ * multiplayer socket engine both feed it.
+ */
+export default function RpsPlayScreen({
+  opponent,
+  myOnline,
+  round,
+  myScore,
+  opponentScore,
+  myMove,
+  opponentLocked,
+  stage,
+  reveal,
+  roundDeadline,
+  result,
+  resultReason,
+  onLock,
+  onNextRound,
+  onTimerExpire,
+  roomCode,
+  stake,
+  onExit,
+  onQuit,
+}: RpsPlayScreenProps) {
+  const { width } = useWindowDimensions();
+
+  if (result) {
+    const stats = [
+      { value: `${myScore} - ${opponentScore}`, label: 'FINAL SCORE', highlight: true },
+      { value: `Best of ${BEST_OF}`, label: 'FORMAT' },
+    ];
+    if (stake) {
+      const symbol = STAKE_ASSET_SYMBOLS[stake.token];
+      const amount = formatStakeAmount(stake.amount, stake.token);
+      const pot = formatStakeAmount(
+        (BigInt(stake.amount) * 2n).toString(),
+        stake.token,
+      );
+      stats.push(
+        result === 'win'
+          ? { value: `${pot} ${symbol}`, label: 'POT WON', highlight: true }
+          : { value: `${amount} ${symbol}`, label: 'STAKE LOST' },
+      );
+    }
+    const copy =
+      result === 'win'
+        ? {
+            eyebrow:
+              resultReason === 'forfeit'
+                ? 'OPPONENT FORFEITED'
+                : resultReason === 'timeout'
+                  ? 'VICTORY BY TIMEOUT'
+                  : 'MATCH WON',
+            message:
+              resultReason === 'complete'
+                ? `First to ${WIN_TARGET}. You read them like a book.`
+                : `${opponent.name} is out. The win is yours.`,
+          }
+        : {
+            eyebrow:
+              resultReason === 'forfeit'
+                ? 'MATCH FORFEITED'
+                : resultReason === 'timeout'
+                  ? 'LOST BY TIMEOUT'
+                  : 'MATCH LOST',
+            message:
+              resultReason === 'timeout'
+                ? 'You ran out of time once too often.'
+                : `${opponent.name} took the series. Run it back.`,
+          };
+    return (
+      <GameResultScreen
+        variant={result}
+        icon={result === 'win' ? 'trophy' : 'hand'}
+        eyebrow={copy.eyebrow}
+        title={result === 'win' ? 'VICTORY' : 'DEFEAT'}
+        message={copy.message}
+        opponent={{ initial: opponent.initial, label: result === 'win' ? 'DEFEATED' : 'LOST TO', name: opponent.name }}
+        stats={stats}
+        onBack={onQuit}
+      />
+    );
+  }
+
+  const revealing = stage === 'revealing' && reveal !== null;
+
+  return (
+    <SafeAreaView style={styles.screen}>
+      <Canvas style={styles.glow}>
+        <Fill>
+          <RadialGradient
+            c={vec(width / 2, 0)}
+            r={GLOW_HEIGHT}
+            colors={[GLOW_COLOR, GLOW_TRANSPARENT]}
+          />
+        </Fill>
+      </Canvas>
+
+      <View style={styles.header}>
+        <Pressable style={styles.headerButton} onPress={onExit}>
+          <Icon type="chevron-left" color={colors.textPrimary} size={20} />
+        </Pressable>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerLabel}>
+            {roomCode ? `ROOM #${roomCode}` : 'DEMO'} · ROUND {round}
+          </Text>
+          <Text style={styles.headerTitle}>Triple Cut</Text>
+        </View>
+        <View style={styles.headerButton}>
+          <Icon type="more-horizontal" color={colors.textPrimary} size={20} />
+        </View>
+      </View>
+
+      <View style={styles.content}>
+        {/* Score strip */}
+        <View style={styles.scoreStrip}>
+          <View style={styles.scoreSide}>
+            <View style={[styles.avatar, styles.avatarEnemy]}>
+              <Text style={styles.avatarText}>{opponent.initial}</Text>
+              <View
+                style={[
+                  styles.presenceDot,
+                  { backgroundColor: opponent.online ? colors.success : colors.danger },
+                ]}
+              />
+            </View>
+            <View style={styles.scoreMeta}>
+              <Text style={styles.playerName} numberOfLines={1}>
+                {opponent.name}
+              </Text>
+              <ScorePips score={opponentScore} />
+            </View>
+          </View>
+          <Text style={styles.scoreNum}>{opponentScore}</Text>
+          <Text style={styles.vsSmall}>VS</Text>
+          <Text style={[styles.scoreNum, styles.scoreNumMe]}>{myScore}</Text>
+          <View style={[styles.scoreSide, styles.scoreSideRight]}>
+            <View style={[styles.scoreMeta, styles.scoreMetaRight]}>
+              <Text style={styles.playerName}>You</Text>
+              <ScorePips score={myScore} />
+            </View>
+            <View style={[styles.avatar, styles.avatarYou]}>
+              <Text style={styles.avatarText}>Y</Text>
+              <View
+                style={[
+                  styles.presenceDot,
+                  { backgroundColor: myOnline ? colors.success : colors.danger },
+                ]}
+              />
+            </View>
+          </View>
+        </View>
+
+        {revealing ? (
+          <RevealBody reveal={reveal!} opponent={opponent} />
+        ) : (
+          <>
+            {/* Arena */}
+            <View style={styles.arena}>
+              <View style={styles.arenaSide}>
+                <View style={styles.handSlot}>
+                  <Text style={styles.qMark}>?</Text>
+                </View>
+                <View style={styles.lockBadge}>
+                  <Icon type={opponentLocked ? 'check' : 'timer'} color={colors.textMuted} size={11} />
+                  <Text style={styles.lockBadgeText}>
+                    {opponentLocked ? 'LOCKED IN' : 'CHOOSING'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.arenaDivider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.vsBig}>VS</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              <View style={styles.arenaSide}>
+                <View style={[styles.handSlot, myMove && styles.handSlotPicked]}>
+                  {myMove ? (
+                    <RpsIcon move={myMove} size={52} color={colors.accent} />
+                  ) : (
+                    <Text style={styles.qMark}>·</Text>
+                  )}
+                </View>
+                <View style={[styles.lockBadge, styles.lockBadgePick]}>
+                  <Text style={styles.lockBadgePickText}>
+                    {myMove ? 'LOCKED IN' : 'YOUR PICK'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Choose */}
+            <Text style={styles.chooseLabel}>CHOOSE YOUR MOVE</Text>
+            <View style={styles.choices}>
+              {RPS_MOVES.map(move => {
+                const on = myMove === move;
+                const locked = myMove !== null;
+                return (
+                  <Pressable
+                    key={move}
+                    disabled={locked}
+                    onPress={() => onLock(move)}
+                    style={[styles.choiceCard, on && styles.choiceCardOn]}
+                  >
+                    <RpsIcon
+                      move={move}
+                      size={38}
+                      color={on ? colors.accent : colors.textSecondary}
+                    />
+                    <Text style={[styles.choiceLabel, on && styles.choiceLabelOn]}>
+                      {MOVE_LABEL[move]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Timer + lock hint */}
+            <View style={styles.footerRow}>
+              <View style={styles.timerBox}>
+                <TurnTimer
+                  deadline={roundDeadline}
+                  onExpire={onTimerExpire}
+                  style={styles.timer}
+                />
+                <Text style={styles.timerLabel}>LEFT</Text>
+              </View>
+              <View style={styles.hintPill}>
+                <Icon
+                  type={myMove ? 'check' : 'hand'}
+                  color={myMove ? colors.success : colors.textMuted}
+                  size={16}
+                />
+                <Text style={styles.hintText}>
+                  {myMove ? 'Locked — waiting for opponent' : 'Tap a move to lock it in'}
+                </Text>
+              </View>
+            </View>
+          </>
+        )}
+      </View>
+
+      {revealing && (
+        <View style={styles.nextBar}>
+          <Pressable onPress={onNextRound}>
+            <GradientView
+              colors={brandGradient.colors}
+              positions={brandGradient.positions}
+              style={styles.nextButton}
+            >
+              <Text style={styles.nextText}>
+                {reveal!.result === 'tie' ? 'REPLAY ROUND' : 'NEXT ROUND'}
+              </Text>
+              <Icon type="chevron-right" color={colors.textPrimary} size={18} />
+            </GradientView>
+          </Pressable>
+        </View>
+      )}
+    </SafeAreaView>
+  );
+}
+
+/** The reveal face: both moves shown, winner flagged, headline. */
+function RevealBody({
+  reveal,
+  opponent,
+}: {
+  reveal: NonNullable<RpsPlayProps['reveal']>;
+  opponent: { name: string };
+}) {
+  const eyebrow =
+    reveal.result === 'win'
+      ? 'ROUND WON'
+      : reveal.result === 'loss'
+        ? 'ROUND LOST'
+        : 'TIE';
+  const eyebrowColor =
+    reveal.result === 'win'
+      ? colors.success
+      : reveal.result === 'loss'
+        ? colors.danger
+        : colors.textMuted;
+
+  return (
+    <View style={styles.reveal}>
+      <Text style={[styles.revealEyebrow, { color: eyebrowColor }]}>{eyebrow}</Text>
+      <Text style={styles.revealHeadline}>{reveal.headline}</Text>
+
+      <View style={styles.revealHands}>
+        <RevealHand
+          move={reveal.opponentMove}
+          name={opponent.name}
+          won={reveal.result === 'loss'}
+        />
+        <Text style={styles.revealVs}>VS</Text>
+        <RevealHand move={reveal.myMove} name="You" won={reveal.result === 'win'} />
+      </View>
+    </View>
+  );
+}
+
+function RevealHand({
+  move,
+  name,
+  won,
+}: {
+  move: RpsMove | null;
+  name: string;
+  won: boolean;
+}) {
+  return (
+    <View style={styles.revealHandCol}>
+      <View style={[styles.revealSlot, won && styles.revealSlotWon]}>
+        {move ? (
+          <RpsIcon move={move} size={58} color={won ? colors.success : colors.textSecondary} />
+        ) : (
+          <Text style={styles.qMark}>?</Text>
+        )}
+        {won && (
+          <View style={styles.wonBadge}>
+            <Icon type="check" color={colors.background} size={14} />
+          </View>
+        )}
+      </View>
+      <Text style={[styles.revealName, won && styles.revealNameWon]}>{name}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
+  glow: { position: 'absolute', top: 0, left: 0, right: 0, height: GLOW_HEIGHT, pointerEvents: 'none' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xs,
+  },
+  headerButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCenter: { alignItems: 'center' },
+  headerLabel: { fontSize: 10, fontFamily: mono.medium, color: colors.textMuted, letterSpacing: 1.5 },
+  headerTitle: { fontSize: 17, fontFamily: display.bold, color: colors.textPrimary, marginTop: 1 },
+  content: { flex: 1, paddingHorizontal: spacing.md, paddingTop: spacing.md, gap: spacing.md },
+
+  scoreStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    borderRadius: radius.card,
+    padding: spacing.sm,
+  },
+  scoreSide: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, minWidth: 0 },
+  scoreSideRight: { justifyContent: 'flex-end' },
+  scoreMeta: { minWidth: 0, gap: 5 },
+  scoreMetaRight: { alignItems: 'flex-end' },
+  avatar: { width: 38, height: 38, borderRadius: radius.chip, alignItems: 'center', justifyContent: 'center' },
+  avatarYou: { backgroundColor: colors.brandStart },
+  avatarEnemy: { backgroundColor: colors.surfaceMuted },
+  avatarText: { fontSize: 15, fontFamily: display.bold, color: colors.textPrimary },
+  presenceDot: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 11,
+    height: 11,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: colors.cardBackground,
+  },
+  playerName: { fontSize: 13, fontFamily: fonts.bold, color: colors.textPrimary },
+  scoreNum: { fontSize: 24, fontFamily: mono.bold, color: colors.textMuted, fontVariant: ['tabular-nums'] },
+  scoreNumMe: { color: colors.textPrimary },
+  vsSmall: { fontSize: 11, fontFamily: fonts.bold, color: colors.textFaint, letterSpacing: 1 },
+  pipRow: { flexDirection: 'row', gap: 4 },
+  pip: { width: 20, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.12)' },
+  pipOn: { backgroundColor: colors.accent },
+
+  arena: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.025)',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    borderRadius: radius.card,
+    padding: spacing.md,
+  },
+  arenaSide: { alignItems: 'center', gap: 9 },
+  handSlot: {
+    width: 92,
+    height: 92,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  handSlotPicked: {
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
+    borderWidth: 1.5,
+  },
+  qMark: { fontSize: 40, fontFamily: display.bold, color: colors.textFaint },
+  arenaDivider: { alignItems: 'center', gap: 3, paddingHorizontal: 2 },
+  dividerLine: { width: 1, height: 22, backgroundColor: colors.cardBorder },
+  vsBig: { fontSize: 13, fontFamily: fonts.extraBold, color: colors.accent, letterSpacing: 1 },
+  lockBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  lockBadgeText: { fontSize: 9, fontFamily: fonts.bold, letterSpacing: 0.8, color: colors.textMuted },
+  lockBadgePick: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
+  lockBadgePickText: { fontSize: 9, fontFamily: fonts.extraBold, letterSpacing: 0.8, color: colors.accent },
+
+  chooseLabel: { fontSize: 10, fontFamily: mono.medium, color: colors.textMuted, letterSpacing: 1.4 },
+  choices: { flexDirection: 'row', gap: spacing.sm },
+  choiceCard: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 9,
+    paddingVertical: 16,
+    borderRadius: radius.card,
+    backgroundColor: 'rgba(255,255,255,0.035)',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  choiceCardOn: {
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
+    borderWidth: 1.5,
+  },
+  choiceLabel: { fontSize: 11, fontFamily: fonts.bold, letterSpacing: 0.4, color: colors.textMuted },
+  choiceLabelOn: { color: colors.textPrimary },
+
+  footerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: 'auto', marginBottom: spacing.md },
+  timerBox: { alignItems: 'center', gap: 2 },
+  timer: { fontSize: 20, fontFamily: mono.bold, color: colors.textPrimary, fontVariant: ['tabular-nums'] },
+  timerLabel: { fontSize: 9, fontFamily: mono.bold, color: colors.textMuted, letterSpacing: 1 },
+  hintPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
+    borderRadius: radius.card,
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  hintText: { fontSize: 12, fontFamily: fonts.semiBold, color: colors.textSecondary },
+
+  // reveal
+  reveal: { alignItems: 'center', gap: spacing.md, paddingTop: spacing.sm },
+  revealEyebrow: { fontSize: 11, fontFamily: fonts.extraBold, letterSpacing: 2 },
+  revealHeadline: { fontSize: 28, fontFamily: display.bold, color: colors.textPrimary, textAlign: 'center', letterSpacing: -0.3 },
+  revealHands: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingHorizontal: spacing.md, marginTop: spacing.sm },
+  revealHandCol: { alignItems: 'center', gap: 11 },
+  revealSlot: {
+    width: 104,
+    height: 104,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  revealSlotWon: {
+    backgroundColor: colors.successSoft,
+    borderColor: colors.success,
+    borderWidth: 1.5,
+  },
+  wonBadge: {
+    position: 'absolute',
+    top: -10,
+    right: -10,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.success,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  revealVs: { fontSize: 15, fontFamily: fonts.extraBold, color: colors.textFaint, letterSpacing: 1 },
+  revealName: { fontSize: 12, fontFamily: fonts.bold, color: colors.textMuted },
+  revealNameWon: { color: colors.textPrimary },
+
+  nextBar: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.md },
+  nextButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    height: 54,
+    borderRadius: radius.button,
+  },
+  nextText: { fontSize: 16, fontFamily: fonts.bold, color: colors.textPrimary, letterSpacing: 1 },
+});
