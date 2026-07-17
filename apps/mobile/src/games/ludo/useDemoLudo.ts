@@ -31,10 +31,10 @@ const BOT_NAMES: Record<LudoColor, string> = {
 const MY_COLOR: LudoColor = 'red';
 const SEAT_COLORS = [...LUDO_COLORS];
 
-const BOT_ROLL_DELAY_MS = 900;
-const BOT_MOVE_DELAY_MS = 750;
-/** Pause so a roll that ends the turn (no moves / third six) stays readable. */
-const PASS_DELAY_MS = 1000;
+// Bot pacing: slow enough that each roll (and its ~550ms dice animation) is
+// readable before the bot picks a pawn, and turns don't blur together.
+const BOT_ROLL_DELAY_MS = 1700;
+const BOT_MOVE_DELAY_MS = 1300;
 
 type DemoState = {
   tokens: LudoTokens;
