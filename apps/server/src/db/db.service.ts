@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Not, Repository } from 'typeorm';
+import { DataSource, In, IsNull, Not, Repository } from 'typeorm';
 
 import {
   CacheKeys,
@@ -218,12 +218,19 @@ export class DbService {
     return room;
   }
 
-  async joinGameRoom(id: string, opponentId: string): Promise<void> {
-    await this.gameRoomRepository.update(
-      { id },
+  /**
+   * Seat the opponent in a 2-player room and start it, in one conditional
+   * UPDATE. The WHERE guards status + an empty seat so two joiners racing
+   * the same Pending room can't both win: the second UPDATE affects 0 rows.
+   * Returns whether this call took the seat.
+   */
+  async joinGameRoom(id: string, opponentId: string): Promise<boolean> {
+    const result = await this.gameRoomRepository.update(
+      { id, status: GameRoomStatus.Pending, opponentId: IsNull() },
       { opponentId, status: GameRoomStatus.InProgress },
     );
     await this.cacheService.del(CacheKeys.gameRoom(id));
+    return (result.affected ?? 0) > 0;
   }
 
   /**

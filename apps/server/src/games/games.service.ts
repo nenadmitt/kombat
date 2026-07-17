@@ -160,7 +160,13 @@ export class GamesService {
       return this.joinLudoRoom(userId, room);
     }
 
-    await this.dbService.joinGameRoom(roomId, userId);
+    // Conditional seat-taking: if another joiner won the race between the
+    // Pending check above and here, this affects 0 rows and we bail out
+    // rather than overwriting their seat.
+    const seated = await this.dbService.joinGameRoom(roomId, userId);
+    if (!seated) {
+      throw new ConflictException('This room is no longer accepting players.');
+    }
     const joined: GameRoomEntity = Object.assign(room, {
       opponentId: userId,
       status: GameRoomStatus.InProgress,

@@ -13,23 +13,6 @@ fix. Remove an entry in the same change that fixes it.
 - **Suggested fix:** add `opponentUsernames: string[]` to the entry (keep
   the singular field for compatibility) and render "vs A, B, C" on mobile.
 
-## 2026-07-17 - joinGameRoom is an unconditional update: two concurrent joiners can race
-
-- **Where:** `apps/server/src/db/db.service.ts:209` (`joinGameRoom`), called
-  from `apps/server/src/games/games.service.ts` `joinRoom`.
-- **Why it's wrong:** `joinRoom` checks `status === Pending` in application
-  code, then `joinGameRoom` runs `UPDATE ... SET opponent_id, status` with
-  only `{ id }` in the WHERE clause. Two users joining the same room at the
-  same moment both pass the Pending check; the second UPDATE silently
-  overwrites the first opponent. The first joiner's client then believes it
-  is in a match it was evicted from. Today the window is small; it becomes a
-  real path once anything automated (e.g. a lobby-fill bot) joins rooms and
-  can collide with a human tapping Join.
-- **Suggested fix:** make the update conditional —
-  `UPDATE ... WHERE id = :id AND status = Pending AND opponent_id IS NULL` —
-  and have `joinRoom` treat 0 affected rows as "room no longer accepting
-  players".
-
 ## 2026-07-17 - In-memory cache fallback is unsafe once multiple instances run
 
 - **Where:** `apps/server/src/cache/cache.module.ts` (Redis-unreachable
