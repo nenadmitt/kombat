@@ -5,6 +5,7 @@ export enum GameType {
   NavalBattle = 0,
   Ludo = 1,
   TripleCut = 2,
+  ChromaClash = 3,
 }
 
 /**

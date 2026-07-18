@@ -14,6 +14,7 @@ export * from './authentication/authentication.types';
 export * from './games/game-room.types';
 export * from './games/turn-based';
 export * from './games/battleship';
+export * from './games/chroma';
 export * from './games/ludo';
 export * from './games/rps';
 export * from './games/stake.types';
