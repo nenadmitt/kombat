@@ -1,6 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { Canvas, Fill, RadialGradient, vec } from '@shopify/react-native-skia';
 import {
   BEST_OF,
@@ -42,6 +50,61 @@ const MOVE_LABEL: Record<RpsMove, string> = {
   paper: 'PAPER',
   scissors: 'SCISSORS',
 };
+
+/** Arena hand-slot geometry - one set of numbers for BOTH sides so the two
+ *  cards can never drift apart in size, rounding or badge distance. */
+const SLOT_SIZE = 112;
+const SLOT_RADIUS = 34;
+const SLOT_ICON = 66;
+
+/** Springs its content in whenever `popKey` changes (new pick / lock). */
+function PopIn({ popKey, children }: { popKey: string | null; children: ReactNode }) {
+  const scale = useSharedValue(1);
+  useEffect(() => {
+    if (popKey !== null) {
+      scale.value = 0.4;
+      scale.value = withSpring(1, { damping: 11, stiffness: 210 });
+    }
+  }, [popKey, scale]);
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  return <Animated.View style={style}>{children}</Animated.View>;
+}
+
+/** Gentle idle float (the design's ld-float) for a slot's settled content. */
+function Floating({ children }: { children: ReactNode }) {
+  const y = useSharedValue(0);
+  useEffect(() => {
+    y.value = withRepeat(
+      withSequence(
+        withTiming(-3, { duration: 1400 }),
+        withTiming(0, { duration: 1400 }),
+      ),
+      -1,
+    );
+  }, [y]);
+  const style = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }] }));
+  return <Animated.View style={style}>{children}</Animated.View>;
+}
+
+/** The opponent's placeholder: a slow-breathing question mark. */
+function PulsingMark({ waiting }: { waiting: boolean }) {
+  const opacity = useSharedValue(0.35);
+  useEffect(() => {
+    if (waiting) {
+      opacity.value = withRepeat(
+        withSequence(
+          withTiming(0.8, { duration: 900 }),
+          withTiming(0.35, { duration: 900 }),
+        ),
+        -1,
+      );
+    } else {
+      opacity.value = withTiming(0.85, { duration: 250 });
+    }
+  }, [waiting, opacity]);
+  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  return <Animated.Text style={[styles.qMark, style]}>?</Animated.Text>;
+}
 
 /** Row of BEST_OF/2-rounded score pips for one player. */
 function ScorePips({ score }: { score: number }) {
@@ -231,19 +294,21 @@ export default function RpsPlayScreen({
             {/* Arena */}
             <View style={styles.arena}>
               <View style={styles.arenaSide}>
-                <View style={styles.handSlot}>
-                  <Text style={styles.qMark}>?</Text>
+                <View style={[styles.handSlot, opponentLocked && styles.handSlotLocked]}>
+                  <PulsingMark waiting={!opponentLocked} />
                 </View>
-                <View style={styles.lockBadge}>
-                  <Icon
-                    type={opponentLocked ? 'lock' : 'timer'}
-                    color={colors.textMuted}
-                    size={11}
-                  />
-                  <Text style={styles.lockBadgeText}>
-                    {opponentLocked ? 'LOCKED IN' : 'CHOOSING'}
-                  </Text>
-                </View>
+                <PopIn popKey={opponentLocked ? 'locked' : null}>
+                  <View style={styles.lockBadge}>
+                    <Icon
+                      type={opponentLocked ? 'lock' : 'timer'}
+                      color={colors.textMuted}
+                      size={11}
+                    />
+                    <Text style={styles.lockBadgeText}>
+                      {opponentLocked ? 'LOCKED IN' : 'CHOOSING'}
+                    </Text>
+                  </View>
+                </PopIn>
               </View>
 
               <View style={styles.arenaDivider}>
@@ -255,12 +320,19 @@ export default function RpsPlayScreen({
               <View style={styles.arenaSide}>
                 <View style={[styles.handSlot, activePick && styles.handSlotPicked]}>
                   {activePick ? (
-                    <RpsIcon move={activePick} size={52} color={colors.accent} />
+                    <PopIn popKey={activePick}>
+                      <Floating>
+                        <RpsIcon move={activePick} size={SLOT_ICON} color={colors.accent} />
+                      </Floating>
+                    </PopIn>
                   ) : (
                     <Text style={styles.qMark}>·</Text>
                   )}
                 </View>
                 <View style={[styles.lockBadge, styles.lockBadgePick]}>
+                  {myMove && (
+                    <Icon type="lock" color={colors.accent} size={11} />
+                  )}
                   <Text style={styles.lockBadgePickText}>
                     {myMove ? 'LOCKED IN' : 'YOUR PICK'}
                   </Text>
@@ -545,34 +617,46 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.cardBorder,
     borderRadius: radius.card,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.lg,
   },
-  arenaSide: { alignItems: 'center', gap: 9 },
+  // Badge distance comes from this one gap; both slots share one size,
+  // radius and border width, so the two sides always render identically.
+  arenaSide: { alignItems: 'center', gap: 12 },
   handSlot: {
-    width: 92,
-    height: 92,
-    borderRadius: 28,
+    width: SLOT_SIZE,
+    height: SLOT_SIZE,
+    borderRadius: SLOT_RADIUS,
     backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.cardBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  handSlotLocked: {
+    borderColor: colors.borderStrong,
+  },
   handSlotPicked: {
     backgroundColor: colors.accentSoft,
     borderColor: colors.accent,
-    borderWidth: 1.5,
+    shadowColor: colors.accent,
+    shadowOpacity: 0.55,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 8,
   },
-  qMark: { fontSize: 40, fontFamily: display.bold, color: colors.textFaint },
-  arenaDivider: { alignItems: 'center', gap: 3, paddingHorizontal: 2 },
-  dividerLine: { width: 1, height: 22, backgroundColor: colors.cardBorder },
-  vsBig: { fontSize: 13, fontFamily: fonts.extraBold, color: colors.accent, letterSpacing: 1 },
+  qMark: { fontSize: 48, fontFamily: display.bold, color: colors.textFaint },
+  arenaDivider: { alignItems: 'center', gap: 4, paddingHorizontal: 2 },
+  dividerLine: { width: 1, height: 30, backgroundColor: colors.cardBorder },
+  vsBig: { fontSize: 14, fontFamily: fonts.extraBold, color: colors.accent, letterSpacing: 1 },
   lockBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    height: 26,
+    minWidth: 104,
+    paddingHorizontal: 12,
     borderRadius: radius.pill,
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
