@@ -15,14 +15,19 @@ import {
 import Icon from '../../components/Icon';
 import GameResultScreen from '../../components/GameResultScreen';
 import { GradientView } from '../../components/GradientView';
-import { brandGradient, colors, radius, spacing } from '../../theme/colors';
+import {
+  brandGradient,
+  colors,
+  radius,
+  spacing,
+  successGradient,
+} from '../../theme/colors';
 import { display, fonts, mono } from '../../theme/typography';
 import TurnTimer from '../battleship/game/TurnTimer';
 import RpsIcon from './RpsIcon';
 import type { RpsPlayProps } from './rps-engine';
 
 export type RpsPlayScreenProps = RpsPlayProps & {
-  roomCode: string | null;
   stake?: { token: StakeAsset; amount: string } | null;
   onExit: () => void;
   onQuit: () => void;
@@ -70,7 +75,6 @@ export default function RpsPlayScreen({
   onLock,
   onNextRound,
   onTimerExpire,
-  roomCode,
   stake,
   onExit,
   onQuit,
@@ -166,7 +170,7 @@ export default function RpsPlayScreen({
         </Pressable>
         <View style={styles.headerCenter}>
           <Text style={styles.headerLabel}>
-            {roomCode ? `ROOM #${roomCode}` : 'DEMO'} · ROUND {round}
+            BEST OF {BEST_OF} · ROUND {round}
           </Text>
           <Text style={styles.headerTitle}>Triple Cut</Text>
         </View>
@@ -216,7 +220,12 @@ export default function RpsPlayScreen({
         </View>
 
         {revealing ? (
-          <RevealBody reveal={reveal!} opponent={opponent} />
+          <RevealBody
+            reveal={reveal!}
+            opponent={opponent}
+            myScore={myScore}
+            opponentScore={opponentScore}
+          />
         ) : (
           <>
             {/* Arena */}
@@ -226,7 +235,11 @@ export default function RpsPlayScreen({
                   <Text style={styles.qMark}>?</Text>
                 </View>
                 <View style={styles.lockBadge}>
-                  <Icon type={opponentLocked ? 'check' : 'timer'} color={colors.textMuted} size={11} />
+                  <Icon
+                    type={opponentLocked ? 'lock' : 'timer'}
+                    color={colors.textMuted}
+                    size={11}
+                  />
                   <Text style={styles.lockBadgeText}>
                     {opponentLocked ? 'LOCKED IN' : 'CHOOSING'}
                   </Text>
@@ -309,7 +322,7 @@ export default function RpsPlayScreen({
                   ]}
                 >
                   <Icon
-                    type={myMove ? 'check' : 'hand'}
+                    type={myMove ? 'check' : 'lock'}
                     color={colors.textPrimary}
                     size={18}
                   />
@@ -327,14 +340,14 @@ export default function RpsPlayScreen({
         <View style={styles.nextBar}>
           <Pressable onPress={onNextRound}>
             <GradientView
-              colors={brandGradient.colors}
-              positions={brandGradient.positions}
+              colors={successGradient.colors}
+              positions={successGradient.positions}
               style={styles.nextButton}
             >
               <Text style={styles.nextText}>
                 {reveal!.result === 'tie' ? 'REPLAY ROUND' : 'NEXT ROUND'}
               </Text>
-              <Icon type="chevron-right" color={colors.textPrimary} size={18} />
+              <Icon type="chevron-right" color={colors.background} size={18} />
             </GradientView>
           </Pressable>
         </View>
@@ -343,13 +356,18 @@ export default function RpsPlayScreen({
   );
 }
 
-/** The reveal face: both moves shown, winner flagged, headline. */
+/** The reveal face per the design: eyebrow + headline, both hands with the
+ *  winner flagged (loser dimmed), the score box, and the match-point line. */
 function RevealBody({
   reveal,
   opponent,
+  myScore,
+  opponentScore,
 }: {
   reveal: NonNullable<RpsPlayProps['reveal']>;
   opponent: { name: string };
+  myScore: number;
+  opponentScore: number;
 }) {
   const eyebrow =
     reveal.result === 'win'
@@ -363,6 +381,10 @@ function RevealBody({
       : reveal.result === 'loss'
         ? colors.danger
         : colors.textMuted;
+  const decisive = reveal.result !== 'tie';
+  const over = myScore >= WIN_TARGET || opponentScore >= WIN_TARGET;
+  const matchPoint =
+    !over && (myScore === WIN_TARGET - 1 || opponentScore === WIN_TARGET - 1);
 
   return (
     <View style={styles.reveal}>
@@ -374,10 +396,46 @@ function RevealBody({
           move={reveal.opponentMove}
           name={opponent.name}
           won={reveal.result === 'loss'}
+          dimmed={decisive && reveal.result === 'win'}
         />
         <Text style={styles.revealVs}>VS</Text>
-        <RevealHand move={reveal.myMove} name="You" won={reveal.result === 'win'} />
+        <RevealHand
+          move={reveal.myMove}
+          name="You"
+          won={reveal.result === 'win'}
+          dimmed={decisive && reveal.result === 'loss'}
+        />
       </View>
+
+      {/* Score box: opponent | pip stack | you (design's reveal footer). */}
+      <View style={styles.revealScoreBox}>
+        <View style={styles.revealScoreCol}>
+          <Text style={styles.revealScoreLabel}>
+            {opponent.name.toUpperCase()}
+          </Text>
+          <Text style={styles.revealScoreNum}>{opponentScore}</Text>
+        </View>
+        <View style={styles.revealPipStack}>
+          {Array.from({ length: WIN_TARGET }, (_, i) => (
+            <View
+              key={i}
+              style={[styles.revealPip, i < myScore && styles.revealPipOn]}
+            />
+          ))}
+        </View>
+        <View style={styles.revealScoreCol}>
+          <Text style={[styles.revealScoreLabel, styles.revealScoreLabelMe]}>
+            YOU
+          </Text>
+          <Text style={[styles.revealScoreNum, styles.revealScoreNumMe]}>
+            {myScore}
+          </Text>
+        </View>
+      </View>
+
+      {matchPoint && (
+        <Text style={styles.matchPoint}>Match point - one more to win</Text>
+      )}
     </View>
   );
 }
@@ -386,14 +444,22 @@ function RevealHand({
   move,
   name,
   won,
+  dimmed,
 }: {
   move: RpsMove | null;
   name: string;
   won: boolean;
+  dimmed: boolean;
 }) {
   return (
     <View style={styles.revealHandCol}>
-      <View style={[styles.revealSlot, won && styles.revealSlotWon]}>
+      <View
+        style={[
+          styles.revealSlot,
+          won && styles.revealSlotWon,
+          dimmed && styles.revealSlotDim,
+        ]}
+      >
         {move ? (
           <RpsIcon move={move} size={58} color={won ? colors.success : colors.textSecondary} />
         ) : (
@@ -532,25 +598,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentSoft,
     borderColor: colors.accent,
     borderWidth: 1.5,
+    // The design lifts the armed card slightly out of the row.
+    transform: [{ translateY: -3 }],
   },
   choiceCardDim: { opacity: 0.4 },
   choiceLabel: { fontSize: 11, fontFamily: fonts.bold, letterSpacing: 0.4, color: colors.textMuted },
   choiceLabelOn: { color: colors.textPrimary },
 
   footerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: 'auto', marginBottom: spacing.md },
-  timerBox: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 1,
-    minWidth: 62,
-    paddingVertical: 8,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.brandStart,
-    backgroundColor: colors.cardBackground,
-  },
+  // Bare timer column beside the LOCK IN button, per the design.
+  timerBox: { alignItems: 'center', gap: 2, minWidth: 56 },
   timer: { fontSize: 22, fontFamily: mono.bold, color: colors.textPrimary, fontVariant: ['tabular-nums'] },
-  timerLabel: { fontSize: 9, fontFamily: mono.bold, color: colors.accent, letterSpacing: 1 },
+  timerLabel: { fontSize: 9, fontFamily: mono.bold, color: colors.textMuted, letterSpacing: 1 },
   lockWrap: { flex: 1 },
   lockButton: {
     flexDirection: 'row',
@@ -584,6 +643,7 @@ const styles = StyleSheet.create({
     borderColor: colors.success,
     borderWidth: 1.5,
   },
+  revealSlotDim: { opacity: 0.72 },
   wonBadge: {
     position: 'absolute',
     top: -10,
@@ -598,6 +658,47 @@ const styles = StyleSheet.create({
   revealVs: { fontSize: 15, fontFamily: fonts.extraBold, color: colors.textFaint, letterSpacing: 1 },
   revealName: { fontSize: 12, fontFamily: fonts.bold, color: colors.textMuted },
   revealNameWon: { color: colors.textPrimary },
+  revealScoreBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.lg,
+    alignSelf: 'stretch',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    borderRadius: radius.card,
+    paddingVertical: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  revealScoreCol: { alignItems: 'center', gap: 2 },
+  revealScoreLabel: {
+    fontSize: 10,
+    fontFamily: fonts.bold,
+    letterSpacing: 1,
+    color: colors.textMuted,
+  },
+  revealScoreLabelMe: { color: colors.accentLight },
+  revealScoreNum: {
+    fontSize: 26,
+    fontFamily: mono.bold,
+    color: colors.textSecondary,
+    fontVariant: ['tabular-nums'],
+  },
+  revealScoreNumMe: { color: colors.textPrimary },
+  revealPipStack: { gap: 5 },
+  revealPip: {
+    width: 20,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  revealPipOn: { backgroundColor: colors.accent },
+  matchPoint: {
+    fontSize: 12,
+    fontFamily: fonts.semiBold,
+    color: colors.textMuted,
+  },
 
   nextBar: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.md },
   nextButton: {

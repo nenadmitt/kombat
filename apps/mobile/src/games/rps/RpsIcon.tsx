@@ -1,49 +1,65 @@
-import Svg, { Circle, G, Rect } from 'react-native-svg';
+import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
 import type { RpsMove } from '@gaming-platform/core';
 
 /**
- * Hand glyphs for the three moves, in the hand-drawn style of the reference
- * art: a filled hand with a darker outline. `rock` = fist, `paper` = open
- * hand, `scissors` = two fingers in a V over a fist.
+ * Hand glyphs for the three moves, matching the reference art
+ * (prompts/rps_icons.png): filled hand silhouettes with a darker outline and
+ * interior crease lines. Poses per the reference - `rock` = fist facing the
+ * viewer with curled-finger segments, `paper` = straight-on open palm,
+ * `scissors` = side-view hand with two fingers extended up-right.
  *
- * Each hand is a set of capsule (rounded-rect) and circle primitives on a
- * 64x64 grid. To get ONE clean union outline (not a seam between every
- * primitive) the whole set is drawn twice: first every primitive stroked
- * wide, then every primitive filled on top - the second pass paints over all
- * the interior stroke edges, leaving only the outer boundary outlined.
+ * Each hand is capsule/circle primitives on a 64x64 grid, drawn twice: first
+ * every primitive stroked wide, then every primitive filled on top - the
+ * fill pass paints over interior stroke edges, leaving one clean union
+ * outline. Interior detail strokes go on last.
  */
 
 type Capsule = { t: 'cap'; x: number; y: number; w: number; h: number; rot?: number };
 type Dot = { t: 'dot'; cx: number; cy: number; r: number };
 type Part = Capsule | Dot;
 
-const HANDS: Record<RpsMove, Part[]> = {
-  // Open hand: broad palm, four fanned fingers, thumb out to the side.
-  paper: [
-    { t: 'cap', x: 17, y: 8, w: 9, h: 30, rot: -9 },
-    { t: 'cap', x: 27, y: 5, w: 9, h: 33 },
-    { t: 'cap', x: 37, y: 7, w: 9, h: 31, rot: 8 },
-    { t: 'cap', x: 46, y: 14, w: 9, h: 24, rot: 18 },
-    { t: 'cap', x: 6, y: 28, w: 9, h: 20, rot: -34 }, // thumb
-    { t: 'cap', x: 15, y: 30, w: 38, h: 26 }, // palm
-  ],
-  // Fist: rounded block with four knuckle bumps and a thumb across the front.
-  rock: [
-    { t: 'dot', cx: 22, cy: 30, r: 6 },
-    { t: 'dot', cx: 31, cy: 28, r: 6.5 },
-    { t: 'dot', cx: 40, cy: 29, r: 6.5 },
-    { t: 'dot', cx: 48, cy: 31, r: 6 },
-    { t: 'cap', x: 16, y: 30, w: 38, h: 24 }, // fist body
-    { t: 'cap', x: 12, y: 38, w: 22, h: 10 }, // thumb across
-  ],
-  // Scissors: two spread fingers rising out of a fist.
-  scissors: [
-    { t: 'cap', x: 20, y: 4, w: 8.5, h: 34, rot: -20 }, // spread finger
-    { t: 'cap', x: 34, y: 4, w: 8.5, h: 34, rot: 16 }, // spread finger
-    { t: 'dot', cx: 45, cy: 33, r: 6 }, // curled knuckle
-    { t: 'cap', x: 20, y: 32, w: 30, h: 22 }, // fist
-    { t: 'cap', x: 12, y: 36, w: 18, h: 10, rot: 24 }, // thumb
-  ],
+type Hand = { parts: Part[]; lines: string[] };
+
+const HANDS: Record<RpsMove, Hand> = {
+  // Straight-on open palm, four fingers up, thumb out to the lower-left.
+  paper: {
+    parts: [
+      { t: 'cap', x: 19, y: 11, w: 8, h: 26, rot: -7 },
+      { t: 'cap', x: 28, y: 6, w: 8, h: 31 },
+      { t: 'cap', x: 37, y: 8, w: 8, h: 29, rot: 6 },
+      { t: 'cap', x: 45, y: 15, w: 8, h: 22, rot: 14 },
+      { t: 'cap', x: 7, y: 30, w: 9, h: 19, rot: -38 },
+      { t: 'cap', x: 17, y: 30, w: 36, h: 26 },
+    ],
+    lines: [],
+  },
+  // Fist facing the viewer: curled-finger segments + thumb folded across.
+  rock: {
+    parts: [
+      { t: 'cap', x: 13, y: 19, w: 40, h: 30 },
+      { t: 'dot', cx: 20, cy: 22, r: 7 },
+      { t: 'dot', cx: 30, cy: 20, r: 7.5 },
+      { t: 'dot', cx: 40, cy: 21, r: 7 },
+      { t: 'cap', x: 16, y: 40, w: 30, h: 11 },
+    ],
+    lines: [
+      'M23 24 q2 6 0.5 13',
+      'M32 22 q2 7 0.5 15',
+      'M41 23 q2 6 0.5 14',
+      'M18 42 q12 6 26 3',
+    ],
+  },
+  // Side view: two spread fingers extended up-right out of a folded fist.
+  scissors: {
+    parts: [
+      { t: 'cap', x: 33, y: 4, w: 8, h: 32, rot: 20 },
+      { t: 'cap', x: 42, y: 12, w: 8, h: 28, rot: 40 },
+      { t: 'cap', x: 10, y: 30, w: 31, h: 22 },
+      { t: 'dot', cx: 39, cy: 42, r: 7 },
+      { t: 'cap', x: 12, y: 26, w: 16, h: 10, rot: -10 },
+    ],
+    lines: ['M30 42 q5 3 11 1'],
+  },
 };
 
 const OUTLINE = 'rgba(0, 0, 0, 0.32)';
@@ -52,14 +68,18 @@ const OUTLINE_W = 3;
 function Primitive({
   part,
   fill,
-  stroke,
+  outlined,
 }: {
   part: Part;
   fill: string;
-  stroke?: string;
+  outlined?: boolean;
 }) {
-  const strokeProps = stroke
-    ? { stroke, strokeWidth: OUTLINE_W * 2, strokeLinejoin: 'round' as const }
+  const strokeProps = outlined
+    ? {
+        stroke: OUTLINE,
+        strokeWidth: OUTLINE_W * 2,
+        strokeLinejoin: 'round' as const,
+      }
     : {};
   if (part.t === 'dot') {
     return <Circle cx={part.cx} cy={part.cy} r={part.r} fill={fill} {...strokeProps} />;
@@ -85,16 +105,24 @@ type Props = {
 };
 
 export default function RpsIcon({ move, size = 46, color = '#fff' }: Props) {
-  const parts = HANDS[move];
+  const { parts, lines } = HANDS[move];
   return (
     <Svg width={size} height={size} viewBox="0 0 64 64">
-      {/* Pass 1: wide outline under everything. */}
       {parts.map((part, i) => (
-        <Primitive key={`o${i}`} part={part} fill={color} stroke={OUTLINE} />
+        <Primitive key={`o${i}`} part={part} fill={color} outlined />
       ))}
-      {/* Pass 2: fills paint over the interior seams. */}
       {parts.map((part, i) => (
         <Primitive key={`f${i}`} part={part} fill={color} />
+      ))}
+      {lines.map((d, i) => (
+        <Path
+          key={`l${i}`}
+          d={d}
+          fill="none"
+          stroke={OUTLINE}
+          strokeWidth={2.4}
+          strokeLinecap="round"
+        />
       ))}
     </Svg>
   );

@@ -93,6 +93,12 @@ export const goldGradient = {
   positions: [0.15, 0.85],
 } as const;
 
+/** Positive-action gradient (e.g. Triple Cut's NEXT ROUND, per its design). */
+export const successGradient = {
+  colors: ['#22E39A', '#10B981'],
+  positions: [0, 1],
+} as const;
+
 /** Shared corner radii. */
 export const radius = {
   /** Chips / small tiles. */

@@ -9,7 +9,6 @@ import type { StakeAsset } from '@gaming-platform/core';
 
 import { useConfirm } from '../../components/ui';
 import { colors } from '../../theme/colors';
-import { formatRoomCode } from '../room-code';
 import RpsPlayScreen from './RpsPlayScreen';
 import type { RpsEngine } from './rps-engine';
 import { useDemoRps } from './useDemoRps';
@@ -45,13 +44,7 @@ export default function RpsGame() {
 function DemoRpsGame({ onExit }: { onExit: () => void }) {
   const engine = useDemoRps();
   return (
-    <RpsGameFlow
-      engine={engine}
-      isMultiplayer={false}
-      stake={null}
-      roomCode={null}
-      onExit={onExit}
-    />
+    <RpsGameFlow engine={engine} isMultiplayer={false} stake={null} onExit={onExit} />
   );
 }
 
@@ -66,13 +59,7 @@ function MultiplayerRpsGame({
 }) {
   const engine = useMultiplayerRps(roomId);
   return (
-    <RpsGameFlow
-      engine={engine}
-      isMultiplayer
-      stake={stake}
-      roomCode={formatRoomCode(roomId)}
-      onExit={onExit}
-    />
+    <RpsGameFlow engine={engine} isMultiplayer stake={stake} onExit={onExit} />
   );
 }
 
@@ -80,13 +67,11 @@ function RpsGameFlow({
   engine,
   isMultiplayer,
   stake,
-  roomCode,
   onExit,
 }: {
   engine: RpsEngine;
   isMultiplayer: boolean;
   stake: { token: StakeAsset; amount: string } | null;
-  roomCode: string | null;
   onExit: () => void;
 }) {
   const navigation = useNavigation();
@@ -126,7 +111,6 @@ function RpsGameFlow({
   return (
     <RpsPlayScreen
       {...engine.playProps}
-      roomCode={roomCode}
       stake={stake}
       onExit={onExit}
       onQuit={onExit}
