@@ -1,11 +1,10 @@
-import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { GameType } from '@gaming-platform/core';
 
 import Icon, { type IconName } from '../components/Icon';
-import { Card, Chip, Screen, SectionLabel, Toggle, useConfirm } from '../components/ui';
+import { Card, Chip, Screen, SectionLabel } from '../components/ui';
 import { GAME_TYPE_DEMO_SCREENS } from '../games/game-type-demo-screens';
 import type { RootStackParamList } from '../navigation/types';
 import { colors, radius, spacing } from '../theme/colors';
@@ -17,39 +16,21 @@ type GameCard = {
   players: string;
   icon: IconName;
   tint: string;
-  /** Real catalog game types are playable; the rest are demo-only previews. */
-  gameType?: GameType;
+  gameType: GameType;
 };
 
-/**
- * Only Battleships (NavalBattle) is a real, playable game type - the others
- * are design-showcase previews and open a "coming soon" notice rather than
- * pretending to launch. The GameType catalog stays honest; these extra cards
- * live only in this screen to match the design's library grid.
- */
+/** Every card here is a real, playable game type - each launches its bot demo. */
 const GAMES: GameCard[] = [
   { name: 'Battleships', tag: 'Strategy', players: '2.4k playing', icon: 'crosshair', tint: colors.accentSoft, gameType: GameType.NavalBattle },
   { name: 'Ludo Royale', tag: 'Board', players: '1.8k playing', icon: 'dice', tint: 'rgba(56,189,248,0.12)', gameType: GameType.Ludo },
-  { name: 'Yahtzee Arena', tag: 'Dice', players: '960 playing', icon: 'grid', tint: 'rgba(251,191,36,0.12)' },
-  { name: 'Poker High', tag: 'Cards', players: '3.1k playing', icon: 'target', tint: 'rgba(36,224,138,0.12)' },
+  { name: 'Triple Cut', tag: 'Duel', players: '1.2k playing', icon: 'hand', tint: 'rgba(124,92,255,0.14)', gameType: GameType.TripleCut },
 ];
 
 export default function DemoGamesScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [demoMode, setDemoMode] = useState(true);
-  const confirm = useConfirm();
 
   const playDemo = (game: GameCard) => {
-    if (game.gameType === undefined) {
-      void confirm({
-        title: game.name,
-        message: 'This game is coming soon.',
-        icon: 'rocket',
-        mode: 'info',
-      });
-      return;
-    }
     (navigation.navigate as (screen: string, params?: unknown) => void)(
       GAME_TYPE_DEMO_SCREENS[game.gameType],
     );
@@ -59,18 +40,17 @@ export default function DemoGamesScreen() {
     <Screen scroll>
       <Text style={styles.title}>Games</Text>
 
-      {/* Demo mode */}
+      {/* Demo mode banner (informational). */}
       <Card accent style={styles.demoCard}>
         <View style={styles.demoIcon}>
-          <Icon type="plus" color={colors.onAccent} size={20} />
+          <Icon type="target" color={colors.onAccent} size={20} />
         </View>
         <View style={styles.demoText}>
           <Text style={styles.demoTitle}>Demo Mode</Text>
           <Text style={styles.demoSubtitle}>
-            Practice any game free - no crypto staked.
+            Practice any game against a bot - free, no crypto staked.
           </Text>
         </View>
-        <Toggle value={demoMode} onValueChange={setDemoMode} />
       </Card>
 
       {/* All games */}

@@ -42,6 +42,10 @@ export const CacheKeys = {
   ludoMatch: (roomId: string): string => `ludo:match:${roomId}`,
   /** Per-room mutex guarding read-mutate-write cycles on the Ludo match. */
   ludoLock: (roomId: string): string => `lock:ludo:${roomId}`,
+  /** Authoritative Triple Cut (RPS) MatchState JSON. */
+  rpsMatch: (roomId: string): string => `rps:match:${roomId}`,
+  /** Per-room mutex guarding read-mutate-write cycles on the RPS match. */
+  rpsLock: (roomId: string): string => `lock:rps:${roomId}`,
   /** Cached GameRoomEntity JSON (short TTL — bounds staleness). */
   gameRoom: (id: string): string => `room:${id}`,
 } as const;
@@ -50,12 +54,17 @@ export const CacheKeys = {
  *  one sweeper drains everything; the member's kind routes enforcement). */
 export const DEADLINES_KEY = 'bs:deadlines';
 
-/** Deadline kinds: `setup`/`turn` are Battleship's, `ludo-turn` is Ludo's.
- *  A new turn-based game adds its own kind here and an enforcer in the
- *  deadline sweeper. */
-export type DeadlineKind = 'setup' | 'turn' | 'ludo-turn';
+/** Deadline kinds: `setup`/`turn` are Battleship's, `ludo-turn` is Ludo's,
+ *  `rps-round` is Triple Cut's. A new turn-based game adds its own kind here
+ *  and an enforcer in the deadline sweeper. */
+export type DeadlineKind = 'setup' | 'turn' | 'ludo-turn' | 'rps-round';
 
-const DEADLINE_KINDS: readonly DeadlineKind[] = ['setup', 'turn', 'ludo-turn'];
+const DEADLINE_KINDS: readonly DeadlineKind[] = [
+  'setup',
+  'turn',
+  'ludo-turn',
+  'rps-round',
+];
 
 /** Member format for DEADLINES_KEY: `{roomId}|{kind}|{turnSeq}`. */
 export const deadlineMember = (

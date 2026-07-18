@@ -13,6 +13,7 @@ import {
   LUDO_MIN_PLAYERS,
   MatchHistoryEntry,
   ROOM_EVENTS,
+  RPS_EVENTS,
   StakeAsset,
 } from '@gaming-platform/core';
 
@@ -25,6 +26,7 @@ import { BattleshipMatchService } from './battleships/battleship-match.service';
 import { getPlayerCountForGameType } from './game-type.util';
 import { LudoMatchService } from './ludo/ludo-match.service';
 import { participantsOf } from './room.util';
+import { RpsMatchService } from './rps/rps-match.service';
 import { StakesService } from './stakes/stakes.service';
 
 @Injectable()
@@ -34,6 +36,7 @@ export class GamesService {
     private readonly websocketsService: WebsocketsService,
     private readonly battleshipMatchService: BattleshipMatchService,
     private readonly ludoMatchService: LudoMatchService,
+    private readonly rpsMatchService: RpsMatchService,
     private readonly stakesService: StakesService,
   ) {}
 
@@ -420,20 +423,26 @@ export class GamesService {
       room.userId === userId ? room.opponentId! : room.userId;
 
     // Update the cached match if it's still around; if it expired or never
-    // existed, completing the DB room is enough to end it.
+    // existed, completing the DB room is enough to end it. Each 2-player game
+    // ends its own live match state and announces on its own channel event.
+    const isRps = room.gameType === GameType.TripleCut;
     try {
-      await this.battleshipMatchService.forfeit(roomId, userId);
+      if (isRps) {
+        await this.rpsMatchService.forfeit(roomId, userId);
+      } else {
+        await this.battleshipMatchService.forfeit(roomId, userId);
+      }
     } catch {
       // No live match — fall through to the completion below.
     }
     await this.stakesService.completeMatch(roomId, opponentId, 'forfeit');
 
     // Tell the channel so an opponent still in the match sees the win. (Any
-    // scheduled turn deadline goes stale — the sweeper re-validates the phase
-    // and drops it.)
+    // scheduled deadline goes stale — the sweeper re-validates the phase and
+    // drops it.)
     this.websocketsService.sendToChannel(
       gameChannel(roomId),
-      BATTLESHIP_EVENTS.ended,
+      isRps ? RPS_EVENTS.ended : BATTLESHIP_EVENTS.ended,
       { winnerUserId: opponentId, reason: 'forfeit' },
     );
 

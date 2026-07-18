@@ -6,6 +6,7 @@ import { GameType } from '../db/types/game';
 const PLAYER_COUNT_BY_GAME_TYPE: Record<GameType, number> = {
   [GameType.NavalBattle]: 2,
   [GameType.Ludo]: LUDO_MAX_PLAYERS,
+  [GameType.TripleCut]: 2,
 };
 
 export function getPlayerCountForGameType(gameType: GameType): number {

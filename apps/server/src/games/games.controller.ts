@@ -15,6 +15,7 @@ import {
   GameRoomSummary,
   LudoRoomState,
   MatchHistoryEntry,
+  RpsRoomState,
 } from '@gaming-platform/core';
 
 import { ISecurityContext } from '../authentication/authentication.types';
@@ -29,6 +30,7 @@ import { MatchHistoryQueryDto } from './dto/match-history-query.dto';
 import { GamesService } from './games.service';
 import { LudoMatchService } from './ludo/ludo-match.service';
 import { participantsOf } from './room.util';
+import { RpsMatchService } from './rps/rps-match.service';
 import { StakesService } from './stakes/stakes.service';
 
 @Controller('games/rooms')
@@ -39,6 +41,7 @@ export class GamesController {
     private readonly dbService: DbService,
     private readonly battleshipMatchService: BattleshipMatchService,
     private readonly ludoMatchService: LudoMatchService,
+    private readonly rpsMatchService: RpsMatchService,
     private readonly stakesService: StakesService,
   ) {}
 
@@ -152,7 +155,7 @@ export class GamesController {
   async getRoomState(
     @Param('id') id: string,
     @SecurityContext() securityContext: ISecurityContext,
-  ): Promise<BattleshipRoomState | LudoRoomState> {
+  ): Promise<BattleshipRoomState | LudoRoomState | RpsRoomState> {
     const room = await this.dbService.findGameRoomById(id);
     if (!room) {
       throw new NotFoundException('Game room not found');
@@ -163,6 +166,10 @@ export class GamesController {
     if (room.gameType === GameType.Ludo) {
       await this.ludoMatchService.getOrCreate(room);
       return this.ludoMatchService.stateFor(id, securityContext.userId);
+    }
+    if (room.gameType === GameType.TripleCut) {
+      await this.rpsMatchService.getOrCreate(room);
+      return this.rpsMatchService.stateFor(id, securityContext.userId);
     }
     await this.battleshipMatchService.getOrCreate(room);
     return this.battleshipMatchService.stateFor(id, securityContext.userId);

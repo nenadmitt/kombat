@@ -34,9 +34,10 @@ const FEE_CONFIG: Record<StakeAsset, { initial: number; step: number; min: numbe
  * on-chain only once an opponent joins.
  */
 /** The playable catalog this modal offers. */
-const GAME_CHOICES: { gameType: GameType; label: string; icon: 'crosshair' | 'dice'; blurb: string }[] = [
+const GAME_CHOICES: { gameType: GameType; label: string; icon: 'crosshair' | 'dice' | 'hand'; blurb: string }[] = [
   { gameType: GameType.NavalBattle, label: 'Battleships', icon: 'crosshair', blurb: '1v1 naval strategy' },
   { gameType: GameType.Ludo, label: 'Ludo Royale', icon: 'dice', blurb: '2-4 players, classic rules' },
+  { gameType: GameType.TripleCut, label: 'Triple Cut', icon: 'hand', blurb: '1v1 rock-paper-scissors, best of 5' },
 ];
 
 export default function CreateGameRoomModal({ visible, onClose }: Props) {

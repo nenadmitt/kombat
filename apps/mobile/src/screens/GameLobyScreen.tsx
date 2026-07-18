@@ -53,15 +53,17 @@ function stakeLabel(room: GameRoomSummary): string {
 
 const GAME_ICON = 'crosshair' as const;
 /** Card glyph per game type (the featured banner keeps the crosshair). */
-const GAME_TYPE_ICONS: Record<GameType, 'crosshair' | 'dice'> = {
+const GAME_TYPE_ICONS: Record<GameType, 'crosshair' | 'dice' | 'hand'> = {
   [GameType.NavalBattle]: 'crosshair',
   [GameType.Ludo]: 'dice',
+  [GameType.TripleCut]: 'hand',
 };
 
 const FILTERS: { key: Filter; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: GameType.NavalBattle, label: 'Battleships' },
   { key: GameType.Ludo, label: 'Ludo' },
+  { key: GameType.TripleCut, label: 'Triple Cut' },
 ];
 
 function timeAgo(iso: string): string {

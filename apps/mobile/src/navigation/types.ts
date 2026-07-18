@@ -24,6 +24,13 @@ export type RootStackParamList = {
     stakeAmount?: string | null;
   };
   LudoSetup: undefined;
+  // Same split for Triple Cut (rock-paper-scissors).
+  TripleCut: {
+    roomId: string;
+    stakeToken?: StakeAsset | null;
+    stakeAmount?: string | null;
+  };
+  TripleCutSetup: undefined;
 };
 
 /** Bottom tabs shown once the user is authenticated and onboarded. */
