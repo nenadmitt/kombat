@@ -1,102 +1,71 @@
-import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import type { RpsMove } from '@gaming-platform/core';
 
 /**
- * Hand glyphs for the three moves, matching the reference art
- * (prompts/rps_icons.png): filled hand silhouettes with a darker outline and
- * interior crease lines. Poses per the reference - `rock` = fist facing the
- * viewer with curled-finger segments, `paper` = straight-on open palm,
- * `scissors` = side-view hand with two fingers extended up-right.
- *
- * Each hand is capsule/circle primitives on a 64x64 grid, drawn twice: first
- * every primitive stroked wide, then every primitive filled on top - the
- * fill pass paints over interior stroke edges, leaving one clean union
- * outline. Interior detail strokes go on last.
+ * Hand glyphs for the three moves, traced directly from the reference art
+ * (prompts/rps_icons.png) - silhouette + line-work contours extracted from
+ * the drawing itself, so the shapes match it exactly (the rock's arrow
+ * annotation and the text captions were dropped). 64x64 viewBox; `color`
+ * tints the hand, the line-work stays a translucent dark so it reads on any
+ * tint. Regenerate by re-running the tracer against a new reference image.
  */
 
-type Capsule = { t: 'cap'; x: number; y: number; w: number; h: number; rot?: number };
-type Dot = { t: 'dot'; cx: number; cy: number; r: number };
-type Part = Capsule | Dot;
+const OUTLINE = 'rgba(0, 0, 0, 0.35)';
 
-type Hand = { parts: Part[]; lines: string[] };
+type HandPaths = { silhouette: string; lines: string };
 
-const HANDS: Record<RpsMove, Hand> = {
-  // Straight-on open palm, four fingers up, thumb out to the lower-left.
-  paper: {
-    parts: [
-      { t: 'cap', x: 19, y: 11, w: 8, h: 26, rot: -7 },
-      { t: 'cap', x: 28, y: 6, w: 8, h: 31 },
-      { t: 'cap', x: 37, y: 8, w: 8, h: 29, rot: 6 },
-      { t: 'cap', x: 45, y: 15, w: 8, h: 22, rot: 14 },
-      { t: 'cap', x: 7, y: 30, w: 9, h: 19, rot: -38 },
-      { t: 'cap', x: 17, y: 30, w: 36, h: 26 },
-    ],
-    lines: [],
-  },
-  // Fist facing the viewer: curled-finger segments + thumb folded across.
+const HANDS: Record<RpsMove, HandPaths> = {
   rock: {
-    parts: [
-      { t: 'cap', x: 13, y: 19, w: 40, h: 30 },
-      { t: 'dot', cx: 20, cy: 22, r: 7 },
-      { t: 'dot', cx: 30, cy: 20, r: 7.5 },
-      { t: 'dot', cx: 40, cy: 21, r: 7 },
-      { t: 'cap', x: 16, y: 40, w: 30, h: 11 },
-    ],
-    lines: [
-      'M23 24 q2 6 0.5 13',
-      'M32 22 q2 7 0.5 15',
-      'M41 23 q2 6 0.5 14',
-      'M18 42 q12 6 26 3',
-    ],
+    silhouette:
+      'M30.1,4.0L43.2,4.2L46.8,12.0L52.1,12.5L55.3,13.7L56.5,18.3L56.5,26.3L55.0,31.2L42.9,42.3' +
+      'L41.0,53.9L36.6,57.8L33.5,59.3L25.5,60.0L17.9,58.1L13.8,55.9L9.0,32.4L7.5,11.3L18.2,5.2Z',
+    lines:
+      'M33.7,4.0L42.9,4.2L44.1,5.7L46.5,12.0L52.4,12.7L55.5,14.4L56.5,20.5L55.8,29.0L54.8,30.9' +
+      'L42.9,42.1L41.2,53.0L40.0,54.9L36.6,57.6L33.0,59.3L30.1,59.8L22.5,59.3L14.1,56.1L14.1,53.7' +
+      'L13.1,52.7L12.1,48.8L9.2,33.6L7.5,12.0L8.5,10.8L17.2,5.7ZM29.1,5.9L28.4,6.7L31.5,9.3L31.5,17.1' +
+      'L30.5,21.7L35.2,21.2L37.3,11.8L37.1,9.1L34.7,5.9ZM37.3,5.9L37.1,6.7L38.3,7.9L39.0,10.3' +
+      'L37.1,20.7L40.7,20.5L40.7,21.9L39.3,22.4L21.1,24.8L17.7,24.4L13.3,21.7L13.1,18.5L13.8,15.6' +
+      'L14.5,14.9L15.3,15.6L15.0,20.7L17.5,22.4L20.8,22.9L21.6,22.4L22.3,19.3L22.3,13.0L21.8,12.2' +
+      'L17.7,8.1L16.2,8.1L9.5,12.2L10.4,29.9L12.4,41.8L15.3,54.2L17.5,55.6L25.7,57.8L30.1,57.8' +
+      'L35.9,55.6L39.0,53.2L41.2,41.3L53.8,29.5L54.8,24.8L54.8,19.0L53.8,15.2L48.5,13.7L42.4,13.5' +
+      'L42.2,17.6L40.5,17.8L40.7,12.2L41.7,11.5L44.4,11.8L44.4,11.0L42.4,6.2ZM24.2,6.4L19.9,6.9' +
+      'L19.4,7.6L23.8,12.0L24.0,19.5L23.3,22.4L28.4,22.2L29.6,18.5L29.8,10.1L26.2,6.7Z',
   },
-  // Side view: two spread fingers extended up-right out of a folded fist.
+  paper: {
+    silhouette:
+      'M32.0,4.0L34.8,4.2L36.5,5.5L36.7,6.6L39.5,6.8L40.8,7.9L41.7,22.9L41.9,23.7L43.6,23.1L45.5,23.5' +
+      'L46.0,32.8L47.5,41.3L45.7,45.0L39.5,51.2L39.9,57.8L38.0,59.3L35.6,60.0L26.2,59.4L20.4,57.4' +
+      'L19.5,48.6L16.5,39.8L16.8,30.2L19.3,16.0L20.8,14.5L23.9,13.6L24.3,9.2L25.3,7.7L30.1,7.0' +
+      'L30.5,4.6Z',
+    lines:
+      'M31.8,4.2L35.0,4.6L36.3,5.5L36.7,6.8L38.9,6.8L40.4,7.7L41.7,23.7L42.7,23.9L44.0,23.1L45.3,23.5' +
+      'L46.2,35.7L47.4,40.9L47.0,43.0L46.2,44.1L39.5,51.0L39.7,57.8L37.8,59.3L35.9,59.8L25.4,59.3' +
+      'L20.6,57.4L19.3,47.3L16.6,40.0L17.0,29.8L19.3,16.2L20.9,14.5L23.9,13.7L24.5,9.1L25.3,7.9' +
+      'L27.3,7.2L29.9,7.2L30.5,4.7ZM32.2,5.5L31.4,6.4L30.7,13.2L30.3,27.0L34.6,26.5L35.2,6.4' +
+      'L34.1,5.5ZM36.9,8.1L36.3,9.1L36.1,11.3L35.9,26.3L36.3,26.8L35.9,27.6L29.4,28.5L26.6,29.8' +
+      'L26.0,29.8L25.6,29.1L25.8,28.5L29.0,27.4L29.0,19.0L29.9,8.5L28.4,8.3L26.2,9.1L25.4,11.3' +
+      'L25.1,28.5L23.9,28.7L23.8,28.3L23.8,15.4L21.1,16.0L20.2,18.8L18.0,33.0L18.0,40.1L20.8,47.8' +
+      'L21.5,55.9L26.0,57.8L35.6,58.3L37.8,57.4L38.2,57.0L38.2,50.4L44.7,43.9L46.0,41.8L44.5,32.3' +
+      'L44.2,25.9L44.0,24.8L43.2,24.8L41.2,25.9L40.2,27.2L40.1,37.0L40.8,38.3L35.7,40.1L32.9,42.8' +
+      'L32.0,42.8L32.0,41.6L33.5,40.1L35.0,39.0L38.7,37.5L38.9,28.0L39.3,26.1L40.6,24.6L39.5,15.1' +
+      'L39.5,9.2L39.1,8.3Z',
+  },
   scissors: {
-    parts: [
-      { t: 'cap', x: 33, y: 4, w: 8, h: 32, rot: 20 },
-      { t: 'cap', x: 42, y: 12, w: 8, h: 28, rot: 40 },
-      { t: 'cap', x: 10, y: 30, w: 31, h: 22 },
-      { t: 'dot', cx: 39, cy: 42, r: 7 },
-      { t: 'cap', x: 12, y: 26, w: 16, h: 10, rot: -10 },
-    ],
-    lines: ['M30 42 q5 3 11 1'],
+    silhouette:
+      'M50.9,11.5L52.8,11.9L54.2,13.5L54.2,17.3L45.3,21.9L43.0,23.7L53.7,21.3L59.1,20.8L60.0,22.2' +
+      'L60.0,25.7L59.6,26.4L47.5,30.9L43.7,45.2L23.6,50.1L10.5,52.1L6.5,52.1L4.2,45.4L4.0,39.2' +
+      'L4.7,38.2L8.9,38.0L14.7,28.7L19.9,22.9L22.5,22.0L24.7,22.0L27.9,23.5L33.9,19.7Z',
+    lines:
+      'M51.1,11.5L52.6,11.9L53.8,13.2L54.6,15.3L54.0,17.1L48.9,20.0L47.9,20.2L41.7,24.2L53.3,21.5' +
+      'L59.5,20.9L60.0,24.9L59.3,26.4L57.3,26.7L47.5,30.7L45.9,38.2L43.5,45.2L31.7,48.3L20.9,50.5' +
+      'L8.9,52.1L6.5,51.8L4.5,46.7L4.0,43.1L4.4,38.9L5.3,38.2L8.9,38.2L13.2,30.9L19.0,23.8L20.5,22.6' +
+      'L21.9,22.2L25.0,22.2L28.1,23.5L39.7,16.8ZM51.5,12.8L38.6,18.8L30.8,23.1L24.7,27.3L23.9,26.7' +
+      'L24.1,26.0L26.1,24.9L26.3,24.0L24.5,23.5L20.9,24.0L16.3,28.9L12.0,35.3L10.0,39.2L5.6,39.8' +
+      'L5.8,45.2L7.6,50.7L18.9,49.6L30.3,47.4L42.4,44.1L43.5,41.8L44.2,38.3L41.7,39.2L40.8,39.1' +
+      'L40.6,38.3L45.0,36.5L46.0,31.5L41.0,33.3L39.9,33.3L39.5,32.5L58.6,25.1L58.7,22.4L55.8,22.4' +
+      'L48.0,23.8L38.4,26.7L37.0,26.7L36.4,26.2L43.1,21.5L52.9,16.4L52.9,14.1Z',
   },
 };
-
-const OUTLINE = 'rgba(0, 0, 0, 0.32)';
-const OUTLINE_W = 3;
-
-function Primitive({
-  part,
-  fill,
-  outlined,
-}: {
-  part: Part;
-  fill: string;
-  outlined?: boolean;
-}) {
-  const strokeProps = outlined
-    ? {
-        stroke: OUTLINE,
-        strokeWidth: OUTLINE_W * 2,
-        strokeLinejoin: 'round' as const,
-      }
-    : {};
-  if (part.t === 'dot') {
-    return <Circle cx={part.cx} cy={part.cy} r={part.r} fill={fill} {...strokeProps} />;
-  }
-  const r = Math.min(part.w, part.h) / 2;
-  const rect = (
-    <Rect x={part.x} y={part.y} width={part.w} height={part.h} rx={r} ry={r} fill={fill} {...strokeProps} />
-  );
-  if (!part.rot) {
-    return rect;
-  }
-  return (
-    <G origin={`${part.x + part.w / 2}, ${part.y + part.h / 2}`} rotation={part.rot}>
-      {rect}
-    </G>
-  );
-}
 
 type Props = {
   move: RpsMove;
@@ -105,25 +74,18 @@ type Props = {
 };
 
 export default function RpsIcon({ move, size = 46, color = '#fff' }: Props) {
-  const { parts, lines } = HANDS[move];
+  const { silhouette, lines } = HANDS[move];
   return (
     <Svg width={size} height={size} viewBox="0 0 64 64">
-      {parts.map((part, i) => (
-        <Primitive key={`o${i}`} part={part} fill={color} outlined />
-      ))}
-      {parts.map((part, i) => (
-        <Primitive key={`f${i}`} part={part} fill={color} />
-      ))}
-      {lines.map((d, i) => (
-        <Path
-          key={`l${i}`}
-          d={d}
-          fill="none"
-          stroke={OUTLINE}
-          strokeWidth={2.4}
-          strokeLinecap="round"
-        />
-      ))}
+      <Path d={silhouette} fill={color} fillRule="evenodd" />
+      <Path
+        d={lines}
+        fill={OUTLINE}
+        fillRule="evenodd"
+        stroke={OUTLINE}
+        strokeWidth={0.6}
+        strokeLinejoin="round"
+      />
     </Svg>
   );
 }
