@@ -54,7 +54,6 @@ const MOVE_LABEL: Record<RpsMove, string> = {
 /** Arena hand-slot geometry - one set of numbers for BOTH sides so the two
  *  cards can never drift apart in size, rounding or badge distance. */
 const SLOT_SIZE = 112;
-const SLOT_RADIUS = 34;
 const SLOT_ICON = 66;
 
 /** Springs its content in whenever `popKey` changes (new pick / lock). */
@@ -626,7 +625,7 @@ const styles = StyleSheet.create({
   handSlot: {
     width: SLOT_SIZE,
     height: SLOT_SIZE,
-    borderRadius: SLOT_RADIUS,
+    borderRadius: radius.card,
     backgroundColor: 'rgba(255,255,255,0.04)',
     borderWidth: 1.5,
     borderColor: colors.cardBorder,
@@ -701,7 +700,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.xs,
     height: 54,
-    borderRadius: radius.button,
+    borderRadius: radius.card,
   },
   lockButtonDisabled: { opacity: 0.4 },
   lockButtonText: { fontSize: 16, fontFamily: fonts.bold, color: colors.textPrimary, letterSpacing: 1 },
@@ -715,7 +714,7 @@ const styles = StyleSheet.create({
   revealSlot: {
     width: 104,
     height: 104,
-    borderRadius: 32,
+    borderRadius: radius.card,
     backgroundColor: 'rgba(255,255,255,0.04)',
     borderWidth: 1,
     borderColor: colors.cardBorder,
@@ -791,7 +790,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.xs,
     height: 54,
-    borderRadius: radius.button,
+    borderRadius: radius.card,
   },
   nextText: { fontSize: 16, fontFamily: fonts.bold, color: colors.textPrimary, letterSpacing: 1 },
 });
