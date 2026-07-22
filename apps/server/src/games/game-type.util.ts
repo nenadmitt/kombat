@@ -1,6 +1,15 @@
-import { CHROMA_MAX_PLAYERS, LUDO_MAX_PLAYERS } from '@gaming-platform/core';
+import {
+  CHROMA_MAX_PLAYERS,
+  isMultiSeatGame,
+  LUDO_MAX_PLAYERS,
+  MULTI_SEAT_MIN_PLAYERS,
+} from '@gaming-platform/core';
 
 import { GameType } from '../db/types/game';
+
+// Multi-seat semantics (which games accumulate joiners, minimum to start)
+// live in core so mobile shares them; re-exported for existing imports.
+export { isMultiSeatGame, MULTI_SEAT_MIN_PLAYERS };
 
 /** Room capacity per game type (multi-seat rooms may start below capacity). */
 const PLAYER_COUNT_BY_GAME_TYPE: Record<GameType, number> = {
@@ -13,15 +22,3 @@ const PLAYER_COUNT_BY_GAME_TYPE: Record<GameType, number> = {
 export function getPlayerCountForGameType(gameType: GameType): number {
   return PLAYER_COUNT_BY_GAME_TYPE[gameType];
 }
-
-/**
- * Multi-seat games use the accumulate-joiners room lifecycle (opponent_ids,
- * roster events, start-when-full or creator start-early, leave-while-pending)
- * instead of NavalBattle/TripleCut's fill-on-first-join.
- */
-export function isMultiSeatGame(gameType: GameType): boolean {
-  return gameType === GameType.Ludo || gameType === GameType.ChromaClash;
-}
-
-/** Every multi-seat game starts from two players (creator + one joiner). */
-export const MULTI_SEAT_MIN_PLAYERS = 2;

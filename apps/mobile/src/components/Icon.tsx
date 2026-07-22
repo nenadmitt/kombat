@@ -2,6 +2,7 @@ import type { LucideProps } from 'lucide-react-native';
 import {
   Anchor,
   ArrowDownToLine,
+  ArrowLeft,
   ArrowRight,
   ArrowUpFromLine,
   AtSign,
@@ -30,6 +31,7 @@ import {
   History,
   Key,
   Hand,
+  Layers,
   LayoutGrid,
   Lock,
   LogOut,
@@ -64,6 +66,7 @@ import {
 const ICONS = {
   anchor: Anchor,
   'arrow-down': ArrowDownToLine,
+  'arrow-left': ArrowLeft,
   'arrow-right': ArrowRight,
   'arrow-up': ArrowUpFromLine,
   'at-sign': AtSign,
@@ -91,6 +94,7 @@ const ICONS = {
   gift: Gift,
   grid: LayoutGrid,
   hand: Hand,
+  layers: Layers,
   help: CircleQuestionMark,
   history: History,
   key: Key,
