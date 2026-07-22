@@ -33,13 +33,9 @@ COPY --from=builder /app/packages/core/dist packages/core/dist
 COPY --from=builder /app/apps/server/dist apps/server/dist
 
 # Config comes from environment variables (no .env is baked into the image);
-# migrations run automatically at boot (MigrationService).
+# migrations run automatically at boot (MigrationService). Health probes are
+# the orchestrator's job: /health for liveness, /healthcheck for readiness.
 WORKDIR /app/apps/server
 EXPOSE 3000
-
-# Container liveness only - orchestrator readiness should gate on
-# /healthcheck, which round-trips Postgres/Redis.
-HEALTHCHECK --interval=30s --timeout=4s --start-period=20s \
-  CMD wget -qO- "http://127.0.0.1:${PORT:-3000}/health" || exit 1
 
 CMD ["node", "dist/main.js"]
