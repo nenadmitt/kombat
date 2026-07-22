@@ -5,6 +5,8 @@ import { ChainModule } from '../chain';
 import { WebsocketsModule } from '../websockets';
 import { BattleshipGateway } from './battleships/battleship.gateway';
 import { BattleshipMatchService } from './battleships/battleship-match.service';
+import { ChromaGateway } from './chroma/chroma.gateway';
+import { ChromaMatchService } from './chroma/chroma-match.service';
 import { GameDeadlineSweeper } from './game-deadline.sweeper';
 import { GamesController } from './games.controller';
 import { GamesService } from './games.service';
@@ -28,6 +30,8 @@ import { StakesService } from './stakes/stakes.service';
     LudoGateway,
     RpsMatchService,
     RpsGateway,
+    ChromaMatchService,
+    ChromaGateway,
     GameDeadlineSweeper,
   ],
 })

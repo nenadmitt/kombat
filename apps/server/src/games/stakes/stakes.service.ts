@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import {
   EscrowStatus,
-  GameType,
   ROOM_EVENTS,
   STAKE_ASSET_DECIMALS,
   STAKE_ASSET_MIN,
@@ -23,6 +22,7 @@ import { ConfigurationService } from '../../configuration/configuration.service'
 import { DbService } from '../../db';
 import { GameRoomEntity } from '../../db/entities/game-room.entity';
 import { WebsocketsService } from '../../websockets';
+import { isMultiSeatGame } from '../game-type.util';
 import { participantsOf } from '../room.util';
 
 /** Per-room funding lock — funding is idempotent but must not run twice at once. */
@@ -177,8 +177,8 @@ export class StakesService {
           // The waiting apps get their (delayed) transfer-into-the-match
           // signal only once the pot is on-chain, mirroring the free-game
           // flow: the creator's opponent-joined for 2-player games, the
-          // started broadcast for multi-player (Ludo) rooms.
-          if (room.gameType === GameType.Ludo) {
+          // started broadcast for multi-seat (Ludo/Chroma) rooms.
+          if (isMultiSeatGame(room.gameType)) {
             for (const participant of participantsOf(room)) {
               this.websocketsService.sendToUser(
                 participant,

@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import {
   BattleshipRoomState,
+  ChromaRoomState,
   GameRoomSummary,
   LudoRoomState,
   MatchHistoryEntry,
@@ -24,6 +25,7 @@ import { JwtTokenGuard } from '../authentication/guards/jwt-token.guard';
 import { DbService } from '../db';
 import { GameType } from '../db/types/game';
 import { BattleshipMatchService } from './battleships/battleship-match.service';
+import { ChromaMatchService } from './chroma/chroma-match.service';
 import { CreateGameRoomDto } from './dto/create-game-room.dto';
 import { ListGameRoomsDto } from './dto/list-game-rooms.dto';
 import { MatchHistoryQueryDto } from './dto/match-history-query.dto';
@@ -40,6 +42,7 @@ export class GamesController {
     private readonly gamesService: GamesService,
     private readonly dbService: DbService,
     private readonly battleshipMatchService: BattleshipMatchService,
+    private readonly chromaMatchService: ChromaMatchService,
     private readonly ludoMatchService: LudoMatchService,
     private readonly rpsMatchService: RpsMatchService,
     private readonly stakesService: StakesService,
@@ -155,7 +158,9 @@ export class GamesController {
   async getRoomState(
     @Param('id') id: string,
     @SecurityContext() securityContext: ISecurityContext,
-  ): Promise<BattleshipRoomState | LudoRoomState | RpsRoomState> {
+  ): Promise<
+    BattleshipRoomState | LudoRoomState | RpsRoomState | ChromaRoomState
+  > {
     const room = await this.dbService.findGameRoomById(id);
     if (!room) {
       throw new NotFoundException('Game room not found');
@@ -170,6 +175,10 @@ export class GamesController {
     if (room.gameType === GameType.TripleCut) {
       await this.rpsMatchService.getOrCreate(room);
       return this.rpsMatchService.stateFor(id, securityContext.userId);
+    }
+    if (room.gameType === GameType.ChromaClash) {
+      await this.chromaMatchService.getOrCreate(room);
+      return this.chromaMatchService.stateFor(id, securityContext.userId);
     }
     await this.battleshipMatchService.getOrCreate(room);
     return this.battleshipMatchService.stateFor(id, securityContext.userId);
