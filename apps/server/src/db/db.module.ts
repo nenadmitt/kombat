@@ -27,6 +27,11 @@ import { MigrationService } from './migration.service';
         username: configService.POSTGRES_USER,
         password: configService.POSTGRES_PASSWORD,
         database: configService.POSTGRES_DB,
+        // sslmode=require semantics: encrypted link, no CA verification
+        // (managed providers like DO use a private CA).
+        ssl: configService.POSTGRES_SSL
+          ? { rejectUnauthorized: false }
+          : false,
         entities: [
           UserEntity,
           EmailLoginTokenEntity,

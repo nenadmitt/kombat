@@ -9,6 +9,9 @@ export class ConfigurationService {
   public readonly POSTGRES_DB: string;
   public readonly POSTGRES_USER: string;
   public readonly POSTGRES_PASSWORD: string;
+  /** TLS to Postgres (managed providers require it; sslmode=require
+   *  semantics - encrypted, no CA verification). */
+  public readonly POSTGRES_SSL: boolean;
   public readonly WALLET_ENCRYPTION_KEY: string;
   public readonly JWT_SECRET: string;
   public readonly JWT_EXPIRES_IN: string;
@@ -47,6 +50,7 @@ export class ConfigurationService {
     this.POSTGRES_USER = this.configService.getOrThrow('POSTGRES_USER');
     this.POSTGRES_PASSWORD =
       this.configService.getOrThrow('POSTGRES_PASSWORD');
+    this.POSTGRES_SSL = this.configService.get('POSTGRES_SSL') === 'true';
     this.WALLET_ENCRYPTION_KEY = this.configService.getOrThrow(
       'WALLET_ENCRYPTION_KEY',
     );
