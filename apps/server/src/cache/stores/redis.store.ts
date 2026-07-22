@@ -38,6 +38,10 @@ export class RedisCacheStore implements CacheStore {
     this.client = client as RedisWithCommands;
   }
 
+  async ping(): Promise<void> {
+    await this.client.ping();
+  }
+
   async get(key: string): Promise<string | null> {
     return this.client.get(key);
   }

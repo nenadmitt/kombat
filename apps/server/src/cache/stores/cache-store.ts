@@ -11,6 +11,9 @@ export interface CacheStore {
   set(key: string, value: string, ttlSeconds?: number): Promise<void>;
   del(...keys: string[]): Promise<void>;
 
+  /** Round-trip liveness probe (the /healthcheck dependency check). */
+  ping(): Promise<void>;
+
   /** SET NX PX — returns a lock token, or null if already held. */
   tryLock(key: string, ttlMs: number): Promise<string | null>;
   /** Releases only if the token still matches (compare-and-del). */

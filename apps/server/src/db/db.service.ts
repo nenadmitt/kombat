@@ -39,6 +39,11 @@ export class DbService {
 
   // --- users ---
 
+  /** Liveness probe for /healthcheck: one round-trip to Postgres. */
+  async pingDatabase(): Promise<void> {
+    await this.dataSource.query('SELECT 1');
+  }
+
   findUserById(id: string): Promise<UserEntity | null> {
     return this.userRepository.findOneBy({ id });
   }

@@ -21,6 +21,11 @@ export class CacheService {
     public readonly driver: CacheDriver,
   ) {}
 
+  /** Round-trip liveness probe against the live store (redis PING). */
+  ping(): Promise<void> {
+    return this.store.ping();
+  }
+
   get(key: string): Promise<string | null> {
     return this.store.get(key);
   }
