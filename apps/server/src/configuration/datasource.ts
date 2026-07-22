@@ -16,6 +16,11 @@ export const AppDataSource = new DataSource({
   username: process.env.POSTGRES_USER,
   password: process.env.POSTGRES_PASSWORD,
   database: process.env.POSTGRES_DB,
+  // Mirrors DbModule: sslmode=require semantics for managed Postgres.
+  ssl:
+    process.env.POSTGRES_SSL === 'true'
+      ? { rejectUnauthorized: false }
+      : false,
   entities: [join(__dirname, '..', 'db', 'entities', '*.entity.{ts,js}')],
   migrations: [join(__dirname, '..', 'db', 'migrations', '*.{ts,js}')],
   migrationsTableName: 'migrations_typeorm',
