@@ -31,6 +31,13 @@ export type RootStackParamList = {
     stakeAmount?: string | null;
   };
   TripleCutSetup: undefined;
+  // Same split for Chroma Clash (UNO-style shedding, 2-4 players).
+  ChromaClash: {
+    roomId: string;
+    stakeToken?: StakeAsset | null;
+    stakeAmount?: string | null;
+  };
+  ChromaClashSetup: undefined;
 };
 
 /** Bottom tabs shown once the user is authenticated and onboarded. */

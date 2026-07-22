@@ -15,6 +15,10 @@ export class InMemoryCacheStore implements CacheStore {
   private readonly entries = new Map<string, Entry>();
   private readonly deadlines = new Map<string, number>();
 
+  ping(): Promise<void> {
+    return Promise.resolve();
+  }
+
   get(key: string): Promise<string | null> {
     return Promise.resolve(this.read(key)?.value ?? null);
   }

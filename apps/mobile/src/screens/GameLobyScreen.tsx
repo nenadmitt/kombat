@@ -13,6 +13,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ApiError,
+  isMultiSeatGame,
   GameRoomStatus,
   GameType,
   STAKE_ASSET_SYMBOLS,
@@ -53,10 +54,11 @@ function stakeLabel(room: GameRoomSummary): string {
 
 const GAME_ICON = 'crosshair' as const;
 /** Card glyph per game type (the featured banner keeps the crosshair). */
-const GAME_TYPE_ICONS: Record<GameType, 'crosshair' | 'dice' | 'hand'> = {
+const GAME_TYPE_ICONS: Record<GameType, 'crosshair' | 'dice' | 'hand' | 'layers'> = {
   [GameType.NavalBattle]: 'crosshair',
   [GameType.Ludo]: 'dice',
   [GameType.TripleCut]: 'hand',
+  [GameType.ChromaClash]: 'layers',
 };
 
 const FILTERS: { key: Filter; label: string }[] = [
@@ -64,6 +66,7 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: GameType.NavalBattle, label: 'Battleships' },
   { key: GameType.Ludo, label: 'Ludo' },
   { key: GameType.TripleCut, label: 'Triple Cut' },
+  { key: GameType.ChromaClash, label: 'Chroma' },
 ];
 
 function timeAgo(iso: string): string {
@@ -215,12 +218,12 @@ export default function GameLobyScreen() {
     setJoiningRoomId(room.id);
     try {
       const joined = await apiClient.joinGameRoom(room.id);
-      // A Ludo room can stay Pending after a join (waiting for more players):
+      // A multi-seat room can stay Pending after a join (waiting for more):
       // the joiner parks in the waiting popup until game:started arrives.
       // A join that fills the room comes back InProgress and flows on like
       // any other match entry.
       if (
-        room.gameType === GameType.Ludo &&
+        isMultiSeatGame(room.gameType) &&
         joined.status === GameRoomStatus.Pending
       ) {
         useGameStore.getState().setWaitingRoom(joined, true);
@@ -252,7 +255,7 @@ export default function GameLobyScreen() {
     const ok = await confirm({
       title: `Join for ${stakeLabel(room)}?`,
       message:
-        room.gameType === GameType.Ludo
+        isMultiSeatGame(room.gameType)
           ? 'Every player puts up the same wager when the match starts. Win and you take the whole pot, minus a small platform fee.'
           : 'Both players put up the same wager. Win the match and you take the pot, minus a small platform fee.',
       confirmLabel: `Stake ${stakeLabel(room)}`,

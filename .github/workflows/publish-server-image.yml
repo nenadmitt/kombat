@@ -1,0 +1,44 @@
+name: publish-server-image
+
+# Builds apps/server/Dockerfile (repo-root context - the server consumes
+# @gaming-platform/core via the npm workspace) and pushes it to the
+# DigitalOcean registry with two tags: the shortened commit sha as the
+# version, plus a moving :latest. Publishing is a deliberate act - run it
+# from the Actions tab against whichever branch/commit should ship.
+on:
+  workflow_dispatch:
+
+env:
+  IMAGE: registry.digitalocean.com/kombat-repo/server
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # A DigitalOcean API token authenticates as both username and password.
+      - uses: docker/login-action@v3
+        with:
+          registry: registry.digitalocean.com
+          username: ${{ secrets.CONTAINER_REGISTRY_TOKEN }}
+          password: ${{ secrets.CONTAINER_REGISTRY_TOKEN }}
+
+      - name: Version from commit sha
+        id: version
+        run: echo "sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/server/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.version.outputs.sha }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

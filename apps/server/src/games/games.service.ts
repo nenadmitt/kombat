@@ -8,9 +8,9 @@ import {
 } from '@nestjs/common';
 import {
   BATTLESHIP_EVENTS,
+  CHROMA_EVENTS,
   GameRoomSummary,
   LUDO_EVENTS,
-  LUDO_MIN_PLAYERS,
   MatchHistoryEntry,
   ROOM_EVENTS,
   RPS_EVENTS,
@@ -23,7 +23,12 @@ import { GameRoomStatus, GameType } from '../db/types/game';
 import { WebsocketsService } from '../websockets';
 import { gameChannel } from '../websockets/rooms.util';
 import { BattleshipMatchService } from './battleships/battleship-match.service';
-import { getPlayerCountForGameType } from './game-type.util';
+import { ChromaMatchService } from './chroma/chroma-match.service';
+import {
+  getPlayerCountForGameType,
+  isMultiSeatGame,
+  MULTI_SEAT_MIN_PLAYERS,
+} from './game-type.util';
 import { LudoMatchService } from './ludo/ludo-match.service';
 import { participantsOf } from './room.util';
 import { RpsMatchService } from './rps/rps-match.service';
@@ -35,6 +40,7 @@ export class GamesService {
     private readonly dbService: DbService,
     private readonly websocketsService: WebsocketsService,
     private readonly battleshipMatchService: BattleshipMatchService,
+    private readonly chromaMatchService: ChromaMatchService,
     private readonly ludoMatchService: LudoMatchService,
     private readonly rpsMatchService: RpsMatchService,
     private readonly stakesService: StakesService,
@@ -159,8 +165,8 @@ export class GamesService {
       );
     }
 
-    if (room.gameType === GameType.Ludo) {
-      return this.joinLudoRoom(userId, room);
+    if (isMultiSeatGame(room.gameType)) {
+      return this.joinMultiSeatRoom(userId, room);
     }
 
     // Conditional seat-taking: if another joiner won the race between the
@@ -189,12 +195,13 @@ export class GamesService {
   }
 
   /**
-   * A Ludo room accumulates joiners without starting: the appended join is
-   * atomic (capacity/duplicate enforced in SQL), everyone already in gets a
-   * roster update, and the match starts only when the room fills - or when
-   * the creator starts early via startRoom.
+   * A multi-seat room (Ludo, ChromaClash) accumulates joiners without
+   * starting: the appended join is atomic (capacity/duplicate enforced in
+   * SQL), everyone already in gets a roster update, and the match starts
+   * only when the room fills - or when the creator starts early via
+   * startRoom.
    */
-  private async joinLudoRoom(
+  private async joinMultiSeatRoom(
     userId: string,
     room: GameRoomEntity,
   ): Promise<GameRoomSummary> {
@@ -227,21 +234,21 @@ export class GamesService {
     }
 
     if (joinedCount >= updated.playerCount) {
-      await this.startLudoMatch(updated);
+      await this.startMultiSeatMatch(updated);
     }
     return toGameRoomSummary(updated);
   }
 
   /**
-   * Creator-triggered early start for a multi-player room (Ludo): allowed
-   * from LUDO_MIN_PLAYERS joined players up.
+   * Creator-triggered early start for a multi-seat room (Ludo, ChromaClash):
+   * allowed once at least MULTI_SEAT_MIN_PLAYERS have joined.
    */
   async startRoom(userId: string, roomId: string): Promise<GameRoomSummary> {
     const room = await this.dbService.findGameRoomById(roomId);
     if (!room) {
       throw new NotFoundException('Game room not found');
     }
-    if (room.gameType !== GameType.Ludo) {
+    if (!isMultiSeatGame(room.gameType)) {
       throw new ConflictException('This game starts when the room is full.');
     }
     if (room.userId !== userId) {
@@ -250,23 +257,23 @@ export class GamesService {
     if (room.status !== GameRoomStatus.Pending) {
       throw new ConflictException('The room has already started.');
     }
-    if (participantsOf(room).length < LUDO_MIN_PLAYERS) {
+    if (participantsOf(room).length < MULTI_SEAT_MIN_PLAYERS) {
       throw new ConflictException(
         'At least one other player must join before starting.',
       );
     }
-    await this.startLudoMatch(room);
+    await this.startMultiSeatMatch(room);
     const started = await this.dbService.findGameRoomById(roomId);
     return toGameRoomSummary(started ?? room);
   }
 
-  /** A joiner backs out of a still-waiting Ludo room. */
+  /** A joiner backs out of a still-waiting multi-seat room. */
   async leaveRoom(userId: string, roomId: string): Promise<void> {
     const room = await this.dbService.findGameRoomById(roomId);
     if (!room) {
       throw new NotFoundException('Game room not found');
     }
-    if (room.gameType !== GameType.Ludo || room.userId === userId) {
+    if (!isMultiSeatGame(room.gameType) || room.userId === userId) {
       // The creator closes the room instead of leaving it.
       throw new ConflictException('You cannot leave this room.');
     }
@@ -296,12 +303,12 @@ export class GamesService {
   }
 
   /**
-   * Flip a Ludo room to InProgress exactly once and kick the match off.
-   * Free rooms notify every participant immediately; staked rooms first
+   * Flip a multi-seat room to InProgress exactly once and kick the match
+   * off. Free rooms notify every participant immediately; staked rooms first
    * escrow every player's stake - StakesService emits stake:funding now and
    * (once the pot is on-chain) stake:funded plus the started event.
    */
-  private async startLudoMatch(room: GameRoomEntity): Promise<void> {
+  private async startMultiSeatMatch(room: GameRoomEntity): Promise<void> {
     const flipped = await this.dbService.startGameRoom(room.id);
     if (!flipped) {
       return; // Lost a race with another start - the winner handles kickoff.
@@ -418,6 +425,9 @@ export class GamesService {
     if (room.gameType === GameType.Ludo) {
       return this.forfeitLudoRoom(userId, room);
     }
+    if (room.gameType === GameType.ChromaClash) {
+      return this.forfeitChromaRoom(userId, room);
+    }
 
     const opponentId =
       room.userId === userId ? room.opponentId! : room.userId;
@@ -470,6 +480,41 @@ export class GamesService {
         this.websocketsService.sendToChannel(
           gameChannel(room.id),
           LUDO_EVENTS.ended,
+          { winnerUserId: payload.winnerUserId, reason: 'forfeit' },
+        );
+        await this.stakesService.completeMatch(
+          room.id,
+          payload.winnerUserId,
+          'forfeit',
+        );
+      }
+      return { winnerUserId: payload.winnerUserId };
+    } catch {
+      // No live match state - void the room so stakes come back.
+      await this.stakesService.completeMatch(room.id, null, 'forfeit');
+      return { winnerUserId: null };
+    }
+  }
+
+  /** Chroma forfeit: same elimination semantics as Ludo's. */
+  private async forfeitChromaRoom(
+    userId: string,
+    room: GameRoomEntity,
+  ): Promise<{ winnerUserId: string | null }> {
+    try {
+      const { payload } = await this.chromaMatchService.forfeit(
+        room.id,
+        userId,
+      );
+      this.websocketsService.sendToChannel(
+        gameChannel(room.id),
+        CHROMA_EVENTS.eliminated,
+        payload,
+      );
+      if (payload.winnerUserId) {
+        this.websocketsService.sendToChannel(
+          gameChannel(room.id),
+          CHROMA_EVENTS.ended,
           { winnerUserId: payload.winnerUserId, reason: 'forfeit' },
         );
         await this.stakesService.completeMatch(

@@ -11,4 +11,5 @@ export const GAME_TYPE_DEMO_SCREENS: Record<GameType, keyof RootStackParamList> 
   [GameType.NavalBattle]: 'BattleshipSetup',
   [GameType.Ludo]: 'LudoSetup',
   [GameType.TripleCut]: 'TripleCutSetup',
+  [GameType.ChromaClash]: 'ChromaClashSetup',
 };

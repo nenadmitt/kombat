@@ -5,6 +5,7 @@ export enum GameType {
   NavalBattle = 0,
   Ludo = 1,
   TripleCut = 2,
+  ChromaClash = 3,
 }
 
 /**
@@ -16,6 +17,15 @@ export enum GameRoomStatus {
   InProgress = 1,
   Completed = 2,
 }
+
+/** Games whose rooms fill gradually (join-accumulate, creator start-early,
+ *  joiner leave) instead of starting on the first join. */
+export function isMultiSeatGame(gameType: GameType): boolean {
+  return gameType === GameType.Ludo || gameType === GameType.ChromaClash;
+}
+
+/** Fewest joined players (creator included) a multi-seat room may start with. */
+export const MULTI_SEAT_MIN_PLAYERS = 2;
 
 export type GameRoomSummary = {
   id: string;

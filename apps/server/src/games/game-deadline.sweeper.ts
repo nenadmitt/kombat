@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import {
   BATTLESHIP_EVENTS,
+  CHROMA_EVENTS,
   LUDO_EVENTS,
   RPS_EVENTS,
 } from '@gaming-platform/core';
@@ -14,6 +15,7 @@ import { CacheService, parseDeadlineMember } from '../cache';
 import { gameChannel } from '../websockets/rooms.util';
 import { WebsocketsService } from '../websockets';
 import { BattleshipMatchService } from './battleships/battleship-match.service';
+import { ChromaMatchService } from './chroma/chroma-match.service';
 import { LudoMatchService } from './ludo/ludo-match.service';
 import { RpsMatchService } from './rps/rps-match.service';
 import { StakesService } from './stakes/stakes.service';
@@ -42,6 +44,7 @@ export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly cacheService: CacheService,
     private readonly battleshipMatchService: BattleshipMatchService,
+    private readonly chromaMatchService: ChromaMatchService,
     private readonly ludoMatchService: LudoMatchService,
     private readonly rpsMatchService: RpsMatchService,
     private readonly websocketsService: WebsocketsService,
@@ -107,6 +110,8 @@ export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
         return this.enforceLudoTurnTimeout(parsed.roomId, parsed.seq);
       case 'rps-round':
         return this.enforceRpsRoundTimeout(parsed.roomId, parsed.seq);
+      case 'chroma-turn':
+        return this.enforceChromaTurnTimeout(parsed.roomId, parsed.seq);
     }
   }
 
@@ -204,6 +209,40 @@ export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
       await this.stakesService.completeMatch(
         roomId,
         reveal.winnerUserId,
+        'timeout',
+      );
+    }
+  }
+
+  // --- chroma clash ----------------------------------------------------------
+
+  private async enforceChromaTurnTimeout(
+    roomId: string,
+    seq: number,
+  ): Promise<void> {
+    const mutation = await this.chromaMatchService.timeoutTurn(roomId, seq);
+    if (!mutation) {
+      return; // Stale — the turn advanced or the match ended/expired.
+    }
+    const { payload, changedHands } = mutation;
+    this.websocketsService.sendToChannel(
+      gameChannel(roomId),
+      CHROMA_EVENTS.turnTimeout,
+      payload,
+    );
+    // Forced draws changed hands - each owner gets their private hand push.
+    for (const [userId, cards] of Object.entries(changedHands)) {
+      this.websocketsService.sendToUser(userId, CHROMA_EVENTS.hand, { cards });
+    }
+    if (payload.winnerUserId) {
+      this.websocketsService.sendToChannel(
+        gameChannel(roomId),
+        CHROMA_EVENTS.ended,
+        { winnerUserId: payload.winnerUserId, reason: 'timeout' },
+      );
+      await this.stakesService.completeMatch(
+        roomId,
+        payload.winnerUserId,
         'timeout',
       );
     }

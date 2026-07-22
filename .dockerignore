@@ -1,0 +1,19 @@
+# Build context hygiene for apps/server/Dockerfile (context = repo root).
+.git
+**/node_modules
+**/dist
+**/.turbo
+.turbo
+
+# Not part of the server image
+apps/mobile
+apps/evm-contracts
+prompts
+bugs-and-improvements
+bugs-and-inconsistencies
+*.md
+
+# Never bake secrets or local config into images
+**/.env
+**/.env.*
+**/*.log

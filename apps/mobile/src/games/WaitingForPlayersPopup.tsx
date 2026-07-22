@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import {
-  GameType,
-  LUDO_MIN_PLAYERS,
+  isMultiSeatGame,
+  MULTI_SEAT_MIN_PLAYERS,
   STAKE_ASSET_SYMBOLS,
   formatStakeAmount,
 } from '@gaming-platform/core';
@@ -34,11 +34,13 @@ export default function WaitingForPlayersPopup() {
   const startWaitingRoom = useGameStore(state => state.startWaitingRoom);
   const [copied, setCopied] = useState(false);
 
-  // Ludo rooms fill gradually: show the roster count, and give the CREATOR a
-  // start-early action once enough players are in.
-  const isLudo = waitingRoom?.gameType === GameType.Ludo;
+  // Multi-seat rooms (Ludo, ChromaClash) fill gradually: show the roster
+  // count, and give the CREATOR a start-early action once enough are in.
+  const isMultiSeat = waitingRoom ? isMultiSeatGame(waitingRoom.gameType) : false;
   const canStartEarly =
-    isLudo && !waitingAsJoiner && waitingJoinedCount >= LUDO_MIN_PLAYERS;
+    isMultiSeat &&
+    !waitingAsJoiner &&
+    waitingJoinedCount >= MULTI_SEAT_MIN_PLAYERS;
 
   // Securing is only this popup's business for the room CREATOR (they hold a
   // waitingRoom). The joiner's lobby screen presents its own funding overlay;
@@ -125,7 +127,7 @@ export default function WaitingForPlayersPopup() {
                 </Text>
               </View>
 
-              {isLudo && waitingRoom ? (
+              {isMultiSeat && waitingRoom ? (
                 <View style={styles.rosterPill}>
                   <Icon type="users" color={colors.accentLight} size={14} />
                   <Text style={styles.rosterText}>
