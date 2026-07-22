@@ -3,18 +3,9 @@ name: publish-server-image
 # Builds apps/server/Dockerfile (repo-root context - the server consumes
 # @gaming-platform/core via the npm workspace) and pushes it to the
 # DigitalOcean registry with two tags: the shortened commit sha as the
-# version, plus a moving :latest.
+# version, plus a moving :latest. Publishing is a deliberate act - run it
+# from the Actions tab against whichever branch/commit should ship.
 on:
-  push:
-    branches: [develop]
-    paths:
-      - 'apps/server/**'
-      - 'packages/core/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'tsconfig.base.json'
-      - '.dockerignore'
-      - '.github/workflows/publish-server-image.yml'
   workflow_dispatch:
 
 env:
