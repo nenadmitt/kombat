@@ -28,6 +28,16 @@ export class WebsocketsService {
     this.emit(channelRoom(channel), event, payload);
   }
 
+  /** Sends `event` to every connected socket (all users; with the Redis
+   *  adapter this fans out across instances). Platform-wide notices only. */
+  broadcast(event: string, payload?: unknown): void {
+    if (!this.server) {
+      this.logger.warn(`Dropped broadcast "${event}" — gateway not initialized yet.`);
+      return;
+    }
+    this.server.emit(event, payload);
+  }
+
   private emit(room: string, event: string, payload?: unknown): void {
     if (!this.server) {
       this.logger.warn(

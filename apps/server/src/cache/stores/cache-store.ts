@@ -55,6 +55,8 @@ export const CacheKeys = {
   chromaLock: (roomId: string): string => `lock:chroma:${roomId}`,
   /** Cached GameRoomEntity JSON (short TTL — bounds staleness). */
   gameRoom: (id: string): string => `room:${id}`,
+  /** Cached PlatformStatus JSON (maintenance flag; DB row is the truth). */
+  platformStatus: (): string => 'platform:status',
 } as const;
 
 /** Single ZSET holding every scheduled game deadline (all games share it so
@@ -108,5 +110,8 @@ export const MATCH_TTL_SECONDS = 24 * 60 * 60;
 export const CHAT_TTL_SECONDS = 24 * 60 * 60;
 /** Room rows change rarely mid-match; 60s bounds staleness if an invalidation is missed. */
 export const GAME_ROOM_TTL_SECONDS = 60;
+/** Maintenance flag is read on every room create/join/start; 30s bounds how
+ *  long an instance that missed the toggle write keeps the old answer. */
+export const PLATFORM_STATUS_TTL_SECONDS = 30;
 /** Auto-expiry safety net for a lock whose holder died mid-critical-section. */
 export const MATCH_LOCK_TTL_MS = 5_000;

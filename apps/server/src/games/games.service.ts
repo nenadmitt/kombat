@@ -29,6 +29,7 @@ import {
   isMultiSeatGame,
   MULTI_SEAT_MIN_PLAYERS,
 } from './game-type.util';
+import { MaintenanceService } from '../maintenance';
 import { LudoMatchService } from './ludo/ludo-match.service';
 import { participantsOf } from './room.util';
 import { RpsMatchService } from './rps/rps-match.service';
@@ -38,6 +39,7 @@ import { StakesService } from './stakes/stakes.service';
 export class GamesService {
   constructor(
     private readonly dbService: DbService,
+    private readonly maintenanceService: MaintenanceService,
     private readonly websocketsService: WebsocketsService,
     private readonly battleshipMatchService: BattleshipMatchService,
     private readonly chromaMatchService: ChromaMatchService,
@@ -52,6 +54,7 @@ export class GamesService {
     stake?: { token: StakeAsset; amount: string } | null,
     isPrivate = false,
   ): Promise<GameRoomSummary> {
+    await this.maintenanceService.assertNotInMaintenance();
     const existing = await this.dbService.findOpenGameRoomForUser(userId);
     if (existing) {
       throw new ConflictException(
@@ -140,6 +143,7 @@ export class GamesService {
    * gated on that.
    */
   async joinRoom(userId: string, roomId: string): Promise<GameRoomSummary> {
+    await this.maintenanceService.assertNotInMaintenance();
     const room = await this.dbService.findGameRoomById(roomId);
     if (!room) {
       throw new NotFoundException('Game room not found');
@@ -244,6 +248,7 @@ export class GamesService {
    * allowed once at least MULTI_SEAT_MIN_PLAYERS have joined.
    */
   async startRoom(userId: string, roomId: string): Promise<GameRoomSummary> {
+    await this.maintenanceService.assertNotInMaintenance();
     const room = await this.dbService.findGameRoomById(roomId);
     if (!room) {
       throw new NotFoundException('Game room not found');
