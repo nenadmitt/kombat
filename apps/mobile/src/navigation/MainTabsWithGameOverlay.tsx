@@ -4,13 +4,16 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   GameRoomStatus,
+  PLATFORM_EVENTS,
   ROOM_EVENTS,
   STAKE_EVENTS,
   type GameRoomSummary,
+  type PlatformStatus,
   type RoomPlayerJoinedPayload,
 } from '@gaming-platform/core';
 
 import { apiClient } from '../api/client';
+import ServerStatusBanner from '../components/ServerStatusBanner';
 import { useConfirm } from '../components/ui';
 import { GAME_TYPE_SCREENS } from '../games/game-type-screens';
 import ResumeMatchModal from '../games/ResumeMatchModal';
@@ -18,6 +21,7 @@ import WaitingForPlayersMinimizedBar from '../games/WaitingForPlayersMinimizedBa
 import WaitingForPlayersPopup from '../games/WaitingForPlayersPopup';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import { useGameStore } from '../store/game.store';
+import { useServerStore } from '../store/server.store';
 import { useWebsocketStore } from '../store/websocket.store';
 import MainTabNavigator from './MainTabNavigator';
 import type { RootStackParamList } from './types';
@@ -45,6 +49,19 @@ export default function MainTabsWithGameOverlay() {
   const setSecuringStakes = useGameStore(state => state.setSecuringStakes);
   const onSocketEvent = useWebsocketStore(state => state.on);
   const confirm = useConfirm();
+  const serverStatus = useServerStore(state => state.status);
+
+  // Maintenance toggles arrive as a broadcast so every client flips its
+  // banner immediately, without waiting for the next /status poll.
+  useEffect(() => {
+    return onSocketEvent(PLATFORM_EVENTS.maintenance, payload => {
+      if (payload && typeof payload === 'object' && 'maintenance' in payload) {
+        useServerStore
+          .getState()
+          .applyPlatformStatus(payload as PlatformStatus);
+      }
+    });
+  }, [onSocketEvent]);
 
   // Stake lifecycle for the room CREATOR: their app sits in the waiting
   // popup while the joiner triggers escrow. funding swaps the popup for the
@@ -201,10 +218,17 @@ export default function MainTabsWithGameOverlay() {
 
   return (
     <View style={{ flex: 1 }}>
+      <ServerStatusBanner />
       <MainTabNavigator />
-      <WaitingForPlayersMinimizedBar />
-      <WaitingForPlayersPopup />
-      <ResumeMatchModal onRejoin={handleRejoin} />
+      {/* Multiplayer overlays make no sense while multiplayer is gated - a
+          waiting room can't fill and a match can't be (re)joined. */}
+      {serverStatus === 'online' && (
+        <>
+          <WaitingForPlayersMinimizedBar />
+          <WaitingForPlayersPopup />
+          <ResumeMatchModal onRejoin={handleRejoin} />
+        </>
+      )}
     </View>
   );
 }
