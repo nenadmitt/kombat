@@ -18,6 +18,7 @@ import type {
   WalletNetwork,
   WalletSummary,
 } from '../wallets/wallet.types';
+import type { PlatformStatus } from '../platform/platform-status';
 import { ErrorCode } from './error-codes';
 
 export type ApiClientOptions = {
@@ -52,6 +53,15 @@ export class ApiClient {
   private static readonly API_PREFIX = '/api/v1';
 
   constructor(private readonly options: ApiClientOptions) {}
+
+  /**
+   * Public platform status (maintenance flag). Unversioned like `/health`.
+   * Doubles as the offline-recovery probe: any response proves the server is
+   * reachable again, and carries the maintenance state in the same trip.
+   */
+  getPlatformStatus(): Promise<PlatformStatus> {
+    return this.request('GET', '/status', undefined, false, false);
+  }
 
   requestLoginToken(email: string): Promise<void> {
     return this.request('POST', '/authentication/request-token', { email });
@@ -222,6 +232,8 @@ export class ApiClient {
     path: string,
     body?: unknown,
     authenticated = false,
+    /** Probe endpoints (`/status`) live outside the /api/v1 prefix. */
+    versioned = true,
   ): Promise<T> {
     const headers: Record<string, string> = {};
     if (body !== undefined) {
@@ -243,7 +255,8 @@ export class ApiClient {
 
     let response: Response;
     try {
-      response = await fetch(`${this.options.baseUrl}${ApiClient.API_PREFIX}${path}`, {
+      const prefix = versioned ? ApiClient.API_PREFIX : '';
+      response = await fetch(`${this.options.baseUrl}${prefix}${path}`, {
         method,
         headers,
         body: body !== undefined ? JSON.stringify(body) : undefined,

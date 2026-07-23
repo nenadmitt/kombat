@@ -33,6 +33,7 @@ import { formatRoomCode } from '../games/room-code';
 import type { RootStackParamList } from '../navigation/types';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import { useGameStore } from '../store/game.store';
+import { useServerStore } from '../store/server.store';
 import { useWebsocketStore } from '../store/websocket.store';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
@@ -98,6 +99,9 @@ export default function GameLobyScreen() {
    *  until the server broadcasts stake:funded / stake:failed. */
   const [fundingRoom, setFundingRoom] = useState<GameRoomSummary | null>(null);
   const onSocketEvent = useWebsocketStore(s => s.on);
+  const serverStatus = useServerStore(s => s.status);
+  const maintenanceMessage = useServerStore(s => s.message);
+  const online = serverStatus === 'online';
 
   const fetchRooms = useCallback(async () => {
     setStatus('loading');
@@ -109,6 +113,9 @@ export default function GameLobyScreen() {
       setRooms(pending);
       setStatus('ready');
     } catch (err) {
+      if (err instanceof ApiError && err.isNetworkError) {
+        useServerStore.getState().reportOffline();
+      }
       setErrorMessage(
         err instanceof ApiError ? err.message : 'Failed to load game rooms',
       );
@@ -118,9 +125,19 @@ export default function GameLobyScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchRooms();
+      // While multiplayer is gated the list is replaced by the locked state;
+      // when the gate lifts, the serverStatus effect below refetches.
+      if (useServerStore.getState().status === 'online') {
+        fetchRooms();
+      }
     }, [fetchRooms]),
   );
+
+  useEffect(() => {
+    if (online) {
+      fetchRooms();
+    }
+  }, [online, fetchRooms]);
 
   // Anti-spam refresh: one tap kicks off a fetch, then the control is on a
   // short cooldown so it can't be hammered (a burst of taps costs one request).
@@ -300,7 +317,7 @@ export default function GameLobyScreen() {
       </View>
 
       <FlatList
-        data={filteredRooms}
+        data={online ? filteredRooms : []}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
@@ -325,6 +342,7 @@ export default function GameLobyScreen() {
                 label="Play"
                 size="sm"
                 fullWidth={false}
+                disabled={!online}
                 onPress={() => setIsCreateModalVisible(true)}
               />
             </Card>
@@ -334,6 +352,7 @@ export default function GameLobyScreen() {
               <Button
                 label="Create Room"
                 icon="plus"
+                disabled={!online}
                 onPress={() => setIsCreateModalVisible(true)}
                 style={styles.actionFlex}
               />
@@ -341,6 +360,7 @@ export default function GameLobyScreen() {
                 label="Join Game"
                 icon="log-out"
                 variant="secondary"
+                disabled={!online}
                 onPress={handleJoinGame}
                 style={styles.actionFlex}
               />
@@ -371,11 +391,31 @@ export default function GameLobyScreen() {
               )}
             </View>
 
-            {status === 'loading' && rooms.length === 0 ? (
+            {!online ? (
+              <View style={styles.stateBlock}>
+                <Icon
+                  type={serverStatus === 'offline' ? 'wifi-off' : 'warning'}
+                  color={colors.textMuted}
+                  size={32}
+                />
+                <Text style={styles.emptyText}>
+                  {serverStatus === 'offline'
+                    ? "You're offline"
+                    : (maintenanceMessage ?? 'Multiplayer is paused for maintenance')}
+                </Text>
+                <Text style={styles.emptySubtext}>
+                  {serverStatus === 'offline'
+                    ? 'Online games are unavailable until the connection is back. Demo games still work.'
+                    : 'Check back in a little while. Demo games still work.'}
+                </Text>
+              </View>
+            ) : null}
+
+            {online && status === 'loading' && rooms.length === 0 ? (
               <ActivityIndicator color={colors.accent} style={styles.stateBlock} />
             ) : null}
 
-            {status === 'error' ? (
+            {online && status === 'error' ? (
               <View style={styles.stateBlock}>
                 <Icon type="warning" color={colors.textMuted} size={32} />
                 <Text style={styles.emptyText}>{errorMessage}</Text>
@@ -385,7 +425,7 @@ export default function GameLobyScreen() {
               </View>
             ) : null}
 
-            {status === 'ready' && filteredRooms.length === 0 ? (
+            {online && status === 'ready' && filteredRooms.length === 0 ? (
               <View style={styles.stateBlock}>
                 <Icon type="ship" color={colors.textMuted} size={32} />
                 <Text style={styles.emptyText}>No open game rooms</Text>

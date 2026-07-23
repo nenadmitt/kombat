@@ -11,6 +11,7 @@ import {
 
 import { apiClient } from '../api/client';
 import Icon from '../components/Icon';
+import { useServerStore } from '../store/server.store';
 import { Card, Chip, SectionLabel, StatTile, type ChipTone } from '../components/ui';
 import { GAME_TYPE_LABELS } from '../games/game-type-labels';
 import { colors, radius, spacing } from '../theme/colors';
@@ -73,6 +74,11 @@ export default function HistoryScreen() {
       setHasMore(page.length === PAGE_SIZE);
       setStatus('ready');
     } catch (err) {
+      // History stays uncached by design - offline just shows this failure
+      // state; flag the outage so the global banner + lobby gate react too.
+      if (err instanceof ApiError && err.isNetworkError) {
+        useServerStore.getState().reportOffline();
+      }
       setErrorMessage(
         err instanceof ApiError ? err.message : 'Failed to load match history',
       );

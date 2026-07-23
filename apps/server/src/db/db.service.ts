@@ -7,6 +7,7 @@ import {
   CacheService,
   GAME_ROOM_TTL_SECONDS,
 } from '../cache';
+import { AppSettingEntity } from './entities/app-setting.entity';
 import { EmailLoginTokenEntity } from './entities/email-login-token.entity';
 import { GameRoomEntity } from './entities/game-room.entity';
 import { StakeEscrowEntity } from './entities/stake-escrow.entity';
@@ -34,8 +35,22 @@ export class DbService {
     private readonly gameRoomRepository: Repository<GameRoomEntity>,
     @InjectRepository(StakeEscrowEntity)
     private readonly stakeEscrowRepository: Repository<StakeEscrowEntity>,
+    @InjectRepository(AppSettingEntity)
+    private readonly appSettingRepository: Repository<AppSettingEntity>,
     private readonly cacheService: CacheService,
   ) {}
+
+  // --- app settings ---
+
+  /** A settings row's JSON value, or null when the key was never written. */
+  async getAppSetting<T>(key: string): Promise<T | null> {
+    const row = await this.appSettingRepository.findOne({ where: { key } });
+    return row ? (row.value as T) : null;
+  }
+
+  async upsertAppSetting(key: string, value: object): Promise<void> {
+    await this.appSettingRepository.upsert({ key, value }, ['key']);
+  }
 
   // --- users ---
 

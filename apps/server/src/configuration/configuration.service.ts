@@ -19,6 +19,8 @@ export class ConfigurationService {
   public readonly REDIS_URL: string | undefined;
   /** Optional — when unset, EmailService logs tokens instead of sending them. */
   public readonly RESEND_API_KEY: string | undefined;
+  /** Optional — when unset, the /admin endpoints reject every request. */
+  public readonly ADMIN_TOKEN: string | undefined;
   public readonly EMAIL_FROM: string;
   public readonly IS_PRODUCTION: boolean;
 
@@ -58,6 +60,7 @@ export class ConfigurationService {
     this.JWT_EXPIRES_IN = this.configService.get('JWT_EXPIRES_IN') ?? '30d';
     this.REDIS_URL = this.configService.get('REDIS_URL');
     this.RESEND_API_KEY = this.configService.get('RESEND_API_KEY');
+    this.ADMIN_TOKEN = this.configService.get('ADMIN_TOKEN');
     this.EMAIL_FROM =
       this.configService.get('EMAIL_FROM') ?? 'login@gaming-platform.local';
     this.IS_PRODUCTION =

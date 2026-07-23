@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { AuthenticationModule } from '../authentication';
 import { ChainModule } from '../chain';
+import { MaintenanceModule } from '../maintenance';
 import { WebsocketsModule } from '../websockets';
 import { BattleshipGateway } from './battleships/battleship.gateway';
 import { BattleshipMatchService } from './battleships/battleship-match.service';
@@ -18,7 +19,7 @@ import { StakeSweeper } from './stakes/stake.sweeper';
 import { StakesService } from './stakes/stakes.service';
 
 @Module({
-  imports: [AuthenticationModule, WebsocketsModule, ChainModule],
+  imports: [AuthenticationModule, WebsocketsModule, ChainModule, MaintenanceModule],
   controllers: [GamesController],
   providers: [
     GamesService,

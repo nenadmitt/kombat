@@ -4,6 +4,7 @@ import { join } from 'path';
 
 import { ConfigurationModule } from '../configuration/configuration.module';
 import { ConfigurationService } from '../configuration/configuration.service';
+import { AppSettingEntity } from './entities/app-setting.entity';
 import { DbService } from './db.service';
 import { EmailLoginTokenEntity } from './entities/email-login-token.entity';
 import { GameRoomEntity } from './entities/game-room.entity';
@@ -38,6 +39,7 @@ import { MigrationService } from './migration.service';
           WalletEntity,
           GameRoomEntity,
           StakeEscrowEntity,
+          AppSettingEntity,
         ],
         synchronize: false,
         // Migrations are applied explicitly by MigrationService on boot, not
@@ -54,6 +56,7 @@ import { MigrationService } from './migration.service';
       WalletEntity,
       GameRoomEntity,
       StakeEscrowEntity,
+      AppSettingEntity,
     ]),
   ],
   providers: [MigrationService, DbService],

@@ -11,6 +11,7 @@ import ErrorScreen from '../screens/ErrorScreen';
 import LoginScreen from '../screens/LoginScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import { useCurrentUserStore } from '../store/currentUser.store';
+import { useServerStore } from '../store/server.store';
 import { useWebsocketStore } from '../store/websocket.store';
 import { colors } from '../theme/colors';
 import MainTabsWithGameOverlay from './MainTabsWithGameOverlay';
@@ -53,6 +54,9 @@ export default function RootNavigator() {
 
   useEffect(() => {
     loadAuth();
+    // Pick up maintenance mode (or unreachability) once at boot; afterwards
+    // the socket broadcast and the offline recovery poll keep it fresh.
+    void useServerStore.getState().refresh();
   }, [loadAuth]);
 
   useEffect(() => {

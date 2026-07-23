@@ -11,7 +11,7 @@ async function bootstrap() {
   // to their declared types instead of arriving as raw strings.
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   // Probe endpoints stay unprefixed/unversioned - infra hits them directly.
-  app.setGlobalPrefix('api/v1', { exclude: ['health', 'healthcheck'] });
+  app.setGlobalPrefix('api/v1', { exclude: ['health', 'healthcheck', 'status'] });
 
   // With Redis configured, socket.io broadcasts go through Redis pub/sub so
   // multiple instances behave as one socket server. A connection failure
