@@ -9,4 +9,6 @@ export enum ErrorCode {
   Unknown = '0000',
   /** Request never reached the server — unreachable, offline, or timed out. */
   NetworkFailed = '0001',
+  /** Multiplayer is paused by the operators; wallet and demos stay available. */
+  Maintenance = '0002',
 }

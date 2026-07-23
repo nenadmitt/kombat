@@ -18,4 +18,5 @@ export * from './games/chroma';
 export * from './games/ludo';
 export * from './games/rps';
 export * from './games/stake.types';
+export * from './platform/platform-status';
 export * from './wallets/wallet.types';
