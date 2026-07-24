@@ -32,6 +32,9 @@ const COIN_OPTIONS: CoinOption[] = [
 type Props = {
   value: AssetChoice;
   onChange: (value: AssetChoice) => void;
+  /** Gap between coins and between the coin row and No Stake. Defaults to the
+   *  block rhythm; the host passes its own so everything lines up. */
+  gap?: number;
 };
 
 /**
@@ -39,10 +42,10 @@ type Props = {
  * brand mark) plus a full-width "No Stake" card. Controlled - the parent owns
  * the value and any side effects (e.g. resetting the entry fee).
  */
-export default function AssetSelector({ value, onChange }: Props) {
+export default function AssetSelector({ value, onChange, gap = spacing.md }: Props) {
   return (
-    <View style={styles.container}>
-      <View style={styles.row}>
+    <View style={[styles.container, { gap }]}>
+      <View style={[styles.row, { gap }]}>
         {COIN_OPTIONS.map(coin => {
           const active = coin.key === value;
           const disabled = coin.disabled ?? false;

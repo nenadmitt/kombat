@@ -23,6 +23,10 @@ type Props = {
   onClose: () => void;
 };
 
+/** This modal runs a touch tighter than the app's spacing.md block rhythm;
+ *  one value drives every vertical gap and the coin row so all are equal. */
+const GAP = 13;
+
 /** Per-asset stepper behavior (human units). */
 const FEE_CONFIG: Record<StakeAsset, { initial: number; step: number; min: number; fmt: (v: number) => string }> = {
   [StakeAsset.Usdc]: { initial: 10, step: 1, min: 1, fmt: v => v.toFixed(2) },
@@ -121,7 +125,7 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
             {/* Asset */}
             <View style={styles.field}>
               <Text style={[type.label, styles.label]}>Asset</Text>
-              <AssetSelector value={asset} onChange={selectAsset} />
+              <AssetSelector value={asset} onChange={selectAsset} gap={GAP} />
             </View>
 
             {/* Entry fee (staked games only) */}
@@ -202,7 +206,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     paddingBottom: spacing.lg,
     // One uniform vertical rhythm between every block in the sheet.
-    gap: spacing.md,
+    gap: GAP,
   },
   dragHandle: {
     alignSelf: 'center',
@@ -220,7 +224,7 @@ const styles = StyleSheet.create({
   // A label + its control. Same gap as the sheet so every vertical gap in
   // the modal - title, labels, controls, buttons - is identical.
   field: {
-    gap: spacing.md,
+    gap: GAP,
   },
   label: {
     color: colors.textMuted,
