@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
   },
   demoText: {
     flex: 1,
-    gap: 2,
+    gap: spacing.xxs,
   },
   demoTitle: {
     ...type.subheading,
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   },
   gameBody: {
     padding: spacing.sm,
-    gap: 3,
+    gap: spacing.xxs,
   },
   gameName: {
     ...type.subheading,

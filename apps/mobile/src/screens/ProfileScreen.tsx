@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
   statChip: {
     flex: 1,
     alignItems: 'center',
-    gap: 2,
+    gap: spacing.xxs,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.cardBorder,
@@ -234,7 +234,6 @@ const styles = StyleSheet.create({
   referralRow: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginTop: spacing.xs,
   },
   referralCodeBox: {
     flex: 1,

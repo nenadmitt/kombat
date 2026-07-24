@@ -512,7 +512,7 @@ const styles = StyleSheet.create({
   },
   headerText: {
     flex: 1,
-    gap: 2,
+    gap: spacing.xxs,
   },
   welcome: {
     color: colors.textMuted,
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
   },
   featuredBody: {
     flex: 1,
-    gap: 2,
+    gap: spacing.xxs,
   },
   featuredEyebrow: {
     flexDirection: 'row',
@@ -695,7 +695,7 @@ const styles = StyleSheet.create({
   },
   roomInfo: {
     flex: 1,
-    gap: 2,
+    gap: spacing.xxs,
   },
   roomName: {
     ...type.subheading,
