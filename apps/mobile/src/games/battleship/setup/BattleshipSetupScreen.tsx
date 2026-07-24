@@ -49,8 +49,8 @@ type Props = {
 const MINES_ID = 'mines';
 
 // colors.accent at reduced opacity, for the top glow behind the header.
-const GLOW_COLOR = 'rgba(124, 92, 255, 0.35)';
-const GLOW_TRANSPARENT = 'rgba(124, 92, 255, 0)';
+const GLOW_COLOR = 'rgba(142, 224, 90, 0.35)';
+const GLOW_TRANSPARENT = 'rgba(142, 224, 90, 0)';
 const GLOW_HEIGHT = 480;
 
 /** "Deploy Your Fleet" - select a ship, then tap the grid to place it. */

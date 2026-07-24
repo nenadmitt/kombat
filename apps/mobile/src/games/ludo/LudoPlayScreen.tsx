@@ -29,12 +29,12 @@ export type LudoPlayScreenProps = LudoPlayProps & {
   onQuit: () => void;
 };
 
-const GLOW_COLOR = 'rgba(139, 92, 246, 0.25)';
-const GLOW_TRANSPARENT = 'rgba(139, 92, 246, 0)';
+const GLOW_COLOR = 'rgba(142, 224, 90, 0.25)';
+const GLOW_TRANSPARENT = 'rgba(142, 224, 90, 0)';
 const GLOW_HEIGHT = 420;
 /** The design's board panel + ROLL button styling. */
-const BOARD_PANEL_BG = '#0e0a1b';
-const ROLL_GRADIENT = { colors: ['#8b5cf6', '#3b82f6'], positions: [0, 1] } as const;
+const BOARD_PANEL_BG = colors.canvas;
+const ROLL_GRADIENT = { colors: ['#a0e962', '#63a72c'], positions: [0, 1] } as const;
 
 /**
  * Pure-UI Ludo screen: renders entirely from engine props and reports
@@ -377,8 +377,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.07)',
   },
   hudCardActive: {
-    backgroundColor: 'rgba(139, 92, 246, 0.12)',
-    borderColor: 'rgba(139, 92, 246, 0.5)',
+    backgroundColor: 'rgba(142, 224, 90, 0.12)',
+    borderColor: 'rgba(142, 224, 90, 0.5)',
   },
   hudCardEliminated: {
     opacity: 0.45,
@@ -419,13 +419,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    backgroundColor: 'rgba(142, 224, 90, 0.2)',
   },
   turnPillText: {
     fontSize: 9,
     fontFamily: fonts.extraBold,
     letterSpacing: 1,
-    color: '#c4b5fd',
+    color: colors.accentLight,
   },
   boardPanel: {
     backgroundColor: BOARD_PANEL_BG,
@@ -498,7 +498,7 @@ const styles = StyleSheet.create({
   rollText: {
     fontSize: 16,
     fontFamily: fonts.bold,
-    color: colors.textPrimary,
+    color: colors.onAccent,
     letterSpacing: 2,
   },
 });

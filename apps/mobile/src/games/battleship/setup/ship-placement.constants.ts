@@ -26,7 +26,7 @@ export const SHIP_COLORS: Record<string, string> = {
 };
 
 /** Amber used for armed sea mines (matches the torpedo/blast effects). */
-export const MINE_COLOR = '#FBBF24';
+export const MINE_COLOR = '#f5b829';
 
 /** The shared fleet spec paired with mobile display colors. */
 export const SHIPS: ShipDef[] = FLEET.map(s => ({

@@ -6,7 +6,7 @@ import { colors } from '../../theme/colors';
 import { display } from '../../theme/typography';
 import { SUIT_COLORS, glyphFor, isActionValue } from './chroma-theme';
 
-const WILD_BG = '#1A1622';
+const WILD_BG = '#1B1D2B';
 
 type Props = {
   card: ChromaCard;
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   cornerTL: { top: 4, left: 6 },
   cornerBR: { bottom: 4, right: 6, transform: [{ rotate: '180deg' }] },
   back: {
-    backgroundColor: '#241D33',
+    backgroundColor: '#232532',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.16)',
   },

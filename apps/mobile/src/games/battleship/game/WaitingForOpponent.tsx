@@ -38,9 +38,9 @@ type Props = {
 
 // Accent tints derived from colors.accent (#7C5CFF) - same precedent as the
 // play screen's glow.
-const BRAND_TINT_BG = 'rgba(124, 92, 255, 0.10)';
-const BRAND_TINT_BORDER = 'rgba(124, 92, 255, 0.35)';
-const BRAND_RING_BORDER = 'rgba(124, 92, 255, 0.55)';
+const BRAND_TINT_BG = 'rgba(142, 224, 90, 0.10)';
+const BRAND_TINT_BORDER = 'rgba(142, 224, 90, 0.35)';
+const BRAND_RING_BORDER = 'rgba(142, 224, 90, 0.55)';
 const BRAND_SWEEP = colors.accentLight;
 // Green tints derived from colors.success (#24E08A).
 const SUCCESS_TINT_BG = 'rgba(36, 224, 138, 0.08)';

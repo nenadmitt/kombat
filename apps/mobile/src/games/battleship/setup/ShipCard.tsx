@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
   },
   cardSelected: {
     borderColor: colors.accent,
-    backgroundColor: 'rgba(124, 92, 255, 0.1)',
+    backgroundColor: 'rgba(142, 224, 90, 0.1)',
   },
   removeButton: {
     position: 'absolute',
