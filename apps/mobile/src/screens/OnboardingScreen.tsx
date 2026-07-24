@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -22,6 +23,8 @@ import { display, mono, type } from '../theme/typography';
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,20}$/;
 // Placeholder word lengths for the masked grid before the real mnemonic is loaded.
 const MASK_LENGTHS = [6, 7, 5, 8, 5, 6, 5, 7, 8];
+// Selectable avatar tints (a local preview - persistence isn't wired yet).
+const AVATAR_COLORS = [colors.accent, colors.gold, colors.success, colors.info];
 
 export default function OnboardingScreen() {
   const updateUsername = useCurrentUserStore(state => state.updateUsername);
@@ -34,8 +37,11 @@ export default function OnboardingScreen() {
   const [revealed, setRevealed] = useState(false);
   const [mnemonicError, setMnemonicError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // Visual-only avatar tint (no backend support yet - a design preview).
+  const [avatarColor, setAvatarColor] = useState<string>(colors.accent);
 
   const isValid = USERNAME_PATTERN.test(username.trim());
+  const avatarInitial = (username.trim()[0] ?? 'K').toUpperCase();
   const canSubmit = isValid && !busy;
 
   const handleSubmit = async () => {
@@ -107,35 +113,63 @@ export default function OnboardingScreen() {
 
           <Text style={styles.title}>Set up your account</Text>
           <Text style={styles.subtitle}>
-            Choose a username and secure your recovery phrase before you play.
+            Pick a username and avatar, then back up your recovery phrase.
           </Text>
 
-          {/* Username */}
-          <View style={styles.section}>
-            <Text style={[type.label, styles.label]}>Username</Text>
-            <View style={[styles.input, isValid && styles.inputValid]}>
-              <TextInput
-                style={styles.inputText}
-                value={username}
-                onChangeText={setUsername}
-                placeholder="Katty_Kombat"
-                placeholderTextColor={colors.textFaint}
-                autoCapitalize="none"
-                autoCorrect={false}
-                maxLength={20}
-                editable={!busy}
-              />
-              {isValid ? (
-                <Icon type="check" color={colors.accent} size={20} />
+          {/* Profile: avatar + tint picker + username */}
+          <Card accent style={styles.profileCard}>
+            <Text style={[type.label, styles.profileLabel]}>Your profile</Text>
+
+            <View style={styles.avatarRow}>
+              <View style={[styles.avatarTile, { backgroundColor: avatarColor }]}>
+                <Text style={styles.avatarInitial}>{avatarInitial}</Text>
+              </View>
+              <View style={styles.swatches}>
+                {AVATAR_COLORS.map(swatch => (
+                  <Pressable
+                    key={swatch}
+                    onPress={() => setAvatarColor(swatch)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Avatar colour ${swatch}`}
+                    style={[
+                      styles.swatchRing,
+                      avatarColor === swatch && styles.swatchRingActive,
+                    ]}
+                  >
+                    <View style={[styles.swatch, { backgroundColor: swatch }]} />
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            <View>
+              <View style={[styles.usernameField, isValid && styles.usernameFieldValid]}>
+                <TextInput
+                  style={styles.usernameInput}
+                  value={username}
+                  onChangeText={setUsername}
+                  placeholder="Katty_Kombat"
+                  placeholderTextColor={colors.textFaint}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  maxLength={20}
+                  editable={!busy}
+                />
+                {isValid ? (
+                  <View style={styles.availableBadge}>
+                    <Icon type="check" color={colors.success} size={12} />
+                    <Text style={styles.availableText}>AVAILABLE</Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text style={styles.hint}>
+                3-20 characters · letters, numbers, underscores.
+              </Text>
+              {errorMessage ? (
+                <Text style={styles.error}>{errorMessage}</Text>
               ) : null}
             </View>
-            <Text style={styles.hint}>
-              3–20 characters · letters, numbers, underscores.
-            </Text>
-            {errorMessage ? (
-              <Text style={styles.error}>{errorMessage}</Text>
-            ) : null}
-          </View>
+          </Card>
 
           {/* Recovery phrase */}
           <View style={styles.section}>
@@ -273,25 +307,83 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginBottom: spacing.xxs,
   },
-  input: {
+  profileCard: {
+    gap: spacing.md,
+    marginTop: spacing.sm,
+  },
+  profileLabel: {
+    color: colors.accentLight,
+  },
+  avatarRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
+    gap: spacing.md,
+  },
+  avatarTile: {
+    width: 56,
     height: 56,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  inputValid: {
+  avatarInitial: {
+    fontFamily: display.bold,
+    fontSize: 25,
+    color: colors.onAccent,
+  },
+  swatches: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  swatchRing: {
+    padding: 2,
+    borderRadius: 13,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  swatchRingActive: {
+    borderColor: colors.accent200,
+  },
+  swatch: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+  },
+  usernameField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.canvas,
+    borderWidth: 2,
     borderColor: colors.accentBorder,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    height: 52,
   },
-  inputText: {
+  usernameFieldValid: {
+    borderColor: colors.accent,
+  },
+  usernameInput: {
     flex: 1,
-    fontFamily: mono.medium,
-    fontSize: 16,
+    fontFamily: mono.semiBold,
+    fontSize: 17,
     color: colors.textPrimary,
+  },
+  availableBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
+    backgroundColor: colors.successSoft,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 4,
+  },
+  availableText: {
+    fontFamily: mono.bold,
+    fontSize: 10,
+    letterSpacing: 0.5,
+    color: colors.success,
   },
   hint: {
     ...type.caption,

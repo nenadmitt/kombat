@@ -10,13 +10,14 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ApiError } from '@gaming-platform/core';
 
 import type { RootStackParamList } from '../navigation/types';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import { apiClient } from '../api/client';
-import Icon from '../components/Icon';
+import Glow from '../components/Glow';
 import { Button, Chip } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
@@ -25,7 +26,15 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 type SheetStep = 'methods' | 'email' | 'code';
 
-const FEATURES = ['Self-custody', 'Provably fair', 'Instant payouts'];
+/** The two-tone split-K brand mark from the redesign's welcome screen. */
+function KombatMark({ size = 96 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 100 100">
+      <Path d="M28 27 L47 27 L40 48 L46 50 L42 75 L28 75 Z" fill={colors.textPrimary} />
+      <Path d="M54 27 L72 27 L72 75 L49 75 L53 50 L47 48 Z" fill={colors.accent} />
+    </Svg>
+  );
+}
 
 export default function LoginScreen(_props: Props) {
   const loginWithToken = useCurrentUserStore(state => state.loginWithToken);
@@ -83,40 +92,31 @@ export default function LoginScreen(_props: Props) {
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.content}>
-        {/* Logo + wordmark */}
+        {/* Logo mark + wordmark over an accent bloom. */}
         <View style={styles.logoStack}>
-          <View style={styles.logoTile}>
-            <Icon type="gem" color={colors.onAccent} size={34} />
-          </View>
+          <Glow
+            size={230}
+            color={colors.accent}
+            opacity={0.32}
+            edge={0.66}
+            style={styles.logoGlow}
+          />
+          <KombatMark size={96} />
           <Text style={styles.wordmark}>KOMBAT</Text>
         </View>
 
-        {/* Hero visual */}
-        <View style={styles.hero}>
-          <View style={styles.heroGlow}>
-            <Icon type="swords" color={colors.accent} size={72} />
-          </View>
-          <Text style={styles.heroCaption}>NEON ARCADE · WIN CRYPTO</Text>
-        </View>
-
-        {/* Headline + CTA */}
+        {/* Headline + CTA pushed to the lower third. */}
         <View style={styles.footer}>
           <Text style={styles.headline}>
             Play.{'\n'}Compete.{'\n'}
-            <Text style={styles.headlineAccent}>Win</Text>
+            <Text style={styles.headlineAccent}>Win.</Text>
           </Text>
 
           <Button label="Start Winning" onPress={openSheet} />
 
-          <Text style={styles.disclaimer}>
-            A self-custodial wallet is created for you automatically.
+          <Text style={styles.tagline}>
+            Winner takes the pot. No house, no bots.
           </Text>
-
-          <View style={styles.features}>
-            {FEATURES.map(f => (
-              <Chip key={f} label={f} tone="outline" />
-            ))}
-          </View>
         </View>
       </View>
 
@@ -232,57 +232,28 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xl,
+    paddingTop: spacing.xxl,
+    paddingBottom: spacing.xl,
   },
   logoStack: {
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.md,
   },
-  logoTile: {
-    width: 72,
-    height: 72,
-    borderRadius: radius.xl,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
+  logoGlow: {
+    position: 'absolute',
+    top: -16,
+    left: '50%',
+    marginLeft: -115,
   },
   wordmark: {
     fontFamily: mono.semiBold,
-    fontSize: 15,
-    letterSpacing: 4,
+    fontSize: 20,
+    letterSpacing: 8,
+    // Optical-centre the wide tracking (the trailing space pushes it right).
+    paddingLeft: 8,
     color: colors.textPrimary,
-  },
-  hero: {
-    width: '100%',
-    flex: 1,
-    marginVertical: spacing.lg,
-    maxHeight: 300,
-    borderRadius: radius.xl,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.lg,
-  },
-  heroGlow: {
-    width: 132,
-    height: 132,
-    borderRadius: radius.xl,
-    backgroundColor: colors.accentSoft,
-    borderWidth: 1,
-    borderColor: colors.accentBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroCaption: {
-    fontFamily: mono.medium,
-    fontSize: 11,
-    letterSpacing: 2,
-    color: colors.textMuted,
   },
   footer: {
     width: '100%',
@@ -290,22 +261,18 @@ const styles = StyleSheet.create({
   },
   headline: {
     fontFamily: display.extraBold,
-    fontSize: 44,
+    fontSize: 47,
     lineHeight: 46,
-    letterSpacing: -1,
+    letterSpacing: -1.4,
     color: colors.textPrimary,
   },
   headlineAccent: {
     color: colors.accent,
   },
-  disclaimer: {
+  tagline: {
     ...type.caption,
+    textAlign: 'center',
     color: colors.textMuted,
-  },
-  features: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
   },
   backdrop: {
     flex: 1,
