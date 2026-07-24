@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, IsNull, Not, Repository } from 'typeorm';
+import { DataSource, In, IsNull, Repository } from 'typeorm';
+import { LobbyStakeFilter } from '@gaming-platform/core';
 
 import {
   CacheKeys,
@@ -371,16 +372,45 @@ export class DbService {
     return room;
   }
 
-  findPendingGameRooms(excludeUserId?: string): Promise<GameRoomEntity[]> {
-    return this.gameRoomRepository.find({
-      where: {
-        status: GameRoomStatus.Pending,
-        // Private rooms are invite-only: never surface them in the lobby.
-        isPrivate: false,
-        ...(excludeUserId ? { userId: Not(excludeUserId) } : {}),
-      },
-      order: { createdAt: 'ASC' },
-    });
+  /**
+   * The lobby listing: pending, public rooms, oldest first, with optional
+   * game-type / stake / token filters. The fixed `status = Pending AND
+   * is_private = false` predicate matches the partial index IDX_game_rooms_lobby.
+   */
+  findPendingGameRooms(options?: {
+    excludeUserId?: string;
+    gameTypes?: GameType[];
+    stake?: LobbyStakeFilter;
+    stakeTokens?: StakeAsset[];
+  }): Promise<GameRoomEntity[]> {
+    const qb = this.gameRoomRepository
+      .createQueryBuilder('room')
+      .where('room.status = :status', { status: GameRoomStatus.Pending })
+      // Private rooms are invite-only: never surface them in the lobby.
+      .andWhere('room.is_private = false');
+
+    if (options?.excludeUserId) {
+      qb.andWhere('room.user_id != :excludeUserId', {
+        excludeUserId: options.excludeUserId,
+      });
+    }
+    if (options?.gameTypes?.length) {
+      qb.andWhere('room.game_type IN (:...gameTypes)', {
+        gameTypes: options.gameTypes,
+      });
+    }
+    if (options?.stake === 'free') {
+      qb.andWhere('room.stake_token IS NULL');
+    } else if (options?.stake === 'staked') {
+      qb.andWhere('room.stake_token IS NOT NULL');
+    }
+    if (options?.stakeTokens?.length) {
+      qb.andWhere('room.stake_token IN (:...stakeTokens)', {
+        stakeTokens: options.stakeTokens,
+      });
+    }
+
+    return qb.orderBy('room.created_at', 'ASC').getMany();
   }
 
   /**

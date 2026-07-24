@@ -5,6 +5,11 @@ import { GameRoomStatus, GameType, StakeAsset } from '../types/game';
 @Entity('game_rooms')
 // Serves the lobby listing: filter by status, already in createdAt order.
 @Index(['status', 'createdAt'])
+// Partial index for the filterable lobby: only pending, public rooms, keyed on
+// game_type + stake_token with created_at ordering. Mirrors AddLobbyRoomIndex.
+@Index(['gameType', 'stakeToken', 'createdAt'], {
+  where: '"status" = 0 AND "is_private" = false',
+})
 // Serves the 1-open-room-per-user checks (create/close) keyed on userId + status.
 @Index(['userId', 'status'])
 // Serves join-by-code lookups; unique so a code resolves to one room.

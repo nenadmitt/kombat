@@ -10,6 +10,9 @@ import {
   BATTLESHIP_EVENTS,
   CHROMA_EVENTS,
   GameRoomSummary,
+  LOBBY_CHANNEL,
+  LOBBY_EVENTS,
+  LobbyRoomFilters,
   LUDO_EVENTS,
   MatchHistoryEntry,
   ROOM_EVENTS,
@@ -84,6 +87,7 @@ export class GamesService {
       isPrivate,
     });
 
+    this.emitLobbyAdded(room);
     return toGameRoomSummary(room);
   }
 
@@ -130,6 +134,7 @@ export class GamesService {
     }
 
     await this.dbService.deleteGameRoom(roomId);
+    this.emitLobbyRemoved(room);
   }
 
   /**
@@ -184,6 +189,8 @@ export class GamesService {
       opponentId: userId,
       status: GameRoomStatus.InProgress,
     });
+    // Filled and flipped to InProgress: drop it from the lobby.
+    this.emitLobbyRemoved(joined);
 
     if (room.stakeToken !== null) {
       await this.stakesService.beginFunding(joined);
@@ -239,6 +246,9 @@ export class GamesService {
 
     if (joinedCount >= updated.playerCount) {
       await this.startMultiSeatMatch(updated);
+    } else {
+      // Still waiting, but the roster grew: refresh it in the lobby.
+      this.emitLobbyUpdated(updated);
     }
     return toGameRoomSummary(updated);
   }
@@ -304,6 +314,8 @@ export class GamesService {
           },
         );
       }
+      // Roster shrank but the room is still waiting: refresh it in the lobby.
+      this.emitLobbyUpdated(updated);
     }
   }
 
@@ -321,6 +333,8 @@ export class GamesService {
     const started: GameRoomEntity = Object.assign(room, {
       status: GameRoomStatus.InProgress,
     });
+    // Left the lobby the moment it flipped to InProgress.
+    this.emitLobbyRemoved(started);
     if (started.stakeToken !== null) {
       await this.stakesService.beginFunding(started);
       return;
@@ -332,8 +346,45 @@ export class GamesService {
     }
   }
 
-  async listPendingRooms(excludeUserId?: string): Promise<GameRoomSummary[]> {
-    const rooms = await this.dbService.findPendingGameRooms(excludeUserId);
+  // ---- lobby list deltas -------------------------------------------------
+  // Broadcast to everyone currently viewing the lobby (LOBBY_CHANNEL). Private
+  // rooms are never listed, so they never emit.
+
+  private emitLobbyAdded(room: GameRoomEntity): void {
+    if (room.isPrivate) return;
+    this.websocketsService.sendToChannel(
+      LOBBY_CHANNEL,
+      LOBBY_EVENTS.roomAdded,
+      toGameRoomSummary(room),
+    );
+  }
+
+  private emitLobbyUpdated(room: GameRoomEntity): void {
+    if (room.isPrivate) return;
+    this.websocketsService.sendToChannel(
+      LOBBY_CHANNEL,
+      LOBBY_EVENTS.roomUpdated,
+      toGameRoomSummary(room),
+    );
+  }
+
+  private emitLobbyRemoved(room: GameRoomEntity): void {
+    if (room.isPrivate) return;
+    this.websocketsService.sendToChannel(LOBBY_CHANNEL, LOBBY_EVENTS.roomRemoved, {
+      roomId: room.id,
+    });
+  }
+
+  async listPendingRooms(options?: {
+    excludeUserId?: string;
+    filters?: LobbyRoomFilters;
+  }): Promise<GameRoomSummary[]> {
+    const rooms = await this.dbService.findPendingGameRooms({
+      excludeUserId: options?.excludeUserId,
+      gameTypes: options?.filters?.gameTypes,
+      stake: options?.filters?.stake,
+      stakeTokens: options?.filters?.stakeTokens,
+    });
     return rooms.map(toGameRoomSummary);
   }
 
