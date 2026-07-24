@@ -26,7 +26,7 @@ const POWERUPS: PowerupDef[] = [
 
 // Amber "energy" gradient for the charge bar (distinct from the brand gradient).
 const CHARGE_GRADIENT = {
-  colors: ['#fde047', '#f59e0b'],
+  colors: ['#f8cf5c', '#e0a015'],
   positions: [0.15, 0.85],
 } as const;
 
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
   },
   cardArmed: {
     borderColor: colors.accent,
-    backgroundColor: 'rgba(124, 92, 255, 0.12)',
+    backgroundColor: 'rgba(142, 224, 90, 0.12)',
   },
   cardDisabled: {
     opacity: 0.4,

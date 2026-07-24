@@ -90,7 +90,7 @@ export default function LudoDice({ value, rolling = false, size = 78 }: Props) {
               width: pip,
               height: pip,
               borderRadius: pip / 2,
-              backgroundColor: lit.includes(i) ? '#2a2140' : 'transparent',
+              backgroundColor: lit.includes(i) ? '#20222e' : 'transparent',
             }}
           />
         );

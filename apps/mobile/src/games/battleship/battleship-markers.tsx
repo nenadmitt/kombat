@@ -6,7 +6,7 @@ import { colors } from '../../theme/colors';
 const HIT_FILL = 'rgba(255, 84, 104, 0.9)';
 const HIT_GLOW = 'rgba(255, 84, 104, 0.55)';
 const MISS_DOT = 'rgba(148, 163, 184, 0.7)';
-const TORPEDO = '#FBBF24';
+const TORPEDO = '#f5b829';
 const MINE_GLOW = 'rgba(251, 191, 36, 0.45)';
 const CELL_RADIUS = 6;
 

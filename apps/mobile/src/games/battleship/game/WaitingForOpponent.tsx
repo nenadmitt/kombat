@@ -36,18 +36,18 @@ type Props = {
   onCancel: () => void;
 };
 
-// Accent tints derived from colors.accent (#7C5CFF) - same precedent as the
+// Accent tints derived from colors.accent (#8ee05a) - same precedent as the
 // play screen's glow.
-const BRAND_TINT_BG = 'rgba(124, 92, 255, 0.10)';
-const BRAND_TINT_BORDER = 'rgba(124, 92, 255, 0.35)';
-const BRAND_RING_BORDER = 'rgba(124, 92, 255, 0.55)';
+const BRAND_TINT_BG = 'rgba(142, 224, 90, 0.10)';
+const BRAND_TINT_BORDER = 'rgba(142, 224, 90, 0.35)';
+const BRAND_RING_BORDER = 'rgba(142, 224, 90, 0.55)';
 const BRAND_SWEEP = colors.accentLight;
-// Green tints derived from colors.success (#24E08A).
-const SUCCESS_TINT_BG = 'rgba(36, 224, 138, 0.08)';
-const SUCCESS_TINT_BORDER = 'rgba(36, 224, 138, 0.28)';
-// Red tints derived from colors.danger (#FF5468).
-const DANGER_TINT_BG = 'rgba(255, 84, 104, 0.09)';
-const DANGER_TINT_BORDER = 'rgba(255, 84, 104, 0.4)';
+// Green tints derived from colors.success (#3ee08f).
+const SUCCESS_TINT_BG = 'rgba(62, 224, 143, 0.08)';
+const SUCCESS_TINT_BORDER = 'rgba(62, 224, 143, 0.28)';
+// Red tints derived from colors.danger (#ff5a6e).
+const DANGER_TINT_BG = 'rgba(255, 90, 110, 0.09)';
+const DANGER_TINT_BORDER = 'rgba(255, 90, 110, 0.4)';
 
 const RING_MS = 2600;
 const SWEEP_MS = 2400;

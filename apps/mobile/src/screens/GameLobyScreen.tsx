@@ -27,7 +27,7 @@ import Icon from '../components/Icon';
 import { Button, Card, Chip, StakeFundingOverlay, useConfirm } from '../components/ui';
 import CreateGameRoomModal from '../games/CreateGameRoomModal';
 import JoinByCodeSheet from '../games/JoinByCodeSheet';
-import { GAME_TYPE_LABELS } from '../games/game-type-labels';
+import { GAME_TYPE_ICONS, GAME_TYPE_LABELS } from '../games/game-type-labels';
 import { GAME_TYPE_SCREENS } from '../games/game-type-screens';
 import { formatRoomCode } from '../games/room-code';
 import type { RootStackParamList } from '../navigation/types';
@@ -53,14 +53,8 @@ function stakeLabel(room: GameRoomSummary): string {
   return `${formatStakeAmount(room.stakeAmount, room.stakeToken)} ${STAKE_ASSET_SYMBOLS[room.stakeToken]}`;
 }
 
+/** The featured banner keeps the crosshair (Battleships). */
 const GAME_ICON = 'crosshair' as const;
-/** Card glyph per game type (the featured banner keeps the crosshair). */
-const GAME_TYPE_ICONS: Record<GameType, 'crosshair' | 'dice' | 'hand' | 'layers'> = {
-  [GameType.NavalBattle]: 'crosshair',
-  [GameType.Ludo]: 'dice',
-  [GameType.TripleCut]: 'hand',
-  [GameType.ChromaClash]: 'layers',
-};
 
 const FILTERS: { key: Filter; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -323,10 +317,19 @@ export default function GameLobyScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View style={styles.listHeader}>
-            {/* Featured game */}
-            <Card accent style={styles.featured}>
+            {/* Featured game - diagonal ramp gradient + a corner accent bloom. */}
+            <Card
+              accent
+              gradient={{
+                colors: [colors.accent900, colors.accent800],
+                start: { x: 0, y: 0 },
+                end: { x: 1, y: 1 },
+              }}
+              glow={{ color: colors.accent, size: 150, opacity: 0.4, edge: 0.7, top: -45, right: -35 }}
+              style={styles.featured}
+            >
               <View style={styles.featuredThumb}>
-                <Icon type={GAME_ICON} color={colors.accent} size={30} />
+                <Icon type={GAME_ICON} color={colors.accentLight} size={30} />
               </View>
               <View style={styles.featuredBody}>
                 <View style={styles.featuredEyebrow}>
@@ -449,7 +452,7 @@ export default function GameLobyScreen() {
         renderItem={({ item }) => (
           <Card style={styles.roomCard}>
             <View style={styles.roomIcon}>
-              <Icon type={GAME_TYPE_ICONS[item.gameType]} color={colors.accent} size={20} />
+              <Icon type={GAME_TYPE_ICONS[item.gameType]} color={colors.accentLight} size={20} />
             </View>
             <View style={styles.roomInfo}>
               <Text style={styles.roomName}>{GAME_TYPE_LABELS[item.gameType]}</Text>
@@ -462,7 +465,7 @@ export default function GameLobyScreen() {
               <Button
                 label="Join"
                 size="sm"
-                variant="tinted"
+                variant="outline"
                 fullWidth={false}
                 loading={joiningRoomId === item.id}
                 disabled={joiningRoomId !== null}
@@ -597,6 +600,11 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     backgroundColor: colors.accent,
+    // 0 0 8px accent glow (iOS).
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 4,
   },
   featuredEyebrowText: {
     fontFamily: mono.semiBold,
@@ -681,7 +689,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: radius.sm,
-    backgroundColor: colors.accentSoft,
+    backgroundColor: colors.accent900,
     alignItems: 'center',
     justifyContent: 'center',
   },

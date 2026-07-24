@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Canvas, Circle, SweepGradient, vec } from '@shopify/react-native-skia';
 
 import Icon, { type IconName } from '../components/Icon';
 import { AddressPill, Button, Card, Screen, SectionLabel } from '../components/ui';
@@ -39,6 +40,15 @@ export default function ProfileScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.avatarRing}>
+          {/* Conic (sweep) accent ring behind the avatar disc. */}
+          <Canvas style={StyleSheet.absoluteFill}>
+            <Circle cx={52} cy={52} r={52}>
+              <SweepGradient
+                c={vec(52, 52)}
+                colors={[colors.accent, colors.accent400, colors.accent200, colors.accent]}
+              />
+            </Circle>
+          </Canvas>
           <View style={styles.avatar}>
             <Text style={styles.avatarInitial}>{initial}</Text>
           </View>
@@ -124,8 +134,6 @@ const styles = StyleSheet.create({
     width: 104,
     height: 104,
     borderRadius: 52,
-    borderWidth: 2,
-    borderColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },

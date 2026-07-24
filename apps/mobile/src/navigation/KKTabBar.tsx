@@ -7,7 +7,7 @@ import Icon, { type IconName } from '../components/Icon';
 import { colors } from '../theme/colors';
 import { mono } from '../theme/typography';
 
-const INACTIVE = 'rgba(255,255,255,0.42)';
+const INACTIVE = colors.textMuted;
 
 type TabConfig = { label: string; icon: IconName; center?: boolean };
 
@@ -91,10 +91,11 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    // Near-opaque glass (RN has no backdrop-blur without a native module).
-    backgroundColor: 'rgba(11,11,15,0.96)',
+    // Near-opaque glass over the Nocturne ground (RN has no backdrop-blur
+    // without a native module).
+    backgroundColor: 'rgba(22,24,38,0.97)',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
+    borderTopColor: colors.cardBorder,
     paddingTop: 12,
     paddingHorizontal: 4,
   },
@@ -126,9 +127,10 @@ const styles = StyleSheet.create({
     borderColor: colors.canvas,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.6,
+    // Accent bloom under the raised LOBBY action (0 10px 26px accent).
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
     shadowRadius: 20,
     elevation: 10,
   },

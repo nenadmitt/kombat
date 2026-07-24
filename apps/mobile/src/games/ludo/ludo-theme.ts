@@ -13,10 +13,10 @@ export const LUDO_COLOR_HEX: Record<LudoColor, string> = {
 /** rgba(...) builders per color - Skia wants concrete strings and the theme
  *  tokens are hex, so the channel triples live here once. */
 const RGB: Record<LudoColor, [number, number, number]> = {
-  red: [255, 77, 109],
-  green: [34, 227, 154],
-  yellow: [251, 191, 36],
-  blue: [56, 189, 248],
+  red: [255, 90, 110],
+  green: [62, 224, 143],
+  yellow: [245, 184, 41],
+  blue: [91, 141, 239],
 };
 
 export function ludoTint(color: LudoColor, alpha: number): string {

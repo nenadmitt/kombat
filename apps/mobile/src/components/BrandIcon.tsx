@@ -81,7 +81,7 @@ const RENDERERS: Record<
     viewBox: '0 0 24 24',
     body: (
       <>
-        <Path d="M12 1.5 L22 12 L12 22.5 L2 12 Z" fill={color ?? '#FBBF24'} />
+        <Path d="M12 1.5 L22 12 L12 22.5 L2 12 Z" fill={color ?? '#f5b829'} />
         {!color && (
           <Path
             d="M12 1.5 L22 12 L12 12 Z M2 12 L12 12 L12 22.5 Z"

@@ -34,8 +34,8 @@ export type ChromaPlayScreenProps = ChromaPlayProps & {
   onQuit: () => void;
 };
 
-const GLOW_COLOR = 'rgba(124, 92, 255, 0.28)';
-const GLOW_TRANSPARENT = 'rgba(124, 92, 255, 0)';
+const GLOW_COLOR = 'rgba(142, 224, 90, 0.28)';
+const GLOW_TRANSPARENT = 'rgba(142, 224, 90, 0)';
 const GLOW_HEIGHT = 380;
 
 /**
@@ -525,7 +525,7 @@ const styles = StyleSheet.create({
     width: 15,
     height: 22,
     borderRadius: 3,
-    backgroundColor: '#241D33',
+    backgroundColor: '#232532',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.16)',
   },
@@ -550,7 +550,7 @@ const styles = StyleSheet.create({
     width: 62,
     height: 93,
     borderRadius: 9,
-    backgroundColor: '#1A1622',
+    backgroundColor: '#1B1D2B',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
   },

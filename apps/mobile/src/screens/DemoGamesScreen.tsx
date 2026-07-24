@@ -3,6 +3,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { GameType } from '@gaming-platform/core';
 
+import { GradientView } from '../components/GradientView';
 import Icon, { type IconName } from '../components/Icon';
 import { Card, Chip, Screen, SectionLabel } from '../components/ui';
 import { GAME_TYPE_DEMO_SCREENS } from '../games/game-type-demo-screens';
@@ -15,16 +16,15 @@ type GameCard = {
   tag: string;
   players: string;
   icon: IconName;
-  tint: string;
   gameType: GameType;
 };
 
 /** Every card here is a real, playable game type - each launches its bot demo. */
 const GAMES: GameCard[] = [
-  { name: 'Battleships', tag: 'Strategy', players: '2.4k playing', icon: 'crosshair', tint: colors.accentSoft, gameType: GameType.NavalBattle },
-  { name: 'Ludo Royale', tag: 'Board', players: '1.8k playing', icon: 'dice', tint: 'rgba(56,189,248,0.12)', gameType: GameType.Ludo },
-  { name: 'Triple Cut', tag: 'Duel', players: '1.2k playing', icon: 'hand', tint: 'rgba(124,92,255,0.14)', gameType: GameType.TripleCut },
-  { name: 'Chroma Clash', tag: 'Cards', players: '2.1k playing', icon: 'layers', tint: 'rgba(229,72,77,0.12)', gameType: GameType.ChromaClash },
+  { name: 'Battleships', tag: 'Strategy', players: '2.4k playing', icon: 'crosshair', gameType: GameType.NavalBattle },
+  { name: 'Ludo Royale', tag: 'Board', players: '1.8k playing', icon: 'dice', gameType: GameType.Ludo },
+  { name: 'Triple Cut', tag: 'Duel', players: '1.2k playing', icon: 'hand', gameType: GameType.TripleCut },
+  { name: 'Chroma Clash', tag: 'Cards', players: '2.1k playing', icon: 'layers', gameType: GameType.ChromaClash },
 ];
 
 export default function DemoGamesScreen() {
@@ -60,10 +60,15 @@ export default function DemoGamesScreen() {
         <View style={styles.grid}>
           {GAMES.map(game => (
             <Card key={game.name} flush style={styles.gameCard}>
-              <View style={[styles.gameArt, { backgroundColor: game.tint }]}>
+              <GradientView
+                colors={[colors.accent800, colors.surface]}
+                start={{ x: 1, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={styles.gameArt}
+              >
                 <Chip label="Demo" tone="neutral" style={styles.demoBadge} />
                 <Icon type={game.icon} color={colors.textPrimary} size={40} />
-              </View>
+              </GradientView>
               <View style={styles.gameBody}>
                 <Text style={styles.gameName}>{game.name}</Text>
                 <Text style={styles.gameMeta}>

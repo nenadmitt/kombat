@@ -1,56 +1,71 @@
 /**
- * KryptoKombat design tokens - a flat "inked canvas" system with one focused
- * accent (violet). Keep raw values here so screens reference names, not
- * literals. Legacy token names are preserved (re-pointed to the new palette)
- * so older game screens keep compiling while they migrate.
+ * Kombat design tokens - the "Acid Lime on Nocturne" system: a blue-grey dark
+ * ground with a single acid-lime accent carried through a 100-900 tonal ramp,
+ * plus gold as the secondary accent (KOMBAT token, achievement badges). Keep
+ * raw values here so screens reference names, not literals. Legacy token names
+ * are preserved (re-pointed to the new palette) so older game screens keep
+ * compiling while they migrate.
  */
 export const colors = {
   // ---- Canvas & surfaces -------------------------------------------------
-  /** App background - flat near-black. */
-  background: '#08080B',
-  /** Phone/section canvas, one step up from the pure background. */
-  canvas: '#0A0A0C',
-  /** Elevated surface (cards, sheets). */
-  surface: '#111116',
-  /** Muted surface (inputs, chips, icon tiles). */
-  surfaceMuted: '#17171D',
+  /** App background - the Nocturne blue-grey ground. */
+  background: '#161826',
+  /** Root canvas behind raised chrome (tab bar), one step darker than bg. */
+  canvas: '#101120',
+  /** Elevated surface (cards, sheets, list rows). */
+  surface: '#232532',
+  /** Muted surface (inputs, chips, icon tiles) - a step below surface. */
+  surfaceMuted: '#1B1D2B',
   /** Card fill/border used across the app. */
-  cardBackground: '#111116',
-  cardBorder: 'rgba(255, 255, 255, 0.08)',
-  /** Slightly stronger hairline for emphasis. */
-  border: 'rgba(255, 255, 255, 0.08)',
-  borderStrong: 'rgba(255, 255, 255, 0.14)',
+  cardBackground: '#232532',
+  cardBorder: 'rgba(233, 233, 237, 0.09)',
+  /** Slightly stronger hairline for emphasis (the Nocturne divider). */
+  border: 'rgba(233, 233, 237, 0.09)',
+  borderStrong: 'rgba(233, 233, 237, 0.16)',
 
-  // ---- Accent (violet) ---------------------------------------------------
+  // ---- Accent (acid lime) ------------------------------------------------
   /** Primary accent. */
-  accent: '#7C5CFF',
-  /** Text/icon color that sits on a filled accent surface (dark). */
-  onAccent: '#0A0A0C',
+  accent: '#8ee05a',
+  /** Text/icon color that sits on a filled accent surface (near-black). */
+  onAccent: '#0b0c14',
   /** Tinted accent background (tinted buttons, selected chips, highlights). */
-  accentSoft: 'rgba(124, 92, 255, 0.14)',
+  accentSoft: 'rgba(142, 224, 90, 0.14)',
   /** Accent hairline/border. */
-  accentBorder: 'rgba(124, 92, 255, 0.40)',
-  /** Lighter accent for text-on-dark accents. */
-  accentLight: '#A594FF',
+  accentBorder: 'rgba(142, 224, 90, 0.34)',
+  /** Lighter accent for text/icons on dark tinted surfaces (accent-300). */
+  accentLight: '#c0f394',
+
+  // ---- Accent tonal ramp (OKLCH-derived, 100 lightest to 900 darkest) ----
+  // Dark steps (700-900) for tinted fills/borders on the dark ground; 500 is
+  // the base; light steps (100-300) for text/icons on those tints.
+  accent100: '#f2fee9',
+  accent200: '#ddfcc6',
+  accent300: '#c0f394',
+  accent400: '#a0e962',
+  accent500: '#83d440',
+  accent600: '#63a72c',
+  accent700: '#4c8024',
+  accent800: '#2f4d18',
+  accent900: '#1d3010',
 
   // ---- Semantic ----------------------------------------------------------
   /** Positive - wins, gains, "your turn". */
-  success: '#24E08A',
-  successSoft: 'rgba(36, 224, 138, 0.14)',
+  success: '#3ee08f',
+  successSoft: 'rgba(62, 224, 143, 0.15)',
   /** Negative - losses, destructive. */
-  danger: '#FF5468',
-  dangerSoft: 'rgba(255, 84, 104, 0.14)',
-  /** Gold - earnings, achievements, KOMBAT token. */
-  gold: '#FBBF24',
-  goldSoft: 'rgba(251, 191, 36, 0.12)',
+  danger: '#ff5a6e',
+  dangerSoft: 'rgba(255, 90, 110, 0.16)',
+  /** Gold - the secondary accent: earnings, achievements, KOMBAT token. */
+  gold: '#f5b829',
+  goldSoft: 'rgba(245, 184, 41, 0.15)',
   /** Blue - informational (alt accent). */
-  info: '#2E8BFF',
+  info: '#5b8def',
 
-  // ---- Ludo player colors (from the Ludo Royale design) ------------------
-  ludoRed: '#FF4D6D',
-  ludoGreen: '#22E39A',
-  ludoYellow: '#FBBF24',
-  ludoBlue: '#38BDF8',
+  // ---- Ludo player colors (harmonised to the Acid Lime palette) ----------
+  ludoRed: '#ff5a6e',
+  ludoGreen: '#3ee08f',
+  ludoYellow: '#f5b829',
+  ludoBlue: '#5b8def',
 
   // ---- Chroma Clash suit colors (from the Chroma Clash design) -----------
   chromaCrimson: '#E5484D',
@@ -60,48 +75,48 @@ export const colors = {
 
   // ---- Text --------------------------------------------------------------
   /** Primary text. */
-  textPrimary: '#F5F5F7',
+  textPrimary: '#e9e9ed',
   /** Secondary / helper text. */
-  textSecondary: '#9A9AA8',
+  textSecondary: '#9a9ba6',
   /** Muted text (labels, subtitles). */
-  textMuted: '#6E6E7C',
+  textMuted: '#71727e',
   /** Faint text (placeholders, fine print, disabled). */
-  textFaint: '#45454F',
+  textFaint: '#4a4b57',
 
   // ---- Legacy aliases (re-pointed; kept so game code compiles) -----------
   /** @deprecated use `accent`. */
-  brandStart: '#7C5CFF',
+  brandStart: '#8ee05a',
   /** @deprecated use `accent`. */
-  brandEnd: '#7C5CFF',
+  brandEnd: '#8ee05a',
   /** @deprecated use `accentLight`. */
-  brandLight: '#A594FF',
+  brandLight: '#c0f394',
   /** @deprecated use `gold`. */
-  kombatAccent: '#FBBF24',
+  kombatAccent: '#f5b829',
   /** @deprecated use `gold`. */
-  victoryGold: '#FBBF24',
+  victoryGold: '#f5b829',
   /** @deprecated use `danger`. */
-  defeatRed: '#FF5468',
+  defeatRed: '#ff5a6e',
 } as const;
 
 /**
  * "Gradient" tokens kept for API compatibility with GradientView callers.
- * The design is flat/single-accent, so these are near-solid violet - a subtle
- * top-to-bottom shift keeps large fills from looking dead-flat.
+ * The design leans on flat tinted fills, so these are subtle same-hue shifts
+ * that keep large fills from looking dead-flat.
  */
 export const brandGradient = {
-  colors: ['#8B6DFF', '#6A48F5'],
+  colors: ['#a0e962', '#63a72c'],
   positions: [0, 1],
 } as const;
 
 /** Gold gradient for victory / earnings accents. */
 export const goldGradient = {
-  colors: ['#FCD34D', '#F59E0B'],
+  colors: ['#f8cf5c', '#e0a015'],
   positions: [0.15, 0.85],
 } as const;
 
 /** Positive-action gradient (e.g. Triple Cut's NEXT ROUND, per its design). */
 export const successGradient = {
-  colors: ['#22E39A', '#10B981'],
+  colors: ['#3ee08f', '#22b56e'],
   positions: [0, 1],
 } as const;
 

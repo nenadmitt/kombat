@@ -41,8 +41,8 @@ export type RpsPlayScreenProps = RpsPlayProps & {
   onQuit: () => void;
 };
 
-const GLOW_COLOR = 'rgba(124, 92, 255, 0.28)';
-const GLOW_TRANSPARENT = 'rgba(124, 92, 255, 0)';
+const GLOW_COLOR = 'rgba(142, 224, 90, 0.28)';
+const GLOW_TRANSPARENT = 'rgba(142, 224, 90, 0)';
 const GLOW_HEIGHT = 380;
 
 const MOVE_LABEL: Record<RpsMove, string> = {

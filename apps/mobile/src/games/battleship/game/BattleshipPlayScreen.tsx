@@ -99,8 +99,8 @@ export type BattleshipPlayScreenProps = {
   onQuit: () => void;
 };
 
-const GLOW_COLOR = 'rgba(124, 92, 255, 0.3)';
-const GLOW_TRANSPARENT = 'rgba(124, 92, 255, 0)';
+const GLOW_COLOR = 'rgba(142, 224, 90, 0.3)';
+const GLOW_TRANSPARENT = 'rgba(142, 224, 90, 0)';
 const GLOW_HEIGHT = 420;
 /** Pause before auto-switching boards so the last shot's markers are seen. */
 const MODE_SWITCH_DELAY_MS = 1500;
