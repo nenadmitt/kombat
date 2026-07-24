@@ -52,7 +52,9 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   accent: {
-    backgroundColor: colors.accentSoft,
+    // Tinted card: the accent ramp's darkest step as a solid fill with an
+    // accent-tinted hairline - the redesign's featured / highlight surface.
+    backgroundColor: colors.accent900,
     borderColor: colors.accentBorder,
   },
   pressed: {
