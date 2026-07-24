@@ -81,7 +81,7 @@ android {
 
     namespace "com.gamingplatform"
     defaultConfig {
-        applicationId "com.gamingplatform"
+        applicationId "xyz.playkombat.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
