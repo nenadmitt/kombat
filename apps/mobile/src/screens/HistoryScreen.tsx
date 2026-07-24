@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
   },
   matchStat: {
     flex: 1,
-    gap: 6,
+    gap: spacing.xxs,
   },
   matchStatDivider: {
     width: 1,
