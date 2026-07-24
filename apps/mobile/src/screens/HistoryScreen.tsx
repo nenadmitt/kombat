@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   headerBlock: {
-    gap: spacing.lg,
+    gap: spacing.md,
     marginBottom: spacing.xs,
   },
   title: {

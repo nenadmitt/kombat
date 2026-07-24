@@ -233,8 +233,7 @@ export default function WalletScreen() {
       </View>
 
       {/* Assets */}
-      <View style={styles.section}>
-        <View style={styles.assetsHeader}>
+      <View style={styles.assetsHeader}>
           <Text style={[type.label, styles.assetsLabel]}>Assets</Text>
           <View style={styles.assetsHeaderRight}>
             <Text style={styles.tokenCount}>{tokens.length} tokens</Text>
@@ -311,11 +310,9 @@ export default function WalletScreen() {
             );
           })}
         </View>
-      </View>
 
       {/* Recent activity */}
-      <View style={styles.section}>
-        <SectionLabel>Recent activity</SectionLabel>
+      <SectionLabel>Recent activity</SectionLabel>
         {txs.length === 0 ? (
           <Text style={styles.emptyActivityText}>No recent activity yet</Text>
         ) : (
@@ -362,7 +359,6 @@ export default function WalletScreen() {
             })}
           </View>
         )}
-      </View>
 
       {wallet ? (
         <>

@@ -59,6 +59,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
-    gap: spacing.lg,
+    // One uniform vertical rhythm between every top-level block.
+    gap: spacing.md,
   },
 });
