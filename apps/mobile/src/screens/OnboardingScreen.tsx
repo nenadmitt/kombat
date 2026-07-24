@@ -102,19 +102,12 @@ export default function OnboardingScreen() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          {/* Step indicator */}
-          <View style={styles.stepRow}>
-            <Text style={styles.stepText}>STEP 01 / 02</Text>
-            <View style={styles.progressTrack}>
-              <View style={styles.progressFill} />
-              <View style={styles.progressRest} />
-            </View>
+          <View style={styles.titleGroup}>
+            <Text style={styles.title}>Set up your account</Text>
+            <Text style={styles.subtitle}>
+              Pick a username and avatar, then back up your recovery phrase.
+            </Text>
           </View>
-
-          <Text style={styles.title}>Set up your account</Text>
-          <Text style={styles.subtitle}>
-            Pick a username and avatar, then back up your recovery phrase.
-          </Text>
 
           {/* Profile: avatar + tint picker + username */}
           <Card accent style={styles.profileCard}>
@@ -142,7 +135,7 @@ export default function OnboardingScreen() {
               </View>
             </View>
 
-            <View>
+            <View style={styles.usernameBlock}>
               <View style={[styles.usernameField, isValid && styles.usernameFieldValid]}>
                 <TextInput
                   style={styles.usernameInput}
@@ -174,66 +167,64 @@ export default function OnboardingScreen() {
           </Card>
 
           {/* Recovery phrase */}
-          <View style={styles.section}>
-            <View style={styles.recoveryHeaderRow}>
-              <Text style={[type.label, styles.label]}>Recovery phrase</Text>
-              <Chip label="Keep secret" tone="gold" />
-            </View>
+          <View style={styles.recoveryHeaderRow}>
+            <Text style={[type.label, styles.label]}>Recovery phrase</Text>
+            <Chip label="Keep secret" tone="gold" icon="lock" />
+          </View>
 
-            <Card>
-              <View style={styles.wordGridWrapper}>
-                <View style={styles.wordGrid}>
-                  {(revealed && mnemonicWords ? mnemonicWords : MASK_LENGTHS).map(
-                    (word, index) => (
-                      <View key={index} style={styles.wordChip}>
-                        <Text style={styles.wordChipText} numberOfLines={1}>
-                          {revealed && mnemonicWords
-                            ? (word as string)
-                            : '•'.repeat(word as number)}
-                        </Text>
-                      </View>
-                    ),
-                  )}
-                </View>
-                {!revealed ? (
-                  <View style={styles.lockOverlay}>
-                    <View style={styles.lockCircle}>
-                      <Icon type="lock" color={colors.accent} size={22} />
+          <Card>
+            <View style={styles.gridContainer}>
+              <View style={styles.wordGrid}>
+                {(revealed && mnemonicWords ? mnemonicWords : MASK_LENGTHS).map(
+                  (word, index) => (
+                    <View key={index} style={styles.wordChip}>
+                      <Text style={styles.wordChipText} numberOfLines={1}>
+                        {revealed && mnemonicWords
+                          ? (word as string)
+                          : '•'.repeat(word as number)}
+                      </Text>
                     </View>
+                  ),
+                )}
+              </View>
+              {!revealed ? (
+                <View style={styles.lockOverlay}>
+                  <View style={styles.lockCircle}>
+                    <Icon type="lock" color={colors.accent} size={22} />
                   </View>
-                ) : null}
-              </View>
-
-              <View style={styles.recoveryActions}>
-                <Button
-                  label={revealed ? 'Hide' : 'Reveal'}
-                  icon={revealed ? 'eye-off' : 'eye'}
-                  variant="tinted"
-                  size="md"
-                  onPress={handleReveal}
-                  style={styles.actionFlex}
-                />
-                <Button
-                  label={copied ? 'Copied!' : 'Copy'}
-                  icon="copy"
-                  variant="secondary"
-                  size="md"
-                  onPress={handleCopy}
-                  style={styles.actionFlex}
-                />
-              </View>
-            </Card>
-
-            {mnemonicError ? (
-              <Text style={styles.error}>{mnemonicError}</Text>
-            ) : null}
-
-            <View style={styles.warningBox}>
-              <Icon type="warning" color={colors.gold} size={18} />
-              <Text style={styles.warningText}>
-                Never share this phrase. Anyone with it controls your wallet.
-              </Text>
+                </View>
+              ) : null}
             </View>
+
+            <View style={styles.recoveryActions}>
+              <Button
+                label={revealed ? 'Hide' : 'Reveal'}
+                icon={revealed ? 'eye-off' : 'eye'}
+                variant="tinted"
+                size="md"
+                onPress={handleReveal}
+                style={styles.actionFlex}
+              />
+              <Button
+                label={copied ? 'Copied!' : 'Copy'}
+                icon="copy"
+                variant="secondary"
+                size="md"
+                onPress={handleCopy}
+                style={styles.actionFlex}
+              />
+            </View>
+          </Card>
+
+          {mnemonicError ? (
+            <Text style={styles.error}>{mnemonicError}</Text>
+          ) : null}
+
+          <View style={styles.warningBox}>
+            <Icon type="warning" color={colors.gold} size={18} />
+            <Text style={styles.warningText}>
+              Never share this phrase. Anyone with it controls your wallet.
+            </Text>
           </View>
 
           <Button
@@ -260,35 +251,11 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.lg,
     paddingBottom: spacing.xxl,
+    // One uniform vertical rhythm between every block on the screen.
     gap: spacing.md,
   },
-  stepRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  stepText: {
-    fontFamily: mono.semiBold,
-    fontSize: 12,
-    letterSpacing: 2,
-    color: colors.accent,
-  },
-  progressTrack: {
-    flexDirection: 'row',
-    gap: 4,
-    width: 64,
-  },
-  progressFill: {
-    flex: 1,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.accent,
-  },
-  progressRest: {
-    flex: 1,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.surfaceMuted,
+  titleGroup: {
+    gap: spacing.xs,
   },
   title: {
     fontFamily: display.bold,
@@ -301,17 +268,11 @@ const styles = StyleSheet.create({
     ...type.body,
     color: colors.textSecondary,
   },
-  section: {
-    gap: spacing.xs,
-    marginTop: spacing.sm,
-  },
   label: {
     color: colors.textMuted,
-    marginBottom: spacing.xxs,
   },
   profileCard: {
     gap: spacing.md,
-    marginTop: spacing.sm,
   },
   profileLabel: {
     color: colors.accentLight,
@@ -352,6 +313,9 @@ const styles = StyleSheet.create({
     height: 30,
     borderRadius: 10,
   },
+  usernameBlock: {
+    gap: spacing.xs,
+  },
   usernameField: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -389,34 +353,33 @@ const styles = StyleSheet.create({
   },
   hint: {
     ...type.caption,
-    color: colors.textFaint,
+    color: colors.textPrimary,
   },
   recoveryHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  wordGridWrapper: {
-    borderRadius: radius.md,
-    backgroundColor: colors.background,
-    padding: spacing.sm,
+  gridContainer: {
+    position: 'relative',
     marginBottom: spacing.sm,
   },
   wordGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.xs,
-    justifyContent: 'center',
   },
   wordChip: {
-    minWidth: 84,
+    // Three equal columns that fill the card width (RN has no CSS grid).
+    flexBasis: '30%',
+    flexGrow: 1,
     alignItems: 'center',
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.cardBorder,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.sm,
   },
   wordChipText: {
     fontFamily: mono.medium,
@@ -458,7 +421,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(245, 184, 41, 0.28)',
     borderRadius: radius.md,
     padding: spacing.md,
-    marginTop: spacing.xs,
   },
   warningText: {
     flex: 1,
