@@ -1,6 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -29,7 +28,11 @@ type Props = {
   onClose: () => void;
 };
 
-/** Searchable bottom-sheet game picker (replaces the inline dropdown). */
+/**
+ * Searchable game picker (replaces the inline dropdown). Rendered as an
+ * absolute overlay INSIDE the host modal rather than its own Modal - stacking
+ * a second RN Modal over the create sheet doesn't reliably present on iOS.
+ */
 export default function GamePickerSheet({
   visible,
   choices,
@@ -38,6 +41,11 @@ export default function GamePickerSheet({
   onClose,
 }: Props) {
   const [query, setQuery] = useState('');
+
+  // Reset the search each time the picker is dismissed.
+  useEffect(() => {
+    if (!visible) setQuery('');
+  }, [visible]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -48,13 +56,10 @@ export default function GamePickerSheet({
     );
   }, [choices, query]);
 
+  if (!visible) return null;
+
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
+    <View style={StyleSheet.absoluteFill}>
       <Pressable style={styles.overlay} onPress={onClose} />
       <SafeAreaView style={styles.wrapper} edges={['bottom']} pointerEvents="box-none">
         <View style={styles.sheet}>
@@ -106,7 +111,7 @@ export default function GamePickerSheet({
           </View>
         </View>
       </SafeAreaView>
-    </Modal>
+    </View>
   );
 }
 

@@ -88,14 +88,13 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
     GAME_CHOICES.find(g => g.gameType === gameType) ?? GAME_CHOICES[0];
 
   return (
-    <>
-      <Modal
-        visible={visible}
-        transparent
-        animationType="slide"
-        onRequestClose={onClose}
-      >
-        <Pressable style={styles.overlay} onPress={onClose} />
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <Pressable style={styles.overlay} onPress={onClose} />
         <SafeAreaView style={styles.sheetWrapper} pointerEvents="box-none" edges={['bottom']}>
           <View style={styles.sheet}>
             <View style={styles.dragHandle} />
@@ -169,19 +168,18 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
             <Button label="Cancel" variant="ghost" size="md" onPress={onClose} />
           </View>
         </SafeAreaView>
-      </Modal>
 
-      <GamePickerSheet
-        visible={gamePickerVisible}
-        choices={GAME_CHOICES}
-        selected={gameType}
-        onSelect={gt => {
-          setGameType(gt);
-          setGamePickerVisible(false);
-        }}
-        onClose={() => setGamePickerVisible(false)}
-      />
-    </>
+        <GamePickerSheet
+          visible={gamePickerVisible}
+          choices={GAME_CHOICES}
+          selected={gameType}
+          onSelect={gt => {
+            setGameType(gt);
+            setGamePickerVisible(false);
+          }}
+          onClose={() => setGamePickerVisible(false)}
+        />
+      </Modal>
   );
 }
 
@@ -219,9 +217,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
     color: colors.textPrimary,
   },
-  // A label + its control, grouped tighter than the block rhythm.
+  // A label + its control. Same gap as the sheet so every vertical gap in
+  // the modal - title, labels, controls, buttons - is identical.
   field: {
-    gap: spacing.sm,
+    gap: spacing.md,
   },
   label: {
     color: colors.textMuted,

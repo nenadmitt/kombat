@@ -41,7 +41,7 @@ type Props = {
  */
 export default function AssetSelector({ value, onChange }: Props) {
   return (
-    <View>
+    <View style={styles.container}>
       <View style={styles.row}>
         {COIN_OPTIONS.map(coin => {
           const active = coin.key === value;
@@ -95,6 +95,10 @@ export default function AssetSelector({ value, onChange }: Props) {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    // Same vertical rhythm as the sheet that hosts it.
+    gap: spacing.md,
+  },
   row: {
     flexDirection: 'row',
     gap: spacing.xs,
@@ -138,7 +142,6 @@ const styles = StyleSheet.create({
   noStake: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: spacing.xs,
     paddingVertical: 14,
     borderRadius: radius.sm,
     backgroundColor: 'rgba(255,255,255,0.05)',
