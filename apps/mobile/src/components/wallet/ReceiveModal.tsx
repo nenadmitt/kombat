@@ -36,19 +36,25 @@ export default function ReceiveModal({ visible, onClose, chain, address }: Props
   };
 
   return (
-    <BottomSheet visible={visible} onClose={handleClose} title="Receive">
+    <BottomSheet
+      visible={visible}
+      onClose={handleClose}
+      title="Receive"
+      showClose
+      gap={spacing.md}
+    >
       <View style={styles.networkPill}>
-        <BrandIcon type={chain.icon} size={16} />
+        <BrandIcon type={chain.icon} size={20} />
         <Text style={styles.networkText}>{chain.network}</Text>
       </View>
 
       <View style={styles.qrCard}>
         <QRCode
           value={address}
-          size={180}
+          size={190}
           ecl="H"
           backgroundColor="#ffffff"
-          color="#0A0A0C"
+          color="#0b0c14"
         />
         <View style={styles.qrLogo}>
           <Text style={styles.qrLogoGlyph}>◆</Text>
@@ -70,15 +76,15 @@ export default function ReceiveModal({ visible, onClose, chain, address }: Props
       </Pressable>
 
       <View style={styles.warning}>
-        <Icon type="warning" color={colors.gold} size={14} />
+        <Icon type="warning" color={colors.gold} size={18} />
         <Text style={styles.warningText}>
-          Only send {chain.network} assets to this address.
+          {chain.network} only. Assets sent on another network are lost.
         </Text>
       </View>
 
       <View style={styles.actions}>
         <Button
-          label={copied ? 'Copied' : 'Copy'}
+          label={copied ? 'Copied' : 'Copy address'}
           icon={copied ? 'check' : 'copy'}
           onPress={handleCopy}
           style={styles.actionBtn}
@@ -106,7 +112,7 @@ const styles = StyleSheet.create({
     borderColor: colors.cardBorder,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.md,
-    paddingVertical: 8,
+    paddingVertical: 9,
   },
   networkText: {
     ...type.subheading,
@@ -118,33 +124,36 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     padding: spacing.md,
     borderRadius: radius.lg,
-    marginTop: spacing.lg,
+    // Soft bloom behind the code (iOS).
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
   },
   qrLogo: {
     position: 'absolute',
     top: '50%',
     left: '50%',
-    width: 40,
-    height: 40,
-    marginTop: -20,
-    marginLeft: -20,
-    borderRadius: radius.sm,
+    width: 44,
+    height: 44,
+    marginTop: -22,
+    marginLeft: -22,
+    borderRadius: radius.md,
     backgroundColor: colors.accent,
-    borderWidth: 3,
+    borderWidth: 4,
     borderColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
   },
   qrLogoGlyph: {
     fontFamily: mono.bold,
-    fontSize: 16,
+    fontSize: 18,
     color: colors.onAccent,
   },
   addressBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginTop: spacing.lg,
     padding: spacing.md,
     borderRadius: radius.md,
     backgroundColor: colors.surfaceMuted,
@@ -153,8 +162,9 @@ const styles = StyleSheet.create({
   },
   address: {
     flex: 1,
-    fontFamily: mono.medium,
+    fontFamily: mono.bold,
     fontSize: 14,
+    letterSpacing: 0.4,
     color: colors.textPrimary,
   },
   pressed: {
@@ -162,19 +172,22 @@ const styles = StyleSheet.create({
   },
   warning: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    marginTop: spacing.md,
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.goldSoft,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 184, 41, 0.28)',
   },
   warningText: {
+    flex: 1,
     ...type.caption,
-    color: colors.textMuted,
+    color: colors.gold,
   },
   actions: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginTop: spacing.lg,
   },
   actionBtn: {
     flex: 1,

@@ -3,25 +3,48 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, radius, spacing } from '../../theme/colors';
-import { mono, type } from '../../theme/typography';
+import { display, mono, type } from '../../theme/typography';
 import type { Chain } from '../../wallet/chains';
 import Icon from '../Icon';
-import { BottomSheet, Button } from '../ui';
+import { BottomSheet, Button, Card } from '../ui';
 
 type Props = {
   visible: boolean;
   onClose: () => void;
+  /** Opens the Receive (QR) sheet for the same address. */
+  onShowQr?: () => void;
   chain: Chain;
   address: string;
 };
 
+// Provider brand tints (not theme tokens - they're external brands).
 const PROVIDERS = [
-  { key: 'moonpay', label: 'MoonPay', badge: 'M', tint: colors.accent },
-  { key: 'ramp', label: 'Ramp', badge: 'R', tint: colors.success },
+  {
+    key: 'moonpay',
+    badge: 'M',
+    tint: '#7c5cf6',
+    title: 'Buy with card',
+    provider: 'MoonPay',
+    detail: 'Visa, Mastercard, Apple Pay',
+  },
+  {
+    key: 'ramp',
+    badge: 'R',
+    tint: '#3aa17e',
+    title: 'Bank transfer',
+    provider: 'Ramp',
+    detail: 'SEPA & faster payments',
+  },
 ] as const;
 
 /** Direct card/bank deposits aren't wired up - points the user at their address. */
-export default function DepositModal({ visible, onClose, chain, address }: Props) {
+export default function DepositModal({
+  visible,
+  onClose,
+  onShowQr,
+  chain,
+  address,
+}: Props) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -35,131 +58,183 @@ export default function DepositModal({ visible, onClose, chain, address }: Props
   };
 
   return (
-    <BottomSheet visible={visible} onClose={handleClose} title="Deposit">
-      <View style={styles.iconWrap}>
-        <Icon type="banknote" color={colors.accent} size={26} />
-      </View>
-
-      <Text style={styles.heading}>Direct deposits aren&apos;t supported yet</Text>
-      <Text style={styles.body}>
-        To add funds, send crypto straight to your wallet address on{' '}
-        {chain.network}.
-      </Text>
-
-      <Pressable
-        onPress={handleCopy}
-        style={({ pressed }) => [styles.addressRow, pressed && styles.pressed]}
-      >
-        <Text style={styles.address} numberOfLines={1} ellipsizeMode="middle">
-          {address}
-        </Text>
-        <Icon
-          type={copied ? 'check' : 'copy'}
-          color={copied ? colors.success : colors.textSecondary}
-          size={18}
-        />
-      </Pressable>
-
-      <Text style={styles.sectionLabel}>Buy with card · Coming soon</Text>
-      <View style={styles.providerRow}>
-        {PROVIDERS.map(provider => (
-          <View key={provider.key} style={styles.provider}>
-            <View style={[styles.providerBadge, { backgroundColor: provider.tint }]}>
-              <Text style={styles.providerBadgeText}>{provider.badge}</Text>
-            </View>
-            <Text style={styles.providerLabel}>{provider.label}</Text>
+    <BottomSheet
+      visible={visible}
+      onClose={handleClose}
+      title="Add funds"
+      subtitle="One way in for now - more coming soon."
+      showClose
+      gap={spacing.md}
+    >
+      {/* The one wired-up path: transfer to your own address. */}
+      <Card accent style={styles.transferCard}>
+        <View style={styles.transferHead}>
+          <View style={styles.transferIcon}>
+            <Icon type="arrow-down" color={colors.onAccent} size={22} />
           </View>
-        ))}
+          <View style={styles.transferText}>
+            <Text style={styles.transferTitle}>Transfer from another wallet</Text>
+            <Text style={styles.transferSub}>
+              Send to your address on {chain.network}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.addressBox}>
+          <Text style={styles.address} numberOfLines={2}>
+            {address}
+          </Text>
+          <Pressable onPress={handleCopy} hitSlop={8}>
+            <Icon
+              type={copied ? 'check' : 'copy'}
+              color={copied ? colors.success : colors.textSecondary}
+              size={18}
+            />
+          </Pressable>
+        </View>
+
+        <View style={styles.transferActions}>
+          <Button
+            label={copied ? 'Copied' : 'Copy'}
+            icon={copied ? 'check' : 'copy'}
+            onPress={handleCopy}
+            style={styles.actionFlex}
+          />
+          <Button
+            label="Show QR"
+            icon="grid"
+            variant="outline"
+            onPress={onShowQr}
+            style={styles.actionFlex}
+          />
+        </View>
+      </Card>
+
+      {/* Coming soon */}
+      <View style={styles.dividerRow}>
+        <View style={styles.dividerLine} />
+        <Text style={styles.dividerText}>Coming soon</Text>
+        <View style={styles.dividerLine} />
       </View>
 
-      <Button label="Got it" onPress={handleClose} style={styles.button} />
+      {PROVIDERS.map(p => (
+        <View key={p.key} style={styles.provider}>
+          <View style={[styles.providerBadge, { backgroundColor: p.tint }]}>
+            <Text style={styles.providerBadgeText}>{p.badge}</Text>
+          </View>
+          <View style={styles.providerText}>
+            <Text style={styles.providerTitle}>
+              {p.title} · {p.provider}
+            </Text>
+            <Text style={styles.providerDetail}>{p.detail}</Text>
+          </View>
+          <Icon type="lock" color={colors.textFaint} size={18} />
+        </View>
+      ))}
+
+      <Button label="Got it" variant="secondary" onPress={handleClose} />
     </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  iconWrap: {
-    alignSelf: 'center',
-    width: 56,
-    height: 56,
-    borderRadius: radius.md,
-    backgroundColor: colors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
+  transferCard: {
+    gap: spacing.md,
   },
-  heading: {
-    ...type.heading,
-    fontSize: 18,
-    color: colors.textPrimary,
-    textAlign: 'center',
-  },
-  body: {
-    ...type.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.xs,
-  },
-  addressRow: {
+  transferHead: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginTop: spacing.lg,
+  },
+  transferIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  transferText: {
+    flex: 1,
+    gap: spacing.xxs,
+  },
+  transferTitle: {
+    ...type.subheading,
+    color: colors.textPrimary,
+  },
+  transferSub: {
+    ...type.caption,
+    color: colors.textSecondary,
+  },
+  addressBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(0,0,0,0.28)',
+  },
+  address: {
+    flex: 1,
+    fontFamily: mono.bold,
+    fontSize: 14,
+    letterSpacing: 0.4,
+    color: colors.textPrimary,
+  },
+  transferActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  actionFlex: {
+    flex: 1,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.cardBorder,
+  },
+  dividerText: {
+    ...type.label,
+    color: colors.textMuted,
+  },
+  provider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     padding: spacing.md,
     borderRadius: radius.md,
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.cardBorder,
   },
-  address: {
-    flex: 1,
-    fontFamily: mono.medium,
-    fontSize: 13,
-    color: colors.textPrimary,
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  sectionLabel: {
-    ...type.label,
-    color: colors.textMuted,
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  providerRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  provider: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    opacity: 0.6,
-  },
   providerBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
+    width: 44,
+    height: 44,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
   providerBadgeText: {
-    fontFamily: mono.bold,
-    fontSize: 14,
-    color: colors.onAccent,
+    fontFamily: display.bold,
+    fontSize: 18,
+    color: '#ffffff',
   },
-  providerLabel: {
+  providerText: {
+    flex: 1,
+    gap: spacing.xxs,
+  },
+  providerTitle: {
     ...type.subheading,
-    fontSize: 14,
-    color: colors.textSecondary,
+    fontSize: 15,
+    color: colors.textPrimary,
   },
-  button: {
-    marginTop: spacing.lg,
+  providerDetail: {
+    ...type.caption,
+    color: colors.textMuted,
   },
 });

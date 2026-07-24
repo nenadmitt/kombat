@@ -371,6 +371,12 @@ export default function WalletScreen() {
           <DepositModal
             visible={openModal === 'deposit'}
             onClose={() => setOpenModal(null)}
+            onShowQr={() => {
+              // Hand off to the Receive sheet; let this one dismiss first so
+              // the two transparent Modals don't overlap (wedges iOS touches).
+              setOpenModal(null);
+              setTimeout(() => setOpenModal('receive'), 350);
+            }}
             chain={activeChain}
             address={wallet.address}
           />

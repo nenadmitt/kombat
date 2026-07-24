@@ -3,26 +3,32 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, radius, spacing } from '../../theme/colors';
-import { display } from '../../theme/typography';
+import { display, type as typePresets } from '../../theme/typography';
 import Icon from '../Icon';
 
 type Props = {
   visible: boolean;
   onClose: () => void;
   title?: string;
+  /** Optional one-liner under the title. */
+  subtitle?: string;
   /** Show a round X in the title row. */
   showClose?: boolean;
+  /** When set, children are laid out with this uniform vertical gap. */
+  gap?: number;
   /** Fired once the sheet has fully animated away (iOS Modal onDismiss). */
   onDismissed?: () => void;
   children: ReactNode;
 };
 
-/** Slide-up sheet chrome (dim overlay, drag handle, optional title). */
+/** Slide-up sheet chrome (dim overlay, drag handle, optional title/subtitle). */
 export default function BottomSheet({
   visible,
   onClose,
   title,
+  subtitle,
   showClose,
+  gap,
   onDismissed,
   children,
 }: Props) {
@@ -36,11 +42,14 @@ export default function BottomSheet({
     >
       <Pressable style={styles.overlay} onPress={onClose} />
       <SafeAreaView style={styles.wrapper} pointerEvents="box-none" edges={['bottom']}>
-        <View style={styles.sheet}>
-          <View style={styles.dragHandle} />
+        <View style={[styles.sheet, gap != null && { gap }]}>
+          <View style={[styles.dragHandle, gap == null && styles.dragHandleSpaced]} />
           {title || showClose ? (
-            <View style={styles.header}>
-              <Text style={styles.title}>{title}</Text>
+            <View style={[styles.header, gap == null && styles.headerSpaced]}>
+              <View style={styles.headerText}>
+                {title ? <Text style={styles.title}>{title}</Text> : null}
+                {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+              </View>
               {showClose ? (
                 <Pressable
                   onPress={onClose}
@@ -85,20 +94,33 @@ const styles = StyleSheet.create({
     width: 38,
     height: 4,
     borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: colors.borderStrong,
+  },
+  dragHandleSpaced: {
     marginBottom: spacing.md,
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  headerSpaced: {
     marginBottom: spacing.md,
+  },
+  headerText: {
+    flex: 1,
+    gap: spacing.xxs,
   },
   title: {
     fontFamily: display.bold,
-    fontSize: 22,
+    fontSize: 26,
     letterSpacing: -0.3,
     color: colors.textPrimary,
+  },
+  subtitle: {
+    ...typePresets.body,
+    color: colors.textSecondary,
   },
   closeBtn: {
     width: 32,
