@@ -13,11 +13,11 @@ type TabConfig = { label: string; icon: IconName; center?: boolean };
 
 /** Keyed by route name; `center` marks the raised LOBBY action. */
 const CONFIG: Record<string, TabConfig> = {
-  DemoGames: { label: 'GAMES', icon: 'games' },
+  Profile: { label: 'PROFILE', icon: 'user' },
   Wallet: { label: 'WALLET', icon: 'wallet' },
   Games: { label: 'LOBBY', icon: 'gem', center: true },
   History: { label: 'HISTORY', icon: 'history' },
-  Profile: { label: 'PROFILE', icon: 'user' },
+  DemoGames: { label: 'DEMO', icon: 'games' },
 };
 
 /**
