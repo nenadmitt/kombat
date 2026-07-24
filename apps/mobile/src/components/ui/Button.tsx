@@ -73,6 +73,7 @@ export default function Button({
         styles.base,
         { height: s.height, paddingHorizontal: s.padX, borderRadius: s.radius },
         { backgroundColor: v.bg, borderColor: v.border, borderWidth: v.border ? 1 : 0 },
+        variant === 'primary' && !isDisabled && styles.primaryGlow,
         fullWidth && styles.fullWidth,
         pressed && !isDisabled && styles.pressed,
         isDisabled && styles.disabled,
@@ -121,6 +122,14 @@ const styles = StyleSheet.create({
   base: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Subtle accent halo under the solid-lime CTA (iOS; Android has no coloured
+  // elevation). Kept low so it reads as a glow, not a drop shadow.
+  primaryGlow: {
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
   },
   fullWidth: {
     alignSelf: 'stretch',

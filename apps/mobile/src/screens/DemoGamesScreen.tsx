@@ -3,6 +3,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { GameType } from '@gaming-platform/core';
 
+import { GradientView } from '../components/GradientView';
 import Icon, { type IconName } from '../components/Icon';
 import { Card, Chip, Screen, SectionLabel } from '../components/ui';
 import { GAME_TYPE_DEMO_SCREENS } from '../games/game-type-demo-screens';
@@ -59,10 +60,15 @@ export default function DemoGamesScreen() {
         <View style={styles.grid}>
           {GAMES.map(game => (
             <Card key={game.name} flush style={styles.gameCard}>
-              <View style={styles.gameArt}>
+              <GradientView
+                colors={[colors.accent800, colors.surface]}
+                start={{ x: 1, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={styles.gameArt}
+              >
                 <Chip label="Demo" tone="neutral" style={styles.demoBadge} />
                 <Icon type={game.icon} color={colors.textPrimary} size={40} />
-              </View>
+              </GradientView>
               <View style={styles.gameBody}>
                 <Text style={styles.gameName}>{game.name}</Text>
                 <Text style={styles.gameMeta}>
@@ -131,8 +137,6 @@ const styles = StyleSheet.create({
     height: 90,
     alignItems: 'center',
     justifyContent: 'center',
-    // Uniform accent wash header (the redesign's accent-800 -> transparent art).
-    backgroundColor: colors.accent900,
   },
   demoBadge: {
     position: 'absolute',

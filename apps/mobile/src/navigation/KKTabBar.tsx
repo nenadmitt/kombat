@@ -127,9 +127,10 @@ const styles = StyleSheet.create({
     borderColor: colors.canvas,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.6,
+    // Accent bloom under the raised LOBBY action (0 10px 26px accent).
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
     shadowRadius: 20,
     elevation: 10,
   },

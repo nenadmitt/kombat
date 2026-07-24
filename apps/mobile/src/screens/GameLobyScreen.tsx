@@ -317,8 +317,17 @@ export default function GameLobyScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View style={styles.listHeader}>
-            {/* Featured game */}
-            <Card accent style={styles.featured}>
+            {/* Featured game - diagonal ramp gradient + a corner accent bloom. */}
+            <Card
+              accent
+              gradient={{
+                colors: [colors.accent900, colors.accent800],
+                start: { x: 0, y: 0 },
+                end: { x: 1, y: 1 },
+              }}
+              glow={{ color: colors.accent, size: 150, opacity: 0.4, edge: 0.7, top: -45, right: -35 }}
+              style={styles.featured}
+            >
               <View style={styles.featuredThumb}>
                 <Icon type={GAME_ICON} color={colors.accentLight} size={30} />
               </View>
@@ -591,6 +600,11 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     backgroundColor: colors.accent,
+    // 0 0 8px accent glow (iOS).
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 4,
   },
   featuredEyebrowText: {
     fontFamily: mono.semiBold,

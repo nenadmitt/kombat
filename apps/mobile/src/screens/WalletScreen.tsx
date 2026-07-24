@@ -10,6 +10,7 @@ import {
 import { formatUnits, type Address, type Hex } from 'viem';
 
 import BrandIcon from '../components/BrandIcon';
+import { GradientView } from '../components/GradientView';
 import Icon, { type IconName } from '../components/Icon';
 import Sparkline from '../components/Sparkline';
 import { Card, Screen, SectionLabel } from '../components/ui';
@@ -157,8 +158,13 @@ export default function WalletScreen() {
         ) : null}
       </View>
 
-      {/* Balance card */}
-      <View style={styles.balanceCard}>
+      {/* Balance card - 150deg lime -> deep-lime gradient. */}
+      <GradientView
+        colors={[colors.accent, colors.accent600]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={styles.balanceCard}
+      >
         <View style={styles.balanceTop}>
           <Pressable
             onPress={() => setHideBalance(v => !v)}
@@ -208,7 +214,7 @@ export default function WalletScreen() {
             <View style={styles.allocEmpty} />
           )}
         </View>
-      </View>
+      </GradientView>
 
       {/* Actions */}
       <View style={styles.actionRow}>
@@ -425,7 +431,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   balanceCard: {
-    backgroundColor: colors.accent,
     borderRadius: radius.xl,
     padding: spacing.lg,
     gap: spacing.xs,

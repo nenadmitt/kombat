@@ -34,7 +34,10 @@ const GLOW_TRANSPARENT = 'rgba(142, 224, 90, 0)';
 const GLOW_HEIGHT = 420;
 /** The design's board panel + ROLL button styling. */
 const BOARD_PANEL_BG = colors.canvas;
-const ROLL_GRADIENT = { colors: ['#a0e962', '#63a72c'], positions: [0, 1] } as const;
+const ROLL_GRADIENT = {
+  colors: [colors.accent400, colors.accent600],
+  positions: [0, 1],
+} as const;
 
 /**
  * Pure-UI Ludo screen: renders entirely from engine props and reports
