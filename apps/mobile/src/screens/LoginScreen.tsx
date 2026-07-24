@@ -88,7 +88,7 @@ export default function LoginScreen(_props: Props) {
           <View style={styles.logoTile}>
             <Icon type="gem" color={colors.onAccent} size={34} />
           </View>
-          <Text style={styles.wordmark}>KRYPTOKOMBAT</Text>
+          <Text style={styles.wordmark}>KOMBAT</Text>
         </View>
 
         {/* Hero visual */}
