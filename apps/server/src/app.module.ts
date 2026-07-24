@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
+import { AdminModule } from './admin/admin.module';
 import { AppController } from './app.controller';
 import { AuthenticationModule } from './authentication';
 import { CacheModule } from './cache';
@@ -24,6 +25,7 @@ import { WebsocketsModule } from './websockets';
     WebsocketsModule,
     GamesModule,
     MaintenanceModule,
+    AdminModule,
   ],
   controllers: [AppController],
 })

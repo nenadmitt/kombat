@@ -59,6 +59,11 @@ export class DbService {
     await this.dataSource.query('SELECT 1');
   }
 
+  /** Every user, newest first. Admin surface only (no pagination yet). */
+  findAllUsers(): Promise<UserEntity[]> {
+    return this.userRepository.find({ order: { createdAt: 'DESC' } });
+  }
+
   findUserById(id: string): Promise<UserEntity | null> {
     return this.userRepository.findOneBy({ id });
   }
@@ -86,6 +91,18 @@ export class DbService {
 
   saveUser(user: UserEntity): Promise<UserEntity> {
     return this.userRepository.save(user);
+  }
+
+  /**
+   * Hard-deletes a user row. The only DB foreign key to users is
+   * email_login_tokens (ON DELETE CASCADE), so those go automatically;
+   * wallets and game_rooms are plain uuid columns with no FK, so callers
+   * that want them gone must delete those first (see AdminService). Returns
+   * true when a row was actually removed.
+   */
+  async deleteUser(id: string): Promise<boolean> {
+    const result = await this.userRepository.delete({ id });
+    return (result.affected ?? 0) > 0;
   }
 
   // --- email login tokens ---
@@ -119,6 +136,13 @@ export class DbService {
 
   countWalletsForUser(userId: string): Promise<number> {
     return this.walletRepository.countBy({ userId });
+  }
+
+  /** Removes every wallet row for a user (custodial keys included). Returns
+   *  how many were deleted. Wallets have no FK to users, so this is manual. */
+  async deleteWalletsForUser(userId: string): Promise<number> {
+    const result = await this.walletRepository.delete({ userId });
+    return result.affected ?? 0;
   }
 
   createWallet(data: {
@@ -356,6 +380,20 @@ export class DbService {
         ...(excludeUserId ? { userId: Not(excludeUserId) } : {}),
       },
       order: { createdAt: 'ASC' },
+    });
+  }
+
+  /**
+   * Every live room (Pending or InProgress), newest first, private included.
+   * Admin surface only - unlike the lobby query this applies no privacy or
+   * ownership filter.
+   */
+  findActiveGameRooms(): Promise<GameRoomEntity[]> {
+    return this.gameRoomRepository.find({
+      where: {
+        status: In([GameRoomStatus.Pending, GameRoomStatus.InProgress]),
+      },
+      order: { createdAt: 'DESC' },
     });
   }
 

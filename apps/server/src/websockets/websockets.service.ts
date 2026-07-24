@@ -13,9 +13,37 @@ import { channelRoom, userRoom } from './rooms.util';
 export class WebsocketsService {
   private readonly logger = new Logger(WebsocketsService.name);
   private server?: Server;
+  /**
+   * In-memory online presence: userId -> number of open sockets (a user may
+   * have several devices/tabs). Maintained by the gateway on connect/
+   * disconnect and read by the admin surface. This is per-instance, so with
+   * the multi-instance Redis setup it reflects only this node's connections
+   * (same single-instance caveat as the in-memory cache fallback).
+   */
+  private readonly onlineCounts = new Map<string, number>();
 
   setServer(server: Server): void {
     this.server = server;
+  }
+
+  /** Records a new socket for a user; call once per authenticated connection. */
+  markConnected(userId: string): void {
+    this.onlineCounts.set(userId, (this.onlineCounts.get(userId) ?? 0) + 1);
+  }
+
+  /** Drops one of a user's sockets; removes them once the last one closes. */
+  markDisconnected(userId: string): void {
+    const next = (this.onlineCounts.get(userId) ?? 0) - 1;
+    if (next > 0) {
+      this.onlineCounts.set(userId, next);
+    } else {
+      this.onlineCounts.delete(userId);
+    }
+  }
+
+  /** The ids of users with at least one open socket on this instance. */
+  getOnlineUserIds(): string[] {
+    return [...this.onlineCounts.keys()];
   }
 
   /** Sends `event` to every socket the given user currently has connected. */

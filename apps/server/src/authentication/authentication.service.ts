@@ -18,8 +18,30 @@ export class AuthenticationService {
   ) {}
 
   async requestToken(email: string): Promise<void> {
+    // Demo account: no inbox to mail, and the code is fixed. Just make sure
+    // the user row exists so the exchange can sign a token for it.
+    if (this.isDemoLogin(email)) {
+      await this.ensureUser(email);
+      return;
+    }
     const token = await this.createLoginToken(email);
     await this.emailService.sendLoginToken(email, token);
+  }
+
+  /**
+   * True when a fixed demo code is configured (DEMO_LOGIN_CODE) and `email`
+   * is the demo account. Off entirely unless the code is set.
+   */
+  private isDemoLogin(email: string): boolean {
+    return (
+      !!this.configService.DEMO_LOGIN_CODE &&
+      email.trim().toLowerCase() === this.configService.DEMO_LOGIN_EMAIL
+    );
+  }
+
+  private async ensureUser(email: string) {
+    const existing = await this.dbService.findUserByEmail(email);
+    return existing ?? this.dbService.createUser(email);
   }
 
   /**
@@ -56,6 +78,16 @@ export class AuthenticationService {
     email: string,
     token: string,
   ): Promise<{ accessToken: string }> {
+    // Demo account: accept only the fixed code, bypassing the stored OTP.
+    if (this.isDemoLogin(email)) {
+      if (token !== this.configService.DEMO_LOGIN_CODE) {
+        throw new UnauthorizedException('Invalid or expired token');
+      }
+      const demoUser = await this.ensureUser(email);
+      const accessToken = await this.jwtService.signAsync({ sub: demoUser.id });
+      return { accessToken };
+    }
+
     const user = await this.dbService.findUserByEmail(email);
     if (!user) {
       throw new UnauthorizedException('Invalid or expired token');

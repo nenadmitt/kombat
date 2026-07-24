@@ -24,6 +24,17 @@ export class ConfigurationService {
   public readonly EMAIL_FROM: string;
   public readonly IS_PRODUCTION: boolean;
 
+  // ---- App Review demo login ---------------------------------------------
+  /** The fixed-code demo account's email (defaults to demo@playkombat.xyz). */
+  public readonly DEMO_LOGIN_EMAIL: string;
+  /**
+   * Optional fixed login code for the demo account. When set, that email logs
+   * in with this exact code and skips the email OTP entirely - for handing a
+   * throwaway account to Apple/iOS review. Off (no bypass) unless set. Must be
+   * 8 characters to satisfy the login-code format.
+   */
+  public readonly DEMO_LOGIN_CODE: string | undefined;
+
   // ---- staking / chain (optional as a group: unset ⇒ staking disabled,
   // free games unaffected) -------------------------------------------------
   public readonly CHAIN_RPC_URL: string | undefined;
@@ -65,6 +76,13 @@ export class ConfigurationService {
       this.configService.get('EMAIL_FROM') ?? 'login@gaming-platform.local';
     this.IS_PRODUCTION =
       (this.configService.get('NODE_ENV') ?? 'development') === 'production';
+
+    this.DEMO_LOGIN_EMAIL = (
+      this.configService.get('DEMO_LOGIN_EMAIL') ?? 'demo@playkombat.xyz'
+    )
+      .trim()
+      .toLowerCase();
+    this.DEMO_LOGIN_CODE = this.configService.get('DEMO_LOGIN_CODE');
 
     this.CHAIN_RPC_URL = this.configService.get('CHAIN_RPC_URL');
     this.CHAIN_ID = parseInt(
