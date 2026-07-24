@@ -12,7 +12,13 @@ import Icon, { type IconName } from '../Icon';
 import { colors, radius, spacing } from '../../theme/colors';
 import { type as typePresets } from '../../theme/typography';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'tinted' | 'ghost' | 'danger';
+export type ButtonVariant =
+  | 'primary'
+  | 'secondary'
+  | 'outline'
+  | 'tinted'
+  | 'ghost'
+  | 'danger';
 export type ButtonSize = 'lg' | 'md' | 'sm';
 
 type Props = {
@@ -33,9 +39,10 @@ type Props = {
 
 /**
  * The one button used across the app. Flat, single-accent design:
- * - primary   - solid violet fill, dark label
- * - secondary - outlined, transparent fill
- * - tinted    - soft violet wash, violet label
+ * - primary   - solid accent fill, dark label
+ * - secondary - outlined (neutral border), transparent fill
+ * - outline   - accent outline + accent label, transparent fill (inline CTAs)
+ * - tinted    - soft accent wash, accent label
  * - danger    - soft red wash, red label
  * - ghost     - text only
  */
@@ -95,6 +102,7 @@ const VARIANTS: Record<
 > = {
   primary: { bg: colors.accent, fg: colors.onAccent },
   secondary: { bg: 'transparent', fg: colors.textPrimary, border: colors.borderStrong },
+  outline: { bg: 'transparent', fg: colors.accent, border: colors.accent },
   tinted: { bg: colors.accentSoft, fg: colors.accentLight },
   danger: { bg: colors.dangerSoft, fg: colors.danger },
   ghost: { bg: 'transparent', fg: colors.textSecondary },
