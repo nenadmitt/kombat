@@ -14,7 +14,7 @@ import { CHAIN_TOKENS, type BalanceChainId, type TokenSymbol } from '../../walle
 import { sendTransfer } from '../../wallet/transfer';
 import BrandIcon from '../BrandIcon';
 import Icon from '../Icon';
-import { BottomSheet, Button } from '../ui';
+import { BottomSheet, Button, Card } from '../ui';
 
 export type SubmittedTx = {
   hash: Hex;
@@ -40,9 +40,7 @@ function trimAmount(value: number): string {
   if (!Number.isFinite(value) || value <= 0) {
     return '';
   }
-  return value
-    .toFixed(value >= 1 ? 2 : 6)
-    .replace(/\.?0+$/, '');
+  return value.toFixed(value >= 1 ? 2 : 6).replace(/\.?0+$/, '');
 }
 
 export default function WithdrawModal({
@@ -69,6 +67,8 @@ export default function WithdrawModal({
   );
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
+  const [activeFraction, setActiveFraction] = useState<number | null>(null);
+  const [tokenPickerOpen, setTokenPickerOpen] = useState(false);
   const [step, setStep] = useState<'form' | 'review'>('form');
   const [resolved, setResolved] = useState<ResolvedRecipient | null>(null);
   const [busy, setBusy] = useState(false);
@@ -86,8 +86,7 @@ export default function WithdrawModal({
       return null;
     }
   })();
-  const exceedsBalance =
-    amountWei != null && maxRaw != null && amountWei > maxRaw;
+  const exceedsBalance = amountWei != null && maxRaw != null && amountWei > maxRaw;
 
   const usdApprox = (() => {
     const num = Number(amount);
@@ -103,6 +102,8 @@ export default function WithdrawModal({
     setSymbol(tokens[0].symbol);
     setRecipient('');
     setAmount('');
+    setActiveFraction(null);
+    setTokenPickerOpen(false);
     setStep('form');
     setResolved(null);
     setBusy(false);
@@ -114,13 +115,22 @@ export default function WithdrawModal({
     onClose();
   };
 
+  const editAmount = (next: string) => {
+    setAmount(next);
+    setActiveFraction(null);
+  };
+
   const applyFraction = (fraction: number) => {
     if (maxRaw == null) return;
-    if (fraction === 1) {
-      setAmount(maxAmount);
-      return;
-    }
-    setAmount(trimAmount(Number(maxAmount) * fraction));
+    setActiveFraction(fraction);
+    setAmount(fraction === 1 ? maxAmount : trimAmount(Number(maxAmount) * fraction));
+  };
+
+  const pickToken = (sym: TokenSymbol) => {
+    setSymbol(sym);
+    setAmount('');
+    setActiveFraction(null);
+    setTokenPickerOpen(false);
   };
 
   const handlePaste = async () => {
@@ -188,107 +198,155 @@ export default function WithdrawModal({
     }
   };
 
+  const tokenGlyph = (t: (typeof tokens)[number], size: number) =>
+    t.brand ? (
+      <BrandIcon type={t.brand} size={size} />
+    ) : (
+      <Text style={[styles.glyph, { color: t.tint, fontSize: size }]}>{t.glyph}</Text>
+    );
+
   return (
-    <BottomSheet visible={visible} onClose={handleClose} title="Withdraw" showClose>
+    <BottomSheet
+      visible={visible}
+      onClose={handleClose}
+      title="Withdraw"
+      showClose
+      gap={spacing.md}
+    >
       {step === 'form' ? (
         <>
-          <View style={[styles.amountCard, exceedsBalance && styles.amountCardError]}>
+          <Card accent style={[styles.amountCard, exceedsBalance && styles.amountCardError]}>
+            <View style={styles.amountTop}>
+              <Text style={[type.label, styles.amountLabel]}>Amount</Text>
+              <Text style={styles.balText}>
+                Bal <Text style={styles.balValue}>{balances[token.symbol]?.formatted ?? '0.00'}</Text> {token.symbol}
+              </Text>
+            </View>
+
             <View style={styles.amountRow}>
               <TextInput
                 value={amount}
-                onChangeText={setAmount}
+                onChangeText={editAmount}
                 placeholder="0.00"
                 placeholderTextColor={colors.textFaint}
                 keyboardType="decimal-pad"
+                selectionColor={colors.accent}
+                cursorColor={colors.accent}
                 style={styles.amountInput}
               />
-              <Text style={styles.amountSymbol}>{token.symbol}</Text>
+              <Pressable
+                onPress={() => setTokenPickerOpen(o => !o)}
+                style={styles.tokenPill}
+              >
+                {tokenGlyph(token, 20)}
+                <Text style={styles.tokenPillText}>{token.symbol}</Text>
+                <Icon type="chevron-down" color={colors.textSecondary} size={16} />
+              </Pressable>
             </View>
             <Text style={styles.amountUsd}>≈ {usdApprox} USD</Text>
 
             <View style={styles.fractionRow}>
-              {QUICK_FRACTIONS.map(fraction => (
+              {QUICK_FRACTIONS.map(fraction => {
+                const active = activeFraction === fraction;
+                return (
+                  <Pressable
+                    key={fraction}
+                    onPress={() => applyFraction(fraction)}
+                    style={[styles.fractionBtn, active && styles.fractionBtnActive]}
+                  >
+                    <Text style={[styles.fractionText, active && styles.fractionTextActive]}>
+                      {fraction === 1 ? 'MAX' : `${fraction * 100}%`}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </Card>
+
+          {tokenPickerOpen ? (
+            <View style={styles.tokenList}>
+              {tokens.map(t => (
                 <Pressable
-                  key={fraction}
-                  onPress={() => applyFraction(fraction)}
-                  style={({ pressed }) => [styles.fractionBtn, pressed && styles.pressed]}
+                  key={t.symbol}
+                  onPress={() => pickToken(t.symbol)}
+                  style={[styles.tokenRow, t.symbol === symbol && styles.tokenRowActive]}
                 >
-                  <Text style={styles.fractionText}>
-                    {fraction === 1 ? 'MAX' : `${fraction * 100}%`}
+                  {tokenGlyph(t, 22)}
+                  <Text style={styles.tokenRowSymbol}>{t.symbol}</Text>
+                  <Text style={styles.tokenRowBal}>
+                    {balances[t.symbol]?.formatted ?? '0.00'}
                   </Text>
+                  {t.symbol === symbol ? (
+                    <Icon type="check" color={colors.accent} size={18} />
+                  ) : null}
                 </Pressable>
               ))}
             </View>
-          </View>
+          ) : null}
 
-          <View style={styles.coinChips}>
-            {tokens.map(t => {
-              const active = t.symbol === symbol;
-              return (
-                <Pressable
-                  key={t.symbol}
-                  onPress={() => setSymbol(t.symbol)}
-                  style={[styles.coinChip, active && styles.coinChipActive]}
-                >
-                  {t.brand ? (
-                    <BrandIcon type={t.brand} size={18} />
-                  ) : (
-                    <Text style={[styles.coinGlyph, { color: t.tint }]}>{t.glyph}</Text>
-                  )}
-                  <Text style={[styles.coinText, active && styles.coinTextActive]}>
-                    {t.symbol}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          <Text style={styles.balText}>
-            Bal {balances[token.symbol]?.formatted ?? '0.00'} {token.symbol}
-          </Text>
-
-          <View style={styles.recipientRow}>
-            <Icon type="user" color={colors.textMuted} size={18} />
-            <TextInput
-              value={recipient}
-              onChangeText={setRecipient}
-              placeholder="Recipient address or name"
-              placeholderTextColor={colors.textFaint}
-              autoCapitalize="none"
-              autoCorrect={false}
-              style={styles.recipientInput}
-            />
-            <Pressable onPress={handlePaste} hitSlop={6} style={styles.recipientBtn}>
-              <Icon type="copy" color={colors.textSecondary} size={16} />
-            </Pressable>
-          </View>
-
-          <View style={styles.feeRow}>
-            <View style={styles.feeLeft}>
-              <Icon type="timer" color={colors.textMuted} size={14} />
-              <Text style={styles.feeLabel}>Network fee</Text>
+          <View style={styles.field}>
+            <Text style={[type.label, styles.fieldLabel]}>Send to</Text>
+            <View style={styles.recipientRow}>
+              <Icon type="user" color={colors.textMuted} size={18} />
+              <TextInput
+                value={recipient}
+                onChangeText={setRecipient}
+                placeholder="Address or Kombat username"
+                placeholderTextColor={colors.textFaint}
+                autoCapitalize="none"
+                autoCorrect={false}
+                selectionColor={colors.accent}
+                style={styles.recipientInput}
+              />
+              <Pressable onPress={handlePaste} hitSlop={6} style={styles.recipientBtn}>
+                <Icon type="copy" color={colors.textSecondary} size={16} />
+              </Pressable>
             </View>
-            <Text style={styles.feeValue}>{NETWORK_FEE_USD}</Text>
+          </View>
+
+          <View style={styles.summary}>
+            <View style={styles.summaryLine}>
+              <View style={styles.summaryKeyRow}>
+                <Icon type="grid" color={colors.textMuted} size={14} />
+                <Text style={styles.summaryKey}>Network</Text>
+              </View>
+              <Text style={styles.summaryVal}>{chain.network}</Text>
+            </View>
+            <View style={styles.summaryLine}>
+              <View style={styles.summaryKeyRow}>
+                <Icon type="timer" color={colors.textMuted} size={14} />
+                <Text style={styles.summaryKey}>Network fee</Text>
+              </View>
+              <Text style={styles.summaryVal}>{NETWORK_FEE_USD}</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryLine}>
+              <Text style={[type.label, styles.receiveKey]}>They receive</Text>
+              <Text style={styles.receiveVal}>
+                {amount || '0.00'} {token.symbol}
+              </Text>
+            </View>
           </View>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
           <Button
-            label="Review Withdrawal"
+            label="Review withdrawal"
+            trailingIcon="arrow-right"
             onPress={handleReview}
             loading={busy}
             disabled={busy || exceedsBalance}
-            style={styles.action}
           />
         </>
       ) : null}
 
       {step === 'review' && resolved ? (
         <>
-          <View style={styles.summary}>
-            <Text style={styles.summaryAmount}>
+          <Card accent style={styles.reviewCard}>
+            <Text style={styles.reviewAmount}>
               {amount} {token.symbol}
             </Text>
-            <Text style={styles.summaryUsd}>≈ {usdApprox} USD</Text>
+            <Text style={styles.amountUsd}>≈ {usdApprox} USD</Text>
             <View style={styles.summaryDivider} />
             <View style={styles.summaryLine}>
               <Text style={styles.summaryKey}>To</Text>
@@ -312,7 +370,7 @@ export default function WithdrawModal({
               <Text style={styles.summaryKey}>Network fee</Text>
               <Text style={styles.summaryVal}>{NETWORK_FEE_USD}</Text>
             </View>
-          </View>
+          </Card>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -321,7 +379,6 @@ export default function WithdrawModal({
             onPress={handleConfirm}
             loading={busy}
             disabled={busy}
-            style={styles.action}
           />
           <Button
             label="Back"
@@ -338,110 +395,129 @@ export default function WithdrawModal({
 
 const styles = StyleSheet.create({
   amountCard: {
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    alignItems: 'center',
+    gap: spacing.sm,
   },
   amountCardError: {
     borderColor: colors.danger,
   },
+  amountTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  amountLabel: {
+    color: colors.accentLight,
+  },
+  balText: {
+    ...type.caption,
+    color: colors.textMuted,
+  },
+  balValue: {
+    fontFamily: mono.bold,
+    color: colors.textPrimary,
+  },
   amountRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    gap: spacing.xs,
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   amountInput: {
+    flex: 1,
     fontFamily: mono.bold,
     fontSize: 40,
+    letterSpacing: -1,
     color: colors.textPrimary,
     padding: 0,
-    minWidth: 90,
-    textAlign: 'right',
   },
-  amountSymbol: {
+  tokenPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.28)',
+    borderRadius: radius.pill,
+    paddingLeft: spacing.sm,
+    paddingRight: spacing.xs,
+    paddingVertical: 7,
+  },
+  tokenPillText: {
     fontFamily: mono.bold,
-    fontSize: 20,
-    color: colors.textMuted,
-    marginBottom: 6,
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  glyph: {
+    fontFamily: mono.bold,
   },
   amountUsd: {
     ...type.caption,
     color: colors.textMuted,
-    marginTop: spacing.xs,
   },
   fractionRow: {
     flexDirection: 'row',
     gap: spacing.xs,
-    marginTop: spacing.md,
-    alignSelf: 'stretch',
   },
   fractionBtn: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 9,
+    paddingVertical: 10,
     borderRadius: radius.sm,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(0,0,0,0.28)',
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: 'transparent',
+  },
+  fractionBtnActive: {
+    borderColor: colors.accent,
+    backgroundColor: 'rgba(0,0,0,0.28)',
   },
   fractionText: {
     fontFamily: mono.bold,
     fontSize: 12,
     color: colors.textSecondary,
   },
-  pressed: {
-    opacity: 0.7,
+  fractionTextActive: {
+    color: colors.accentLight,
   },
-  coinChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  tokenList: {
     gap: spacing.xs,
-    marginTop: spacing.lg,
-  },
-  coinChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 9,
-    borderRadius: radius.sm,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    padding: spacing.xs,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.cardBorder,
   },
-  coinChipActive: {
+  tokenRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.sm,
+  },
+  tokenRowActive: {
     backgroundColor: colors.accentSoft,
-    borderColor: colors.accentBorder,
   },
-  coinGlyph: {
+  tokenRowSymbol: {
+    flex: 1,
     fontFamily: mono.bold,
-    fontSize: 15,
-  },
-  coinText: {
-    fontFamily: mono.semiBold,
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  coinTextActive: {
+    fontSize: 14,
     color: colors.textPrimary,
   },
-  balText: {
-    ...type.caption,
+  tokenRowBal: {
+    fontFamily: mono.medium,
+    fontSize: 13,
     color: colors.textMuted,
-    textAlign: 'right',
-    marginTop: spacing.xs,
+  },
+  field: {
+    gap: spacing.sm,
+  },
+  fieldLabel: {
+    color: colors.textMuted,
   },
   recipientRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginTop: spacing.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    height: 52,
     borderRadius: radius.md,
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
@@ -462,72 +538,58 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  feeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.md,
-  },
-  feeLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  feeLabel: {
-    ...type.caption,
-    color: colors.textMuted,
-  },
-  feeValue: {
-    fontFamily: mono.semiBold,
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  error: {
-    ...type.caption,
-    color: colors.danger,
-    marginTop: spacing.sm,
-  },
-  action: {
-    marginTop: spacing.lg,
-    marginBottom: spacing.xs,
-  },
   summary: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.md,
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-  },
-  summaryAmount: {
-    fontFamily: mono.bold,
-    fontSize: 28,
-    color: colors.textPrimary,
-    textAlign: 'center',
-  },
-  summaryUsd: {
-    ...type.caption,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: 2,
-  },
-  summaryDivider: {
-    height: 1,
-    backgroundColor: colors.cardBorder,
-    marginVertical: spacing.md,
   },
   summaryLine: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 5,
+  },
+  summaryKeyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   summaryKey: {
-    ...type.caption,
-    color: colors.textMuted,
+    ...type.body,
+    fontSize: 14,
+    color: colors.textSecondary,
   },
   summaryVal: {
-    fontFamily: mono.medium,
-    fontSize: 13,
+    fontFamily: mono.bold,
+    fontSize: 14,
     color: colors.textPrimary,
+  },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: colors.cardBorder,
+  },
+  receiveKey: {
+    color: colors.textMuted,
+  },
+  receiveVal: {
+    fontFamily: mono.bold,
+    fontSize: 15,
+    color: colors.accentLight,
+  },
+  error: {
+    ...type.caption,
+    color: colors.danger,
+  },
+  reviewCard: {
+    gap: spacing.sm,
+  },
+  reviewAmount: {
+    fontFamily: mono.bold,
+    fontSize: 30,
+    letterSpacing: -0.5,
+    color: colors.textPrimary,
+    textAlign: 'center',
   },
 });

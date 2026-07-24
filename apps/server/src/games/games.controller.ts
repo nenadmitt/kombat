@@ -136,9 +136,14 @@ export class GamesController {
     @Query() query: ListGameRoomsDto,
     @SecurityContext() securityContext: ISecurityContext,
   ): Promise<GameRoomSummary[]> {
-    return this.gamesService.listPendingRooms(
-      query.excludeOwn ? securityContext.userId : undefined,
-    );
+    return this.gamesService.listPendingRooms({
+      excludeUserId: query.excludeOwn ? securityContext.userId : undefined,
+      filters: {
+        gameTypes: query.gameTypes,
+        stake: query.stake,
+        stakeTokens: query.stakeTokens,
+      },
+    });
   }
 
   /** The requesting user's own open room, if any — lets the client resume a "waiting" state on app start. */
