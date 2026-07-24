@@ -80,3 +80,42 @@ export type RoomPlayerLeftPayload = RoomPlayerJoinedPayload;
 export type RoomStartedPayload = {
   roomId: string;
 };
+
+/**
+ * The live-lobby channel. Clients join it (`channel:join { channel: 'lobby' }`)
+ * only while the lobby screen is open and leave it when they navigate away, so
+ * the server pushes room churn only to people actually looking at the lobby.
+ */
+export const LOBBY_CHANNEL = 'lobby';
+
+/**
+ * Lobby list deltas, broadcast to the LOBBY_CHANNEL as rooms come and go.
+ * Only public, listable rooms ever appear here (private rooms never emit).
+ */
+export const LOBBY_EVENTS = {
+  /** A new pending public room to insert. Payload: GameRoomSummary. */
+  roomAdded: 'lobby:room-added',
+  /** A room that left the lobby (started, filled, cancelled, closed). */
+  roomRemoved: 'lobby:room-removed',
+  /** A still-pending room whose joinedCount changed. Payload: GameRoomSummary. */
+  roomUpdated: 'lobby:room-updated',
+} as const;
+
+export type LobbyRoomRemovedPayload = { roomId: string };
+
+/** Free vs staked filter for the lobby. */
+export type LobbyStakeFilter = 'all' | 'free' | 'staked';
+
+/**
+ * Lobby list filters. All fields optional; an empty/omitted field means "no
+ * constraint". Serialized onto the list query and re-applied client-side to
+ * live room-added events.
+ */
+export type LobbyRoomFilters = {
+  /** Selected game types; empty/undefined = every game. */
+  gameTypes?: GameType[];
+  /** all (default) | free (no stake) | staked. */
+  stake?: LobbyStakeFilter;
+  /** Selected stake tokens (only meaningful for staked); empty = any token. */
+  stakeTokens?: StakeAsset[];
+};

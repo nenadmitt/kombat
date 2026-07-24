@@ -3,7 +3,11 @@ import type {
   PublicUserProfile,
   UserProfile,
 } from '../authentication/authentication.types';
-import type { GameRoomSummary, GameType } from '../games/game-room.types';
+import type {
+  GameRoomSummary,
+  GameType,
+  LobbyRoomFilters,
+} from '../games/game-room.types';
 import type {
   MatchHistoryEntry,
   StakeAsset,
@@ -173,8 +177,24 @@ export class ApiClient {
   listPendingGameRooms(options?: {
     /** Leave out rooms created by the requesting user. */
     excludeOwn?: boolean;
+    /** Server-side lobby filters (game types, stake, tokens). */
+    filters?: LobbyRoomFilters;
   }): Promise<GameRoomSummary[]> {
-    const query = options?.excludeOwn ? '?excludeOwn=true' : '';
+    const params: string[] = [];
+    if (options?.excludeOwn) {
+      params.push('excludeOwn=true');
+    }
+    const f = options?.filters;
+    if (f?.gameTypes?.length) {
+      params.push(`gameTypes=${f.gameTypes.join(',')}`);
+    }
+    if (f?.stake && f.stake !== 'all') {
+      params.push(`stake=${f.stake}`);
+    }
+    if (f?.stakeTokens?.length) {
+      params.push(`stakeTokens=${f.stakeTokens.join(',')}`);
+    }
+    const query = params.length ? `?${params.join('&')}` : '';
     return this.request('GET', `/games/rooms${query}`, undefined, true);
   }
 
