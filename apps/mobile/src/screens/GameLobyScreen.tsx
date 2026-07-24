@@ -16,10 +16,13 @@ import {
   isMultiSeatGame,
   GameRoomStatus,
   GameType,
+  LOBBY_CHANNEL,
+  LOBBY_EVENTS,
   STAKE_ASSET_SYMBOLS,
   STAKE_EVENTS,
   formatStakeAmount,
   type GameRoomSummary,
+  type LobbyRoomRemovedPayload,
 } from '@gaming-platform/core';
 
 import { apiClient } from '../api/client';
@@ -27,19 +30,18 @@ import Icon from '../components/Icon';
 import { Button, Card, Chip, StakeFundingOverlay, useConfirm } from '../components/ui';
 import CreateGameRoomModal from '../games/CreateGameRoomModal';
 import JoinByCodeSheet from '../games/JoinByCodeSheet';
+import LobbyFilterSheet from '../games/LobbyFilterSheet';
 import { GAME_TYPE_ICONS, GAME_TYPE_LABELS } from '../games/game-type-labels';
 import { GAME_TYPE_SCREENS } from '../games/game-type-screens';
 import { formatRoomCode } from '../games/room-code';
 import type { RootStackParamList } from '../navigation/types';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import { useGameStore } from '../store/game.store';
+import { useLobbyStore } from '../store/lobby.store';
 import { useServerStore } from '../store/server.store';
 import { useWebsocketStore } from '../store/websocket.store';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
-
-type Status = 'loading' | 'ready' | 'error';
-type Filter = 'all' | GameType;
 
 /** No balance/pool backend for the header yet - visual parity with the design. */
 const MOCK_USD_BALANCE = '4,240';
@@ -56,8 +58,8 @@ function stakeLabel(room: GameRoomSummary): string {
 /** The featured banner keeps the crosshair (Battleships). */
 const GAME_ICON = 'crosshair' as const;
 
-const FILTERS: { key: Filter; label: string }[] = [
-  { key: 'all', label: 'All' },
+/** The inline multi-select game chips (stake + token live in the filter sheet). */
+const GAME_FILTERS: { key: GameType; label: string }[] = [
   { key: GameType.NavalBattle, label: 'Battleships' },
   { key: GameType.Ludo, label: 'Ludo' },
   { key: GameType.TripleCut, label: 'Triple Cut' },
@@ -82,59 +84,65 @@ export default function GameLobyScreen() {
   const username = useCurrentUserStore(state => state.username);
   const confirm = useConfirm();
 
-  const [rooms, setRooms] = useState<GameRoomSummary[]>([]);
-  const [status, setStatus] = useState<Status>('loading');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [filter, setFilter] = useState<Filter>('all');
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [joinCodeVisible, setJoinCodeVisible] = useState(false);
+  const [filterSheetVisible, setFilterSheetVisible] = useState(false);
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
   /** A joined staked room whose escrow is in flight - blocks with an overlay
    *  until the server broadcasts stake:funded / stake:failed. */
   const [fundingRoom, setFundingRoom] = useState<GameRoomSummary | null>(null);
+
+  const rooms = useLobbyStore(s => s.rooms);
+  const status = useLobbyStore(s => s.status);
+  const storeError = useLobbyStore(s => s.error);
+  const filters = useLobbyStore(s => s.filters);
+  const setFilters = useLobbyStore(s => s.setFilters);
+
   const onSocketEvent = useWebsocketStore(s => s.on);
   const serverStatus = useServerStore(s => s.status);
   const maintenanceMessage = useServerStore(s => s.message);
   const online = serverStatus === 'online';
 
-  const fetchRooms = useCallback(async () => {
-    setStatus('loading');
-    setErrorMessage(null);
-    try {
-      const pending = await apiClient.listPendingGameRooms({
-        excludeOwn: true,
-      });
-      setRooms(pending);
-      setStatus('ready');
-    } catch (err) {
-      if (err instanceof ApiError && err.isNetworkError) {
-        useServerStore.getState().reportOffline();
-      }
-      setErrorMessage(
-        err instanceof ApiError ? err.message : 'Failed to load game rooms',
-      );
-      setStatus('error');
-    }
-  }, []);
-
+  // Live lobby: while focused, subscribe to the lobby channel and patch the
+  // store as rooms are created / started / cancelled. The store's fetch is
+  // TTL-guarded, so switching tabs doesn't re-hit the API. We leave the
+  // channel on blur, so nobody off the lobby receives room churn.
   useFocusEffect(
     useCallback(() => {
-      // While multiplayer is gated the list is replaced by the locked state;
-      // when the gate lifts, the serverStatus effect below refetches.
-      if (useServerStore.getState().status === 'online') {
-        fetchRooms();
+      if (useServerStore.getState().status !== 'online') {
+        return;
       }
-    }, [fetchRooms]),
+      const ws = useWebsocketStore.getState();
+      void useLobbyStore.getState().fetch();
+      ws.joinChannel(LOBBY_CHANNEL);
+      const offAdded = ws.on(LOBBY_EVENTS.roomAdded, p =>
+        useLobbyStore.getState().applyAdded(p as GameRoomSummary),
+      );
+      const offRemoved = ws.on(LOBBY_EVENTS.roomRemoved, p =>
+        useLobbyStore
+          .getState()
+          .applyRemoved((p as LobbyRoomRemovedPayload).roomId),
+      );
+      const offUpdated = ws.on(LOBBY_EVENTS.roomUpdated, p =>
+        useLobbyStore.getState().applyUpdated(p as GameRoomSummary),
+      );
+      return () => {
+        offAdded();
+        offRemoved();
+        offUpdated();
+        ws.leaveChannel(LOBBY_CHANNEL);
+      };
+    }, []),
   );
 
+  // When the multiplayer gate lifts, reconcile with a fresh fetch.
   useEffect(() => {
     if (online) {
-      fetchRooms();
+      void useLobbyStore.getState().fetch({ force: true });
     }
-  }, [online, fetchRooms]);
+  }, [online]);
 
-  // Anti-spam refresh: one tap kicks off a fetch, then the control is on a
-  // short cooldown so it can't be hammered (a burst of taps costs one request).
+  // Anti-spam manual refresh: WS keeps the list live, this is the fallback.
   const cooldownRef = useRef(false);
   const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [refreshCooling, setRefreshCooling] = useState(false);
@@ -145,12 +153,12 @@ export default function GameLobyScreen() {
     }
     cooldownRef.current = true;
     setRefreshCooling(true);
-    fetchRooms();
+    void useLobbyStore.getState().fetch({ force: true });
     cooldownTimer.current = setTimeout(() => {
       cooldownRef.current = false;
       setRefreshCooling(false);
     }, 2500);
-  }, [fetchRooms, status]);
+  }, [status]);
 
   useEffect(
     () => () => {
@@ -162,9 +170,19 @@ export default function GameLobyScreen() {
   );
 
   const refreshDisabled = refreshCooling || status === 'loading';
+  const loading = status === 'loading' || status === 'idle';
 
-  const filteredRooms =
-    filter === 'all' ? rooms : rooms.filter(room => room.gameType === filter);
+  const selectedGames = filters.gameTypes ?? [];
+  const advancedActive =
+    (filters.stake ?? 'all') !== 'all' || !!filters.stakeTokens?.length;
+
+  const toggleGame = (gt: GameType) => {
+    const next = selectedGames.includes(gt)
+      ? selectedGames.filter(g => g !== gt)
+      : [...selectedGames, gt];
+    setFilters({ ...filters, gameTypes: next });
+  };
+
   const initial = (username ?? '?').charAt(0).toUpperCase();
 
   const enterMatch = useCallback(
@@ -207,7 +225,7 @@ export default function GameLobyScreen() {
         return;
       }
       setFundingRoom(null);
-      fetchRooms();
+      void useLobbyStore.getState().fetch({ force: true });
       // Let the funding overlay finish dismissing before presenting the
       // notice sheet - overlapping Modal transitions wedge iOS touches.
       setTimeout(() => {
@@ -223,7 +241,7 @@ export default function GameLobyScreen() {
       offFunded();
       offFailed();
     };
-  }, [fundingRoom, onSocketEvent, enterMatch, fetchRooms, confirm]);
+  }, [fundingRoom, onSocketEvent, enterMatch, confirm]);
 
   const joinRoom = async (room: GameRoomSummary) => {
     setJoiningRoomId(room.id);
@@ -311,7 +329,7 @@ export default function GameLobyScreen() {
       </View>
 
       <FlatList
-        data={online ? filteredRooms : []}
+        data={online ? rooms : []}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
@@ -369,24 +387,40 @@ export default function GameLobyScreen() {
               />
             </View>
 
-            {/* Filters */}
+            {/* Filters: multi-select games + a sheet for stake / token. */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.filterRow}
             >
-              {FILTERS.map(f => (
-                <Pressable key={String(f.key)} onPress={() => setFilter(f.key)}>
-                  <Chip label={f.label} tone={f.key === filter ? 'accent' : 'outline'} />
+              <Pressable onPress={() => setFilters({ ...filters, gameTypes: [] })}>
+                <Chip
+                  label="All"
+                  tone={selectedGames.length === 0 ? 'accent' : 'outline'}
+                />
+              </Pressable>
+              {GAME_FILTERS.map(f => (
+                <Pressable key={String(f.key)} onPress={() => toggleGame(f.key)}>
+                  <Chip
+                    label={f.label}
+                    tone={selectedGames.includes(f.key) ? 'accent' : 'outline'}
+                  />
                 </Pressable>
               ))}
+              <Pressable onPress={() => setFilterSheetVisible(true)}>
+                <Chip
+                  label="Filters"
+                  icon="sliders"
+                  tone={advancedActive ? 'accent' : 'outline'}
+                />
+              </Pressable>
             </ScrollView>
 
             {/* Section header */}
             <View style={styles.sectionHeader}>
               <Text style={[type.label, styles.sectionLabel]}>Open rooms</Text>
               {status === 'ready' ? (
-                <Text style={styles.liveCount}>{filteredRooms.length} LIVE</Text>
+                <Text style={styles.liveCount}>{rooms.length} LIVE</Text>
               ) : (
                 <Pressable onPress={requestRefresh} disabled={refreshDisabled}>
                   <Text style={styles.liveCount}>Refresh</Text>
@@ -414,21 +448,21 @@ export default function GameLobyScreen() {
               </View>
             ) : null}
 
-            {online && status === 'loading' && rooms.length === 0 ? (
+            {online && loading && rooms.length === 0 ? (
               <ActivityIndicator color={colors.accent} style={styles.stateBlock} />
             ) : null}
 
             {online && status === 'error' ? (
               <View style={styles.stateBlock}>
                 <Icon type="warning" color={colors.textMuted} size={32} />
-                <Text style={styles.emptyText}>{errorMessage}</Text>
+                <Text style={styles.emptyText}>{storeError}</Text>
                 <Pressable onPress={requestRefresh} disabled={refreshDisabled}>
                   <Text style={styles.retryText}>Try again</Text>
                 </Pressable>
               </View>
             ) : null}
 
-            {online && status === 'ready' && filteredRooms.length === 0 ? (
+            {online && status === 'ready' && rooms.length === 0 ? (
               <View style={styles.stateBlock}>
                 <Icon type="ship" color={colors.textMuted} size={32} />
                 <Text style={styles.emptyText}>No open game rooms</Text>
@@ -486,6 +520,16 @@ export default function GameLobyScreen() {
         visible={joinCodeVisible}
         onClose={() => setJoinCodeVisible(false)}
         onResolved={handleCodeResolved}
+      />
+
+      <LobbyFilterSheet
+        visible={filterSheetVisible}
+        filters={filters}
+        onApply={next => {
+          setFilters(next);
+          setFilterSheetVisible(false);
+        }}
+        onClose={() => setFilterSheetVisible(false)}
       />
 
       {/* Staked-join "getting ready" overlay (funny, no on-chain wording). */}
