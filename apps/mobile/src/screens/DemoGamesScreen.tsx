@@ -15,16 +15,15 @@ type GameCard = {
   tag: string;
   players: string;
   icon: IconName;
-  tint: string;
   gameType: GameType;
 };
 
 /** Every card here is a real, playable game type - each launches its bot demo. */
 const GAMES: GameCard[] = [
-  { name: 'Battleships', tag: 'Strategy', players: '2.4k playing', icon: 'crosshair', tint: colors.accentSoft, gameType: GameType.NavalBattle },
-  { name: 'Ludo Royale', tag: 'Board', players: '1.8k playing', icon: 'dice', tint: 'rgba(56,189,248,0.12)', gameType: GameType.Ludo },
-  { name: 'Triple Cut', tag: 'Duel', players: '1.2k playing', icon: 'hand', tint: 'rgba(124,92,255,0.14)', gameType: GameType.TripleCut },
-  { name: 'Chroma Clash', tag: 'Cards', players: '2.1k playing', icon: 'layers', tint: 'rgba(229,72,77,0.12)', gameType: GameType.ChromaClash },
+  { name: 'Battleships', tag: 'Strategy', players: '2.4k playing', icon: 'crosshair', gameType: GameType.NavalBattle },
+  { name: 'Ludo Royale', tag: 'Board', players: '1.8k playing', icon: 'dice', gameType: GameType.Ludo },
+  { name: 'Triple Cut', tag: 'Duel', players: '1.2k playing', icon: 'hand', gameType: GameType.TripleCut },
+  { name: 'Chroma Clash', tag: 'Cards', players: '2.1k playing', icon: 'layers', gameType: GameType.ChromaClash },
 ];
 
 export default function DemoGamesScreen() {
@@ -60,7 +59,7 @@ export default function DemoGamesScreen() {
         <View style={styles.grid}>
           {GAMES.map(game => (
             <Card key={game.name} flush style={styles.gameCard}>
-              <View style={[styles.gameArt, { backgroundColor: game.tint }]}>
+              <View style={styles.gameArt}>
                 <Chip label="Demo" tone="neutral" style={styles.demoBadge} />
                 <Icon type={game.icon} color={colors.textPrimary} size={40} />
               </View>
@@ -132,6 +131,8 @@ const styles = StyleSheet.create({
     height: 90,
     alignItems: 'center',
     justifyContent: 'center',
+    // Uniform accent wash header (the redesign's accent-800 -> transparent art).
+    backgroundColor: colors.accent900,
   },
   demoBadge: {
     position: 'absolute',
