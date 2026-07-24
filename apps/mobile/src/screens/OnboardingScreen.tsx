@@ -150,6 +150,8 @@ export default function OnboardingScreen() {
                   onChangeText={setUsername}
                   placeholder="Katty_Kombat"
                   placeholderTextColor={colors.textFaint}
+                  selectionColor={colors.accent}
+                  cursorColor={colors.accent}
                   autoCapitalize="none"
                   autoCorrect={false}
                   maxLength={20}
@@ -157,7 +159,7 @@ export default function OnboardingScreen() {
                 />
                 {isValid ? (
                   <View style={styles.availableBadge}>
-                    <Icon type="check" color={colors.success} size={12} />
+                    <Icon type="check-circle" color={colors.success} size={13} />
                     <Text style={styles.availableText}>AVAILABLE</Text>
                   </View>
                 ) : null}
@@ -366,23 +368,23 @@ const styles = StyleSheet.create({
   },
   usernameInput: {
     flex: 1,
-    fontFamily: mono.semiBold,
+    // Sora reads airy at input size; tighten the tracking to match the design.
+    fontFamily: display.bold,
     fontSize: 17,
+    letterSpacing: -0.2,
     color: colors.textPrimary,
+    // Trim RN's default vertical text padding so the caret sits snug.
+    paddingVertical: 0,
   },
   availableBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xxs,
-    backgroundColor: colors.successSoft,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 4,
   },
   availableText: {
     fontFamily: mono.bold,
     fontSize: 10,
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
     color: colors.success,
   },
   hint: {
