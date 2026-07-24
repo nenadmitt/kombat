@@ -6,6 +6,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import Icon, { type IconName } from '../Icon';
 import { colors, radius, spacing } from '../../theme/colors';
 import { mono } from '../../theme/typography';
 
@@ -20,6 +21,8 @@ export type ChipTone =
 type Props = {
   label: string;
   tone?: ChipTone;
+  /** Optional leading icon, tinted to the tone's foreground. */
+  icon?: IconName;
   /** Small uppercase mono badge (default) vs regular-case. */
   uppercase?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -32,6 +35,7 @@ type Props = {
 export default function Chip({
   label,
   tone = 'neutral',
+  icon,
   uppercase = true,
   style,
 }: Props) {
@@ -44,6 +48,7 @@ export default function Chip({
         style,
       ]}
     >
+      {icon ? <Icon type={icon} color={t.fg} size={12} /> : null}
       <Text
         style={[styles.text, { color: t.fg }, uppercase && styles.upper]}
         numberOfLines={1}
@@ -65,6 +70,9 @@ const TONES: Record<ChipTone, { bg: string; fg: string; border?: string }> = {
 
 const styles = StyleSheet.create({
   base: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     alignSelf: 'flex-start',
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm,

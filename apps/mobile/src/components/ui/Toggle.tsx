@@ -15,9 +15,11 @@ export default function Toggle({ value, onValueChange, disabled }: Props) {
       value={value}
       onValueChange={onValueChange}
       disabled={disabled}
-      trackColor={{ false: colors.surfaceMuted, true: colors.accent }}
+      // Off-state track is the dark canvas (not surfaceMuted) so a switch
+      // sitting on a surface card reads as clearly "off".
+      trackColor={{ false: colors.canvas, true: colors.accent }}
       thumbColor={Platform.OS === 'android' ? colors.textPrimary : undefined}
-      ios_backgroundColor={colors.surfaceMuted}
+      ios_backgroundColor={colors.canvas}
     />
   );
 }

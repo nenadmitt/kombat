@@ -36,32 +36,31 @@ export default function ProfileScreen() {
   const referralCode = username ? `${username.toUpperCase()}_REF` : '-';
 
   return (
-    <Screen scroll>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.avatarRing}>
-          {/* Conic (sweep) accent ring behind the avatar disc. */}
-          <Canvas style={StyleSheet.absoluteFill}>
-            <Circle cx={52} cy={52} r={52}>
-              <SweepGradient
-                c={vec(52, 52)}
-                colors={[colors.accent, colors.accent400, colors.accent200, colors.accent]}
-              />
-            </Circle>
-          </Canvas>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarInitial}>{initial}</Text>
-          </View>
-          <View style={styles.levelBadge}>
-            <Text style={styles.levelText}>LVL {MOCK_LEVEL}</Text>
-          </View>
+    <Screen scroll contentStyle={styles.content}>
+      {/* Avatar + name + address (centered); everything below is full-width.
+          One uniform gap between every element (the design's flat rhythm). */}
+      <View style={styles.avatarRing}>
+        {/* Conic (sweep) accent ring behind the avatar disc. */}
+        <Canvas style={StyleSheet.absoluteFill}>
+          <Circle cx={52} cy={52} r={52}>
+            <SweepGradient
+              c={vec(52, 52)}
+              colors={[colors.accent, colors.accent400, colors.accent200, colors.accent]}
+            />
+          </Circle>
+        </Canvas>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarInitial}>{initial}</Text>
         </View>
-        <Text style={styles.username}>{username ?? 'Player'}</Text>
-        {wallet ? <AddressPill address={wallet.address} /> : null}
+        <View style={styles.levelBadge}>
+          <Text style={styles.levelText}>LVL {MOCK_LEVEL}</Text>
+        </View>
       </View>
+      <Text style={styles.username}>{username ?? 'Player'}</Text>
+      {wallet ? <AddressPill address={wallet.address} /> : null}
 
       {/* Mini stats */}
-      <View style={styles.statsRow}>
+      <View style={[styles.statsRow, styles.block]}>
         {MOCK_STATS.map(stat => (
           <View key={stat.label} style={styles.statChip}>
             <Text style={styles.statValue}>{stat.value}</Text>
@@ -71,22 +70,22 @@ export default function ProfileScreen() {
       </View>
 
       {/* Achievements */}
-      <View style={styles.section}>
-        <SectionLabel action="See all">Achievements</SectionLabel>
-        <View style={styles.achievementsRow}>
-          {MOCK_ACHIEVEMENTS.map(achievement => (
-            <Card key={achievement.label} style={styles.achievementCard}>
-              <View style={styles.achievementIcon}>
-                <Icon type={achievement.icon} color={colors.onAccent} size={20} />
-              </View>
-              <Text style={styles.achievementLabel}>{achievement.label}</Text>
-            </Card>
-          ))}
-        </View>
+      <SectionLabel action="See all" style={styles.block}>
+        Achievements
+      </SectionLabel>
+      <View style={[styles.achievementsRow, styles.block]}>
+        {MOCK_ACHIEVEMENTS.map(achievement => (
+          <Card key={achievement.label} style={styles.achievementCard}>
+            <View style={styles.achievementIcon}>
+              <Icon type={achievement.icon} color={colors.onAccent} size={20} />
+            </View>
+            <Text style={styles.achievementLabel}>{achievement.label}</Text>
+          </Card>
+        ))}
       </View>
 
       {/* Referral */}
-      <Card accent style={styles.referralCard}>
+      <Card accent style={[styles.referralCard, styles.block]}>
         <Text style={styles.referralTitle}>Invite &amp; Earn</Text>
         <Text style={styles.referralSubtitle}>
           Get 5% of entry fees from referrals.
@@ -103,7 +102,7 @@ export default function ProfileScreen() {
       </Card>
 
       {/* Settings */}
-      <View style={styles.settingsList}>
+      <View style={[styles.settingsList, styles.block]}>
         {SETTINGS_ROWS.map(row => (
           <Card key={row.key} onPress={() => {}} style={styles.settingsRow}>
             <View style={styles.settingsRowLeft}>
@@ -126,9 +125,14 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: {
+  content: {
+    // Center the avatar/name/address; one uniform gap between every element.
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.md,
+  },
+  // Full-width rows inside the centered stack.
+  block: {
+    alignSelf: 'stretch',
   },
   avatarRing: {
     width: 104,
@@ -178,7 +182,7 @@ const styles = StyleSheet.create({
   statChip: {
     flex: 1,
     alignItems: 'center',
-    gap: 2,
+    gap: spacing.xxs,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.cardBorder,
@@ -192,9 +196,6 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     color: colors.textMuted,
-  },
-  section: {
-    gap: spacing.sm,
   },
   achievementsRow: {
     flexDirection: 'row',
@@ -234,7 +235,6 @@ const styles = StyleSheet.create({
   referralRow: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginTop: spacing.xs,
   },
   referralCodeBox: {
     flex: 1,

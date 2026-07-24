@@ -10,6 +10,9 @@ import { truncateAddress } from '../../wallet/format-address';
 import BrandIcon from '../BrandIcon';
 import Icon from '../Icon';
 
+/** Matches the create-room sheet: one gap, a touch tighter than the app. */
+const GAP = 13;
+
 type Props = {
   evmAddress: string;
   selected: ChainId;
@@ -171,24 +174,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: spacing.lg,
+    // One uniform vertical rhythm between every block in the sheet.
+    gap: GAP,
   },
   dragHandle: {
     alignSelf: 'center',
     width: 38,
     height: 4,
     borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    marginBottom: spacing.md,
+    backgroundColor: colors.borderStrong,
   },
   title: {
     fontFamily: display.bold,
     fontSize: 22,
     letterSpacing: -0.3,
     color: colors.textPrimary,
-    marginBottom: spacing.md,
   },
   list: {
-    gap: spacing.sm,
+    gap: GAP,
   },
   chainRow: {
     flexDirection: 'row',
@@ -248,7 +251,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
-    marginTop: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: radius.md,
     backgroundColor: colors.surfaceMuted,

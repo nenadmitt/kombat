@@ -16,11 +16,16 @@ import { useGameStore } from '../store/game.store';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, type } from '../theme/typography';
 import AssetSelector, { type AssetChoice } from './AssetSelector';
+import GamePickerSheet, { type GameChoice } from './GamePickerSheet';
 
 type Props = {
   visible: boolean;
   onClose: () => void;
 };
+
+/** This modal runs a touch tighter than the app's spacing.md block rhythm;
+ *  one value drives every vertical gap and the coin row so all are equal. */
+const GAP = 13;
 
 /** Per-asset stepper behavior (human units). */
 const FEE_CONFIG: Record<StakeAsset, { initial: number; step: number; min: number; fmt: (v: number) => string }> = {
@@ -35,7 +40,7 @@ const FEE_CONFIG: Record<StakeAsset, { initial: number; step: number; min: numbe
  * on-chain only once an opponent joins.
  */
 /** The playable catalog this modal offers. */
-const GAME_CHOICES: { gameType: GameType; label: string; icon: 'crosshair' | 'dice' | 'hand' | 'layers'; blurb: string }[] = [
+const GAME_CHOICES: GameChoice[] = [
   { gameType: GameType.NavalBattle, label: 'Battleships', icon: 'crosshair', blurb: '1v1 naval strategy' },
   { gameType: GameType.Ludo, label: 'Ludo Royale', icon: 'dice', blurb: '2-4 players, classic rules' },
   { gameType: GameType.TripleCut, label: 'Triple Cut', icon: 'hand', blurb: '1v1 rock-paper-scissors, best of 5' },
@@ -46,7 +51,7 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [gameType, setGameType] = useState<GameType>(GameType.NavalBattle);
-  const [gamePickerOpen, setGamePickerOpen] = useState(false);
+  const [gamePickerVisible, setGamePickerVisible] = useState(false);
   const [asset, setAsset] = useState<AssetChoice>('free');
   const [fee, setFee] = useState(10);
   const [isPrivate, setIsPrivate] = useState(false);
@@ -83,6 +88,8 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
   };
 
   const feeConfig = asset === 'free' ? null : FEE_CONFIG[asset];
+  const selectedGame =
+    GAME_CHOICES.find(g => g.gameType === gameType) ?? GAME_CHOICES[0];
 
   return (
     <Modal
@@ -92,92 +99,91 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
       onRequestClose={onClose}
     >
       <Pressable style={styles.overlay} onPress={onClose} />
-      <SafeAreaView style={styles.sheetWrapper} pointerEvents="box-none" edges={['bottom']}>
-        <View style={styles.sheet}>
-          <View style={styles.dragHandle} />
-          <Text style={styles.title}>Create Game Room</Text>
+        <SafeAreaView style={styles.sheetWrapper} pointerEvents="box-none" edges={['bottom']}>
+          <View style={styles.sheet}>
+            <View style={styles.dragHandle} />
+            <Text style={styles.title}>Create Game Room</Text>
 
-          {/* Select game */}
-          <Text style={[type.label, styles.label]}>Select game</Text>
-          {(gamePickerOpen ? GAME_CHOICES : GAME_CHOICES.filter(g => g.gameType === gameType)).map(choice => {
-            const selected = choice.gameType === gameType;
-            return (
+            {/* Select game (opens the searchable picker) */}
+            <View style={styles.field}>
+              <Text style={[type.label, styles.label]}>Select game</Text>
               <Pressable
-                key={choice.gameType}
-                style={[styles.gameRow, gamePickerOpen && selected && styles.gameRowSelected]}
-                onPress={() => {
-                  if (gamePickerOpen) {
-                    setGameType(choice.gameType);
-                  }
-                  setGamePickerOpen(open => !open);
-                }}
+                style={styles.gameRow}
+                onPress={() => setGamePickerVisible(true)}
               >
                 <View style={styles.gameIcon}>
-                  <Icon type={choice.icon} color={colors.accent} size={20} />
+                  <Icon type={selectedGame.icon} color={colors.accentLight} size={20} />
                 </View>
                 <View style={styles.gameText}>
-                  <Text style={styles.gameName}>{choice.label}</Text>
-                  <Text style={styles.gameBlurb}>{choice.blurb}</Text>
+                  <Text style={styles.gameName}>{selectedGame.label}</Text>
+                  <Text style={styles.gameBlurb}>{selectedGame.blurb}</Text>
                 </View>
-                {!gamePickerOpen ? (
-                  <Icon type="chevron-down" color={colors.textMuted} size={20} />
-                ) : selected ? (
-                  <Icon type="check" color={colors.accent} size={18} />
-                ) : null}
+                <Icon type="chevron-down" color={colors.textMuted} size={20} />
               </Pressable>
-            );
-          })}
-
-          {/* Asset */}
-          <Text style={[type.label, styles.label]}>Asset</Text>
-          <AssetSelector value={asset} onChange={selectAsset} />
-
-          {/* Entry fee (staked games only) */}
-          {feeConfig ? (
-            <>
-              <Text style={[type.label, styles.label]}>Entry fee</Text>
-              <Stepper
-                value={fee}
-                onChange={setFee}
-                step={feeConfig.step}
-                min={feeConfig.min}
-                format={feeConfig.fmt}
-                editable
-              />
-              <Text style={styles.feeHint}>
-                {isMultiSeatGame(gameType)
-                  ? 'Every player stakes this amount - winner takes the whole pot minus the platform fee.'
-                  : 'Both players stake this amount - winner takes the pot minus the platform fee.'}
-              </Text>
-            </>
-          ) : (
-            <Text style={styles.feeHint}>
-              No stake - nothing wagered, just bragging rights.
-            </Text>
-          )}
-
-          {/* Private room */}
-          <View style={styles.privateRow}>
-            <View style={styles.privateText}>
-              <Text style={styles.privateTitle}>Private Room</Text>
-              <Text style={styles.privateSub}>Hidden from the lobby, share the code to invite</Text>
             </View>
-            <Toggle value={isPrivate} onValueChange={setIsPrivate} />
+
+            {/* Asset */}
+            <View style={styles.field}>
+              <Text style={[type.label, styles.label]}>Asset</Text>
+              <AssetSelector value={asset} onChange={selectAsset} gap={GAP} />
+            </View>
+
+            {/* Entry fee (staked games only) */}
+            {feeConfig ? (
+              <View style={styles.field}>
+                <Text style={[type.label, styles.label]}>Entry fee</Text>
+                <Stepper
+                  value={fee}
+                  onChange={setFee}
+                  step={feeConfig.step}
+                  min={feeConfig.min}
+                  format={feeConfig.fmt}
+                  editable
+                />
+                <Text style={styles.feeHint}>
+                  {isMultiSeatGame(gameType)
+                    ? 'Every player stakes this amount - winner takes the whole pot minus the platform fee.'
+                    : 'Both players stake this amount - winner takes the pot minus the platform fee.'}
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.feeHint}>
+                No stake - nothing wagered, just bragging rights.
+              </Text>
+            )}
+
+            {/* Private room */}
+            <View style={styles.privateRow}>
+              <View style={styles.privateText}>
+                <Text style={styles.privateTitle}>Private Room</Text>
+                <Text style={styles.privateSub}>Hidden from the lobby, share the code to invite</Text>
+              </View>
+              <Toggle value={isPrivate} onValueChange={setIsPrivate} />
+            </View>
+
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+
+            <Button
+              label="Create Room"
+              onPress={handleCreate}
+              loading={isCreating}
+              disabled={isCreating}
+            />
+            <Button label="Cancel" variant="ghost" size="md" onPress={onClose} />
           </View>
+        </SafeAreaView>
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-
-          <Button
-            label="Create Room"
-            onPress={handleCreate}
-            loading={isCreating}
-            disabled={isCreating}
-            style={styles.createButton}
-          />
-          <Button label="Cancel" variant="ghost" size="md" onPress={onClose} />
-        </View>
-      </SafeAreaView>
-    </Modal>
+        <GamePickerSheet
+          visible={gamePickerVisible}
+          choices={GAME_CHOICES}
+          selected={gameType}
+          onSelect={gt => {
+            setGameType(gt);
+            setGamePickerVisible(false);
+          }}
+          onClose={() => setGamePickerVisible(false)}
+        />
+      </Modal>
   );
 }
 
@@ -199,14 +205,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: spacing.lg,
+    // One uniform vertical rhythm between every block in the sheet.
+    gap: GAP,
   },
   dragHandle: {
     alignSelf: 'center',
     width: 38,
     height: 4,
     borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    marginBottom: spacing.md,
+    backgroundColor: colors.borderStrong,
   },
   title: {
     fontFamily: display.bold,
@@ -214,10 +221,13 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
     color: colors.textPrimary,
   },
+  // A label + its control. Same gap as the sheet so every vertical gap in
+  // the modal - title, labels, controls, buttons - is identical.
+  field: {
+    gap: GAP,
+  },
   label: {
     color: colors.textMuted,
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
   },
   gameRow: {
     flexDirection: 'row',
@@ -228,15 +238,10 @@ const styles = StyleSheet.create({
     borderColor: colors.cardBorder,
     borderRadius: radius.md,
     padding: spacing.md,
-    marginBottom: 6,
-  },
-  gameRowSelected: {
-    borderColor: colors.accentBorder,
-    backgroundColor: colors.accentSoft,
   },
   gameText: {
     flex: 1,
-    gap: 1,
+    gap: spacing.xxs,
   },
   gameBlurb: {
     ...type.caption,
@@ -257,16 +262,17 @@ const styles = StyleSheet.create({
   feeHint: {
     ...type.caption,
     color: colors.textMuted,
-    marginTop: spacing.sm,
   },
   privateRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: spacing.lg,
+    gap: spacing.md,
   },
   privateText: {
-    gap: 2,
+    // Flex so the long copy wraps and never pushes the Toggle off-screen.
+    flex: 1,
+    gap: spacing.xxs,
   },
   privateTitle: {
     ...type.subheading,
@@ -279,10 +285,5 @@ const styles = StyleSheet.create({
   error: {
     ...type.caption,
     color: colors.danger,
-    marginTop: spacing.sm,
-  },
-  createButton: {
-    marginTop: spacing.lg,
-    marginBottom: spacing.xs,
   },
 });
