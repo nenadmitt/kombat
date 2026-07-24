@@ -13,7 +13,7 @@ import { apiClient } from '../api/client';
 import Icon from '../components/Icon';
 import { useServerStore } from '../store/server.store';
 import { Card, Chip, SectionLabel, StatTile, type ChipTone } from '../components/ui';
-import { GAME_TYPE_LABELS } from '../games/game-type-labels';
+import { GAME_TYPE_ICONS, GAME_TYPE_LABELS } from '../games/game-type-labels';
 import { colors, radius, spacing } from '../theme/colors';
 import { mono, type } from '../theme/typography';
 
@@ -118,16 +118,18 @@ export default function HistoryScreen() {
   const wins = entries.filter(e => e.result === 'win').length;
   const losses = entries.filter(e => e.result === 'loss').length;
   const decided = wins + losses;
+  const winRateFraction = decided > 0 ? wins / decided : 0;
   const winRate = decided > 0 ? `${((wins / decided) * 100).toFixed(1)}%` : '-';
 
   const renderItem = useCallback(({ item: entry }: { item: MatchHistoryEntry }) => {
     const meta = RESULT_META[entry.result];
     const prize = prizeLabel(entry);
+    const gameIcon = GAME_TYPE_ICONS[entry.gameType as keyof typeof GAME_TYPE_ICONS] ?? 'crosshair';
     return (
       <Card style={styles.matchCard}>
         <View style={styles.matchTop}>
           <View style={styles.gameIcon}>
-            <Icon type="crosshair" color={colors.accent} size={20} />
+            <Icon type={gameIcon} color={colors.accentLight} size={20} />
           </View>
           <View style={styles.matchMid}>
             <Text style={styles.matchGame}>
@@ -151,14 +153,13 @@ export default function HistoryScreen() {
                 : 'FREE'}
             </Text>
           </View>
-          {prize ? (
-            <View style={styles.matchStat}>
-              <Text style={[type.label, styles.matchStatLabel]}>Prize</Text>
-              <Text style={[styles.matchStatValue, { color: meta.prizeColor }]}>
-                {prize}
-              </Text>
-            </View>
-          ) : null}
+          <View style={styles.matchStatDivider} />
+          <View style={styles.matchStat}>
+            <Text style={[type.label, styles.matchStatLabel]}>Payout</Text>
+            <Text style={[styles.matchStatValue, prize ? { color: meta.prizeColor } : null]}>
+              {prize ?? '-'}
+            </Text>
+          </View>
         </View>
       </Card>
     );
@@ -171,12 +172,37 @@ export default function HistoryScreen() {
       {/* Stat grid (computed from loaded history) */}
       <View style={styles.statGrid}>
         <View style={styles.statRow}>
-          <StatTile label="Games played" value={`${played}`} />
-          <StatTile label="Wins" value={`${wins}`} valueColor={colors.success} />
+          <StatTile
+            label="Games played"
+            value={`${played}`}
+            icon="games"
+            progress={played > 0 ? 1 : 0}
+          />
+          <StatTile
+            label="Wins"
+            value={`${wins}`}
+            valueColor={colors.success}
+            icon="trophy"
+            iconTone={colors.success}
+            progress={played > 0 ? wins / played : 0}
+          />
         </View>
         <View style={styles.statRow}>
-          <StatTile label="Losses" value={`${losses}`} valueColor={colors.danger} />
-          <StatTile label="Win rate" value={winRate} valueColor={colors.accent} />
+          <StatTile
+            label="Losses"
+            value={`${losses}`}
+            valueColor={colors.danger}
+            icon="close"
+            iconTone={colors.danger}
+            progress={played > 0 ? losses / played : 0}
+          />
+          <StatTile
+            label="Win rate"
+            value={winRate}
+            icon="trending-up"
+            accent
+            progress={winRateFraction}
+          />
         </View>
       </View>
 
@@ -290,7 +316,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: radius.sm,
-    backgroundColor: colors.accentSoft,
+    backgroundColor: colors.accent900,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -313,10 +339,16 @@ const styles = StyleSheet.create({
   matchBottom: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xl,
   },
   matchStat: {
-    gap: 2,
+    flex: 1,
+    gap: 6,
+  },
+  matchStatDivider: {
+    width: 1,
+    alignSelf: 'stretch',
+    backgroundColor: colors.cardBorder,
+    marginHorizontal: spacing.md,
   },
   matchStatLabel: {
     color: colors.textMuted,
