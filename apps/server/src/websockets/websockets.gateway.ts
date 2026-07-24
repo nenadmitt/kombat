@@ -77,6 +77,7 @@ export class WebsocketsGateway
       );
       client.data.userId = payload.sub;
       await client.join(userRoom(payload.sub));
+      this.websocketsService.markConnected(payload.sub);
       this.logger.log(`User ${payload.sub} connected (socket ${client.id})`);
     } catch {
       this.logger.warn(
@@ -88,6 +89,9 @@ export class WebsocketsGateway
 
   handleDisconnect(client: AuthenticatedSocket): void {
     const userId = client.data.userId;
+    if (userId) {
+      this.websocketsService.markDisconnected(userId);
+    }
     this.logger.log(
       userId
         ? `User ${userId} disconnected (socket ${client.id})`
