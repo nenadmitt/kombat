@@ -553,7 +553,9 @@ const styles = StyleSheet.create({
     color: colors.danger,
   },
   list: {
-    gap: spacing.sm,
+    // Match the screen's block gap so the section label sits the same
+    // distance from the first card as the cards are from each other.
+    gap: spacing.md,
   },
   assetCard: {
     flexDirection: 'row',

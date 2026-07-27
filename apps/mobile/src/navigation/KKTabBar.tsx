@@ -123,8 +123,6 @@ const styles = StyleSheet.create({
     height: 66,
     borderRadius: 33,
     backgroundColor: colors.accent,
-    borderWidth: 4,
-    borderColor: colors.canvas,
     alignItems: 'center',
     justifyContent: 'center',
     // Accent bloom under the raised LOBBY action (0 10px 26px accent).

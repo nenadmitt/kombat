@@ -187,8 +187,6 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
                     cursorColor={colors.accent}
                     style={styles.amountInput}
                   />
-                  <Text style={styles.amountUnit}>{STAKE_ASSET_SYMBOLS[stakeToken]}</Text>
-                  <View style={styles.spacer} />
                   <Pressable
                     onPress={() => setTokenPickerOpen(o => !o)}
                     style={styles.tokenPill}
@@ -415,23 +413,16 @@ const styles = StyleSheet.create({
   amountRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
   amountInput: {
+    // Flex so the field width is stable and the number never truncates.
+    flex: 1,
     fontFamily: mono.bold,
     fontSize: 40,
     letterSpacing: -1,
     color: colors.textPrimary,
     padding: 0,
-    minWidth: 40,
-  },
-  amountUnit: {
-    fontFamily: mono.bold,
-    fontSize: 18,
-    color: colors.textMuted,
-  },
-  spacer: {
-    flex: 1,
   },
   tokenPill: {
     flexDirection: 'row',

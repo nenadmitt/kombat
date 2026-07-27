@@ -18,7 +18,9 @@ export const colors = {
   surfaceMuted: '#1B1D2B',
   /** Card fill/border used across the app. */
   cardBackground: '#232532',
-  cardBorder: 'rgba(233, 233, 237, 0.09)',
+  // Experiment: card borders removed - surfaces separate by fill alone.
+  // Revert to 'rgba(233, 233, 237, 0.09)' to bring the hairline back.
+  cardBorder: 'transparent',
   /** Slightly stronger hairline for emphasis (the Nocturne divider). */
   border: 'rgba(233, 233, 237, 0.09)',
   borderStrong: 'rgba(233, 233, 237, 0.16)',
