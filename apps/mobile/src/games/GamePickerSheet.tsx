@@ -1,11 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GameType } from '@gaming-platform/core';
 
@@ -29,9 +22,10 @@ type Props = {
 };
 
 /**
- * Searchable game picker (replaces the inline dropdown). Rendered as an
- * absolute overlay INSIDE the host modal rather than its own Modal - stacking
- * a second RN Modal over the create sheet doesn't reliably present on iOS.
+ * Game picker rendered as an absolute overlay INSIDE the host modal rather
+ * than its own Modal - stacking a second RN Modal over the create sheet
+ * doesn't reliably present on iOS. No search field: the catalog is short and
+ * the keyboard would cover the list.
  */
 export default function GamePickerSheet({
   visible,
@@ -40,22 +34,6 @@ export default function GamePickerSheet({
   onSelect,
   onClose,
 }: Props) {
-  const [query, setQuery] = useState('');
-
-  // Reset the search each time the picker is dismissed.
-  useEffect(() => {
-    if (!visible) setQuery('');
-  }, [visible]);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return choices;
-    return choices.filter(
-      c =>
-        c.label.toLowerCase().includes(q) || c.blurb.toLowerCase().includes(q),
-    );
-  }, [choices, query]);
-
   if (!visible) return null;
 
   return (
@@ -66,48 +44,28 @@ export default function GamePickerSheet({
           <View style={styles.dragHandle} />
           <Text style={styles.title}>Select game</Text>
 
-          <View style={styles.search}>
-            <Icon type="search" color={colors.textMuted} size={18} />
-            <TextInput
-              style={styles.searchInput}
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Search games"
-              placeholderTextColor={colors.textFaint}
-              autoCapitalize="none"
-              autoCorrect={false}
-              selectionColor={colors.accent}
-              cursorColor={colors.accent}
-              autoFocus
-            />
-          </View>
-
           <View style={styles.list}>
-            {filtered.length === 0 ? (
-              <Text style={styles.empty}>No games match your search.</Text>
-            ) : (
-              filtered.map(choice => {
-                const isSelected = choice.gameType === selected;
-                return (
-                  <Pressable
-                    key={choice.gameType}
-                    style={[styles.row, isSelected && styles.rowSelected]}
-                    onPress={() => onSelect(choice.gameType)}
-                  >
-                    <View style={styles.icon}>
-                      <Icon type={choice.icon} color={colors.accentLight} size={20} />
-                    </View>
-                    <View style={styles.text}>
-                      <Text style={styles.name}>{choice.label}</Text>
-                      <Text style={styles.blurb}>{choice.blurb}</Text>
-                    </View>
-                    {isSelected ? (
-                      <Icon type="check" color={colors.accent} size={18} />
-                    ) : null}
-                  </Pressable>
-                );
-              })
-            )}
+            {choices.map(choice => {
+              const isSelected = choice.gameType === selected;
+              return (
+                <Pressable
+                  key={choice.gameType}
+                  style={[styles.row, isSelected && styles.rowSelected]}
+                  onPress={() => onSelect(choice.gameType)}
+                >
+                  <View style={styles.icon}>
+                    <Icon type={choice.icon} color={colors.accentLight} size={20} />
+                  </View>
+                  <View style={styles.text}>
+                    <Text style={styles.name}>{choice.label}</Text>
+                    <Text style={styles.blurb}>{choice.blurb}</Text>
+                  </View>
+                  {isSelected ? (
+                    <Icon type="check" color={colors.accent} size={18} />
+                  ) : null}
+                </Pressable>
+              );
+            })}
           </View>
         </View>
       </SafeAreaView>
@@ -148,31 +106,8 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
     color: colors.textPrimary,
   },
-  search: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    height: 48,
-  },
-  searchInput: {
-    flex: 1,
-    fontFamily: type.body.fontFamily,
-    fontSize: 15,
-    color: colors.textPrimary,
-    paddingVertical: 0,
-  },
   list: {
     gap: spacing.sm,
-  },
-  empty: {
-    ...type.caption,
-    color: colors.textMuted,
-    paddingVertical: spacing.sm,
   },
   row: {
     flexDirection: 'row',
