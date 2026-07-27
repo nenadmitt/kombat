@@ -44,25 +44,29 @@ export default function GamePickerSheet({
           <View style={styles.dragHandle} />
           <Text style={styles.title}>Select game</Text>
 
-          <View style={styles.list}>
+          <View style={styles.grid}>
             {choices.map(choice => {
               const isSelected = choice.gameType === selected;
               return (
                 <Pressable
                   key={choice.gameType}
-                  style={[styles.row, isSelected && styles.rowSelected]}
+                  style={[styles.card, isSelected && styles.cardSelected]}
                   onPress={() => onSelect(choice.gameType)}
                 >
-                  <View style={styles.icon}>
-                    <Icon type={choice.icon} color={colors.accentLight} size={20} />
+                  <View style={styles.cardTop}>
+                    <View style={styles.icon}>
+                      <Icon type={choice.icon} color={colors.accentLight} size={22} />
+                    </View>
+                    {isSelected ? (
+                      <Icon type="check" color={colors.accent} size={18} />
+                    ) : null}
                   </View>
-                  <View style={styles.text}>
+                  <View style={styles.cardText}>
                     <Text style={styles.name}>{choice.label}</Text>
-                    <Text style={styles.blurb}>{choice.blurb}</Text>
+                    <Text style={styles.blurb} numberOfLines={2}>
+                      {choice.blurb}
+                    </Text>
                   </View>
-                  {isSelected ? (
-                    <Icon type="check" color={colors.accent} size={18} />
-                  ) : null}
                 </Pressable>
               );
             })}
@@ -106,33 +110,39 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
     color: colors.textPrimary,
   },
-  list: {
-    gap: spacing.xs,
-  },
-  row: {
+  grid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: spacing.sm,
+  },
+  card: {
+    width: '48%',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.md,
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.md,
-    padding: spacing.md,
+    borderColor: 'transparent',
   },
-  rowSelected: {
-    borderColor: colors.accentBorder,
+  cardSelected: {
+    borderColor: colors.accent,
     backgroundColor: colors.accentSoft,
   },
+  cardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   icon: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
+    width: 44,
+    height: 44,
+    borderRadius: radius.sm,
     backgroundColor: colors.accent900,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  text: {
-    flex: 1,
+  cardText: {
     gap: spacing.xxs,
   },
   name: {
