@@ -159,8 +159,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   playBtn: {
-    borderWidth: 1,
-    borderColor: colors.accentBorder,
     backgroundColor: colors.accentSoft,
     borderRadius: radius.sm,
     paddingVertical: 9,

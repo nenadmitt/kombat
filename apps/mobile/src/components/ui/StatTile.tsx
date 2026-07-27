@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   },
   tileAccent: {
     backgroundColor: colors.accent900,
-    borderColor: colors.accentBorder,
+    borderColor: 'transparent',
   },
   head: {
     flexDirection: 'row',
