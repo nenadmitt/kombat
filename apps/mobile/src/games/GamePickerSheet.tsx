@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   list: {
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   row: {
     flexDirection: 'row',
