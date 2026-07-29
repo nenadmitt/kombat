@@ -7,6 +7,7 @@ import {
 import {
   BATTLESHIP_EVENTS,
   CHROMA_EVENTS,
+  SALVO_EVENTS,
   LUDO_EVENTS,
   RPS_EVENTS,
 } from '@gaming-platform/core';
@@ -16,6 +17,7 @@ import { gameChannel } from '../websockets/rooms.util';
 import { WebsocketsService } from '../websockets';
 import { BattleshipMatchService } from './battleships/battleship-match.service';
 import { ChromaMatchService } from './chroma/chroma-match.service';
+import { SalvoMatchService } from './salvo/salvo-match.service';
 import { LudoMatchService } from './ludo/ludo-match.service';
 import { RpsMatchService } from './rps/rps-match.service';
 import { StakesService } from './stakes/stakes.service';
@@ -45,6 +47,7 @@ export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
     private readonly cacheService: CacheService,
     private readonly battleshipMatchService: BattleshipMatchService,
     private readonly chromaMatchService: ChromaMatchService,
+    private readonly salvoMatchService: SalvoMatchService,
     private readonly ludoMatchService: LudoMatchService,
     private readonly rpsMatchService: RpsMatchService,
     private readonly websocketsService: WebsocketsService,
@@ -112,6 +115,8 @@ export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
         return this.enforceRpsRoundTimeout(parsed.roomId, parsed.seq);
       case 'chroma-turn':
         return this.enforceChromaTurnTimeout(parsed.roomId, parsed.seq);
+      case 'salvo-turn':
+        return this.enforceSalvoTurnTimeout(parsed.roomId, parsed.seq);
     }
   }
 
@@ -238,6 +243,35 @@ export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
       this.websocketsService.sendToChannel(
         gameChannel(roomId),
         CHROMA_EVENTS.ended,
+        { winnerUserId: payload.winnerUserId, reason: 'timeout' },
+      );
+      await this.stakesService.completeMatch(
+        roomId,
+        payload.winnerUserId,
+        'timeout',
+      );
+    }
+  }
+
+  // --- salvo -----------------------------------------------------------------
+
+  private async enforceSalvoTurnTimeout(
+    roomId: string,
+    seq: number,
+  ): Promise<void> {
+    const payload = await this.salvoMatchService.timeoutTurn(roomId, seq);
+    if (!payload) {
+      return; // Stale — the turn advanced or the match ended/expired.
+    }
+    this.websocketsService.sendToChannel(
+      gameChannel(roomId),
+      SALVO_EVENTS.turnTimeout,
+      payload,
+    );
+    if (payload.winnerUserId) {
+      this.websocketsService.sendToChannel(
+        gameChannel(roomId),
+        SALVO_EVENTS.ended,
         { winnerUserId: payload.winnerUserId, reason: 'timeout' },
       );
       await this.stakesService.completeMatch(

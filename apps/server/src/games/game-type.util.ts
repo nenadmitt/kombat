@@ -17,6 +17,7 @@ const PLAYER_COUNT_BY_GAME_TYPE: Record<GameType, number> = {
   [GameType.Ludo]: LUDO_MAX_PLAYERS,
   [GameType.TripleCut]: 2,
   [GameType.ChromaClash]: CHROMA_MAX_PLAYERS,
+  [GameType.Salvo]: 2,
 };
 
 export function getPlayerCountForGameType(gameType: GameType): number {

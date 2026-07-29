@@ -38,6 +38,14 @@ export type RootStackParamList = {
     stakeAmount?: string | null;
   };
   ChromaClashSetup: undefined;
+  // Same split for Salvo (the two-tank artillery duel). Only the local route
+  // is wired today - Salvo has no socket gateway yet.
+  Salvo: {
+    roomId: string;
+    stakeToken?: StakeAsset | null;
+    stakeAmount?: string | null;
+  };
+  SalvoSetup: undefined;
 };
 
 /** Bottom tabs shown once the user is authenticated and onboarded. */

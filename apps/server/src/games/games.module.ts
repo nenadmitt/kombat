@@ -8,6 +8,8 @@ import { BattleshipGateway } from './battleships/battleship.gateway';
 import { BattleshipMatchService } from './battleships/battleship-match.service';
 import { ChromaGateway } from './chroma/chroma.gateway';
 import { ChromaMatchService } from './chroma/chroma-match.service';
+import { SalvoGateway } from './salvo/salvo.gateway';
+import { SalvoMatchService } from './salvo/salvo-match.service';
 import { GameDeadlineSweeper } from './game-deadline.sweeper';
 import { GamesController } from './games.controller';
 import { GamesService } from './games.service';
@@ -33,6 +35,8 @@ import { StakesService } from './stakes/stakes.service';
     RpsGateway,
     ChromaMatchService,
     ChromaGateway,
+    SalvoMatchService,
+    SalvoGateway,
     GameDeadlineSweeper,
   ],
 })

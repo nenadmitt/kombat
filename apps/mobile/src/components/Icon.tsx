@@ -38,6 +38,7 @@ import {
   LogOut,
   Minus,
   MoreHorizontal,
+  MoveHorizontal,
   PartyPopper,
   Plus,
   RefreshCw,
@@ -50,9 +51,11 @@ import {
   ShieldCheck,
   Ship,
   Sparkles,
+  Spline,
   Swords,
   Target,
   Timer,
+  Triangle,
   TrendingUp,
   TriangleAlert,
   Trash2,
@@ -61,12 +64,15 @@ import {
   Users,
   Wallet,
   WifiOff,
+  Wind,
   X,
   Zap,
 } from 'lucide-react-native';
 
 const ICONS = {
   anchor: Anchor,
+  /** Elevation dial - Salvo's ANGLE card. */
+  angle: Triangle,
   'arrow-down': ArrowDownToLine,
   'arrow-left': ArrowLeft,
   'arrow-right': ArrowRight,
@@ -105,6 +111,7 @@ const ICONS = {
   'log-out': LogOut,
   minus: Minus,
   'more-horizontal': MoreHorizontal,
+  'move-horizontal': MoveHorizontal,
   party: PartyPopper,
   plus: Plus,
   refresh: RefreshCw,
@@ -120,6 +127,8 @@ const ICONS = {
   swords: Swords,
   target: Target,
   timer: Timer,
+  /** Shell arc - Salvo's glyph across lobby / history rows. */
+  trajectory: Spline,
   trash: Trash2,
   'trending-up': TrendingUp,
   trophy: Trophy,
@@ -128,6 +137,7 @@ const ICONS = {
   wallet: Wallet,
   warning: TriangleAlert,
   'wifi-off': WifiOff,
+  wind: Wind,
   zap: Zap,
 } as const;
 

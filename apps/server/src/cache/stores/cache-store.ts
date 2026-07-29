@@ -53,6 +53,10 @@ export const CacheKeys = {
   chromaMatch: (roomId: string): string => `chroma:match:${roomId}`,
   /** Per-room mutex guarding read-mutate-write cycles on the Chroma match. */
   chromaLock: (roomId: string): string => `lock:chroma:${roomId}`,
+  /** Authoritative Salvo MatchState JSON. */
+  salvoMatch: (roomId: string): string => `salvo:match:${roomId}`,
+  /** Per-room mutex guarding read-mutate-write cycles on the Salvo match. */
+  salvoLock: (roomId: string): string => `lock:salvo:${roomId}`,
   /** Cached GameRoomEntity JSON (short TTL — bounds staleness). */
   gameRoom: (id: string): string => `room:${id}`,
   /** Cached PlatformStatus JSON (maintenance flag; DB row is the truth). */
@@ -64,7 +68,8 @@ export const CacheKeys = {
 export const DEADLINES_KEY = 'bs:deadlines';
 
 /** Deadline kinds: `setup`/`turn` are Battleship's, `ludo-turn` is Ludo's,
- *  `rps-round` is Triple Cut's, `chroma-turn` is ChromaClash's. A new
+ *  `rps-round` is Triple Cut's, `chroma-turn` is ChromaClash's,
+ *  `salvo-turn` is Salvo's. A new
  *  turn-based game adds its own kind here and an enforcer in the deadline
  *  sweeper. */
 export type DeadlineKind =
@@ -72,7 +77,8 @@ export type DeadlineKind =
   | 'turn'
   | 'ludo-turn'
   | 'rps-round'
-  | 'chroma-turn';
+  | 'chroma-turn'
+  | 'salvo-turn';
 
 const DEADLINE_KINDS: readonly DeadlineKind[] = [
   'setup',
@@ -80,6 +86,7 @@ const DEADLINE_KINDS: readonly DeadlineKind[] = [
   'ludo-turn',
   'rps-round',
   'chroma-turn',
+  'salvo-turn',
 ];
 
 /** Member format for DEADLINES_KEY: `{roomId}|{kind}|{turnSeq}`. */

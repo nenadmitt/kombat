@@ -1,6 +1,7 @@
 import { randomInt } from 'node:crypto';
 
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -18,6 +19,7 @@ import {
   ROOM_EVENTS,
   RPS_EVENTS,
   StakeAsset,
+  supportsMultiplayerRoom,
 } from '@gaming-platform/core';
 
 import { DbService } from '../db';
@@ -58,6 +60,14 @@ export class GamesService {
     isPrivate = false,
   ): Promise<GameRoomSummary> {
     await this.maintenanceService.assertNotInMaintenance();
+    // The GameType enum carries values that have no gateway behind them yet
+    // (Salvo is a local demo), and DTO validation only checks enum membership.
+    // Such a room would start and then have nothing to drive it.
+    if (!supportsMultiplayerRoom(gameType)) {
+      throw new BadRequestException(
+        'That game is not available for online rooms yet.',
+      );
+    }
     const existing = await this.dbService.findOpenGameRoomForUser(userId);
     if (existing) {
       throw new ConflictException(

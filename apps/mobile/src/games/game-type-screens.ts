@@ -8,4 +8,5 @@ export const GAME_TYPE_SCREENS: Record<GameType, keyof RootStackParamList> = {
   [GameType.Ludo]: 'Ludo',
   [GameType.TripleCut]: 'TripleCut',
   [GameType.ChromaClash]: 'ChromaClash',
+  [GameType.Salvo]: 'Salvo',
 };

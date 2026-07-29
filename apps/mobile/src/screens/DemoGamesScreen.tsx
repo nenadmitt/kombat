@@ -25,6 +25,7 @@ const GAMES: GameCard[] = [
   { name: 'Ludo Royale', tag: 'Board', players: '1.8k playing', icon: 'dice', gameType: GameType.Ludo },
   { name: 'Triple Cut', tag: 'Duel', players: '1.2k playing', icon: 'hand', gameType: GameType.TripleCut },
   { name: 'Chroma Clash', tag: 'Cards', players: '2.1k playing', icon: 'layers', gameType: GameType.ChromaClash },
+  { name: 'Salvo', tag: 'Artillery', players: '194 playing', icon: 'trajectory', gameType: GameType.Salvo },
 ];
 
 export default function DemoGamesScreen() {
