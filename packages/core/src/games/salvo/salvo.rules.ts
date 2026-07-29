@@ -1,5 +1,6 @@
 import { SalvoSide } from './salvo.types';
 import type {
+  SalvoDamageKind,
   SalvoImpactKind,
   SalvoPlayerStats,
   SalvoPoint,
@@ -81,13 +82,27 @@ const MUZZLE_HEIGHT = 15;
 const TANK_HALF_WIDTH = 11;
 const TANK_HEIGHT = 12;
 
-/** Blast geometry: full damage inside the core, tapering to nothing at the rim. */
+/**
+ * Damage tiers. A shell that actually strikes the hull hurts far more than
+ * one that merely lands nearby, so aiming is worth something: previously any
+ * impact within 7 units did full damage, which made a near miss identical to
+ * a direct hit.
+ */
+/** Struck the hull within DIRECT_CORE of its centre. */
+const DIRECT_DAMAGE = 38;
+/** Struck the hull, but off-centre. */
+const HULL_DAMAGE = 26;
+/** Near miss: the most splash can do, tapering to 1 at the blast rim. */
+const SPLASH_MAX_DAMAGE = 16;
+/** How close to the hull's centre a strike must be to count as direct. */
+const DIRECT_CORE = 6;
+/** Splash reaches this far from the hull's centre. */
 const BLAST_RADIUS = 30;
-const BLAST_CORE = 7;
-const BLAST_MAX_DAMAGE = 38;
-/** Craters are a little tighter than the blast that makes them. */
-const CRATER_RADIUS = 22;
-const CRATER_DEPTH = 9;
+
+/** Craters are a circular bite centred on the impact. Sized so the earth
+ *  moved matches the old parabolic notch - same volume, better shape - and
+ *  a full match does not scrape the map flat. */
+const CRATER_RADIUS = 14;
 
 /** Terrain stays inside this band so neither tank is ever buried or airborne. */
 const MIN_GROUND = 42;
@@ -259,6 +274,10 @@ export const fireShot = (
 
   const path: SalvoPoint[] = [{ x, y }];
   let kind: SalvoImpactKind = 'out-of-bounds';
+  // Which hull the shell actually struck, if any - a strike is worth far more
+  // than the same distance measured as splash.
+  let struckTarget = false;
+  let struckShooter = false;
   // A shell only arms against its own tank once it has cleared it, so a steep
   // lob that falls back on the shooter still counts while a launch never does.
   let armed = false;
@@ -281,8 +300,11 @@ export const fireShot = (
     }
     const onShooter = hitsTank({ x, y }, terrain, shooter);
     armed = armed || !onShooter;
-    if (hitsTank({ x, y }, terrain, target) || (armed && onShooter)) {
+    const onTarget = hitsTank({ x, y }, terrain, target);
+    if (onTarget || (armed && onShooter)) {
       kind = 'tank';
+      struckTarget = onTarget;
+      struckShooter = armed && onShooter;
       break;
     }
     if (y <= groundAt(terrain, x)) {
@@ -295,16 +317,21 @@ export const fireShot = (
   path.push(impact);
 
   const spent = kind === 'out-of-bounds';
-  const damage = spent ? 0 : blastDamage(terrain, impact, target);
-  const selfDamage = spent ? 0 : blastDamage(terrain, impact, shooter);
+  const onTarget = spent
+    ? { damage: 0, kind: 'none' as SalvoDamageKind }
+    : blastDamage(terrain, impact, target, struckTarget);
+  const onSelf = spent
+    ? { damage: 0, kind: 'none' as SalvoDamageKind }
+    : blastDamage(terrain, impact, shooter, struckShooter);
   return {
     shooter: shooter.side,
     path,
     impact,
     kind,
-    damage,
-    selfDamage,
-    hit: damage > 0,
+    damage: onTarget.damage,
+    damageKind: onTarget.kind,
+    selfDamage: onSelf.damage,
+    hit: onTarget.damage > 0,
   };
 };
 
@@ -313,17 +340,29 @@ export const blastDamage = (
   terrain: SalvoTerrain,
   impact: SalvoPoint,
   tank: SalvoTank,
-): number => {
+  struckHull = false,
+): { damage: number; kind: SalvoDamageKind } => {
   const centre = { x: tank.x, y: groundAt(terrain, tank.x) + TANK_HEIGHT / 2 };
   const d = Math.hypot(impact.x - centre.x, impact.y - centre.y);
-  if (d >= BLAST_RADIUS) {
-    return 0;
+
+  if (struckHull) {
+    return d <= DIRECT_CORE
+      ? { damage: DIRECT_DAMAGE, kind: 'direct' }
+      : { damage: HULL_DAMAGE, kind: 'hull' };
   }
-  if (d <= BLAST_CORE) {
-    return BLAST_MAX_DAMAGE;
+
+  // Splash is measured from the hull's edge, not its centre, so a shell that
+  // lands just short of the tracks still stings.
+  const fromHull = Math.max(0, d - TANK_HALF_WIDTH);
+  const reach = BLAST_RADIUS - TANK_HALF_WIDTH;
+  if (fromHull >= reach) {
+    return { damage: 0, kind: 'none' };
   }
-  const falloff = 1 - (d - BLAST_CORE) / (BLAST_RADIUS - BLAST_CORE);
-  return Math.max(1, Math.round(BLAST_MAX_DAMAGE * falloff));
+  const damage = Math.max(
+    1,
+    Math.round(SPLASH_MAX_DAMAGE * (1 - fromHull / reach)),
+  );
+  return { damage, kind: 'splash' };
 };
 
 /**
@@ -332,14 +371,20 @@ export const blastDamage = (
  * ground under a hit tank is left intact.
  */
 export const carveCrater = (terrain: SalvoTerrain, impact: SalvoPoint): void => {
-  for (let x = impact.x - CRATER_RADIUS; x <= impact.x + CRATER_RADIUS; x++) {
-    const i = clampIndex(x, terrain);
-    const d = Math.abs(x - impact.x) / CRATER_RADIUS;
-    const dig = CRATER_DEPTH * (1 - d * d);
-    if (dig <= 0) {
+  const r = CRATER_RADIUS;
+  for (let x = Math.floor(impact.x - r); x <= Math.ceil(impact.x + r); x++) {
+    const dx = x - impact.x;
+    if (Math.abs(dx) > r) {
       continue;
     }
-    terrain.heights[i] = Math.max(MIN_GROUND, (terrain.heights[i] ?? 0) - dig);
+    // Take a true circular bite centred on the impact: at this column the
+    // new surface is the bottom of that circle, wherever the ground already
+    // sits lower. A heightmap holds one surface per column, so the circle's
+    // deepest point at each column is what the ground becomes.
+    const i = clampIndex(x, terrain);
+    const floor = impact.y - Math.sqrt(r * r - dx * dx);
+    const current = terrain.heights[i] ?? 0;
+    terrain.heights[i] = Math.max(MIN_GROUND, Math.min(current, floor));
   }
 };
 

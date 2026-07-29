@@ -1,4 +1,5 @@
 import type {
+  SalvoDamageKind,
   SalvoEndReason,
   SalvoPlayerStats,
   SalvoPoint,
@@ -42,6 +43,23 @@ export type SalvoTrail = {
   id: number;
 };
 
+/** One hull taking damage from the shot that just landed. */
+export type SalvoDamageHit = {
+  side: SalvoSide;
+  amount: number;
+  kind: SalvoDamageKind;
+};
+
+/**
+ * Damage from the last resolved shot, for the floating "-12" over the hull
+ * that took it. Carries an id so the animation latches on a new hit rather
+ * than on a value that happens to repeat.
+ */
+export type SalvoDamageEvent = {
+  id: number;
+  hits: SalvoDamageHit[];
+};
+
 export type SalvoPlayProps = {
   terrain: SalvoTerrain;
   seats: SalvoSeatView[];
@@ -61,6 +79,8 @@ export type SalvoPlayProps = {
   trail: SalvoTrail | null;
   /** Whoever is currently lining up a shot, for the barrel tick marks. */
   aiming: SalvoSide | null;
+  /** Damage from the shot that just landed, or null between shots. */
+  damage: SalvoDamageEvent | null;
   /**
    * The hull that has just been destroyed. Set the instant HP hits zero and
    * held while the wreck burns, before `result` finally resolves.

@@ -250,6 +250,7 @@ export class SalvoMatchService {
         impact: shot.impact,
         kind: shot.kind,
         damage: shot.damage,
+        damageKind: shot.damageKind,
         selfDamage: shot.selfDamage,
         hp: { ...match.hp },
         stats: { ...match.stats },

@@ -39,6 +39,12 @@ export type SalvoPoint = { x: number; y: number };
 /** Why a shell stopped flying. */
 export type SalvoImpactKind = 'terrain' | 'tank' | 'out-of-bounds';
 
+/**
+ * How a hull took its damage. A shell that strikes armour hurts far more
+ * than one that merely lands nearby, and the UI names the difference.
+ */
+export type SalvoDamageKind = 'direct' | 'hull' | 'splash' | 'none';
+
 /** The resolved outcome of one shot. */
 export type SalvoShot = {
   shooter: SalvoSide;
@@ -48,6 +54,8 @@ export type SalvoShot = {
   kind: SalvoImpactKind;
   /** Damage dealt to the opponent (0 on a clean miss). */
   damage: number;
+  /** How that damage was taken - drives the banner and the HP popup. */
+  damageKind: SalvoDamageKind;
   /** Damage the blast did to the shooter's own tank (a short lob can). */
   selfDamage: number;
   /** True when the shell landed close enough to hurt the opponent at all. */
