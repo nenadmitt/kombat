@@ -70,8 +70,9 @@ drawing (~60 points for a typical shot). Constants:
 | `POWER_SCALE` | 0.135 | Muzzle velocity per point of the 0-100 dial. |
 | `WIND_SCALE` | 0.0055 | Horizontal acceleration per point of wind. |
 | `MUZZLE_HEIGHT` | 15 | **Must exceed `TANK_HEIGHT`** - see below. |
-| `BLAST_RADIUS` / `BLAST_CORE` | 30 / 7 | Full damage inside the core, linear taper to zero at the rim. |
-| `BLAST_MAX_DAMAGE` | 38 | Against 100 HP, so three good hits kill. |
+| `DIRECT_DAMAGE` | 38 | Hull struck within `DIRECT_CORE` (6) of its centre. |
+| `HULL_DAMAGE` | 26 | Hull struck off-centre. |
+| `SPLASH_MAX_DAMAGE` | 16 | Near miss, tapering to 1 at `BLAST_RADIUS` (30). |
 
 Two details that are easy to get wrong and were both real bugs during the
 build:
@@ -86,6 +87,21 @@ muzzle, and the muzzle must stay above the hull.
 **Arming.** A shell only counts as hitting its *own* tank once it has cleared
 it at least once (`armed`). That way a steep lob that falls back on the
 shooter still counts, while the launch itself never does.
+
+**Damage tiers.** `fireShot` tracks *which* hull the shell struck, and
+`blastDamage` grades the result: a strike within 6 units of the hull centre is
+a direct hit, any other strike is a hull hit, and anything that merely lands
+nearby is splash measured from the hull's *edge*. Before this, damage was
+purely distance-based, so an impact within 7 units did full damage and a near
+miss was worth exactly as much as a direct hit - aiming precisely bought you
+nothing. Roughly 3 direct hits, 4 hull hits or 7 splash hits kill.
+
+**Craters are circular.** `carveCrater` takes a true circular bite centred on
+the impact: at each column the new surface is the bottom of that circle,
+wherever the ground already sits lower. `CRATER_RADIUS` (14) is chosen so the
+earth moved matches the old parabolic notch - same volume, better shape -
+while leaving ~17% of the map scraped to the floor by the end of a match
+rather than ~30%.
 
 ---
 

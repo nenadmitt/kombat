@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { PanResponder, StyleSheet, View } from 'react-native';
+import { PanResponder, StyleSheet, Text, View } from 'react-native';
 import {
   Canvas,
   Circle,
@@ -25,9 +25,10 @@ import {
 } from '@gaming-platform/core';
 
 import { colors } from '../../theme/colors';
+import { mono } from '../../theme/typography';
 import SalvoBlast from './SalvoBlast';
 import SalvoTank from './SalvoTank';
-import type { SalvoSeatView } from './salvo-engine';
+import type { SalvoDamageEvent, SalvoSeatView } from './salvo-engine';
 
 export type SalvoBattlefieldProps = {
   /** Full world size in px - wider than the viewport it scrolls inside. */
@@ -51,6 +52,8 @@ export type SalvoBattlefieldProps = {
   impactId: number | null;
   /** Hull destroyed this match: burns with a bigger, slower blast. */
   destroyedSide: SalvoSide | null;
+  /** Damage from the shot that just landed, floated over the hull that took it. */
+  damage: SalvoDamageEvent | null;
   /** Tank whose barrel may be dragged to aim, or null when aiming is locked. */
   draggableSide: SalvoSide | null;
   /** Fired with the elevation the drag is pointing at, already clamped. */
@@ -95,6 +98,7 @@ export default function SalvoBattlefield({
   aimingSide,
   impactId,
   destroyedSide,
+  damage,
   draggableSide,
   onAimAngle,
 }: SalvoBattlefieldProps) {
@@ -209,6 +213,9 @@ export default function SalvoBattlefield({
 
   const wreck =
     destroyedSide === null ? null : (tanks.find(t => t.side === destroyedSide) ?? null);
+
+  // Floating "-12" over each hull that just lost HP.
+  const damageProgress = useBlastProgress(damage?.id ?? null, 1100);
 
   const aimer = aimingSide === null ? null : tanks.find(t => t.side === aimingSide);
   const guide = aimer
@@ -368,6 +375,34 @@ export default function SalvoBattlefield({
         )}
       </Canvas>
 
+      {damage && damageProgress !== null
+        ? damage.hits.map(hit => {
+            const tank = tanks.find(t => t.side === hit.side);
+            if (!tank) {
+              return null;
+            }
+            // Drift up and fade out over the life of the popup.
+            const rise = 26 + damageProgress * 26;
+            return (
+              <Text
+                key={`${damage.id}-${hit.side}`}
+                style={[
+                  styles.damage,
+                  {
+                    left: px(tank.x) - 40,
+                    top: py(groundAt(terrain, tank.x)) - rise,
+                    opacity: Math.min(1, (1 - damageProgress) * 2.2),
+                    // A hull strike reads louder than splash.
+                    fontSize: hit.kind === 'splash' ? 13 : 17,
+                  },
+                ]}
+              >
+                -{hit.amount}
+              </Text>
+            );
+          })
+        : null}
+
       {tanks.map(t => (
         <SalvoTank
           key={t.side}
@@ -437,6 +472,17 @@ const closedRidge = (path: ReturnType<typeof Skia.Path.Make>) => {
 
 const styles = StyleSheet.create({
   root: { overflow: 'hidden' },
+  damage: {
+    position: 'absolute',
+    width: 80,
+    textAlign: 'center',
+    fontFamily: mono.bold,
+    color: colors.danger,
+    // Keeps the red readable over the lit terrain rim.
+    textShadowColor: 'rgba(0, 0, 0, 0.85)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
   aimHandle: {
     position: 'absolute',
     width: AIM_HANDLE,

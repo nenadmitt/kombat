@@ -25,6 +25,7 @@ import {
 } from '@gaming-platform/core';
 
 import type {
+  SalvoDamageEvent,
   SalvoEngine,
   SalvoFlight,
   SalvoPlayProps,
@@ -69,6 +70,8 @@ type LocalState = {
   shotNumber: number;
   flight: SalvoFlight | null;
   trail: SalvoTrail | null;
+  /** Damage from the last resolved shot, for the floating HP popup. */
+  damage: SalvoDamageEvent | null;
   /** A tank is mid-drive: dials and FIRE stay locked until it stops. */
   driving: boolean;
   /** Hull destroyed this match, shown burning before the result resolves. */
@@ -101,6 +104,7 @@ const freshState = (): LocalState => ({
   shotNumber: 1,
   flight: null,
   trail: null,
+  damage: null,
   driving: false,
   destroyed: null,
   resultRevealed: false,
@@ -216,6 +220,16 @@ export function useLocalSalvo(): SalvoEngine {
       hp[target] = Math.max(0, hp[target] - shot.damage);
       hp[shooter] = Math.max(0, hp[shooter] - shot.selfDamage);
 
+      // One popup per hull that actually lost HP.
+      const hits = [
+        ...(shot.damage > 0
+          ? [{ side: target, amount: shot.damage, kind: shot.damageKind }]
+          : []),
+        ...(shot.selfDamage > 0
+          ? [{ side: shooter, amount: shot.selfDamage, kind: 'splash' as const }]
+          : []),
+      ];
+
       const winner =
         hp[ME] <= 0 || hp[BOT] <= 0 ? (hp[ME] <= 0 ? BOT : ME) : null;
 
@@ -226,6 +240,9 @@ export function useLocalSalvo(): SalvoEngine {
         stats: { ...prev.stats, [shooter]: stats },
         flight: null,
         trail: { shooter, path: shot.path, impact: shot.impact, id: shotId.current },
+        damage: hits.length
+          ? { id: shotId.current, hits }
+          : null,
         notice: describeShot(prev, shooter, shot),
         winner,
         destroyed: winner === null ? null : winner === ME ? BOT : ME,
@@ -279,6 +296,7 @@ export function useLocalSalvo(): SalvoEngine {
         ...prev,
         notice: null,
         trail: null,
+        damage: null,
         botAiming: false,
         flight: {
           shooter,
@@ -532,6 +550,7 @@ export function useLocalSalvo(): SalvoEngine {
     round: roundOf(state.shotNumber),
     flight: state.flight,
     trail: state.trail,
+    damage: state.damage,
     aiming: armed ? ME : state.botAiming && !over ? BOT : null,
     destroyed: state.destroyed,
     notice: state.notice,

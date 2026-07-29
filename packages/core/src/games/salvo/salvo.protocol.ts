@@ -1,4 +1,5 @@
 import type {
+  SalvoDamageKind,
   SalvoEndReason,
   SalvoImpactKind,
   SalvoPlayerStats,
@@ -104,6 +105,8 @@ export type SalvoShotPayload = {
   kind: SalvoImpactKind;
   /** Damage to the opponent, and to the shooter's own hull. */
   damage: number;
+  /** How the opponent took it: a hull strike hurts far more than splash. */
+  damageKind: SalvoDamageKind;
   selfDamage: number;
   /** Post-shot HP for both players, keyed by user id. */
   hp: Record<string, number>;

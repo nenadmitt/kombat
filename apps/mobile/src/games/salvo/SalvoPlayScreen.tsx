@@ -65,6 +65,7 @@ export default function SalvoPlayScreen({
   flight,
   trail,
   aiming,
+  damage,
   destroyed,
   notice,
   turnDeadline,
@@ -272,6 +273,7 @@ export default function SalvoPlayScreen({
               aimingSide={aiming}
               impactId={trail?.id ?? null}
               destroyedSide={destroyed}
+              damage={damage}
               draggableSide={armed ? me : null}
               onAimAngle={angle => onAim({ angle })}
             />

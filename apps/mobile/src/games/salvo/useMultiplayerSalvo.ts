@@ -26,6 +26,7 @@ import { useUsernames, usernameCache } from '../../store/username-cache';
 import { useWebsocketStore } from '../../store/websocket.store';
 import { useMatchSyncRetry } from '../use-match-sync-retry';
 import type {
+  SalvoDamageEvent,
   SalvoEngine,
   SalvoFlight,
   SalvoPlayProps,
@@ -71,6 +72,7 @@ export function useMultiplayerSalvo(roomId: string): SalvoEngine {
   const [destroyedUserId, setDestroyedUserId] = useState<string | null>(null);
 
   const [waitingError, setWaitingError] = useState<string | null>(null);
+  const [damage, setDamage] = useState<SalvoDamageEvent | null>(null);
   const [flight, setFlight] = useState<SalvoFlight | null>(null);
   const [trail, setTrail] = useState<SalvoTrail | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -183,6 +185,19 @@ export function useMultiplayerSalvo(roomId: string): SalvoEngine {
         return next;
       });
     }
+    // One popup per hull that actually lost HP, from the server's numbers.
+    const shooterSide = side;
+    const targetSide =
+      side === SalvoSide.Left ? SalvoSide.Right : SalvoSide.Left;
+    const hits = [
+      ...(payload.damage > 0
+        ? [{ side: targetSide, amount: payload.damage, kind: payload.damageKind }]
+        : []),
+      ...(payload.selfDamage > 0
+        ? [{ side: shooterSide, amount: payload.selfDamage, kind: 'splash' as const }]
+        : []),
+    ];
+    setDamage(hits.length ? { id: shotId.current, hits } : null);
     setSeats(prev =>
       prev.map(s => ({ ...s, hp: payload.hp[s.userId] ?? s.hp })),
     );
@@ -214,6 +229,7 @@ export function useMultiplayerSalvo(roomId: string): SalvoEngine {
 
     setNotice(null);
     setTrail(null);
+    setDamage(null);
     setSeats(prev =>
       prev.map(s =>
         s.userId === shooter
@@ -432,6 +448,7 @@ export function useMultiplayerSalvo(roomId: string): SalvoEngine {
     round: roundOf(shotNumber),
     flight,
     trail,
+    damage,
     aiming: armed ? mySide : null,
     destroyed: destroyedSide,
     notice,
