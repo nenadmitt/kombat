@@ -72,6 +72,19 @@ simulates and ships the result; the client replays it.
 Never broadcast information a player has not committed to yet - a dialled aim,
 an unplayed hand. Send it with the action, not before it.
 
+## Client actions are advisory
+
+`forfeit`, `enter` and every other client message are hints, not authority.
+A client can always stop talking - force-quit, airplane mode, a patched
+build - so no confirmation dialog or client-side guard is an enforcement
+mechanism. Anything that must hold has to hold in the match service:
+
+- validate every action against live state (`assertTurn`, `assertParticipant`,
+  phase checks), and reject rather than trust
+- make sure an abandoned match still resolves without any client help. The
+  turn clock plus `MAX_TIMEOUTS` is what does that; a new game is not
+  finished until its deadline enforcer is wired into `GameDeadlineSweeper`.
+
 ## Cache staleness
 
 `findGameRoomById` reads through a 60s cache. With `REDIS_URL` unset the store

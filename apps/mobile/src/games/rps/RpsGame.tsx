@@ -104,11 +104,15 @@ function RpsGameFlow({
     return (
       <MatchLoading
         error={engine.waitingError}
-        // A snapshot that never lands must not trap the player. They are not
-        // in a playable match yet, so leaving here is not a forfeit: step the
-        // navigation guard aside rather than demanding they confirm one.
+        // Always tell the server, and let it decide. forfeit() is rejected
+        // server-side when the match does not exist, has not started, or the
+        // caller is not in it - so a genuinely stuck player is not penalised,
+        // while anyone who did reach a live match still forfeits it. Only the
+        // confirmation dialog is skipped: it is UX, not enforcement, and a
+        // client can always just close the app instead.
         onLeave={() => {
           exitConfirmed.current = true;
+          engine.forfeit();
           onExit();
         }}
       />
