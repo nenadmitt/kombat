@@ -10,6 +10,7 @@ import { BATTLESHIP_EVENTS } from '@gaming-platform/core';
 
 import { DbService } from '../../db';
 import { GameRoomEntity } from '../../db/entities/game-room.entity';
+import { participantsOf } from '../room.util';
 import { gameChannel } from '../../websockets/rooms.util';
 import { WebsocketsService } from '../../websockets';
 import { StakesService } from '../stakes/stakes.service';
@@ -249,7 +250,10 @@ export class BattleshipGateway {
     if (!room) {
       throw new Error('Game room not found.');
     }
-    if (room.userId !== userId && room.opponentId !== userId) {
+    // participantsOf covers both seatings: a two-player joiner sits in
+    // `opponent_id`, a multi-seat joiner in `opponent_ids`. Reading either
+    // column directly is how Salvo rejected its own joiner.
+    if (!participantsOf(room).includes(userId)) {
       throw new Error('You are not part of this room.');
     }
     return room;

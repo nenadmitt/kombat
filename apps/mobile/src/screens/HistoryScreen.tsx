@@ -6,6 +6,7 @@ import {
   ApiError,
   STAKE_ASSET_SYMBOLS,
   formatStakeAmount,
+  type GameType,
   type MatchHistoryEntry,
 } from '@gaming-platform/core';
 
@@ -13,7 +14,8 @@ import { apiClient } from '../api/client';
 import Icon from '../components/Icon';
 import { useServerStore } from '../store/server.store';
 import { Card, Chip, SectionLabel, StatTile, type ChipTone } from '../components/ui';
-import { GAME_TYPE_ICONS, GAME_TYPE_LABELS } from '../games/game-type-labels';
+import GameIcon from '../games/GameIcon';
+import { GAME_TYPE_LABELS } from '../games/game-type-labels';
 import { colors, radius, spacing } from '../theme/colors';
 import { mono, type } from '../theme/typography';
 
@@ -124,12 +126,11 @@ export default function HistoryScreen() {
   const renderItem = useCallback(({ item: entry }: { item: MatchHistoryEntry }) => {
     const meta = RESULT_META[entry.result];
     const prize = prizeLabel(entry);
-    const gameIcon = GAME_TYPE_ICONS[entry.gameType as keyof typeof GAME_TYPE_ICONS] ?? 'crosshair';
     return (
       <Card style={styles.matchCard}>
         <View style={styles.matchTop}>
           <View style={styles.gameIcon}>
-            <Icon type={gameIcon} color={colors.accentLight} size={20} />
+            <GameIcon type={entry.gameType as GameType} size={34} />
           </View>
           <View style={styles.matchMid}>
             <Text style={styles.matchGame}>

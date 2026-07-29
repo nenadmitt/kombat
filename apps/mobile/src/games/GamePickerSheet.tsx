@@ -2,14 +2,14 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GameType } from '@gaming-platform/core';
 
-import Icon, { type IconName } from '../components/Icon';
+import Icon from '../components/Icon';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, type } from '../theme/typography';
+import GameIcon from './GameIcon';
 
 export type GameChoice = {
   gameType: GameType;
   label: string;
-  icon: IconName;
   blurb: string;
 };
 
@@ -55,7 +55,7 @@ export default function GamePickerSheet({
                 >
                   <View style={styles.cardTop}>
                     <View style={styles.icon}>
-                      <Icon type={choice.icon} color={colors.accentLight} size={22} />
+                      <GameIcon type={choice.gameType} size={34} />
                     </View>
                     {isSelected ? (
                       <Icon type="check" color={colors.accent} size={18} />

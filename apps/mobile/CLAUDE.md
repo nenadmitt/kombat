@@ -60,3 +60,8 @@
    will retry", point at that code or write the retry. Multiplayer engines use
    `games/use-match-sync-retry.ts` for exactly this. See
    `claude/reports/MATCH_START_STUCK_LOADING.md`.
+
+7. **Every blocking screen needs a way out.** A loading or waiting screen
+   must always render an exit, and must say why it is stuck when it knows.
+   Use `games/MatchLoading.tsx` for match snapshots - it does both. A screen
+   the user can reach but not leave is a bug no matter what put them there.

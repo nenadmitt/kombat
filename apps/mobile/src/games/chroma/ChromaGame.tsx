@@ -1,5 +1,4 @@
 import { useRef } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import {
   useNavigation,
   usePreventRemove,
@@ -8,7 +7,7 @@ import {
 import type { StakeAsset } from '@gaming-platform/core';
 
 import { useConfirm } from '../../components/ui';
-import { colors, spacing } from '../../theme/colors';
+import MatchLoading from '../MatchLoading';
 import ChromaPlayScreen from './ChromaPlayScreen';
 import type { ChromaEngine } from './chroma-engine';
 import { useDemoChroma } from './useDemoChroma';
@@ -107,13 +106,16 @@ function ChromaGameFlow({
 
   if (engine.phase === 'waiting') {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator color={colors.accent} size="large" />
-        {/* A stuck load must say why - a mute spinner is undebuggable. */}
-        {engine.waitingError ? (
-          <Text style={styles.loadingError}>{engine.waitingError}</Text>
-        ) : null}
-      </View>
+      <MatchLoading
+        error={engine.waitingError}
+        // A snapshot that never lands must not trap the player. They are not
+        // in a playable match yet, so leaving here is not a forfeit: step the
+        // navigation guard aside rather than demanding they confirm one.
+        onLeave={() => {
+          exitConfirmed.current = true;
+          onExit();
+        }}
+      />
     );
   }
   return (
@@ -126,18 +128,3 @@ function ChromaGameFlow({
   );
 }
 
-const styles = StyleSheet.create({
-  loading: {
-    flex: 1,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingError: {
-    marginTop: spacing.md,
-    marginHorizontal: spacing.xl,
-    textAlign: 'center',
-    fontSize: 13,
-    color: colors.textMuted,
-  },
-});

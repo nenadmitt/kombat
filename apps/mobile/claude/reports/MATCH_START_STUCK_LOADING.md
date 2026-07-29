@@ -211,6 +211,54 @@ and the checklist is environmental:
 3. Is the server a single instance, or multi-instance with `REDIS_URL` set?
    In-memory match state cannot be shared across instances.
 
+## Fourth round: the same seat bug, in the gateway
+
+The error surfacing added in round three paid for itself immediately: the
+joiner's screen stopped showing a bare spinner and started showing
+**"You are not part of this room."** - the Salvo gateway's own participant
+check, rejecting the joiner.
+
+Round two fixed `SalvoMatchService.getOrCreate`, which read `opponentIds`.
+`SalvoGateway.loadParticipantRoom` read it too, and was missed:
+
+```ts
+if (room.userId !== userId && !room.opponentIds.includes(userId)) {
+  throw new Error('You are not part of this room.');
+}
+```
+
+Salvo is two-player, so the joiner sits in `opponent_id` and `opponent_ids`
+is empty - the check rejected them on **every** enter. The creator passes as
+`room.userId`, which is exactly the asymmetry reported: creator plays,
+joiner stuck.
+
+Fixing one call site and leaving the other was the mistake. Every gateway now
+uses `participantsOf(room)`, the same helper the controller already used:
+
+| Gateway | Read before | Correct for it? |
+| --- | --- | --- |
+| Battleship | `opponentId` | yes, by luck of being two-player |
+| Triple Cut | `opponentId` | yes, same |
+| Ludo | `opponentIds` | yes, multi-seat |
+| Chroma | `opponentIds` | yes, multi-seat |
+| Salvo | `opponentIds` | **no** - two-player game, wrong column |
+
+Four were right by accident of matching their own seating; none was robust to
+the seating changing. `participantsOf` covers both, so the class is closed
+rather than the instance.
+
+## The loading screen trapped the player
+
+Also reported, and a fair criticism of the round-three fix: the message was
+shown, but the screen had no back button, so a player who hit it was stuck
+in the app with no way out.
+
+New shared `games/MatchLoading.tsx` replaces the four inline spinners. It
+always renders a **Leave** action, and states the failure when there is one.
+Leaving from here deliberately bypasses the forfeit confirmation: the player
+never reached a playable match, so a load failure must not be scored as a
+loss against them.
+
 ## Rules to prevent recurrence
 
 1. **A screen whose only exit is a successful fetch must retry that fetch.**
@@ -230,6 +278,12 @@ and the checklist is environmental:
 6. **Dispatch every new game type in `GET /games/rooms/:id/state`.** It falls
    through to Battleship, so a missing branch silently creates a Battleship
    match against another game's room id.
-7. **Socket enter handlers run many times per socket.** Client retries and
+7. **Fix the class, not the instance.** When a bug is a wrong column, a
+   wrong event, or a wrong helper, grep every call site before closing it.
+   Salvo's seat bug was fixed in the match service and left in the gateway,
+   and cost a full extra round.
+8. **Every blocking screen needs an exit.** A screen a user can reach and
+   not leave is a bug regardless of why they reached it.
+9. **Socket enter handlers run many times per socket.** Client retries and
    reconnect replays make enter idempotency mandatory - including resource
    registration like disconnect hooks, not just state writes.
