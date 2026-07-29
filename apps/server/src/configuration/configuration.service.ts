@@ -39,32 +39,19 @@ export class ConfigurationService {
   // free games unaffected) -------------------------------------------------
   public readonly CHAIN_RPC_URL: string | undefined;
   public readonly CHAIN_ID: number;
-  public readonly ESCROW_ADDRESS: string | undefined;
-  /** The escrow operator's hot key — signs create/fund/settle/void. */
+  /** The platform's hot key - signs pot withdrawals and gas top-ups. */
   public readonly OPERATOR_PRIVATE_KEY: string | undefined;
-  /** Confirmations to await before treating a stake tx as final. */
+  /** Confirmations to await before treating a chain tx as final. */
   public readonly CHAIN_CONFIRMATIONS: number;
   /** Max stake per player in human units (applies to every asset). */
   public readonly STAKE_MAX: number;
-  /** Standing escrow allowance pre-approved from each custodial wallet, in
-   *  human units per token. */
-  public readonly ESCROW_APPROVAL_AMOUNT: number;
-  /** ETH sent to a wallet so it can pay its own approve-tx gas. */
+  /** ETH sent to a fresh wallet so it can pay for its own first deposit. */
   public readonly ESCROW_GAS_DUST_ETH: string;
 
   // ---- stake pot (pooled staking) ----------------------------------------
-  /**
-   * Which staking path serves new matches. `escrow` keeps the per-match
-   * on-chain escrow; `pot` holds stakes against the StakePot ledger instead.
-   * The pot's own infrastructure (deposit watcher, withdrawal sweeper) runs
-   * whenever STAKE_POT_ADDRESS is set regardless, so players can fund their
-   * pot before the mode is flipped.
-   */
-  public readonly STAKING_MODE: 'escrow' | 'pot';
-  /** The StakePot contract. Unset ⇒ every pot feature is disabled. */
+  /** The StakePot contract. Unset means staked games are unavailable. */
   public readonly STAKE_POT_ADDRESS: string | undefined;
-  /** Platform fee on a settled pot match, in basis points (mirrors the
-   *  escrow's on-chain feeBps and its 10% hard cap). */
+  /** Platform fee on a settled match, in basis points. Capped at 10%. */
   public readonly STAKE_FEE_BPS: number;
   /** How often the deposit watcher scans for new `Staked` events. */
   public readonly STAKE_POT_POLL_MS: number;
@@ -119,7 +106,6 @@ export class ConfigurationService {
       this.configService.get('CHAIN_ID') ?? '11155111', // Sepolia
       10,
     );
-    this.ESCROW_ADDRESS = this.configService.get('ESCROW_ADDRESS');
     this.OPERATOR_PRIVATE_KEY = this.configService.get('OPERATOR_PRIVATE_KEY');
     this.CHAIN_CONFIRMATIONS = parseInt(
       this.configService.get('CHAIN_CONFIRMATIONS') ?? '1',
@@ -129,18 +115,10 @@ export class ConfigurationService {
       this.configService.get('STAKE_MAX') ?? '1000',
       10,
     );
-    this.ESCROW_APPROVAL_AMOUNT = parseInt(
-      this.configService.get('ESCROW_APPROVAL_AMOUNT') ?? '10000',
-      10,
-    );
     this.ESCROW_GAS_DUST_ETH =
       this.configService.get('ESCROW_GAS_DUST_ETH') ?? '0.002';
 
-    this.STAKING_MODE =
-      this.configService.get('STAKING_MODE') === 'pot' ? 'pot' : 'escrow';
     this.STAKE_POT_ADDRESS = this.configService.get('STAKE_POT_ADDRESS');
-    // Capped at the escrow contract's own MAX_FEE_BPS so the two paths can
-    // never disagree about what an acceptable fee is.
     const feeBps = parseInt(this.configService.get('STAKE_FEE_BPS') ?? '500', 10);
     if (!Number.isInteger(feeBps) || feeBps < 0 || feeBps > 1000) {
       throw new Error(

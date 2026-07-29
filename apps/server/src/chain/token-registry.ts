@@ -10,8 +10,8 @@ export type TokenAddresses = Partial<Record<StakeAsset, Address>>;
 /**
  * Canonical token addresses per chain — hardcoded on purpose: these are
  * facts about a chain, not deployment configuration, and every entry must
- * match the escrow's on-chain allowlist (apps/evm-contracts/README.md).
- * Adding a chain = adding an entry here (plus CHAIN_ID/ESCROW_ADDRESS env).
+ * match the pot's on-chain allowlist (apps/evm-contracts/README.md).
+ * Adding a chain = adding an entry here (plus CHAIN_ID/STAKE_POT_ADDRESS env).
  */
 export const TOKEN_REGISTRY = new Map<number, TokenAddresses>([
   [

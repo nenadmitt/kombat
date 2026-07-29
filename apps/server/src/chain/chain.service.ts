@@ -4,61 +4,45 @@ import {
   createWalletClient,
   defineChain,
   http,
-  keccak256,
   parseEther,
-  parseSignature,
-  parseUnits,
-  stringToBytes,
   type Address,
   type Chain,
   type Hex,
 } from 'viem';
-import { STAKE_ASSET_DECIMALS } from '@gaming-platform/core';
 import { privateKeyToAccount, type PrivateKeyAccount } from 'viem/accounts';
 import { StakeAsset } from '@gaming-platform/core';
 
 import { CacheService } from '../cache';
 import { ConfigurationService } from '../configuration/configuration.service';
 import { DbService } from '../db';
-import { WalletEncryptionService } from '../wallets/wallet-encryption.service';
-import { ERC20_ABI, ESCROW_ABI, OnChainStakeState } from './escrow.abi';
+import { ERC20_ABI } from './erc20.abi';
 import { TOKEN_REGISTRY } from './token-registry';
 
-/** EIP-2612 permit signature, shaped for the escrow's PermitSig tuple. */
-export type PermitSignature = {
-  deadline: bigint;
-  v: number;
-  r: Hex;
-  s: Hex;
-};
-
 /**
- * Serializes every operator tx — one nonce stream, one sender. Exported
- * because the stake-pot module signs with the same operator key and must
- * share the lock, not just take a similar one.
+ * Serializes every operator tx - one nonce stream, one sender. Exported because
+ * the stake-pot module signs with the same operator key and must share the
+ * lock, not just take a similar one.
  */
 export const OPERATOR_LOCK_KEY = 'chain:operator';
 export const OPERATOR_LOCK_TTL_MS = 120_000;
 
-/** Permit validity window — generous; funding retries reuse fresh ones anyway. */
-const PERMIT_TTL_SECONDS = 30 * 60;
-
 /**
- * All on-chain access: viem clients, the operator hot signer, and signing as
- * players (permits, native-ETH funding) via their custodial keys. Staking is
- * enabled only when the chain env group is fully configured — everything
- * else in the app works without it (free games).
+ * Wallet-facing chain reads and the operator's gas top-ups. Staking itself lives
+ * in the stake-pot module; this is what is left over for the wallet screen.
+ *
+ * Note that nothing here decrypts a player's key. Deposits are signed on the
+ * device and withdrawals by the operator, so the server no longer signs as a
+ * user at all.
  */
 @Injectable()
 export class ChainService {
   private readonly logger = new Logger(ChainService.name);
 
   readonly enabled: boolean;
-  // Inferred client types — annotating viem's generic PublicClient directly
+  // Inferred client type - annotating viem's generic PublicClient directly
   // trips its structural-generics mismatch.
   private publicClient!: ReturnType<ChainService['makePublicClient']>;
   private operatorAccount!: PrivateKeyAccount;
-  private escrow!: Address;
   private tokens!: Record<StakeAsset, Address | null>;
   private chain!: Chain;
 
@@ -66,19 +50,15 @@ export class ChainService {
     private readonly configurationService: ConfigurationService,
     private readonly cacheService: CacheService,
     private readonly dbService: DbService,
-    private readonly walletEncryptionService: WalletEncryptionService,
   ) {
     const c = configurationService;
     const registryTokens = TOKEN_REGISTRY.get(c.CHAIN_ID);
     this.enabled = Boolean(
-      c.CHAIN_RPC_URL &&
-        c.ESCROW_ADDRESS &&
-        c.OPERATOR_PRIVATE_KEY &&
-        registryTokens,
+      c.CHAIN_RPC_URL && c.OPERATOR_PRIVATE_KEY && registryTokens,
     );
     if (!this.enabled) {
       this.logger.warn(
-        'Staking disabled: CHAIN_RPC_URL / ESCROW_ADDRESS / OPERATOR_PRIVATE_KEY not fully configured' +
+        'Chain access disabled: CHAIN_RPC_URL / OPERATOR_PRIVATE_KEY not fully configured' +
           (registryTokens
             ? ''
             : ` (and no token registry entry for chain ${c.CHAIN_ID})`),
@@ -93,28 +73,15 @@ export class ChainService {
       rpcUrls: { default: { http: [c.CHAIN_RPC_URL!] } },
     });
     this.publicClient = this.makePublicClient(this.chain);
-    this.operatorAccount = privateKeyToAccount(
-      c.OPERATOR_PRIVATE_KEY as Hex,
-    );
-    this.escrow = c.ESCROW_ADDRESS as Address;
+    this.operatorAccount = privateKeyToAccount(c.OPERATOR_PRIVATE_KEY as Hex);
     this.tokens = {
       [StakeAsset.Native]: null,
       [StakeAsset.Kombat]: registryTokens![StakeAsset.Kombat] ?? null,
       [StakeAsset.Usdc]: registryTokens![StakeAsset.Usdc] ?? null,
     };
     this.logger.log(
-      `Staking enabled: chain ${c.CHAIN_ID}, escrow ${this.escrow}, operator ${this.operatorAccount.address}`,
+      `Chain access enabled: chain ${c.CHAIN_ID}, operator ${this.operatorAccount.address}`,
     );
-  }
-
-  /** The escrow's bytes32 match id for a room uuid. */
-  matchIdFor(roomId: string): Hex {
-    return keccak256(stringToBytes(roomId));
-  }
-
-  /** Zero address for native ETH, ERC20 address otherwise. */
-  tokenAddress(asset: StakeAsset): Address {
-    return this.tokens[asset] ?? '0x0000000000000000000000000000000000000000';
   }
 
   // ---- balances -----------------------------------------------------------
@@ -141,81 +108,7 @@ export class ChainService {
     });
   }
 
-  // ---- player signing -----------------------------------------------------
-
-  /** Decrypt a user's custodial key into a viem account (never logged). */
-  private async playerAccount(userId: string): Promise<PrivateKeyAccount> {
-    const wallet = await this.dbService.findWalletWithKeyForUser(userId);
-    if (!wallet) {
-      throw new Error(`User ${userId} has no wallet`);
-    }
-    return privateKeyToAccount(
-      this.walletEncryptionService.decrypt(wallet.key) as Hex,
-    );
-  }
-
-  /** Sign an EIP-2612 permit as the player (off-chain — free, no gas). */
-  async signPermitAs(
-    userId: string,
-    asset: StakeAsset,
-    amount: bigint,
-  ): Promise<PermitSignature> {
-    const token = this.tokens[asset];
-    if (!token) {
-      throw new Error('Native ETH has no permit');
-    }
-    const account = await this.playerAccount(userId);
-    const [name, nonce] = await Promise.all([
-      this.publicClient.readContract({
-        address: token,
-        abi: ERC20_ABI,
-        functionName: 'name',
-      }),
-      this.publicClient.readContract({
-        address: token,
-        abi: ERC20_ABI,
-        functionName: 'nonces',
-        args: [account.address],
-      }),
-    ]);
-    const deadline = BigInt(
-      Math.floor(Date.now() / 1000) + PERMIT_TTL_SECONDS,
-    );
-    const signature = await account.signTypedData({
-      domain: {
-        name,
-        version: '1', // OZ ERC20Permit
-        chainId: this.configurationService.CHAIN_ID,
-        verifyingContract: token,
-      },
-      types: {
-        Permit: [
-          { name: 'owner', type: 'address' },
-          { name: 'spender', type: 'address' },
-          { name: 'value', type: 'uint256' },
-          { name: 'nonce', type: 'uint256' },
-          { name: 'deadline', type: 'uint256' },
-        ],
-      },
-      primaryType: 'Permit',
-      message: {
-        owner: account.address,
-        spender: this.escrow,
-        value: amount,
-        nonce,
-        deadline,
-      },
-    });
-    const parsed = parseSignature(signature);
-    return {
-      deadline,
-      v: Number(parsed.v ?? BigInt(parsed.yParity + 27)),
-      r: parsed.r,
-      s: parsed.s,
-    };
-  }
-
-  /** The player's wallet address (no key material leaves this module). */
+  /** The player's wallet address (no key material leaves the wallets module). */
   async playerAddress(userId: string): Promise<Address> {
     const [wallet] = await this.dbService.findWalletsForUser(userId);
     if (!wallet) {
@@ -224,114 +117,24 @@ export class ChainService {
     return wallet.address as Address;
   }
 
-  private makePublicClient(chain: Chain) {
-    return createPublicClient({ chain, transport: http() });
-  }
-
-  // ---- standing approvals --------------------------------------------------
-
-  /** Current escrow allowance for a player's wallet. */
-  async getAllowance(asset: StakeAsset, owner: Address): Promise<bigint> {
-    const token = this.tokens[asset];
-    if (!token) {
-      throw new Error('Native ETH has no allowance');
-    }
-    return this.publicClient.readContract({
-      address: token,
-      abi: ERC20_ABI,
-      functionName: 'allowance',
-      args: [owner, this.escrow],
-    });
-  }
+  // ---- gas ----------------------------------------------------------------
 
   /**
-   * Guarantee the wallet's standing escrow allowance covers `minRequired`:
-   * no-op when it already does; otherwise gas-dust the wallet (approve txs
-   * cost gas the wallet may not have) and re-approve the configured amount.
-   * Idempotent — safe to call on every funding attempt.
-   */
-  async ensureStakeApproval(
-    userId: string,
-    asset: StakeAsset,
-    minRequired: bigint,
-  ): Promise<void> {
-    const token = this.tokens[asset];
-    if (!token) {
-      return; // Native ETH — nothing to approve.
-    }
-    const account = await this.playerAccount(userId);
-    const allowance = await this.getAllowance(asset, account.address);
-    if (allowance >= minRequired) {
-      return;
-    }
-
-    const approvalAmount = parseUnits(
-      String(this.configurationService.ESCROW_APPROVAL_AMOUNT),
-      STAKE_ASSET_DECIMALS[asset],
-    );
-    await this.ensureGasFor(account.address);
-
-    const client = createWalletClient({
-      account,
-      chain: this.chain,
-      transport: http(),
-    });
-    const hash = await client.writeContract({
-      address: token,
-      abi: ERC20_ABI,
-      functionName: 'approve',
-      args: [this.escrow, approvalAmount < minRequired ? minRequired : approvalAmount],
-      chain: this.chain,
-      account,
-    });
-    await this.waitForSuccess(hash);
-    this.logger.log(
-      `Approved escrow for ${account.address} (asset ${asset}, tx ${hash})`,
-    );
-  }
-
-  /**
-   * Pre-approve the escrow from a (typically brand-new) custodial wallet for
-   * every ERC20 stake asset — the "bundled approvals" that make match funding
-   * a single operator tx later. Failures are logged, not thrown: the funding
-   * path re-runs ensureStakeApproval anyway.
-   */
-  async prepareWalletForStaking(userId: string): Promise<void> {
-    if (!this.enabled) {
-      return;
-    }
-    for (const asset of [StakeAsset.Kombat, StakeAsset.Usdc]) {
-      try {
-        await this.ensureStakeApproval(userId, asset, 1n);
-      } catch (error) {
-        this.logger.warn(
-          `Pre-approval failed for user ${userId}, asset ${asset}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-      }
-    }
-  }
-
-  /**
-   * Gas-dust a wallet so it can pay for a transaction of its own. In pot mode
-   * that first transaction is the player's `stake` deposit, which is signed on
-   * their device — without dust a brand-new custodial wallet can't fund its
-   * pot at all.
+   * Gas-dust a wallet so it can pay for a transaction of its own - the player's
+   * first pot deposit, which their device signs. Without dust a brand-new
+   * custodial wallet cannot fund its pot at all.
    */
   async fundGasFor(userId: string): Promise<void> {
     if (!this.enabled) {
       return;
     }
-    const address = await this.playerAddress(userId);
-    await this.ensureGasFor(address);
+    await this.ensureGasFor(await this.playerAddress(userId));
   }
 
-  /** Top the wallet up with gas for its own txs (approve / fundNative). */
   private async ensureGasFor(address: Address): Promise<void> {
     const dust = parseEther(this.configurationService.ESCROW_GAS_DUST_ETH);
     const balance = await this.publicClient.getBalance({ address });
-    // Half a dust unit is comfortably more than one approve costs.
+    // Half a dust unit is comfortably more than one transaction costs.
     if (balance >= dust / 2n) {
       return;
     }
@@ -342,7 +145,7 @@ export class ChainService {
         const client = createWalletClient({
           account: this.operatorAccount,
           chain: this.chain,
-          transport: http(),
+          transport: http(this.configurationService.CHAIN_RPC_URL),
         });
         const hash = await client.sendTransaction({
           to: address,
@@ -350,199 +153,21 @@ export class ChainService {
           chain: this.chain,
           account: this.operatorAccount,
         });
-        await this.waitForSuccess(hash);
-      },
-    );
-  }
-
-  // ---- escrow reads -------------------------------------------------------
-
-  async getStakeState(matchId: Hex): Promise<{
-    state: OnChainStakeState;
-    fundedCount: number;
-  }> {
-    const s = await this.publicClient.readContract({
-      address: this.escrow,
-      abi: ESCROW_ABI,
-      functionName: 'stakes',
-      args: [matchId],
-    });
-    return { state: s[3] as OnChainStakeState, fundedCount: s[4] };
-  }
-
-  /** Whether a specific player's stake is already in escrow. */
-  isFunded(matchId: Hex, player: Address): Promise<boolean> {
-    return this.publicClient.readContract({
-      address: this.escrow,
-      abi: ESCROW_ABI,
-      functionName: 'isFunded',
-      args: [matchId, player],
-    });
-  }
-
-  async getFeeBps(): Promise<number> {
-    return this.publicClient.readContract({
-      address: this.escrow,
-      abi: ESCROW_ABI,
-      functionName: 'feeBps',
-    });
-  }
-
-  // ---- escrow writes ------------------------------------------------------
-
-  /** One operator tx: create the match and pull every standing allowance. */
-  openWithApprovals(args: {
-    matchId: Hex;
-    players: Address[];
-    asset: StakeAsset;
-    amount: bigint;
-  }): Promise<Hex> {
-    return this.asOperator(client =>
-      client.writeContract({
-        address: this.escrow,
-        abi: ESCROW_ABI,
-        functionName: 'openWithApprovals',
-        args: [
-          args.matchId,
-          args.players,
-          this.tokenAddress(args.asset),
-          args.amount,
-        ],
-        chain: this.chain,
-        account: this.operatorAccount,
-      }),
-    );
-  }
-
-  /** Permit-based open — kept as a fallback; the standing-allowance path is
-   *  primary. `sigs[i]` must belong to `players[i]`. */
-  openWithPermits(args: {
-    matchId: Hex;
-    players: Address[];
-    asset: StakeAsset;
-    amount: bigint;
-    sigs: PermitSignature[];
-  }): Promise<Hex> {
-    return this.asOperator(client =>
-      client.writeContract({
-        address: this.escrow,
-        abi: ESCROW_ABI,
-        functionName: 'openWithPermits',
-        args: [
-          args.matchId,
-          args.players,
-          this.tokenAddress(args.asset),
-          args.amount,
-          args.sigs,
-        ],
-        chain: this.chain,
-        account: this.operatorAccount,
-      }),
-    );
-  }
-
-  createMatch(args: {
-    matchId: Hex;
-    players: Address[];
-    asset: StakeAsset;
-    amount: bigint;
-  }): Promise<Hex> {
-    return this.asOperator(client =>
-      client.writeContract({
-        address: this.escrow,
-        abi: ESCROW_ABI,
-        functionName: 'createMatch',
-        args: [
-          args.matchId,
-          args.players,
-          this.tokenAddress(args.asset),
-          args.amount,
-        ],
-        chain: this.chain,
-        account: this.operatorAccount,
-      }),
-    );
-  }
-
-  /** Send a player's ETH stake from their own custodial wallet. */
-  async fundNativeAs(userId: string, matchId: Hex, amount: bigint): Promise<Hex> {
-    const account = await this.playerAccount(userId);
-    const client = createWalletClient({
-      account,
-      chain: this.chain,
-      transport: http(),
-    });
-    const hash = await client.writeContract({
-      address: this.escrow,
-      abi: ESCROW_ABI,
-      functionName: 'fundNative',
-      args: [matchId],
-      value: amount,
-      chain: this.chain,
-      account,
-    });
-    await this.waitForSuccess(hash);
-    return hash;
-  }
-
-  settleStake(matchId: Hex, winner: Address): Promise<Hex> {
-    return this.asOperator(client =>
-      client.writeContract({
-        address: this.escrow,
-        abi: ESCROW_ABI,
-        functionName: 'settleStake',
-        args: [matchId, winner],
-        chain: this.chain,
-        account: this.operatorAccount,
-      }),
-    );
-  }
-
-  voidStake(matchId: Hex): Promise<Hex> {
-    return this.asOperator(client =>
-      client.writeContract({
-        address: this.escrow,
-        abi: ESCROW_ABI,
-        functionName: 'voidStake',
-        args: [matchId],
-        chain: this.chain,
-        account: this.operatorAccount,
-      }),
-    );
-  }
-
-  // ---- internals ----------------------------------------------------------
-
-  /**
-   * Run one operator write under the shared lock (single nonce stream) and
-   * wait for it to be confirmed successful before releasing.
-   */
-  private asOperator(
-    fn: (client: ReturnType<typeof createWalletClient>) => Promise<Hex>,
-  ): Promise<Hex> {
-    return this.cacheService.withLock(
-      OPERATOR_LOCK_KEY,
-      OPERATOR_LOCK_TTL_MS,
-      async () => {
-        const client = createWalletClient({
-          account: this.operatorAccount,
-          chain: this.chain,
-          transport: http(),
+        const receipt = await this.publicClient.waitForTransactionReceipt({
+          hash,
+          confirmations: this.configurationService.CHAIN_CONFIRMATIONS,
         });
-        const hash = await fn(client);
-        await this.waitForSuccess(hash);
-        return hash;
+        if (receipt.status !== 'success') {
+          throw new Error(`Gas top-up ${hash} reverted`);
+        }
       },
     );
   }
 
-  private async waitForSuccess(hash: Hex): Promise<void> {
-    const receipt = await this.publicClient.waitForTransactionReceipt({
-      hash,
-      confirmations: this.configurationService.CHAIN_CONFIRMATIONS,
+  private makePublicClient(chain: Chain) {
+    return createPublicClient({
+      chain,
+      transport: http(this.configurationService.CHAIN_RPC_URL),
     });
-    if (receipt.status !== 'success') {
-      throw new Error(`Transaction ${hash} reverted`);
-    }
   }
 }

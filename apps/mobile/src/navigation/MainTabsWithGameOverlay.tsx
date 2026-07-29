@@ -49,7 +49,6 @@ export default function MainTabsWithGameOverlay() {
   const setWaitingRoom = useGameStore(state => state.setWaitingRoom);
   const setResumableMatch = useGameStore(state => state.setResumableMatch);
   const clearWaitingRoom = useGameStore(state => state.clear);
-  const setSecuringStakes = useGameStore(state => state.setSecuringStakes);
   const onSocketEvent = useWebsocketStore(state => state.on);
   const confirm = useConfirm();
   const serverStatus = useServerStore(state => state.status);
@@ -77,21 +76,11 @@ export default function MainTabsWithGameOverlay() {
     });
   }, [onSocketEvent]);
 
-  // Stake lifecycle for the room CREATOR: their app sits in the waiting
-  // popup while the joiner triggers escrow. funding swaps the popup for the
-  // playful "setting up your match" overlay; funded clears it (the deferred
-  // game:opponent-joined below does the navigation); failed means voided.
+  // A staked join that could not be funded. The joiner learns from their own
+  // failed request; the creator only finds out here.
   useEffect(() => {
-    const offFunding = onSocketEvent(STAKE_EVENTS.funding, () =>
-      setSecuringStakes(true),
-    );
-    const offFunded = onSocketEvent(STAKE_EVENTS.funded, () =>
-      setSecuringStakes(false),
-    );
     const offFailed = onSocketEvent(STAKE_EVENTS.failed, payload => {
-      setSecuringStakes(false);
-      // Only the creator holds a waitingRoom - the joiner's lobby screen
-      // shows its own alert for this event.
+      // Only the creator holds a waitingRoom.
       if (useGameStore.getState().waitingRoom) {
         clearWaitingRoom();
         const reason =
@@ -110,12 +99,8 @@ export default function MainTabsWithGameOverlay() {
         }, 500);
       }
     });
-    return () => {
-      offFunding();
-      offFunded();
-      offFailed();
-    };
-  }, [onSocketEvent, setSecuringStakes, clearWaitingRoom, confirm]);
+    return offFailed;
+  }, [onSocketEvent, clearWaitingRoom, confirm]);
 
   useEffect(() => {
     apiClient

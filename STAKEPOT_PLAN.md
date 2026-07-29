@@ -11,8 +11,8 @@
 > was redeployed because it has no mint, so the signup faucet float had to be
 > positioned at genesis. `STAKE_POT_ADDRESS`, `STAKE_POT_DEPLOY_BLOCK`,
 > `STAKE_FEE_BPS`, `FAUCET_KEY` and `FAUCET_GRANT_KOMBAT` are set in
-> `apps/server/.env`. `STAKING_MODE` is still `escrow` - flipping it to `pot` is
-> the remaining cutover step.
+> `apps/server/.env`. The cutover is done: pot mode is the only staking path and
+> the escrow code is gone (see STAKEPOT_CLEANUP.md).
 >
 > A grant was verified end to end on Sepolia: faucet `stake(beneficiary)` ->
 > `Staked` event -> DepositWatcher credited 1000 KC to the owning user's ledger
@@ -38,6 +38,10 @@
 >   second copy of the deployment config in the app.
 > - **One `StakePotModal` with an add/withdraw mode**, not two modals, per
 >   `apps/mobile/CLAUDE.md` rule 5.
+> - **A staked join returns only once the holds are taken.** Funding is
+>   synchronous, so `stake:funded` fires before the joiner's HTTP response
+>   arrives and they could never subscribe in time; the response itself (or a
+>   thrown error) is the signal instead. The funding overlay is gone with it.
 > - **`AdminTokenGuard` is now exported from `AdminModule`** so the
 >   reconciliation endpoint can reuse it.
 > - **Jest needs an ESM transform for `uuid`** (v14 is ESM-only and is reached

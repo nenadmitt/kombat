@@ -1,15 +1,10 @@
 import { useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
-import {
-  isMultiSeatGame,
-  MULTI_SEAT_MIN_PLAYERS,
-  STAKE_ASSET_SYMBOLS,
-  formatStakeAmount,
-} from '@gaming-platform/core';
+import { isMultiSeatGame, MULTI_SEAT_MIN_PLAYERS } from '@gaming-platform/core';
 
 import Icon from '../components/Icon';
-import { Button, StakeFundingCard } from '../components/ui';
+import { Button } from '../components/ui';
 import { useGameStore } from '../store/game.store';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
@@ -28,7 +23,6 @@ export default function WaitingForPlayersPopup() {
   const isMinimized = useGameStore(state => state.isMinimized);
   const isCancelling = useGameStore(state => state.isCancelling);
   const isStarting = useGameStore(state => state.isStarting);
-  const isSecuringStakes = useGameStore(state => state.isSecuringStakes);
   const minimize = useGameStore(state => state.minimize);
   const cancelWaitingRoom = useGameStore(state => state.cancelWaitingRoom);
   const startWaitingRoom = useGameStore(state => state.startWaitingRoom);
@@ -42,12 +36,7 @@ export default function WaitingForPlayersPopup() {
     !waitingAsJoiner &&
     waitingJoinedCount >= MULTI_SEAT_MIN_PLAYERS;
 
-  // Securing is only this popup's business for the room CREATOR (they hold a
-  // waitingRoom). The joiner's lobby screen presents its own funding overlay;
-  // if we mounted a second Modal here at the same time, iOS wedges its modal
-  // presentation stack and the whole app stops responding to touches.
-  const showSecuring = isSecuringStakes && waitingRoom !== null;
-  const visible = (waitingRoom !== null && !isMinimized) || showSecuring;
+  const visible = waitingRoom !== null && !isMinimized;
   // Prefer the real, shareable code; fall back to the derived one for any
   // legacy room that predates stored codes.
   const roomCode = waitingRoom
@@ -70,138 +59,117 @@ export default function WaitingForPlayersPopup() {
     });
   };
 
-  const stakeSubtitle =
-    waitingRoom && waitingRoom.stakeToken !== null && waitingRoom.stakeAmount
-      ? `${formatStakeAmount(waitingRoom.stakeAmount, waitingRoom.stakeToken)} ${STAKE_ASSET_SYMBOLS[waitingRoom.stakeToken]} on the line`
-      : undefined;
-
-  // ONE Modal for both faces of this popup. When the opponent joins a staked
-  // room we swap the CONTENT to the playful "getting your match ready" card
-  // (no on-chain wording) instead of mounting a different Modal - swapping or
-  // stacking native Modals mid-flight wedges iOS's presentation stack.
   return (
     <Modal
       visible={visible}
       transparent
       animationType="fade"
-      // No minimizing away while stakes are being locked in.
-      onRequestClose={showSecuring ? () => {} : minimize}
+      onRequestClose={minimize}
     >
-      {showSecuring ? (
-        <>
-          <View style={styles.overlay} />
-          <View style={styles.container} pointerEvents="box-none">
-            <StakeFundingCard subtitle={stakeSubtitle} />
-          </View>
-        </>
-      ) : (
-        <>
-          <Pressable style={styles.overlay} onPress={minimize} />
-          <View style={styles.container} pointerEvents="box-none">
-            <View style={styles.card}>
+        <Pressable style={styles.overlay} onPress={minimize} />
+        <View style={styles.container} pointerEvents="box-none">
+          <View style={styles.card}>
+            <Pressable
+              onPress={minimize}
+              style={styles.minimizeControl}
+              accessibilityLabel="Minimize"
+            >
+              <Icon type="chevron-down" color={colors.textMuted} size={18} />
+            </Pressable>
+
+            {/* Spinner ring */}
+            <View style={styles.spinnerRing}>
+              <ActivityIndicator color={colors.accent} size="large" />
+            </View>
+
+            {waitingRoom ? (
+              <Text style={styles.gameLabel}>
+                {GAME_TYPE_LABELS[waitingRoom.gameType].toUpperCase()}
+              </Text>
+            ) : null}
+
+            <View style={styles.textStack}>
+              <Text style={styles.title}>Waiting for players...</Text>
+              <Text style={styles.description}>
+                {waitingRoom?.isPrivate
+                  ? 'Private room. Share the code so a friend can join.'
+                  : 'Share the room code with friends for others to join.'}
+              </Text>
+            </View>
+
+            {isMultiSeat && waitingRoom ? (
+              <View style={styles.rosterPill}>
+                <Icon type="users" color={colors.accentLight} size={14} />
+                <Text style={styles.rosterText}>
+                  {waitingJoinedCount} / {waitingRoom.playerCount} joined
+                </Text>
+              </View>
+            ) : null}
+
+            {waitingRoom ? (
               <Pressable
-                onPress={minimize}
-                style={styles.minimizeControl}
-                accessibilityLabel="Minimize"
+                onPress={handleCopy}
+                accessibilityRole="button"
+                accessibilityLabel="Copy room code"
+                style={({ pressed }) => [
+                  styles.roomCodeBox,
+                  pressed && styles.roomCodePressed,
+                ]}
               >
-                <Icon type="chevron-down" color={colors.textMuted} size={18} />
+                <Text style={styles.roomCodeLabel}>CODE</Text>
+                <Text style={styles.roomCodeText}>{roomCode}</Text>
+                <Icon
+                  type={copied ? 'check' : 'copy'}
+                  color={copied ? colors.success : colors.accentLight}
+                  size={15}
+                />
               </Pressable>
+            ) : null}
+            {copied ? <Text style={styles.copiedHint}>Copied to clipboard</Text> : null}
 
-              {/* Spinner ring */}
-              <View style={styles.spinnerRing}>
-                <ActivityIndicator color={colors.accent} size="large" />
-              </View>
+            {canStartEarly ? (
+              <Button
+                label={
+                  isStarting
+                    ? 'Starting…'
+                    : `Start with ${waitingJoinedCount} players`
+                }
+                disabled={isStarting || isCancelling}
+                onPress={() =>
+                  startWaitingRoom().catch(() => {
+                    // Room may have filled/closed meanwhile - the pushes
+                    // (started / player events) reconcile the popup.
+                  })
+                }
+                style={styles.startButton}
+              />
+            ) : null}
 
-              {waitingRoom ? (
-                <Text style={styles.gameLabel}>
-                  {GAME_TYPE_LABELS[waitingRoom.gameType].toUpperCase()}
-                </Text>
-              ) : null}
-
-              <View style={styles.textStack}>
-                <Text style={styles.title}>Waiting for players...</Text>
-                <Text style={styles.description}>
-                  {waitingRoom?.isPrivate
-                    ? 'Private room. Share the code so a friend can join.'
-                    : 'Share the room code with friends for others to join.'}
-                </Text>
-              </View>
-
-              {isMultiSeat && waitingRoom ? (
-                <View style={styles.rosterPill}>
-                  <Icon type="users" color={colors.accentLight} size={14} />
-                  <Text style={styles.rosterText}>
-                    {waitingJoinedCount} / {waitingRoom.playerCount} joined
-                  </Text>
-                </View>
-              ) : null}
-
-              {waitingRoom ? (
-                <Pressable
-                  onPress={handleCopy}
-                  accessibilityRole="button"
-                  accessibilityLabel="Copy room code"
-                  style={({ pressed }) => [
-                    styles.roomCodeBox,
-                    pressed && styles.roomCodePressed,
-                  ]}
-                >
-                  <Text style={styles.roomCodeLabel}>CODE</Text>
-                  <Text style={styles.roomCodeText}>{roomCode}</Text>
-                  <Icon
-                    type={copied ? 'check' : 'copy'}
-                    color={copied ? colors.success : colors.accentLight}
-                    size={15}
-                  />
-                </Pressable>
-              ) : null}
-              {copied ? <Text style={styles.copiedHint}>Copied to clipboard</Text> : null}
-
-              {canStartEarly ? (
-                <Button
-                  label={
-                    isStarting
-                      ? 'Starting…'
-                      : `Start with ${waitingJoinedCount} players`
-                  }
-                  disabled={isStarting || isCancelling}
-                  onPress={() =>
-                    startWaitingRoom().catch(() => {
-                      // Room may have filled/closed meanwhile - the pushes
-                      // (started / player events) reconcile the popup.
-                    })
-                  }
-                  style={styles.startButton}
-                />
-              ) : null}
-
-              <View style={styles.actions}>
-                <Button
-                  label="Share"
-                  icon="share"
-                  onPress={handleShare}
-                  style={styles.actionFlex}
-                />
-                <Button
-                  label={
-                    isCancelling
-                      ? waitingAsJoiner
-                        ? 'Leaving…'
-                        : 'Cancelling…'
-                      : waitingAsJoiner
-                        ? 'Leave'
-                        : 'Cancel'
-                  }
-                  variant="secondary"
-                  onPress={cancelWaitingRoom}
-                  disabled={isCancelling || isStarting}
-                  style={styles.actionFlex}
-                />
-              </View>
+            <View style={styles.actions}>
+              <Button
+                label="Share"
+                icon="share"
+                onPress={handleShare}
+                style={styles.actionFlex}
+              />
+              <Button
+                label={
+                  isCancelling
+                    ? waitingAsJoiner
+                      ? 'Leaving…'
+                      : 'Cancelling…'
+                    : waitingAsJoiner
+                      ? 'Leave'
+                      : 'Cancel'
+                }
+                variant="secondary"
+                onPress={cancelWaitingRoom}
+                disabled={isCancelling || isStarting}
+                style={styles.actionFlex}
+              />
             </View>
           </View>
-        </>
-      )}
+        </View>
     </Modal>
   );
 }

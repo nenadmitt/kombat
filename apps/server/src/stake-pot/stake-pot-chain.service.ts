@@ -16,7 +16,7 @@ import { StakeAsset } from '@gaming-platform/core';
 
 import { CacheService } from '../cache';
 import { OPERATOR_LOCK_KEY, OPERATOR_LOCK_TTL_MS } from '../chain/chain.service';
-import { ERC20_ABI } from '../chain/escrow.abi';
+import { ERC20_ABI } from '../chain/erc20.abi';
 import { TOKEN_REGISTRY } from '../chain/token-registry';
 import { ConfigurationService } from '../configuration/configuration.service';
 import { ALREADY_PROCESSED_ERROR, STAKE_POT_ABI } from './stake-pot.abi';

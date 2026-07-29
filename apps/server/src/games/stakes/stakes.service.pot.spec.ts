@@ -8,8 +8,6 @@ import {
 } from '@gaming-platform/core';
 import { DataSource } from 'typeorm';
 
-import { CacheService } from '../../cache';
-import { ChainService } from '../../chain';
 import { ConfigurationService } from '../../configuration/configuration.service';
 import { DbService } from '../../db';
 import { GameRoomEntity } from '../../db/entities/game-room.entity';
@@ -79,7 +77,7 @@ describe('StakesService (pot mode)', () => {
         events.push({ userId, event });
       },
     } as unknown as WebsocketsService;
-    const config = { STAKE_FEE_BPS: 500, STAKING_MODE: 'pot' } as ConfigurationService;
+    const config = { STAKE_FEE_BPS: 500 } as ConfigurationService;
 
     stakePotService = new StakePotService(
       dataSource,
@@ -116,8 +114,6 @@ describe('StakesService (pot mode)', () => {
 
     service = new StakesService(
       dbService,
-      { matchIdFor: () => '0xmatch', enabled: true } as unknown as ChainService,
-      {} as CacheService,
       config,
       websockets,
       stakePotService,

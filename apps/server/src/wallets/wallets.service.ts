@@ -54,16 +54,11 @@ export class WalletsService {
       network,
     });
 
-    // Fire-and-forget staking setup. In pot mode the wallet only needs gas to
-    // send its own deposit; escrow allowances would never be used. In escrow
-    // mode we also pre-approve, so joining a staked match is one operator tx.
-    const setup =
-      this.configurationService.STAKING_MODE === 'pot'
-        ? this.chainService.fundGasFor(userId)
-        : this.chainService.prepareWalletForStaking(userId);
-    void setup.catch(error => {
+    // The wallet needs gas to sign its own first pot deposit. Fire-and-forget:
+    // a dusting failure must not fail wallet creation.
+    void this.chainService.fundGasFor(userId).catch((error: unknown) => {
       this.logger.warn(
-        `Wallet staking setup failed for user ${userId}: ${
+        `Wallet gas top-up failed for user ${userId}: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
