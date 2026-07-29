@@ -24,3 +24,31 @@
    `const confirm = useConfirm()` (from `src/components/ui`) and
    `await confirm({ title, message, ... })`. It returns `true`/`false`; pass
    `mode: 'info'` for a single-button notice.
+
+5. **Never overlap two native `Modal`s** - this is the single worst bug class
+   in this app. A React Native `Modal` is a real platform presentation, and
+   iOS wedges its presentation stack if one is presented while another is
+   still presenting or animating out. The app keeps rendering but swallows
+   every touch, and the wedge **follows the user across navigation** - through
+   a whole match and into the result screen. It has bitten us four times
+   (staked joiner, resume modal, multi-seat joiner, create-room). Read
+   `claude/reports/OVERLAY_BLOCKED_ERROR.md` before touching any overlay.
+
+   The rules:
+
+   - One surface with two visual states keeps **one** `<Modal>` and swaps its
+     children. Never return a different `Modal` from a state branch.
+   - Only one owner may present a given overlay. Gate each so their `visible`
+     conditions can never overlap.
+   - Dismiss fully **before** presenting the next Modal or pushing a screen.
+     Prefer a real dismissal signal (`Modal.onDismiss`,
+     `BottomSheet.onDismissed`, or `useConfirm()` which already resolves only
+     once its sheet is off screen). When the trigger is a socket event or an
+     `await` with no callback to hang off, dismiss first and defer the next
+     step by `MODAL_DISMISS_MS` (from `src/components/ui`).
+   - Order matters: dismiss A, *then* present B. Presenting B first is the
+     worst case, because A is still fully up.
+
+   Anything a game screen renders over itself (Chroma's colour picker, a
+   result overlay) must be an **in-screen absolutely-positioned View**, not a
+   second `Modal`.

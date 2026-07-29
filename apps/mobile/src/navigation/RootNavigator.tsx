@@ -7,6 +7,7 @@ import BattleshipGame from '../games/battleship/BattleshipGame';
 import LudoGame from '../games/ludo/LudoGame';
 import RpsGame from '../games/rps/RpsGame';
 import ChromaGame from '../games/chroma/ChromaGame';
+import SalvoGame from '../games/salvo/SalvoGame';
 import ErrorScreen from '../screens/ErrorScreen';
 import LoginScreen from '../screens/LoginScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
@@ -182,6 +183,18 @@ export default function RootNavigator() {
           <Stack.Screen
             name="ChromaClashSetup"
             component={ChromaGame}
+            options={{ gestureEnabled: false }}
+          />
+          {/* Salvo, same pattern - both routes run the local duel until the
+              game gets a socket gateway. */}
+          <Stack.Screen
+            name="Salvo"
+            component={SalvoGame}
+            options={{ gestureEnabled: false }}
+          />
+          <Stack.Screen
+            name="SalvoSetup"
+            component={SalvoGame}
             options={{ gestureEnabled: false }}
           />
         </>

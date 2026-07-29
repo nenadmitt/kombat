@@ -121,3 +121,56 @@ If any answer is yes, that is the overlay-blocked error.
 
 See `apps/mobile/claude/BUGFIX_JOINER_FREEZE.md` for the change-by-change fix log
 of the staked-game instance.
+
+## Recurrence: multi-seat start (Chroma / Ludo joiner), 2026-07-29
+
+Same class, a path the original fix did not cover. `MainTabsWithGameOverlay`
+handled both room-entry socket events by dismissing the waiting popup and
+pushing the match screen **in the same tick**:
+
+```tsx
+clearWaitingRoom();                 // starts the Modal fade-out
+navigation.navigate(GAME_TYPE_SCREENS[...], { roomId, ... });  // same tick
+```
+
+That is failure mode 4 above. It bit ChromaClash first because multi-seat
+rooms are the only ones where a **joiner** also holds a waiting popup: joining
+a Pending 4-seat room calls `setWaitingRoom(joined, true)`, so the joiner sits
+in the Modal until `game:started` arrives, then gets dismiss + push together.
+Two-player games send the joiner straight into the match, so only the creator
+ever had the popup there.
+
+Fixed by serializing both handlers behind a shared `MODAL_DISMISS_MS` (350ms),
+matching what `GameLobyScreen` already did for `stake:funded`:
+
+- `ROOM_EVENTS.started` (Ludo, ChromaClash)
+- `game:opponent-joined` (NavalBattle, Triple Cut, Salvo) - same latent bug,
+  fixed at the same time rather than left for the next report.
+
+## Recurrence: create-room, 2026-07-29
+
+Found while sweeping for the multi-seat instance above. `CreateGameRoomModal`
+presented the waiting popup **before** dismissing itself, both in one tick:
+
+```tsx
+const room = await apiClient.createGameRoom(...);
+setWaitingRoom(room);  // presents WaitingForPlayersPopup (Modal B)
+onClose();             // only now starts dismissing Modal A
+```
+
+The worst ordering of failure mode 1: B presents while A is still fully up.
+This affected the **creator** of any game. Fixed by closing first and handing
+the room over after `MODAL_DISMISS_MS`.
+
+`MODAL_DISMISS_MS` now lives in `src/components/ui/modal-timing.ts` so every
+call site shares one constant instead of scattered literals, and the rule is
+written up in `apps/mobile/CLAUDE.md` (rule 5) and `apps/server/CLAUDE.md`.
+
+Checked and found safe in the same sweep:
+
+- `useConfirm()` still resolves only after `onDismissed` (450ms fallback), so
+  `await confirm(...)` then navigate/present is fine.
+- `WaitingForPlayersPopup` and `ResumeMatchModal` are siblings but mutually
+  exclusive: a user has at most one active room, and the mount check branches
+  Pending -> waiting popup / InProgress -> resume modal.
+- Salvo adds no Modal of its own; its only modal interaction is `useConfirm()`.

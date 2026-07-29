@@ -57,6 +57,8 @@ export const colors = {
   /** Negative - losses, destructive. */
   danger: '#ff5a6e',
   dangerSoft: 'rgba(255, 90, 110, 0.16)',
+  /** Lighter red for text/icons on a dark red tint (the "INCOMING" strip). */
+  dangerLight: '#ff8792',
   /** Gold - the secondary accent: earnings, achievements, KOMBAT token. */
   gold: '#f5b829',
   goldSoft: 'rgba(245, 184, 41, 0.15)',
@@ -74,6 +76,25 @@ export const colors = {
   chromaAmber: '#F5A524',
   chromaJade: '#30A46C',
   chromaAzure: '#3B82F6',
+
+  // ---- Salvo battlefield -------------------------------------------------
+  // Salvo runs on its own near-black ground rather than the app background,
+  // so the lit horizon and the accent-washed terrain read at full contrast.
+  /** Salvo's screen ground and the sky's top stop. */
+  salvoGround: '#0b0c14',
+  /** Salvo's control cards (angle, power, inert banners). */
+  salvoPanel: '#141724',
+  /** Sky mid stop, then the accent-washed horizon behind the ridge. */
+  salvoSkyMid: '#101526',
+  salvoSkyHorizon: '#202f2d',
+  /** The playable, destructible ground - accent washed into the ground. */
+  salvoTerrain: '#202e1f',
+  /** Opponent steel, its tread shadow, and a destroyed hull. */
+  salvoEnemy: '#cdcfd8',
+  salvoEnemyTread: '#7d808c',
+  salvoWreck: '#4a4d59',
+  /** Tread shadow under the player's own (accent) tank. */
+  salvoTread: '#4e7b31',
 
   // ---- Text --------------------------------------------------------------
   /** Primary text. */

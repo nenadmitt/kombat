@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ApiError,
   GameType,
+  supportsMultiplayerRoom,
   isMultiSeatGame,
   STAKE_ASSET_SYMBOLS,
   StakeAsset,
@@ -20,7 +21,7 @@ import {
 import { apiClient } from '../api/client';
 import BrandIcon, { type BrandIconName } from '../components/BrandIcon';
 import Icon from '../components/Icon';
-import { Button, Card, Toggle } from '../components/ui';
+import { Button, Card, MODAL_DISMISS_MS, Toggle } from '../components/ui';
 import { useGameStore } from '../store/game.store';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
@@ -43,13 +44,20 @@ const STAKE_CONFIG: Record<
 
 const STAKE_TOKENS: StakeAsset[] = [StakeAsset.Usdc, StakeAsset.Kombat, StakeAsset.Native];
 
-/** The playable catalog this modal offers. */
-const GAME_CHOICES: GameChoice[] = [
+/**
+ * The catalog this modal offers, filtered by the shared allowlist so a game
+ * without a gateway (Salvo, which is local-only) can never be offered as a
+ * room even if someone adds a row for it here.
+ */
+const GAME_CHOICES: GameChoice[] = (
+  [
   { gameType: GameType.NavalBattle, label: 'Battleships', icon: 'crosshair', blurb: '1v1 naval strategy · ~6 min' },
   { gameType: GameType.Ludo, label: 'Ludo Royale', icon: 'dice', blurb: '2-4 players · classic rules' },
   { gameType: GameType.TripleCut, label: 'Triple Cut', icon: 'hand', blurb: '1v1 · best of 5' },
   { gameType: GameType.ChromaClash, label: 'Chroma Clash', icon: 'layers', blurb: '2-4 players · shed your hand' },
-];
+  { gameType: GameType.Salvo, label: 'Salvo', icon: 'trajectory', blurb: '1v1 artillery duel · wind and terrain' },
+  ] as GameChoice[]
+).filter(choice => supportsMultiplayerRoom(choice.gameType));
 
 /** Trim trailing zeros for pot display (228.00 -> 228). */
 function trimNum(value: number): string {
@@ -104,8 +112,11 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
               amount: parseStakeAmount(STAKE_CONFIG[stakeToken].fmt(feeNum), stakeToken),
             };
       const room = await apiClient.createGameRoom(gameType, stake, isPrivate);
-      setWaitingRoom(room);
+      // Close this Modal first and only then hand the room to the waiting
+      // popup (another Modal). Presenting one while this is still animating
+      // out wedges iOS's presentation stack and kills every touch.
       onClose();
+      setTimeout(() => setWaitingRoom(room), MODAL_DISMISS_MS);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong.');
     } finally {

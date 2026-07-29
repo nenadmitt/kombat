@@ -4,4 +4,5 @@ export * from "./battleship";
 export * from "./chroma";
 export * from "./ludo";
 export * from "./rps";
+export * from "./salvo";
 export * from "./stake.types";

@@ -14,7 +14,7 @@ import {
 
 import { apiClient } from '../api/client';
 import ServerStatusBanner from '../components/ServerStatusBanner';
-import { useConfirm } from '../components/ui';
+import { MODAL_DISMISS_MS, useConfirm } from '../components/ui';
 import { GAME_TYPE_SCREENS } from '../games/game-type-screens';
 import ResumeMatchModal from '../games/ResumeMatchModal';
 import WaitingForPlayersMinimizedBar from '../games/WaitingForPlayersMinimizedBar';
@@ -152,15 +152,18 @@ export default function MainTabsWithGameOverlay() {
         return;
       }
       const waitingRoom = useGameStore.getState().waitingRoom!;
+      // Dismiss the popup first, then transfer once its Modal has faded out.
       clearWaitingRoom();
-      (navigation.navigate as (screen: string, params: unknown) => void)(
-        GAME_TYPE_SCREENS[waitingRoom.gameType],
-        {
-          roomId: waitingRoom.id,
-          stakeToken: waitingRoom.stakeToken,
-          stakeAmount: waitingRoom.stakeAmount,
-        },
-      );
+      setTimeout(() => {
+        (navigation.navigate as (screen: string, params: unknown) => void)(
+          GAME_TYPE_SCREENS[waitingRoom.gameType],
+          {
+            roomId: waitingRoom.id,
+            stakeToken: waitingRoom.stakeToken,
+            stakeAmount: waitingRoom.stakeAmount,
+          },
+        );
+      }, MODAL_DISMISS_MS);
     });
     return () => {
       offJoined();
@@ -204,15 +207,18 @@ export default function MainTabsWithGameOverlay() {
       if (!waitingRoom) {
         return;
       }
-      // Same dynamic-route-name cast as GameLobyScreen's join handler.
-      (navigation.navigate as (screen: string, params: unknown) => void)(
-        GAME_TYPE_SCREENS[waitingRoom.gameType],
-        {
-          roomId,
-          stakeToken: waitingRoom.stakeToken,
-          stakeAmount: waitingRoom.stakeAmount,
-        },
-      );
+      // Same dismiss-then-navigate serialization as the multi-seat path.
+      setTimeout(() => {
+        // Same dynamic-route-name cast as GameLobyScreen's join handler.
+        (navigation.navigate as (screen: string, params: unknown) => void)(
+          GAME_TYPE_SCREENS[waitingRoom.gameType],
+          {
+            roomId,
+            stakeToken: waitingRoom.stakeToken,
+            stakeAmount: waitingRoom.stakeAmount,
+          },
+        );
+      }, MODAL_DISMISS_MS);
     });
   }, [onSocketEvent, clearWaitingRoom, navigation]);
 

@@ -31,3 +31,36 @@ fix. Remove an entry in the same change that fixes it.
   a timeout state, and confirm `getPublicClient` uses the same RPC the tx was
   broadcast on. Also sanity-check REQUIRED_CONFIRMATIONS isn't higher than
   the RPC reports promptly.
+
+## 2026-07-29 - GAME_ICONS is dead code, but every new game must feed it
+
+- **Where:** `apps/mobile/src/games/game-icons.ts` (whole file).
+- **Why it's wrong:** `GAME_ICONS` is exported but imported nowhere - the
+  lobby, history and games rows all use `GAME_TYPE_ICONS` (the lucide glyph
+  map in `game-type-labels.ts`) instead. Because it is typed
+  `Record<GameType, ImageSourcePropType>`, it is still exhaustive: adding a
+  game type breaks the build until someone supplies a PNG that nothing will
+  ever render. Adding Salvo required generating
+  `assets/games/salvo-icon.png` purely to satisfy it.
+- **Suggested fix:** delete `game-icons.ts` and the four (now five) unused
+  `assets/games/*-icon.png` files, or wire the artwork into the Demo Games
+  cards, which currently draw a lucide glyph over a gradient instead.
+
+## 2026-07-29 - Game containers call goBack() with nothing guaranteed under them
+
+- **Where:** `apps/mobile/src/games/battleship/BattleshipGame.tsx`,
+  `ludo/LudoGame.tsx`, `rps/RpsGame.tsx`, `chroma/ChromaGame.tsx` - each has
+  `const onExit = () => navigation.goBack();`.
+- **Why it's wrong:** if a game route is ever the first route on the root
+  stack (a cold start or deep link straight into a match, rather than a push
+  from the tabs), `goBack()` is dropped and React Navigation logs "The action
+  'GO_BACK' was not handled by any navigator" - the header back button then
+  does nothing at all, with no way off the screen. Not reachable today
+  because every entry point (`GameLobyScreen`, `DemoGamesScreen`,
+  `MainTabsWithGameOverlay`) navigates from inside the tabs, so this is
+  latent rather than live. `SalvoGame` now guards it, which leaves the four
+  containers inconsistent with each other.
+- **Suggested fix:** use the same guard Salvo uses -
+  `navigation.canGoBack() ? navigation.goBack() : navigation.reset({ index: 0,
+  routes: [{ name: 'MainTabs' }] })` - or hoist it into a shared
+  `useMatchExit()` hook that all five containers call.

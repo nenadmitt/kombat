@@ -6,6 +6,7 @@ export enum GameType {
   Ludo = 1,
   TripleCut = 2,
   ChromaClash = 3,
+  Salvo = 4,
 }
 
 /**
@@ -16,6 +17,24 @@ export enum GameRoomStatus {
   Pending = 0,
   InProgress = 1,
   Completed = 2,
+}
+
+/**
+ * Game types that have a realtime gateway behind them, so a room can actually
+ * be played. A value in the enum without an entry here would create a room
+ * that starts and then has nothing to drive it.
+ */
+export const MULTIPLAYER_GAME_TYPES: readonly GameType[] = [
+  GameType.NavalBattle,
+  GameType.Ludo,
+  GameType.TripleCut,
+  GameType.ChromaClash,
+  GameType.Salvo,
+];
+
+/** Whether a room may be created for this game type at all. */
+export function supportsMultiplayerRoom(gameType: GameType): boolean {
+  return MULTIPLAYER_GAME_TYPES.includes(gameType);
 }
 
 /** Games whose rooms fill gradually (join-accumulate, creator start-early,
