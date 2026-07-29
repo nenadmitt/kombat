@@ -21,7 +21,12 @@ export const AppDataSource = new DataSource({
     process.env.POSTGRES_SSL === 'true'
       ? { rejectUnauthorized: false }
       : false,
-  entities: [join(__dirname, '..', 'db', 'entities', '*.entity.{ts,js}')],
+  // Entities live under db/entities, except modules that own their own tables
+  // so they can be extracted into a standalone service later (stake-pot).
+  entities: [
+    join(__dirname, '..', 'db', 'entities', '*.entity.{ts,js}'),
+    join(__dirname, '..', 'stake-pot', 'entities', '*.entity.{ts,js}'),
+  ],
   migrations: [join(__dirname, '..', 'db', 'migrations', '*.{ts,js}')],
   migrationsTableName: 'migrations_typeorm',
 });

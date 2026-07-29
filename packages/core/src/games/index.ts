@@ -6,3 +6,4 @@ export * from "./ludo";
 export * from "./rps";
 export * from "./salvo";
 export * from "./stake.types";
+export * from "./stake-pot.types";

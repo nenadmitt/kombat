@@ -7,7 +7,8 @@ payouts, platform fees), built with [Foundry](https://book.getfoundry.sh/).
 .
 ├── src/
 │   ├── KombatCoin.sol   # KC — the platform's play currency
-│   └── MatchEscrow.sol  # 1v1 stake escrow
+│   ├── MatchEscrow.sol  # per-match stake escrow (being superseded)
+│   └── StakePot.sol     # pooled stake balance + off-chain ledger
 ├── test/                # forge tests (+ test/mocks)
 ├── script/              # deployment scripts
 ├── lib/                 # forge-std (vendored); OZ comes from npm
@@ -18,14 +19,24 @@ payouts, platform fees), built with [Foundry](https://book.getfoundry.sh/).
 
 | Contract | Network | Address |
 | --- | --- | --- |
-| KombatCoin | Sepolia | [`0xFE25C2b2400144c6536b9F707F06b751D6eeF943`](https://sepolia.etherscan.io/address/0xFE25C2b2400144c6536b9F707F06b751D6eeF943) |
+| KombatCoin | Sepolia | [`0x01a659Df789D3E433D7cdFf4CAc70596C56B03c0`](https://sepolia.etherscan.io/address/0x01a659Df789D3E433D7cdFf4CAc70596C56B03c0) |
+| KombatCoin (superseded) | Sepolia | [`0xFE25C2b2400144c6536b9F707F06b751D6eeF943`](https://sepolia.etherscan.io/address/0xFE25C2b2400144c6536b9F707F06b751D6eeF943) |
 | MatchEscrow v2 | Sepolia | [`0x2D3C6e3b41365B2b221982B5fAc5F496746160f2`](https://sepolia.etherscan.io/address/0x2D3C6e3b41365B2b221982B5fAc5F496746160f2) |
 | MockUSDC | Sepolia | [`0x277c9f3957633C99ef8F7421B980B50C41b31a7b`](https://sepolia.etherscan.io/address/0x277c9f3957633C99ef8F7421B980B50C41b31a7b) |
+| StakePot | Sepolia | [`0xa3Ff9Ef44aeD74C773Cb69692f334dD3cB3AE529`](https://sepolia.etherscan.io/address/0xa3Ff9Ef44aeD74C773Cb69692f334dD3cB3AE529) |
 
 Roles: owner (admin + fee withdrawal) is the platform cold key
 `0x0aB34352B087a107302aFF5d155e23a11637Caa1`; operator (creates/funds/
 settles — the game server's hot signer) is `0x4b9801173b21cBb3f290eaDED98D8f5AdE8D90e5`.
 Allowlisted stake assets: native ETH, KombatCoin, MockUSDC.
+
+KombatCoin was redeployed on 2026-07-30 (block 11378578) together with
+StakePot (block 11378580). KC has no mint function, so a fresh deployment was
+the only way to position a float for the signup faucet at genesis: 1,000,000 KC
+to the faucet hot wallet `0x998197bEB90cF6a35C010AfF03221644cf104855`
+(`FAUCET_KEY` on the server), 99,000,000 KC to the treasury. The old KC is
+still referenced by the retired MatchEscrow deployment; the server's
+`TOKEN_REGISTRY` and the mobile `CHAIN_TOKENS` both point at the new one.
 
 The previous escrows (`0x2889A311…D874A` operator-funded; `0x968696cf…F577`
 v2 without the batched allowance open) are superseded. v2 pulls stakes from
@@ -82,6 +93,50 @@ Trust model & caveats:
   (EIP-1153 transient storage), so the target chain must support Cancun —
   mainnet, Base and both Sepolias do.
 
+### StakePot
+
+Supersedes per-match escrow. Players deposit once into a shared pool; every
+match's stakes, prizes and fees are settled in the server's off-chain ledger,
+so a staked match costs **zero** on-chain transactions (the escrow path cost
+two per match, ~350k gas). The contract keeps **no per-user balances** — it
+cannot know a match result, so it cannot validate a withdrawal amount.
+
+| Function | Who | What |
+| --- | --- | --- |
+| `stakeWithPermit(beneficiary, token, value, sig)` | anyone | Deposit an EIP-2612 token in one tx (the mobile app signs the permit locally). Primary deposit path. |
+| `stake(beneficiary, token, value)` | anyone | Deposit a plain ERC20 the caller has approved. |
+| `stakeNative(beneficiary)` | anyone | Deposit native ETH with the amount attached. |
+| `withdrawTo(withdrawalId, to, token, value)` | operator | Pay out on the platform's authority — player withdrawals and fee sweeps alike. Exactly-once per `withdrawalId`. |
+| `ownerWithdrawTo(withdrawalId, to, token, value)` | owner | Escape hatch. Ignores `paused` and the daily limit (both bound a compromised *operator*, and pausing is when the owner most needs to act). Shares the `withdrawalId` space, so no id pays twice via either route. |
+
+`beneficiary` is separate from the payer, so topping up from an exchange or
+another wallet credits the right player.
+
+Trust model & caveats:
+
+- **This is custody.** A compromised operator key can withdraw pooled funds
+  to any address. The contract bounds the damage rather than preventing it:
+  `dailyWithdrawLimit` caps payouts per token per rolling 24h, and the owner
+  (a cold key, ideally a multisig) can `setPaused(true)` to freeze all
+  movement and then `ownerWithdrawTo` to rescue the pool. There is no
+  *player*-side escape hatch — unlike MatchEscrow's 7-day `withdrawStake`, a
+  dark server means funds stay pooled until the owner acts, so recovery is a
+  promise the operator makes rather than one the contract keeps.
+- Anything moved with `ownerWithdrawTo` bypasses the ledger, so reconciliation
+  will report a shortfall afterwards. That is intended: it is a rescue, not a
+  payout path. Ordinary withdrawals and fee sweeps go through the server.
+- `withdrawalId` replay protection is what makes the server's crash-retry
+  loop safe: a resend after an uncertain outcome reverts `AlreadyProcessed`
+  instead of paying twice.
+- The authority on who owns what is the server ledger. The tying invariant,
+  `holdings(token) == Σ(ledger balances) + Σ(in-flight withdrawals)`, is
+  asserted by the server's reconciliation job — the contract can't check it.
+- Fee-on-transfer / rebasing tokens are **not supported**: the `Staked` event
+  carries the requested value, which is what the ledger credits.
+- A future user-signed cumulative-claim withdrawal path can be added without
+  disturbing stored state; the absence of on-chain per-user balances is what
+  keeps that open.
+
 ## Setup
 
 ```bash
@@ -135,6 +190,20 @@ in the table at the top of this file.
 `--rpc-url` accepts either a raw URL or one of the aliases defined in
 `foundry.toml`'s `[rpc_endpoints]` (`mainnet`, `sepolia`, `base`,
 `base_sepolia`), which read from `.env`.
+
+`script/DeployStakePot.s.sol` deploys the pot the same way (broadcaster
+becomes operator, ownership transfers to the platform cold key), allowlists
+ETH/KOMBAT/USDC and sets their rolling 24h withdrawal caps:
+
+```bash
+source .env && forge script script/DeployStakePot.s.sol \
+  --rpc-url sepolia --private-key $PRIVATE_KEY --broadcast --verify
+```
+
+Then set `STAKE_POT_ADDRESS` **and `STAKE_POT_DEPLOY_BLOCK`** (printed by the
+script) on the server — the deposit watcher needs the block to know where to
+start scanning. Every token allowlisted here must also exist in the server's
+`apps/server/src/chain/token-registry.ts`.
 
 ## Dependencies
 

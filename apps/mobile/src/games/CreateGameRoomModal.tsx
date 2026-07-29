@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -15,6 +15,7 @@ import {
   isMultiSeatGame,
   STAKE_ASSET_SYMBOLS,
   StakeAsset,
+  formatStakeAmount,
   parseStakeAmount,
 } from '@gaming-platform/core';
 
@@ -23,6 +24,7 @@ import BrandIcon, { type BrandIconName } from '../components/BrandIcon';
 import Icon from '../components/Icon';
 import { Button, Card, MODAL_DISMISS_MS, Toggle } from '../components/ui';
 import { useGameStore } from '../store/game.store';
+import { useStakePotStore } from '../store/stakePot.store';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
 import GameIcon from './GameIcon';
@@ -76,18 +78,33 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
   const [tokenPickerOpen, setTokenPickerOpen] = useState(false);
   const [isPrivate, setIsPrivate] = useState(false);
   const setWaitingRoom = useGameStore(state => state.setWaitingRoom);
+  const pot = useStakePotStore(state => state.balances);
+  const refreshPot = useStakePotStore(state => state.refresh);
+
+  // Stakes come out of the pot, so a stale snapshot would offer stakes the
+  // player can no longer cover.
+  useEffect(() => {
+    if (visible) {
+      void refreshPot();
+    }
+  }, [visible, refreshPot]);
 
   const staked = stakeToken !== null;
   const feeNum = Number(feeInput) || 0;
   const selectedGame =
     GAME_CHOICES.find(g => g.gameType === gameType) ?? GAME_CHOICES[0];
 
+  const potOf = (token: StakeAsset) => BigInt(pot.available[token]);
+
   const setMode = (mode: 'staked' | 'free') => {
     if (mode === 'free') {
       setStakeToken(null);
       return;
     }
-    const token = stakeToken ?? StakeAsset.Usdc;
+    const token =
+      stakeToken ??
+      STAKE_TOKENS.find(t => potOf(t) > 0n) ??
+      StakeAsset.Usdc;
     setStakeToken(token);
     setFeeInput(String(STAKE_CONFIG[token].presets[0]));
   };
@@ -100,6 +117,21 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
 
   const players = isMultiSeatGame(gameType) ? 4 : 2;
   const winnerTakes = feeNum * players * 0.95;
+
+  const stakeRaw = (() => {
+    if (stakeToken === null) {
+      return null;
+    }
+    try {
+      return BigInt(parseStakeAmount(STAKE_CONFIG[stakeToken].fmt(feeNum), stakeToken));
+    } catch {
+      return null;
+    }
+  })();
+  const potAvailable = stakeToken === null ? 0n : potOf(stakeToken);
+  const exceedsPot = stakeRaw !== null && stakeRaw > potAvailable;
+  const cannotCreate =
+    isCreating || (staked && (stakeRaw === null || stakeRaw <= 0n || exceedsPot));
 
   const handleCreate = async () => {
     setIsCreating(true);
@@ -188,6 +220,16 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
           {staked && stakeToken !== null ? (
             <>
               <Card accent style={styles.stakeCard}>
+                <View style={styles.potRow}>
+                  <Text style={[type.label, styles.label]}>Amount</Text>
+                  <Text style={styles.potText}>
+                    Pot{' '}
+                    <Text style={styles.potValue}>
+                      {formatStakeAmount(pot.available[stakeToken], stakeToken)}
+                    </Text>{' '}
+                    {STAKE_ASSET_SYMBOLS[stakeToken]}
+                  </Text>
+                </View>
                 <View style={styles.amountRow}>
                   <TextInput
                     value={feeInput}
@@ -221,6 +263,9 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
                       >
                         <BrandIcon type={STAKE_CONFIG[t].brand} size={20} />
                         <Text style={styles.tokenListText}>{STAKE_ASSET_SYMBOLS[t]}</Text>
+                        <Text style={styles.tokenListBal}>
+                          {formatStakeAmount(pot.available[t], t)}
+                        </Text>
                         {t === stakeToken ? (
                           <Icon type="check" color={colors.accent} size={16} />
                         ) : null}
@@ -271,13 +316,21 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
             <Toggle value={isPrivate} onValueChange={setIsPrivate} />
           </View>
 
+          {staked && exceedsPot ? (
+            <Text style={styles.error}>
+              Only {formatStakeAmount(pot.available[stakeToken!], stakeToken!)}{' '}
+              {STAKE_ASSET_SYMBOLS[stakeToken!]} in your pot. Add funds from the
+              Wallet tab, or lower the stake.
+            </Text>
+          ) : null}
+
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
           <Button
             label={createLabel}
             onPress={handleCreate}
             loading={isCreating}
-            disabled={isCreating}
+            disabled={cannotCreate}
           />
         </View>
       </SafeAreaView>
@@ -422,6 +475,19 @@ const styles = StyleSheet.create({
   stakeCard: {
     gap: spacing.sm,
   },
+  potRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  potText: {
+    ...type.caption,
+    color: colors.textMuted,
+  },
+  potValue: {
+    fontFamily: mono.bold,
+    color: colors.textPrimary,
+  },
   amountRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -471,6 +537,11 @@ const styles = StyleSheet.create({
     fontFamily: mono.bold,
     fontSize: 14,
     color: colors.textPrimary,
+  },
+  tokenListBal: {
+    fontFamily: mono.medium,
+    fontSize: 13,
+    color: colors.textMuted,
   },
   presetRow: {
     flexDirection: 'row',

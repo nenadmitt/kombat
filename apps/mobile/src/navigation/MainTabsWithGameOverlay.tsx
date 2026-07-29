@@ -7,9 +7,11 @@ import {
   PLATFORM_EVENTS,
   ROOM_EVENTS,
   STAKE_EVENTS,
+  STAKE_POT_EVENTS,
   type GameRoomSummary,
   type PlatformStatus,
   type RoomPlayerJoinedPayload,
+  type StakePotBalances,
 } from '@gaming-platform/core';
 
 import { apiClient } from '../api/client';
@@ -22,6 +24,7 @@ import WaitingForPlayersPopup from '../games/WaitingForPlayersPopup';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import { useGameStore } from '../store/game.store';
 import { useServerStore } from '../store/server.store';
+import { useStakePotStore } from '../store/stakePot.store';
 import { useWebsocketStore } from '../store/websocket.store';
 import MainTabNavigator from './MainTabNavigator';
 import type { RootStackParamList } from './types';
@@ -59,6 +62,17 @@ export default function MainTabsWithGameOverlay() {
         useServerStore
           .getState()
           .applyPlatformStatus(payload as PlatformStatus);
+      }
+    });
+  }, [onSocketEvent]);
+
+  // Pot balance changes (deposit credited, stake held, prize paid, withdrawal
+  // confirmed) arrive as a full snapshot, so the wallet screen is already
+  // correct whenever the user next opens it.
+  useEffect(() => {
+    return onSocketEvent(STAKE_POT_EVENTS.balance, payload => {
+      if (payload && typeof payload === 'object' && 'available' in payload) {
+        useStakePotStore.getState().apply(payload as StakePotBalances);
       }
     });
   }, [onSocketEvent]);

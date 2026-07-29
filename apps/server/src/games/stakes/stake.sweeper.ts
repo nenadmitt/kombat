@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import { EscrowStatus } from '@gaming-platform/core';
 
-import { ChainService } from '../../chain';
 import { DbService } from '../../db';
 import { StakesService } from './stakes.service';
 
@@ -26,7 +25,7 @@ const FUNDING_STALE_MS = 130_000;
  * Drains pending on-chain stake work from the stake_escrows table:
  * settlements, voids/refunds, and funding jobs orphaned by a crash or
  * restart. DB-status-driven (same philosophy as BattleshipDeadlineSweeper's
- * schedule): safe to run on every instance — each work item is re-validated
+ * schedule): safe to run on every instance - each work item is re-validated
  * under the room's funding lock / against on-chain state, so double
  * processing degrades to a no-op.
  */
@@ -39,12 +38,14 @@ export class StakeSweeper implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly dbService: DbService,
     private readonly stakesService: StakesService,
-    private readonly chainService: ChainService,
   ) {}
 
   onModuleInit(): void {
-    if (!this.chainService.enabled) {
-      return; // Staking disabled — nothing to sweep, don't spin.
+    // Asks StakesService rather than ChainService: in pot mode the escrow may
+    // not be configured at all, yet a Funding row orphaned by a crash still
+    // needs recovering (fundRoom honours the active mode).
+    if (!this.stakesService.enabled) {
+      return; // Staking disabled - nothing to sweep, don't spin.
     }
     this.interval = setInterval(() => {
       void this.sweep();
@@ -77,7 +78,7 @@ export class StakeSweeper implements OnModuleInit, OnModuleDestroy {
             Date.now() - escrow.updatedAt.getTime() >
             FUNDING_STALE_MS
           ) {
-            // Orphaned funding (e.g. server died mid-job) — fundRoom is
+            // Orphaned funding (e.g. server died mid-job) - fundRoom is
             // idempotent and re-checks on-chain state under the room lock.
             await this.stakesService.fundRoom(escrow.roomId);
           }

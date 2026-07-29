@@ -17,7 +17,8 @@ export const TOKEN_REGISTRY = new Map<number, TokenAddresses>([
   [
     11155111, // Sepolia
     {
-      [StakeAsset.Kombat]: '0xFE25C2b2400144c6536b9F707F06b751D6eeF943',
+      // Not the KC the retired MatchEscrow deployment points at.
+      [StakeAsset.Kombat]: '0x01a659Df789D3E433D7cdFf4CAc70596C56B03c0',
       [StakeAsset.Usdc]: '0x277c9f3957633C99ef8F7421B980B50C41b31a7b',
     },
   ],

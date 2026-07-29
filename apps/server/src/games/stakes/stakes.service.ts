@@ -21,11 +21,12 @@ import { OnChainStakeState } from '../../chain';
 import { ConfigurationService } from '../../configuration/configuration.service';
 import { DbService } from '../../db';
 import { GameRoomEntity } from '../../db/entities/game-room.entity';
+import { StakePotChainService, StakePotService } from '../../stake-pot';
 import { WebsocketsService } from '../../websockets';
 import { isMultiSeatGame } from '../game-type.util';
 import { participantsOf } from '../room.util';
 
-/** Per-room funding lock — funding is idempotent but must not run twice at once. */
+/** Per-room funding lock - funding is idempotent but must not run twice at once. */
 const fundingLockKey = (roomId: string) => `stake:fund:${roomId}`;
 const FUNDING_LOCK_TTL_MS = 120_000;
 
@@ -36,10 +37,21 @@ const MAX_ATTEMPTS = 3;
 const NATIVE_GAS_HEADROOM = 2_000_000_000_000_000n; // 0.002 ETH
 
 /**
- * Stake lifecycle orchestration: validates stakes, escrows both players'
- * stakes when a room fills (async — the match start is gated on Funded),
- * and queues settlement / voiding for the StakeSweeper when a match ends.
- * Free rooms (stakeToken null) never touch any of this.
+ * Stake lifecycle orchestration: validates stakes, secures every player's
+ * stake when a room fills, and resolves it when the match ends. Free rooms
+ * (stakeToken null) never touch any of this.
+ *
+ * Two paths live behind the same API, chosen by `STAKING_MODE`:
+ *
+ * - `pot` - stakes are held against the StakePot ledger. Funding and
+ *   settlement are synchronous database transactions, so a staked match starts
+ *   as fast as a free one and costs nothing on-chain.
+ * - `escrow` - the original per-match on-chain escrow: funding is async and
+ *   the match start is gated on Funded, settlement is queued for StakeSweeper.
+ *
+ * Both write the same `stake_escrows` row, so `assertRoomPlayable`, the match
+ * history and the net-stake reporting are identical either way. Keeping both
+ * runnable is what makes the cutover (and the rollback) a config change.
  */
 @Injectable()
 export class StakesService {
@@ -51,12 +63,21 @@ export class StakesService {
     private readonly cacheService: CacheService,
     private readonly configurationService: ConfigurationService,
     private readonly websocketsService: WebsocketsService,
+    private readonly stakePotService: StakePotService,
+    private readonly stakePotChainService: StakePotChainService,
   ) {}
 
   // ---- validation ----------------------------------------------------------
 
+  /** Whether pooled staking serves new matches. */
+  private get potMode(): boolean {
+    return this.configurationService.STAKING_MODE === 'pot';
+  }
+
   get enabled(): boolean {
-    return this.chainService.enabled;
+    return this.potMode
+      ? this.stakePotChainService.enabled
+      : this.chainService.enabled;
   }
 
   /** Bounds-check a stake (min per asset, env-configured max). */
@@ -83,16 +104,33 @@ export class StakesService {
     }
   }
 
-  /** Reject up front when the player can't cover the stake (+ gas for ETH). */
+  /**
+   * Reject up front when the player can't cover the stake. In pot mode this is
+   * a cheap ledger read and only an early courtesy - the hold in
+   * `beginFunding` is the authoritative check, which is what closes the
+   * escrow path's TOCTOU gap (there, the player held the same key and could
+   * move the funds between this check and the transfer).
+   */
   async assertSufficientBalance(
     userId: string,
     asset: StakeAsset,
     amount: string,
   ): Promise<void> {
+    if (this.potMode) {
+      const available = await this.stakePotService.availableBalance(userId, asset);
+      if (available < BigInt(amount)) {
+        throw new ConflictException(
+          `Not enough ${STAKE_ASSET_SYMBOLS[asset]} in your stake pot. Top it up to play this match.`,
+        );
+      }
+      return;
+    }
+
     const address = await this.chainService.playerAddress(userId);
     const balances = await this.chainService.getBalances(address);
     let required = BigInt(amount);
     if (asset === StakeAsset.Native) {
+      // The wallet pays its own gas on the native funding path.
       required += NATIVE_GAS_HEADROOM;
     }
     if (BigInt(balances[asset]) < required) {
@@ -116,16 +154,21 @@ export class StakesService {
       escrow.status === EscrowStatus.VoidPending ||
       escrow.status === EscrowStatus.Voided
     ) {
-      throw new ConflictException('Stake funding failed — the match was voided.');
+      throw new ConflictException('Stake funding failed - the match was voided.');
     }
   }
 
   // ---- funding -------------------------------------------------------------
 
   /**
-   * Both players just joined a staked room: record the escrow, notify both
-   * players, and kick off the (async) on-chain funding. The caller returns
-   * to the joiner immediately; `stake:funded` / `stake:failed` follow.
+   * The room just filled: secure every player's stake.
+   *
+   * Escrow mode records the escrow, notifies both players and kicks off the
+   * async on-chain funding - the caller returns to the joiner immediately and
+   * `stake:funded` / `stake:failed` follow.
+   *
+   * Pot mode does the whole thing here: the hold is a database transaction, so
+   * `stake:funded` follows `stake:funding` in the same call.
    */
   async beginFunding(room: GameRoomEntity): Promise<void> {
     await this.dbService.createStakeEscrow({
@@ -134,6 +177,18 @@ export class StakesService {
       status: EscrowStatus.Funding,
     });
     this.notifyPlayers(room, STAKE_EVENTS.funding, { roomId: room.id });
+
+    if (this.potMode) {
+      // Holds are synchronous, so this resolves before the caller's HTTP
+      // response is sent - and therefore before the joiner could subscribe to
+      // stake:funded. A thrown error is the joiner's only reliable signal.
+      if (!(await this.holdFromPot(room))) {
+        throw new ConflictException(
+          'Stakes could not be secured - the match was cancelled and nothing was charged.',
+        );
+      }
+      return;
+    }
 
     void this.fundRoom(room.id).catch(error => {
       this.logger.error(
@@ -144,9 +199,82 @@ export class StakesService {
   }
 
   /**
-   * Escrow both stakes. Idempotent and retriable: safe to re-run after a
-   * crash or from the sweeper — it re-reads the on-chain state and only does
-   * what's still missing.
+   * Pot-mode funding: move every participant's stake from available to locked
+   * in one transaction, then emit exactly the same event sequence the escrow
+   * path emits on success. Nothing here touches the chain.
+   */
+  private async holdFromPot(room: GameRoomEntity): Promise<boolean> {
+    try {
+      await this.stakePotService.holdForMatch(
+        room.id,
+        participantsOf(room),
+        room.stakeToken!,
+        BigInt(room.stakeAmount!),
+      );
+    } catch (error) {
+      // Someone's balance moved between the join check and here (a concurrent
+      // match or a withdrawal). Nothing was charged - the hold is all-or-none.
+      await this.dbService.updateStakeEscrow(room.id, {
+        status: EscrowStatus.Voided,
+        attempts: 1,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      await this.dbService.completeGameRoom(room.id, {
+        winnerUserId: null,
+        endReason: 'stake-failed',
+      });
+      this.notifyPlayers(room, STAKE_EVENTS.failed, {
+        roomId: room.id,
+        reason:
+          'A player no longer had enough in their stake pot - the match was cancelled and nothing was charged.',
+      });
+      return false;
+    }
+
+    await this.dbService.updateStakeEscrow(room.id, {
+      status: EscrowStatus.Funded,
+      error: null,
+    });
+    this.emitFundedAndStart(room);
+    return true;
+  }
+
+  /**
+   * The success half of funding, shared by both modes. Emits `stake:funded`
+   * and then the one lifecycle event that moves the waiting apps into the
+   * match - the creator's opponent-joined for 2-player rooms, the started
+   * broadcast for multi-seat (Ludo/Chroma) rooms.
+   *
+   * Exactly one such event per transition, never two in a tick: the client has
+   * to serialize its modal dismissal against the navigation push.
+   */
+  private emitFundedAndStart(room: GameRoomEntity): void {
+    const roomId = room.id;
+    this.notifyPlayers(room, STAKE_EVENTS.funded, { roomId });
+    if (isMultiSeatGame(room.gameType)) {
+      for (const participant of participantsOf(room)) {
+        this.websocketsService.sendToUser(participant, ROOM_EVENTS.started, {
+          roomId,
+        });
+      }
+    } else {
+      this.websocketsService.sendToUser(
+        room.userId,
+        ROOM_EVENTS.opponentJoined,
+        { roomId },
+      );
+    }
+  }
+
+  /**
+   * Secure every stake for a room that is still Funding. Idempotent and
+   * retriable: safe to re-run after a crash or from the sweeper - the escrow
+   * path re-reads on-chain state and only does what's still missing, and the
+   * pot path's hold is idempotent per (room, player).
+   *
+   * This is the recovery entry point for a row orphaned by a crash between
+   * creating the escrow record and actually funding, so it has to honour the
+   * current mode rather than assume the escrow path.
    */
   async fundRoom(roomId: string): Promise<void> {
     await this.cacheService.withLock(
@@ -166,6 +294,13 @@ export class StakesService {
           return;
         }
 
+        if (this.potMode) {
+          // Recovery path: the row is already Voided on failure, so the
+          // sweeper has nothing left to retry either way.
+          await this.holdFromPot(room);
+          return;
+        }
+
         try {
           const txHashes = await this.escrowStakes(room, escrow.matchId as Hex);
           await this.dbService.updateStakeEscrow(roomId, {
@@ -173,26 +308,9 @@ export class StakesService {
             fundTxHashes: [...escrow.fundTxHashes, ...txHashes],
             error: null,
           });
-          this.notifyPlayers(room, STAKE_EVENTS.funded, { roomId });
           // The waiting apps get their (delayed) transfer-into-the-match
-          // signal only once the pot is on-chain, mirroring the free-game
-          // flow: the creator's opponent-joined for 2-player games, the
-          // started broadcast for multi-seat (Ludo/Chroma) rooms.
-          if (isMultiSeatGame(room.gameType)) {
-            for (const participant of participantsOf(room)) {
-              this.websocketsService.sendToUser(
-                participant,
-                ROOM_EVENTS.started,
-                { roomId },
-              );
-            }
-          } else {
-            this.websocketsService.sendToUser(
-              room.userId,
-              ROOM_EVENTS.opponentJoined,
-              { roomId },
-            );
-          }
+          // signal only once the pot is on-chain, mirroring the free-game flow.
+          this.emitFundedAndStart(room);
         } catch (error) {
           await this.handleFundingFailure(room, escrow.attempts + 1, error);
         }
@@ -220,7 +338,7 @@ export class StakesService {
     }
 
     // ERC20 (USDC / KOMBAT): standing allowances are pre-approved at wallet
-    // creation, so these are normally no-ops — then one operator tx pulls
+    // creation, so these are normally no-ops - then one operator tx pulls
     // every stake. Sequential on purpose: a missing approval may need an
     // operator gas-dust tx, and the operator nonce lock is single-file.
     const players: Address[] = [];
@@ -283,7 +401,7 @@ export class StakesService {
       `Funding attempt ${attempts}/${MAX_ATTEMPTS} failed for room ${room.id}: ${message}`,
     );
     if (attempts < MAX_ATTEMPTS) {
-      // Stay in Funding — the sweeper retries stale rows.
+      // Stay in Funding - the sweeper retries stale rows.
       await this.dbService.updateStakeEscrow(room.id, {
         attempts,
         error: message,
@@ -302,7 +420,7 @@ export class StakesService {
     });
     this.notifyPlayers(room, STAKE_EVENTS.failed, {
       roomId: room.id,
-      reason: 'Stake funding failed — any escrowed funds are being refunded.',
+      reason: 'Stake funding failed - any escrowed funds are being refunded.',
     });
   }
 
@@ -330,9 +448,62 @@ export class StakesService {
     ) {
       return; // Already queued / terminal.
     }
+
+    if (this.potMode) {
+      await this.settleFromPot(roomId, winnerUserId);
+      return;
+    }
+
     await this.dbService.updateStakeEscrow(roomId, {
       status: winnerUserId ? EscrowStatus.SettlePending : EscrowStatus.VoidPending,
       attempts: 0,
+      error: null,
+    });
+  }
+
+  /**
+   * Pot-mode settlement: pay the winner (or return every hold) in one database
+   * transaction, and record the outcome on the escrow row so the history and
+   * net-stake queries keep working unchanged. No sweeper involvement - there is
+   * no chain work to retry, so there is no pending state to park in.
+   */
+  private async settleFromPot(
+    roomId: string,
+    winnerUserId: string | null,
+  ): Promise<void> {
+    // Read-through cache is fine here: the roster and stake of a room that has
+    // just ended cannot change any more.
+    const room = await this.dbService.findGameRoomById(roomId);
+    if (!room || room.stakeToken === null) {
+      return;
+    }
+
+    if (!winnerUserId) {
+      await this.stakePotService.releaseMatch(roomId);
+      await this.dbService.updateStakeEscrow(roomId, {
+        status: EscrowStatus.Voided,
+        error: null,
+      });
+      return;
+    }
+
+    const settlement = await this.stakePotService.settleMatch(
+      roomId,
+      winnerUserId,
+      participantsOf(room),
+      room.stakeToken,
+      BigInt(room.stakeAmount!),
+    );
+    await this.dbService.updateStakeEscrow(roomId, {
+      status: EscrowStatus.Settled,
+      // Null when the room had already been settled (a replayed completion);
+      // leave the recorded figures alone in that case.
+      ...(settlement
+        ? {
+            payout: settlement.payout.toString(),
+            fee: settlement.fee.toString(),
+          }
+        : {}),
       error: null,
     });
   }
@@ -390,7 +561,7 @@ export class StakesService {
 
     const onChain = await this.chainService.getStakeState(matchId);
     if (onChain.state === OnChainStakeState.None) {
-      // Nothing ever landed on-chain — nothing to refund.
+      // Nothing ever landed on-chain - nothing to refund.
       await this.dbService.updateStakeEscrow(roomId, {
         status: EscrowStatus.Voided,
         error: null,
@@ -444,7 +615,7 @@ export class StakesService {
     event: string,
     payload: unknown,
   ): void {
-    // User rooms, not the game channel — players haven't necessarily entered
+    // User rooms, not the game channel - players haven't necessarily entered
     // the match screen (and its channel) during funding.
     for (const participant of participantsOf(room)) {
       this.websocketsService.sendToUser(participant, event, payload);

@@ -32,9 +32,13 @@ export type PermitSignature = {
   s: Hex;
 };
 
-/** Serializes every operator tx — one nonce stream, one sender. */
-const OPERATOR_LOCK_KEY = 'chain:operator';
-const OPERATOR_LOCK_TTL_MS = 120_000;
+/**
+ * Serializes every operator tx — one nonce stream, one sender. Exported
+ * because the stake-pot module signs with the same operator key and must
+ * share the lock, not just take a similar one.
+ */
+export const OPERATOR_LOCK_KEY = 'chain:operator';
+export const OPERATOR_LOCK_TTL_MS = 120_000;
 
 /** Permit validity window — generous; funding retries reuse fresh ones anyway. */
 const PERMIT_TTL_SECONDS = 30 * 60;
@@ -307,6 +311,20 @@ export class ChainService {
         );
       }
     }
+  }
+
+  /**
+   * Gas-dust a wallet so it can pay for a transaction of its own. In pot mode
+   * that first transaction is the player's `stake` deposit, which is signed on
+   * their device — without dust a brand-new custodial wallet can't fund its
+   * pot at all.
+   */
+  async fundGasFor(userId: string): Promise<void> {
+    if (!this.enabled) {
+      return;
+    }
+    const address = await this.playerAddress(userId);
+    await this.ensureGasFor(address);
   }
 
   /** Top the wallet up with gas for its own txs (approve / fundNative). */
