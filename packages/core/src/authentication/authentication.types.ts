@@ -6,6 +6,10 @@ export type UserProfile = {
   id: string;
   email: string;
   username: string | null;
+  /** This user's own shareable code; null until they pick a username. */
+  referralCode: string | null;
+  /** Username of whoever referred them, if anyone. */
+  referredByUsername: string | null;
 };
 
 /** What anyone may see about a user (batch-resolved for match rosters,

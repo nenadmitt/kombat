@@ -20,4 +20,5 @@ export * from './games/rps';
 export * from './games/salvo';
 export * from './games/stake.types';
 export * from './platform/platform-status';
+export * from './players';
 export * from './wallets/wallet.types';

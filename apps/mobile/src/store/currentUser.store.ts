@@ -45,6 +45,7 @@ type BootSnapshot = {
   userId: string | null;
   email: string | null;
   username: string | null;
+  referralCode: string | null;
   wallet: WalletSummary | null;
 };
 
@@ -70,12 +71,14 @@ function persistCurrentSnapshot(state: {
   userId: string | null;
   email: string | null;
   username: string | null;
+  referralCode: string | null;
   wallet: WalletSummary | null;
 }): void {
   persistSnapshot({
     userId: state.userId,
     email: state.email,
     username: state.username,
+    referralCode: state.referralCode,
     wallet: state.wallet,
   });
 }
@@ -117,6 +120,8 @@ type CurrentUserState = {
   userId: string | null;
   email: string | null;
   username: string | null;
+  /** This user's own shareable referral code (null until onboarding). */
+  referralCode: string | null;
   profileError: LoadError | null;
 
   walletStatus: WalletStatus;
@@ -132,7 +137,7 @@ type CurrentUserState = {
   /** Fetches the user's email/username. */
   loadProfile: () => Promise<void>;
   /** Sets the username (onboarding) - 409s (via ApiError) if already taken. */
-  updateUsername: (username: string) => Promise<void>;
+  updateUsername: (username: string, referredByCode?: string) => Promise<void>;
   /** Lists the user's wallets; creates one (Ethereum) if they have none yet. */
   ensureWallet: () => Promise<void>;
   /** Refreshes cache-hydrated profile/wallet once the server is back. */
@@ -147,6 +152,7 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
   userId: null,
   email: null,
   username: null,
+  referralCode: null,
   profileError: null,
 
   walletStatus: 'idle',
@@ -183,6 +189,7 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
       userId: null,
       email: null,
       username: null,
+      referralCode: null,
       profileStatus: 'idle',
       profileError: null,
     });
@@ -197,10 +204,11 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
     }
     set({ profileStatus: 'loading', profileError: null });
     try {
-      const { id, email, username } = await apiClient.getCurrentUser();
-      set({ userId: id, email, username, profileStatus: 'ready' });
+      const { id, email, username, referralCode } =
+        await apiClient.getCurrentUser();
+      set({ userId: id, email, username, referralCode, profileStatus: 'ready' });
       const { wallet } = get();
-      persistSnapshot({ userId: id, email, username, wallet });
+      persistSnapshot({ userId: id, email, username, referralCode, wallet });
     } catch (err) {
       // Server unreachable but we have a last-good snapshot: boot into
       // offline mode instead of the error screen. Games are gated by the
@@ -212,6 +220,7 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
             userId: snapshot.userId,
             email: snapshot.email,
             username: snapshot.username,
+            referralCode: snapshot.referralCode ?? null,
             profileStatus: 'ready',
           });
           useServerStore.getState().reportOffline();
@@ -226,10 +235,11 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
     }
   },
 
-  updateUsername: async username => {
-    // Let ApiError (e.g. 409 taken) propagate - the caller (OnboardingScreen) shows it inline.
-    const updated = await apiClient.updateUsername(username);
-    set({ username: updated.username });
+  updateUsername: async (username, referredByCode) => {
+    // Let ApiError (e.g. 409 taken, 400 bad referral code) propagate - the
+    // caller (OnboardingScreen) shows it inline.
+    const updated = await apiClient.updateUsername(username, referredByCode);
+    set({ username: updated.username, referralCode: updated.referralCode });
   },
 
   ensureWallet: async () => {

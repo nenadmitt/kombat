@@ -84,6 +84,81 @@ export class DbService {
     return this.userRepository.findOneBy({ username });
   }
 
+  findUserByReferralCode(referralCode: string): Promise<UserEntity | null> {
+    return this.userRepository.findOneBy({ referralCode });
+  }
+
+  countReferralsFor(userId: string): Promise<number> {
+    return this.userRepository.countBy({ referredByUserId: userId });
+  }
+
+  /**
+   * Lifetime record over completed rooms. Counting in SQL keeps this correct
+   * for players with thousands of matches, where paging the history feed
+   * would only ever see the first page.
+   */
+  async findMatchTotalsForUser(
+    userId: string,
+  ): Promise<{ games: number; wins: number; voids: number }> {
+    const row = await this.gameRoomRepository
+      .createQueryBuilder('room')
+      .select('COUNT(*)', 'games')
+      .addSelect(
+        'COUNT(*) FILTER (WHERE room.winner_user_id = :userId)',
+        'wins',
+      )
+      .addSelect('COUNT(*) FILTER (WHERE room.winner_user_id IS NULL)', 'voids')
+      .where('room.status = :status', { status: GameRoomStatus.Completed })
+      .andWhere(
+        '(room.user_id = :userId OR room.opponent_id = :userId OR :userId = ANY(room.opponent_ids))',
+        { userId },
+      )
+      .getRawOne<{ games: string; wins: string; voids: string }>();
+    return {
+      games: Number(row?.games ?? 0),
+      wins: Number(row?.wins ?? 0),
+      voids: Number(row?.voids ?? 0),
+    };
+  }
+
+  /**
+   * Net staked outcome per asset: what a win actually paid out (from the
+   * settled escrow) minus every stake this player put up. Void rooms are
+   * excluded - the stake is returned, so they net zero.
+   */
+  async findStakeNetByTokenForUser(
+    userId: string,
+  ): Promise<{ stakeToken: number; net: string }[]> {
+    const rows = await this.gameRoomRepository
+      .createQueryBuilder('room')
+      .leftJoin('stake_escrows', 'escrow', 'escrow.room_id = room.id')
+      .select('room.stake_token', 'stakeToken')
+      .addSelect(
+        `SUM(
+           CASE WHEN room.winner_user_id = :userId
+                THEN COALESCE(escrow.payout, room.stake_amount)::numeric - room.stake_amount::numeric
+                ELSE -room.stake_amount::numeric
+           END
+         )`,
+        'net',
+      )
+      .where('room.status = :status', { status: GameRoomStatus.Completed })
+      .andWhere('room.stake_token IS NOT NULL')
+      .andWhere('room.winner_user_id IS NOT NULL')
+      .andWhere(
+        '(room.user_id = :userId OR room.opponent_id = :userId OR :userId = ANY(room.opponent_ids))',
+        { userId },
+      )
+      .groupBy('room.stake_token')
+      .getRawMany<{ stakeToken: number; net: string }>();
+    return rows.map(r => ({
+      stakeToken: Number(r.stakeToken),
+      // numeric comes back as a string; strip any fractional tail so it
+      // stays a valid base-unit integer for BigInt on the client.
+      net: String(r.net ?? '0').split('.')[0]!,
+    }));
+  }
+
   createUser(email: string): Promise<UserEntity> {
     return this.userRepository.save(
       this.userRepository.create({ email, username: null }),
