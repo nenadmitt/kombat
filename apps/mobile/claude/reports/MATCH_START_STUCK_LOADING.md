@@ -255,9 +255,24 @@ in the app with no way out.
 
 New shared `games/MatchLoading.tsx` replaces the four inline spinners. It
 always renders a **Leave** action, and states the failure when there is one.
-Leaving from here deliberately bypasses the forfeit confirmation: the player
-never reached a playable match, so a load failure must not be scored as a
-loss against them.
+
+Leaving from here skips the forfeit **confirmation dialog** but still emits
+`forfeit` to the server. That distinction matters: the dialog is UX, not
+enforcement. A client that wants to leave without conceding can already
+force-quit, drop the network, or simply never send the event - so nothing a
+screen does can be a security control.
+
+What actually decides an abandoned match is server-side and unavoidable:
+
+- `<game>:forfeit` is validated by the match service - it is rejected when
+  the match does not exist, has not started, or the caller is not a
+  participant, so a genuinely stuck player is never penalised for leaving.
+- If no forfeit ever arrives, `GameDeadlineSweeper` runs the turn clock and
+  `MAX_TIMEOUTS` consecutive misses lose the match. Verified present in all
+  five match services.
+
+So a losing player who escapes the client loses on the clock instead of
+instantly. Leaving is never a way to avoid a result.
 
 ## Rules to prevent recurrence
 
