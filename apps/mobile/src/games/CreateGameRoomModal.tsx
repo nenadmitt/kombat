@@ -21,7 +21,7 @@ import {
 import { apiClient } from '../api/client';
 import BrandIcon, { type BrandIconName } from '../components/BrandIcon';
 import Icon from '../components/Icon';
-import { Button, Card, Toggle } from '../components/ui';
+import { Button, Card, MODAL_DISMISS_MS, Toggle } from '../components/ui';
 import { useGameStore } from '../store/game.store';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
@@ -112,8 +112,11 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
               amount: parseStakeAmount(STAKE_CONFIG[stakeToken].fmt(feeNum), stakeToken),
             };
       const room = await apiClient.createGameRoom(gameType, stake, isPrivate);
-      setWaitingRoom(room);
+      // Close this Modal first and only then hand the room to the waiting
+      // popup (another Modal). Presenting one while this is still animating
+      // out wedges iOS's presentation stack and kills every touch.
       onClose();
+      setTimeout(() => setWaitingRoom(room), MODAL_DISMISS_MS);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong.');
     } finally {

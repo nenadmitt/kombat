@@ -14,7 +14,7 @@ import {
 
 import { apiClient } from '../api/client';
 import ServerStatusBanner from '../components/ServerStatusBanner';
-import { useConfirm } from '../components/ui';
+import { MODAL_DISMISS_MS, useConfirm } from '../components/ui';
 import { GAME_TYPE_SCREENS } from '../games/game-type-screens';
 import ResumeMatchModal from '../games/ResumeMatchModal';
 import WaitingForPlayersMinimizedBar from '../games/WaitingForPlayersMinimizedBar';
@@ -25,15 +25,6 @@ import { useServerStore } from '../store/server.store';
 import { useWebsocketStore } from '../store/websocket.store';
 import MainTabNavigator from './MainTabNavigator';
 import type { RootStackParamList } from './types';
-
-/**
- * How long the waiting popup's Modal needs to finish dismissing before a
- * screen may be pushed over it. Pushing while a transparent Modal is still
- * mid-dismiss wedges iOS's modal presentation stack: the app keeps rendering
- * but every touch is swallowed, and it follows the user through the match to
- * the result screen. See claude/reports/OVERLAY_BLOCKED_ERROR.md.
- */
-const MODAL_DISMISS_MS = 350;
 
 /**
  * Wraps the tab navigator so the "Waiting for Players" popup/minimized-bar
