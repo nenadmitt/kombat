@@ -129,6 +129,7 @@ function BattleshipGameFlow({
       <WaitingForOpponent
         opponent={engine.playProps.opponent}
         deadline={engine.setupDeadline}
+        error={engine.waitingError}
         // Cancelling forfeits the match (the confirm dialog lives inside);
         // it already confirmed, so the navigation guard steps aside.
         onCancel={() => {

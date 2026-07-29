@@ -187,11 +187,18 @@ Fixed this round:
 - **Listener leak**: every gateway's `markOnline` now registers its
   disconnect hook once per socket+room. Retried enters are normal and must
   be idempotent.
-- **The spinner can no longer be mute.** All four multiplayer engines expose
-  `waitingError`; the four game containers render it under the spinner. The
-  REST engines surface the snapshot fetch's failure message; Salvo
-  subscribes to `salvo:error`, which the client previously ignored
-  entirely. Everything is also `console.warn`ed.
+- **The spinner can no longer be mute - in any of the five games.** Every
+  multiplayer engine exposes `waitingError` and every container surfaces it
+  (the four spinner games under their spinner; Battleship on the
+  waiting-for-opponent screen). The REST engines surface the snapshot
+  fetch's failure message, and every engine now subscribes to its gateway's
+  `<game>:error` push - previously only Salvo did; the other four clients
+  ignored gateway failures entirely. Everything is also `console.warn`ed.
+- **Battleship got the retry too.** It had been excluded on the grounds that
+  a failed fetch "leaves the player in setup, not on a spinner" - but that
+  is its own bug: on a resume into a live match, a failed fetch silently
+  rendered the setup screen of a match already in play. The snapshot now
+  retries until it lands, so the phase self-corrects.
 
 If the joiner still spins, the screen now names the reason. If it spins
 with **no** message while the server stacks enters, reception is the fault,

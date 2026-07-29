@@ -206,6 +206,16 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
       const p = payload as ChromaPresencePayload;
       setOnline(prev => ({ ...prev, [p.userId]: p.online }));
     });
+    // Gateway failures (enter and every action) surface here; the
+    // client ignored them entirely before, which is how silent hangs
+    // happen.
+    const offGatewayError = on(CHROMA_EVENTS.error, raw => {
+      const message =
+        (raw as { message?: string }).message ?? 'Something went wrong.';
+      console.warn('[chroma] server error:', message);
+      setWaitingError(message);
+    });
+
     const offEnded = on(CHROMA_EVENTS.ended, payload => {
       const p = payload as ChromaEndedPayload;
       setWinnerUserId(p.winnerUserId);
@@ -222,6 +232,7 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
       offEliminated();
       offPresence();
       offEnded();
+      offGatewayError();
       leaveChannel(channel);
     };
   }, [roomId, joinChannel, leaveChannel, on, emit, syncState, applyTable, nameOf]);

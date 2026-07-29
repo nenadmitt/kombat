@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ApiError,
   BATTLESHIP_EVENTS,
   type BattleshipEndReason,
   type EndedPayload,
@@ -20,6 +21,7 @@ import {
 import { apiClient } from '../../../api/client';
 import { useUsernames } from '../../../store/username-cache';
 import { useWebsocketStore } from '../../../store/websocket.store';
+import { useMatchSyncRetry } from '../../use-match-sync-retry';
 import type { GridAction } from '../BattleshipGrid';
 import type { BattleshipEngine, EnginePhase } from './battleship-engine';
 import { revealedToPlaced, toPlacedShips } from './battleship-view';
@@ -37,6 +39,9 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
   const emit = useWebsocketStore(s => s.emit);
 
   const [phase, setPhase] = useState<EnginePhase>('setup');
+  /** True once the REST snapshot has landed at least once. */
+  const [synced, setSynced] = useState(false);
+  const [waitingError, setWaitingError] = useState<string | null>(null);
   const [myPlacements, setMyPlacements] = useState<FleetPlacements | null>(null);
   const [myMines, setMyMines] = useState<MinePlacement[]>([]);
   const [myShots, setMyShots] = useState<Shot[]>([]);
@@ -115,8 +120,16 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
             : 'setup'
           : 'play',
       );
-    } catch {
-      // Happy path: assume the room exists; a failed fetch leaves us in setup.
+      setWaitingError(null);
+      setSynced(true);
+    } catch (err) {
+      // A failed fetch used to silently leave the player in 'setup' - which,
+      // on a resume into a live match, is the setup screen of a match already
+      // in play. Keep retrying (useMatchSyncRetry) and say why meanwhile.
+      const message =
+        err instanceof ApiError ? err.message : 'Could not reach the server.';
+      console.warn('[match-sync] snapshot fetch failed:', message);
+      setWaitingError(message);
     }
   }, [roomId]);
 
@@ -128,7 +141,14 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
     // placed their ships.
     emit(BATTLESHIP_EVENTS.enter, { roomId });
 
-    void syncState();
+    // Gateway failures (enter, fire, ready) surface here; ignoring them is
+    // how silent hangs happen.
+    const offError = on(BATTLESHIP_EVENTS.error, raw => {
+      const message =
+        (raw as { message?: string }).message ?? 'Something went wrong.';
+      console.warn('[battleship] server error:', message);
+      setWaitingError(message);
+    });
 
     // The server pushes the setup countdown on enter - more reliable than the
     // REST snapshot, which can be fetched before the match exists.
@@ -228,6 +248,7 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
     });
 
     return () => {
+      offError();
       offSetupState();
       offStart();
       offShot();
@@ -321,10 +342,15 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
     turnUserId !== null &&
     turnUserId !== opponentUserId;
 
+  // The snapshot must eventually land: without it a resumed match renders
+  // the wrong phase and a joiner has no turn state.
+  useMatchSyncRetry(syncState, synced);
+
   return {
     // A match can end during setup/waiting (forfeit or setup timeout) - jump
     // to the play phase so the result screen renders.
     phase: result ? 'play' : phase,
+    waitingError,
     submitFleet,
     forfeit,
     setupDeadline,

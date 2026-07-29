@@ -149,6 +149,16 @@ export function useMultiplayerRps(roomId: string): RpsEngine {
         setOpponentOnline(p.online);
       }
     });
+    // Gateway failures (enter and every action) surface here; the
+    // client ignored them entirely before, which is how silent hangs
+    // happen.
+    const offGatewayError = on(RPS_EVENTS.error, raw => {
+      const message =
+        (raw as { message?: string }).message ?? 'Something went wrong.';
+      console.warn('[rps] server error:', message);
+      setWaitingError(message);
+    });
+
     const offEnded = on(RPS_EVENTS.ended, payload => {
       const p = payload as { winnerUserId: string; reason: RpsEndReason };
       // Forfeit/timeout end with no reveal to show - jump straight to result.
@@ -163,6 +173,7 @@ export function useMultiplayerRps(roomId: string): RpsEngine {
       offReveal();
       offPresence();
       offEnded();
+      offGatewayError();
       leaveChannel(channel);
     };
   }, [roomId, joinChannel, leaveChannel, on, emit, syncState]);

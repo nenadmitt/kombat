@@ -17,6 +17,9 @@ export type EnginePlayProps = Omit<
  */
 export type BattleshipEngine = {
   phase: EnginePhase;
+  /** Why the snapshot has not landed yet - surfaced so a stuck load is
+   *  never a silent wrong-phase render. */
+  waitingError?: string | null;
   /** Called from the setup screen when the player confirms their fleet + mines. */
   submitFleet: (placements: FleetPlacements, mines: MinePlacement[]) => void;
   /** Leave the match early (multiplayer forfeits to the opponent). */
