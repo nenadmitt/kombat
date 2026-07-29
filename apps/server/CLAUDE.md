@@ -61,6 +61,18 @@ simulates and ships the result; the client replays it.
 Never broadcast information a player has not committed to yet - a dialled aim,
 an unplayed hand. Send it with the action, not before it.
 
+## Cache staleness
+
+`findGameRoomById` reads through a 60s cache. With `REDIS_URL` unset the store
+is per-process, so an invalidation only clears the instance that performed the
+write - another instance can serve a stale room for the whole TTL.
+
+Anything that decides **whether a match may start**, or who may act, must use
+`findGameRoomByIdFresh` instead. Hot per-action paths stay on the cached read.
+Correctness must never depend on Redis being configured; Redis makes this
+faster, not correct. See
+`apps/mobile/claude/reports/MATCH_START_STUCK_LOADING.md`.
+
 ## Events that move the client between screens
 
 Room lifecycle events (`ROOM_EVENTS.started`, `game:opponent-joined`,

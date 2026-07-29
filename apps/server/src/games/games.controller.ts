@@ -166,7 +166,10 @@ export class GamesController {
   ): Promise<
     BattleshipRoomState | LudoRoomState | RpsRoomState | ChromaRoomState
   > {
-    const room = await this.dbService.findGameRoomById(id);
+    // Fresh read: this decides whether the match may start, and a stale
+    // cached copy (possible on another instance when running without Redis)
+    // would strand every player in the room on a loading spinner.
+    const room = await this.dbService.findGameRoomByIdFresh(id);
     if (!room) {
       throw new NotFoundException('Game room not found');
     }

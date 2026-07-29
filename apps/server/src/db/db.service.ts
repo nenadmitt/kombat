@@ -331,9 +331,33 @@ export class DbService {
     if (cached) {
       return this.reviveGameRoom(cached);
     }
+    return this.loadAndCacheGameRoom(id);
+  }
+
+  /**
+   * Read straight from Postgres and refresh the cache entry.
+   *
+   * Callers that decide whether a match may start must use this rather than
+   * the cached read. With the in-memory store (no REDIS_URL) an invalidation
+   * only clears the instance that performed the write, so a second instance
+   * can keep serving a Pending copy of a room that has already started - for
+   * up to GAME_ROOM_TTL_SECONDS. That makes the match look unstartable and
+   * strands every player in the room on a loading spinner.
+   */
+  async findGameRoomByIdFresh(id: string): Promise<GameRoomEntity | null> {
+    return this.loadAndCacheGameRoom(id);
+  }
+
+  private async loadAndCacheGameRoom(
+    id: string,
+  ): Promise<GameRoomEntity | null> {
     const room = await this.gameRoomRepository.findOneBy({ id });
     if (room) {
-      await this.cacheService.setJson(key, room, GAME_ROOM_TTL_SECONDS);
+      await this.cacheService.setJson(
+        CacheKeys.gameRoom(id),
+        room,
+        GAME_ROOM_TTL_SECONDS,
+      );
     }
     return room;
   }

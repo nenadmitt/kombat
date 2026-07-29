@@ -52,3 +52,11 @@
    Anything a game screen renders over itself (Chroma's colour picker, a
    result overlay) must be an **in-screen absolutely-positioned View**, not a
    second `Modal`.
+
+6. **Never swallow an error that gates a whole screen.** A `catch {}` around a
+   fetch whose result flips a `loaded` boolean turns any transient failure
+   into a permanent spinner - the screen renders its loading branch forever
+   and the user has to kill the app. If a catch comment claims "something else
+   will retry", point at that code or write the retry. Multiplayer engines use
+   `games/use-match-sync-retry.ts` for exactly this. See
+   `claude/reports/MATCH_START_STUCK_LOADING.md`.
