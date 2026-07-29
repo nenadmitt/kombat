@@ -25,6 +25,7 @@ import { Button, Card, MODAL_DISMISS_MS, Toggle } from '../components/ui';
 import { useGameStore } from '../store/game.store';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
+import GameIcon from './GameIcon';
 import GamePickerSheet, { type GameChoice } from './GamePickerSheet';
 
 type Props = {
@@ -51,11 +52,11 @@ const STAKE_TOKENS: StakeAsset[] = [StakeAsset.Usdc, StakeAsset.Kombat, StakeAss
  */
 const GAME_CHOICES: GameChoice[] = (
   [
-  { gameType: GameType.NavalBattle, label: 'Battleships', icon: 'crosshair', blurb: '1v1 naval strategy · ~6 min' },
-  { gameType: GameType.Ludo, label: 'Ludo Royale', icon: 'dice', blurb: '2-4 players · classic rules' },
-  { gameType: GameType.TripleCut, label: 'Triple Cut', icon: 'hand', blurb: '1v1 · best of 5' },
-  { gameType: GameType.ChromaClash, label: 'Chroma Clash', icon: 'layers', blurb: '2-4 players · shed your hand' },
-  { gameType: GameType.Salvo, label: 'Salvo', icon: 'trajectory', blurb: '1v1 artillery duel · wind and terrain' },
+  { gameType: GameType.NavalBattle, label: 'Battleships', blurb: '1v1 naval strategy · ~6 min' },
+  { gameType: GameType.Ludo, label: 'Ludo Royale', blurb: '2-4 players · classic rules' },
+  { gameType: GameType.TripleCut, label: 'Triple Cut', blurb: '1v1 · best of 5' },
+  { gameType: GameType.ChromaClash, label: 'Chroma Clash', blurb: '2-4 players · shed your hand' },
+  { gameType: GameType.Salvo, label: 'Salvo', blurb: '1v1 artillery duel · wind and terrain' },
   ] as GameChoice[]
 ).filter(choice => supportsMultiplayerRoom(choice.gameType));
 
@@ -155,7 +156,7 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
             <Text style={[type.label, styles.label]}>Game</Text>
             <Pressable style={styles.gameRow} onPress={() => setGamePickerVisible(true)}>
               <View style={styles.gameIcon}>
-                <Icon type={selectedGame.icon} color={colors.accentLight} size={20} />
+                <GameIcon type={selectedGame.gameType} size={34} />
               </View>
               <View style={styles.gameText}>
                 <Text style={styles.gameName}>{selectedGame.label}</Text>

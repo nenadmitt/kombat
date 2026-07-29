@@ -31,7 +31,8 @@ import { Button, Card, Chip, StakeFundingOverlay, useConfirm } from '../componen
 import CreateGameRoomModal from '../games/CreateGameRoomModal';
 import JoinByCodeSheet from '../games/JoinByCodeSheet';
 import LobbyFilterSheet from '../games/LobbyFilterSheet';
-import { GAME_TYPE_ICONS, GAME_TYPE_LABELS } from '../games/game-type-labels';
+import GameIcon from '../games/GameIcon';
+import { GAME_TYPE_LABELS } from '../games/game-type-labels';
 import { GAME_TYPE_SCREENS } from '../games/game-type-screens';
 import { formatRoomCode } from '../games/room-code';
 import type { RootStackParamList } from '../navigation/types';
@@ -486,7 +487,7 @@ export default function GameLobyScreen() {
         renderItem={({ item }) => (
           <Card style={styles.roomCard}>
             <View style={styles.roomIcon}>
-              <Icon type={GAME_TYPE_ICONS[item.gameType]} color={colors.accentLight} size={20} />
+              <GameIcon type={item.gameType} size={34} />
             </View>
             <View style={styles.roomInfo}>
               <Text style={styles.roomName}>{GAME_TYPE_LABELS[item.gameType]}</Text>

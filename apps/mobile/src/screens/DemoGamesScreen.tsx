@@ -4,9 +4,10 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { GameType } from '@gaming-platform/core';
 
 import { GradientView } from '../components/GradientView';
-import Icon, { type IconName } from '../components/Icon';
+import Icon from '../components/Icon';
 import { Card, Chip, Screen, SectionLabel } from '../components/ui';
 import { GAME_TYPE_DEMO_SCREENS } from '../games/game-type-demo-screens';
+import GameIcon from '../games/GameIcon';
 import type { RootStackParamList } from '../navigation/types';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
@@ -15,17 +16,16 @@ type GameCard = {
   name: string;
   tag: string;
   players: string;
-  icon: IconName;
   gameType: GameType;
 };
 
 /** Every card here is a real, playable game type - each launches its bot demo. */
 const GAMES: GameCard[] = [
-  { name: 'Battleships', tag: 'Strategy', players: '2.4k playing', icon: 'crosshair', gameType: GameType.NavalBattle },
-  { name: 'Ludo Royale', tag: 'Board', players: '1.8k playing', icon: 'dice', gameType: GameType.Ludo },
-  { name: 'Triple Cut', tag: 'Duel', players: '1.2k playing', icon: 'hand', gameType: GameType.TripleCut },
-  { name: 'Chroma Clash', tag: 'Cards', players: '2.1k playing', icon: 'layers', gameType: GameType.ChromaClash },
-  { name: 'Salvo', tag: 'Artillery', players: '194 playing', icon: 'trajectory', gameType: GameType.Salvo },
+  { name: 'Battleships', tag: 'Strategy', players: '2.4k playing', gameType: GameType.NavalBattle },
+  { name: 'Ludo Royale', tag: 'Board', players: '1.8k playing', gameType: GameType.Ludo },
+  { name: 'Triple Cut', tag: 'Duel', players: '1.2k playing', gameType: GameType.TripleCut },
+  { name: 'Chroma Clash', tag: 'Cards', players: '2.1k playing', gameType: GameType.ChromaClash },
+  { name: 'Salvo', tag: 'Artillery', players: '194 playing', gameType: GameType.Salvo },
 ];
 
 export default function DemoGamesScreen() {
@@ -68,7 +68,7 @@ export default function DemoGamesScreen() {
                 style={styles.gameArt}
               >
                 <Chip label="Demo" tone="neutral" style={styles.demoBadge} />
-                <Icon type={game.icon} color={colors.textPrimary} size={40} />
+                <GameIcon type={game.gameType} size={64} />
               </GradientView>
               <View style={styles.gameBody}>
                 <Text style={styles.gameName}>{game.name}</Text>
