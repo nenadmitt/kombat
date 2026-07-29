@@ -27,6 +27,15 @@ import MainTabNavigator from './MainTabNavigator';
 import type { RootStackParamList } from './types';
 
 /**
+ * How long the waiting popup's Modal needs to finish dismissing before a
+ * screen may be pushed over it. Pushing while a transparent Modal is still
+ * mid-dismiss wedges iOS's modal presentation stack: the app keeps rendering
+ * but every touch is swallowed, and it follows the user through the match to
+ * the result screen. See claude/reports/OVERLAY_BLOCKED_ERROR.md.
+ */
+const MODAL_DISMISS_MS = 350;
+
+/**
  * Wraps the tab navigator so the "Waiting for Players" popup/minimized-bar
  * render above every tab (Games/Wallet/History/Profile) instead of being
  * tied to a single screen - this is what lets it survive tab switches.
@@ -152,15 +161,18 @@ export default function MainTabsWithGameOverlay() {
         return;
       }
       const waitingRoom = useGameStore.getState().waitingRoom!;
+      // Dismiss the popup first, then transfer once its Modal has faded out.
       clearWaitingRoom();
-      (navigation.navigate as (screen: string, params: unknown) => void)(
-        GAME_TYPE_SCREENS[waitingRoom.gameType],
-        {
-          roomId: waitingRoom.id,
-          stakeToken: waitingRoom.stakeToken,
-          stakeAmount: waitingRoom.stakeAmount,
-        },
-      );
+      setTimeout(() => {
+        (navigation.navigate as (screen: string, params: unknown) => void)(
+          GAME_TYPE_SCREENS[waitingRoom.gameType],
+          {
+            roomId: waitingRoom.id,
+            stakeToken: waitingRoom.stakeToken,
+            stakeAmount: waitingRoom.stakeAmount,
+          },
+        );
+      }, MODAL_DISMISS_MS);
     });
     return () => {
       offJoined();
@@ -204,15 +216,18 @@ export default function MainTabsWithGameOverlay() {
       if (!waitingRoom) {
         return;
       }
-      // Same dynamic-route-name cast as GameLobyScreen's join handler.
-      (navigation.navigate as (screen: string, params: unknown) => void)(
-        GAME_TYPE_SCREENS[waitingRoom.gameType],
-        {
-          roomId,
-          stakeToken: waitingRoom.stakeToken,
-          stakeAmount: waitingRoom.stakeAmount,
-        },
-      );
+      // Same dismiss-then-navigate serialization as the multi-seat path.
+      setTimeout(() => {
+        // Same dynamic-route-name cast as GameLobyScreen's join handler.
+        (navigation.navigate as (screen: string, params: unknown) => void)(
+          GAME_TYPE_SCREENS[waitingRoom.gameType],
+          {
+            roomId,
+            stakeToken: waitingRoom.stakeToken,
+            stakeAmount: waitingRoom.stakeAmount,
+          },
+        );
+      }, MODAL_DISMISS_MS);
     });
   }, [onSocketEvent, clearWaitingRoom, navigation]);
 
