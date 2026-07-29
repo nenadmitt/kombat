@@ -41,6 +41,7 @@ import {
   MATCH_TTL_SECONDS,
 } from '../../cache';
 import { GameRoomEntity } from '../../db/entities/game-room.entity';
+import { participantsOf } from '../room.util';
 import { GameRoomStatus } from '../../db/types/game';
 
 /**
@@ -92,14 +93,15 @@ export class SalvoMatchService {
       if (existing) {
         return existing;
       }
-      if (room.status !== GameRoomStatus.InProgress) {
+      // Salvo is not a multi-seat game, so a joiner is seated in
+      // `opponent_id` and `opponent_ids` stays empty. Read the roster through
+      // participantsOf rather than either column directly, so this cannot
+      // drift again if the seating ever changes.
+      const roster = participantsOf(room);
+      if (room.status !== GameRoomStatus.InProgress || roster.length !== 2) {
         throw new ConflictException('The room has not started yet.');
       }
-      const opponentId = room.opponentIds[0];
-      if (!opponentId || room.opponentIds.length !== 1) {
-        throw new ConflictException('Salvo rooms hold exactly two players.');
-      }
-      const players: [string, string] = [room.userId, opponentId];
+      const players: [string, string] = [roster[0]!, roster[1]!];
       const [left, right] = players;
 
       const match: SalvoMatchState = {

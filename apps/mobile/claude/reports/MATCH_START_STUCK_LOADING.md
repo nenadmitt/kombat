@@ -4,23 +4,50 @@
 
 A multiplayer match starts, both clients navigate into the game screen, and
 **both** sit on the spinner forever. Not a crash, no error, no red screen. The
-socket stays connected, so nothing ever kicks them out of it either. Killing
-and reopening the app fixes it, because that remounts the screen.
+socket stays connected, so nothing kicks them out of it.
 
-## The short version
+**Restarting the app does not help.** The room is still `InProgress`, so the
+app offers to reconnect to it, and reconnecting lands on the same spinner.
 
-Two independent faults lined up:
+## Root cause: Salvo read the wrong seat column
 
-1. **The client gave up after one try.** Every multiplayer engine fetches its
-   snapshot once on mount and swallows a failure, on the assumption that a
-   reconnect or remount will retry. Neither happens while the socket is
-   healthy, so one failed fetch = spinner for the rest of the match.
-2. **That fetch legitimately fails for a window at kickoff**, and without
-   Redis the window is up to a minute wide.
+`SalvoMatchService.getOrCreate` took the opponent from `room.opponentIds`:
 
-Fault 2 is what fires the gun; fault 1 is why it is fatal instead of a blip.
+```ts
+const opponentId = room.opponentIds[0];
+if (!opponentId || room.opponentIds.length !== 1) {
+  throw new ConflictException('Salvo rooms hold exactly two players.');
+}
+```
 
-## Fault 1: a failed first fetch was permanent
+But `opponent_ids` is the **multi-seat** column, and `isMultiSeatGame()` is
+true only for Ludo and ChromaClash. A Salvo join therefore goes down the
+two-player path, `DbService.joinGameRoom`, which seats the joiner in
+**`opponent_id`** and leaves `opponent_ids` empty.
+
+So the array was always empty, the guard always threw, and it threw on every
+`salvo:enter` and every state read - for **both** players, **forever**. The
+room really had started, which is why the resume prompt appears and why
+reconnecting changes nothing.
+
+Battleship, the other two-player game, reads `room.opponentId` correctly. The
+new service simply used the wrong column.
+
+**Fix:** read the roster through `participantsOf(room)`, which covers both
+seatings, and require exactly two players.
+
+A second Salvo defect surfaced alongside it: `GET /games/rooms/:id/state` had
+no `GameType.Salvo` branch, so a Salvo room fell through to the Battleship
+handler and would have had a *Battleship* match created against its room id.
+Salvo is now dispatched explicitly, with a comment on the fall-through.
+
+## Contributing faults (real, but not the cause)
+
+These were found while chasing the above. Neither explains a permanent hang on
+its own, but both would turn a transient hiccup into one, so they are fixed
+too.
+
+### A failed first fetch was permanent
 
 `useMultiplayerChroma`, `useMultiplayerLudo` and `useMultiplayerRps` all do:
 
@@ -53,7 +80,7 @@ that only arrives in response to `enter`, and `enter` was emitted once.
 `useMultiplayerBattleship` is **not** affected: a failed fetch leaves it in
 the `setup` phase, which is a real screen, not a spinner.
 
-## Fault 2: the state read is legitimately rejected around kickoff
+### The state read is legitimately rejected around kickoff
 
 `GET /games/rooms/:id/state` calls `<game>MatchService.getOrCreate(room)`,
 which throws when the room is not yet `InProgress`:
@@ -117,12 +144,22 @@ every move, and they are not the ones deciding whether the room has started.
 
 ## Why it was not caught earlier
 
-- It needs two clients and a real start transition, so it never shows up in
-  single-player demo testing.
-- On one instance with a warm cache the window is milliseconds wide, so it
-  looks like a flake rather than a bug.
-- The `catch {}` hid the 409 completely - no log, no toast, no error state.
-  The screen simply stayed on its loading branch.
+- Salvo multiplayer was never run end to end. It typechecked and built, and
+  that was explicitly flagged as unverified when it shipped - this is exactly
+  the class of bug that flag was about. Nothing in the type system connects
+  "two-player game" to "reads `opponent_id`".
+- It needs two clients and a real start transition, so single-player demo
+  testing cannot see it.
+- The `catch {}` hid the error completely - no log, no toast, no error state.
+  The screen simply stayed on its loading branch, which is why it read as a
+  hang rather than a failed request.
+
+## Correction to an earlier draft of this report
+
+The first version of this report blamed the cache/retry faults below and
+claimed restarting the app fixed it. That was wrong on both counts: restarting
+does not fix it, and a transient cause cannot explain a permanent hang. The
+seating mismatch above is the actual cause.
 
 ## Rules to prevent recurrence
 
@@ -136,3 +173,10 @@ every move, and they are not the ones deciding whether the room has started.
 4. Assume the cache may be stale on some instance. Correctness must not
    depend on `REDIS_URL` being set; Redis should make things faster, not
    correct.
+5. **A two-player game reads `room.opponentId`; a multi-seat game reads
+   `room.opponentIds`.** Prefer `participantsOf(room)`, which covers both. The
+   seating a room gets is decided by `isMultiSeatGame(gameType)`, nowhere near
+   the match service that consumes it.
+6. **Dispatch every new game type in `GET /games/rooms/:id/state`.** It falls
+   through to Battleship, so a missing branch silently creates a Battleship
+   match against another game's room id.
