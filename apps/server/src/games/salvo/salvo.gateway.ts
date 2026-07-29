@@ -48,7 +48,7 @@ export class SalvoGateway {
       return;
     }
     try {
-      const room = await this.loadParticipantRoom(dto.roomId, userId);
+      const room = await this.loadParticipantRoom(dto.roomId, userId, true);
       await this.stakesService.assertRoomPlayable(room);
       await this.matchService.getOrCreate(room);
       // The battlefield snapshot (terrain included) is a caller-only push;
@@ -185,11 +185,20 @@ export class SalvoGateway {
   // --- helpers ---------------------------------------------------------------
 
   /** Load the room and prove the caller is one of its two players. */
+  /**
+   * `fresh` bypasses the room cache. Only the enter path needs it: it decides
+   * whether the match may start, and a stale Pending copy (possible on a
+   * second instance when running without Redis) strands the whole room on a
+   * loading spinner. Per-action calls stay on the cache.
+   */
   private async loadParticipantRoom(
     roomId: string,
     userId: string,
+    fresh = false,
   ): Promise<GameRoomEntity> {
-    const room = await this.dbService.findGameRoomById(roomId);
+    const room = fresh
+      ? await this.dbService.findGameRoomByIdFresh(roomId)
+      : await this.dbService.findGameRoomById(roomId);
     if (!room) {
       throw new Error('Room not found.');
     }

@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Patch, Query, UseGuards } from '@nestjs/common';
-import { PublicUserProfile } from '@gaming-platform/core';
+import { PlayerStats, PublicUserProfile } from '@gaming-platform/core';
 
 import { ISecurityContext } from '../authentication/authentication.types';
 import { SecurityContext } from '../authentication/decorators/security-context.decorator';
@@ -12,6 +12,8 @@ type UserProfileResponse = {
   id: string;
   email: string;
   username: string | null;
+  referralCode: string | null;
+  referredByUsername: string | null;
 };
 
 @Controller('users')
@@ -23,8 +25,24 @@ export class UsersController {
   async getMe(
     @SecurityContext() securityContext: ISecurityContext,
   ): Promise<UserProfileResponse> {
-    const user = await this.usersService.getMe(securityContext.userId);
-    return { id: user.id, email: user.email, username: user.username };
+    const { user, referredByUsername } = await this.usersService.getProfile(
+      securityContext.userId,
+    );
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      referralCode: user.referralCode,
+      referredByUsername,
+    };
+  }
+
+  /** Lifetime record backing the Profile screen's stats and badges. */
+  @Get('me/stats')
+  async getMyStats(
+    @SecurityContext() securityContext: ISecurityContext,
+  ): Promise<PlayerStats> {
+    return this.usersService.getStats(securityContext.userId);
   }
 
   /** Batch-resolve public profiles (?ids=a,b,c) - match rosters, history.
@@ -44,7 +62,17 @@ export class UsersController {
     const user = await this.usersService.updateUsername(
       securityContext.userId,
       dto.username,
+      dto.referredByCode,
     );
-    return { id: user.id, email: user.email, username: user.username };
+    const { referredByUsername } = await this.usersService.getProfile(
+      securityContext.userId,
+    );
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      referralCode: user.referralCode,
+      referredByUsername,
+    };
   }
 }

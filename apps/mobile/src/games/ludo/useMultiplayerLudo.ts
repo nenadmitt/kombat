@@ -18,6 +18,7 @@ import { apiClient } from '../../api/client';
 import { useCurrentUserStore } from '../../store/currentUser.store';
 import { useUsernames, usernameCache } from '../../store/username-cache';
 import { useWebsocketStore } from '../../store/websocket.store';
+import { useMatchSyncRetry } from '../use-match-sync-retry';
 import { LUDO_COLOR_NAMES } from './ludo-theme';
 import type { LudoEngine, LudoSeatView } from './ludo-engine';
 
@@ -110,7 +111,6 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
     const channel = `game:${roomId}`;
     joinChannel(channel);
     emit(LUDO_EVENTS.enter, { roomId });
-    void syncState();
 
     const offRolled = on(LUDO_EVENTS.rolled, payload => {
       const p = payload as LudoRolledPayload;
@@ -208,6 +208,10 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
 
   // Resync after a reconnect - pushes missed while offline are covered by
   // the snapshot (same pattern as the battleship engine).
+  // A failed first fetch used to be permanent: nothing retried while the
+  // socket stayed healthy, leaving the player on the spinner all match.
+  useMatchSyncRetry(syncState, loaded);
+
   const prevStatusRef = useRef(status);
   useEffect(() => {
     const was = prevStatusRef.current;

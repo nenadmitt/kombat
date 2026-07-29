@@ -13,6 +13,7 @@ import { apiClient } from '../../api/client';
 import { useCurrentUserStore } from '../../store/currentUser.store';
 import { useUsernames } from '../../store/username-cache';
 import { useWebsocketStore } from '../../store/websocket.store';
+import { useMatchSyncRetry } from '../use-match-sync-retry';
 import { revealHeadline } from './reveal-headline';
 import type { RpsEngine, RpsPlayProps, RpsStage } from './rps-engine';
 
@@ -105,7 +106,6 @@ export function useMultiplayerRps(roomId: string): RpsEngine {
     const channel = `game:${roomId}`;
     joinChannel(channel);
     emit(RPS_EVENTS.enter, { roomId });
-    void syncState();
 
     const offLocked = on(RPS_EVENTS.locked, payload => {
       const p = payload as RpsLockedPayload;
@@ -158,6 +158,10 @@ export function useMultiplayerRps(roomId: string): RpsEngine {
       leaveChannel(channel);
     };
   }, [roomId, joinChannel, leaveChannel, on, emit, syncState]);
+
+  // A failed first fetch used to be permanent: nothing retried while the
+  // socket stayed healthy, leaving the player on the spinner all match.
+  useMatchSyncRetry(syncState, loaded);
 
   const prevStatusRef = useRef(status);
   useEffect(() => {

@@ -23,6 +23,7 @@ import { apiClient } from '../../api/client';
 import { useCurrentUserStore } from '../../store/currentUser.store';
 import { useUsernames, usernameCache } from '../../store/username-cache';
 import { useWebsocketStore } from '../../store/websocket.store';
+import { useMatchSyncRetry } from '../use-match-sync-retry';
 import { describeCard } from './chroma-theme';
 import type { ChromaEngine, ChromaPlayProps, ChromaSeatView } from './chroma-engine';
 
@@ -132,7 +133,6 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
     const channel = `game:${roomId}`;
     joinChannel(channel);
     emit(CHROMA_EVENTS.enter, { roomId });
-    void syncState();
 
     const offHand = on(CHROMA_EVENTS.hand, payload => {
       setMyHand((payload as ChromaHandPayload).cards);
@@ -233,6 +233,10 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
     });
     return offTimeout;
   }, [on]);
+
+  // A failed first fetch used to be permanent: nothing retried while the
+  // socket stayed healthy, leaving the player on the spinner all match.
+  useMatchSyncRetry(syncState, loaded && discardTop !== null);
 
   const prevStatusRef = useRef(status);
   useEffect(() => {

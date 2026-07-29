@@ -24,6 +24,7 @@ import {
 import { useCurrentUserStore } from '../../store/currentUser.store';
 import { useUsernames, usernameCache } from '../../store/username-cache';
 import { useWebsocketStore } from '../../store/websocket.store';
+import { useMatchSyncRetry } from '../use-match-sync-retry';
 import type {
   SalvoEngine,
   SalvoFlight,
@@ -329,6 +330,14 @@ export function useMultiplayerSalvo(roomId: string): SalvoEngine {
       emit(SALVO_EVENTS.enter, { roomId });
     }
   }, [status, roomId, emit]);
+
+  // Salvo's snapshot arrives as a push rather than a fetch, so "retry" means
+  // re-entering. The server rejects an enter until the room is InProgress,
+  // and that can lag the start event, so keep asking until terrain lands.
+  const enterOnce = useCallback(async () => {
+    emit(SALVO_EVENTS.enter, { roomId });
+  }, [emit, roomId]);
+  useMatchSyncRetry(enterOnce, terrain !== null);
 
   const onAim = useCallback((aim: { angle?: number; power?: number }) => {
     if (aim.angle !== undefined) {

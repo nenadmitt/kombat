@@ -3,6 +3,7 @@ import type {
   PublicUserProfile,
   UserProfile,
 } from '../authentication/authentication.types';
+import type { PlayerStats } from '../players/player-stats';
 import type {
   GameRoomSummary,
   GameType,
@@ -93,8 +94,23 @@ export class ApiClient {
     return this.request('GET', '/users/me', undefined, true);
   }
 
-  updateUsername(username: string): Promise<UserProfile> {
-    return this.request('PATCH', '/users/me/username', { username }, true);
+  /** `referredByCode` is only honoured the first time; attribution is
+   *  write-once server-side. */
+  updateUsername(
+    username: string,
+    referredByCode?: string,
+  ): Promise<UserProfile> {
+    return this.request(
+      'PATCH',
+      '/users/me/username',
+      referredByCode ? { username, referredByCode } : { username },
+      true,
+    );
+  }
+
+  /** Lifetime record (games, wins, staked net, referrals) for the profile. */
+  getMyStats(): Promise<PlayerStats> {
+    return this.request('GET', '/users/me/stats', undefined, true);
   }
 
   /** Batch-resolve public profiles (username/avatar) for a set of user ids.

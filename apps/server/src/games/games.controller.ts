@@ -17,6 +17,7 @@ import {
   LudoRoomState,
   MatchHistoryEntry,
   RpsRoomState,
+  SalvoRoomState,
 } from '@gaming-platform/core';
 
 import { ISecurityContext } from '../authentication/authentication.types';
@@ -33,6 +34,7 @@ import { GamesService } from './games.service';
 import { LudoMatchService } from './ludo/ludo-match.service';
 import { participantsOf } from './room.util';
 import { RpsMatchService } from './rps/rps-match.service';
+import { SalvoMatchService } from './salvo/salvo-match.service';
 import { StakesService } from './stakes/stakes.service';
 
 @Controller('games/rooms')
@@ -45,6 +47,7 @@ export class GamesController {
     private readonly chromaMatchService: ChromaMatchService,
     private readonly ludoMatchService: LudoMatchService,
     private readonly rpsMatchService: RpsMatchService,
+    private readonly salvoMatchService: SalvoMatchService,
     private readonly stakesService: StakesService,
   ) {}
 
@@ -164,9 +167,16 @@ export class GamesController {
     @Param('id') id: string,
     @SecurityContext() securityContext: ISecurityContext,
   ): Promise<
-    BattleshipRoomState | LudoRoomState | RpsRoomState | ChromaRoomState
+    | BattleshipRoomState
+    | LudoRoomState
+    | RpsRoomState
+    | ChromaRoomState
+    | SalvoRoomState
   > {
-    const room = await this.dbService.findGameRoomById(id);
+    // Fresh read: this decides whether the match may start, and a stale
+    // cached copy (possible on another instance when running without Redis)
+    // would strand every player in the room on a loading spinner.
+    const room = await this.dbService.findGameRoomByIdFresh(id);
     if (!room) {
       throw new NotFoundException('Game room not found');
     }
@@ -185,6 +195,13 @@ export class GamesController {
       await this.chromaMatchService.getOrCreate(room);
       return this.chromaMatchService.stateFor(id, securityContext.userId);
     }
+    if (room.gameType === GameType.Salvo) {
+      await this.salvoMatchService.getOrCreate(room);
+      return this.salvoMatchService.stateFor(id);
+    }
+    // Battleship is the fall-through, so every new game type must be
+    // dispatched above - otherwise it silently gets a Battleship match
+    // created against its room id.
     await this.battleshipMatchService.getOrCreate(room);
     return this.battleshipMatchService.stateFor(id, securityContext.userId);
   }

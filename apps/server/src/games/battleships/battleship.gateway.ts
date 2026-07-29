@@ -53,7 +53,7 @@ export class BattleshipGateway {
       return;
     }
     try {
-      const room = await this.loadParticipantRoom(dto.roomId, userId);
+      const room = await this.loadParticipantRoom(dto.roomId, userId, true);
       // Staked rooms are playable only once the pot is escrowed (Funded).
       await this.stakesService.assertRoomPlayable(room);
       // The match may not exist yet if this is the first player in; create it
@@ -223,11 +223,20 @@ export class BattleshipGateway {
     );
   }
 
+  /**
+   * `fresh` bypasses the room cache. Only the enter path needs it: it decides
+   * whether the match may start, and a stale Pending copy (possible on a
+   * second instance when running without Redis) strands the whole room on a
+   * loading spinner. Per-action calls stay on the cache.
+   */
   private async loadParticipantRoom(
     roomId: string,
     userId: string,
+    fresh = false,
   ): Promise<GameRoomEntity> {
-    const room = await this.dbService.findGameRoomById(roomId);
+    const room = fresh
+      ? await this.dbService.findGameRoomByIdFresh(roomId)
+      : await this.dbService.findGameRoomById(roomId);
     if (!room) {
       throw new Error('Game room not found.');
     }

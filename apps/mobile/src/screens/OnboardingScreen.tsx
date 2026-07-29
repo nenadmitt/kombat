@@ -11,7 +11,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Clipboard from '@react-native-clipboard/clipboard';
-import { ApiError } from '@gaming-platform/core';
+import {
+  ApiError,
+  REFERRAL_CODE_LENGTH,
+  isValidReferralCode,
+  normalizeReferralCode,
+} from '@gaming-platform/core';
 
 import Icon from '../components/Icon';
 import { Button, Card, Chip } from '../components/ui';
@@ -30,6 +35,7 @@ export default function OnboardingScreen() {
   const updateUsername = useCurrentUserStore(state => state.updateUsername);
 
   const [username, setUsername] = useState('');
+  const [referralCode, setReferralCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -41,14 +47,21 @@ export default function OnboardingScreen() {
   const [avatarColor, setAvatarColor] = useState<string>(colors.accent);
 
   const isValid = USERNAME_PATTERN.test(username.trim());
+  // A referral code is optional, but a half-typed one should block submit
+  // rather than be silently dropped on the floor.
+  const referralEntered = referralCode.trim().length > 0;
+  const referralValid = !referralEntered || isValidReferralCode(referralCode);
   const avatarInitial = (username.trim()[0] ?? 'K').toUpperCase();
-  const canSubmit = isValid && !busy;
+  const canSubmit = isValid && referralValid && !busy;
 
   const handleSubmit = async () => {
     setErrorMessage(null);
     setBusy(true);
     try {
-      await updateUsername(username.trim());
+      await updateUsername(
+        username.trim(),
+        referralEntered ? normalizeReferralCode(referralCode) : undefined,
+      );
       // No manual navigation - RootNavigator reacts to `username` becoming non-null.
     } catch (err) {
       setErrorMessage(err instanceof ApiError ? err.message : 'Something went wrong');
@@ -159,6 +172,39 @@ export default function OnboardingScreen() {
               </View>
               <Text style={styles.hint}>
                 3-20 characters · letters, numbers, underscores.
+              </Text>
+
+              {/* Optional referral. Attribution is write-once server-side, so
+                  this is the only moment it can be claimed. */}
+              <Text style={styles.referralLabel}>
+                Referral code <Text style={styles.referralOptional}>(optional)</Text>
+              </Text>
+              <View style={styles.usernameField}>
+                <Icon type="gift" color={colors.textMuted} size={18} />
+                <TextInput
+                  style={styles.usernameInput}
+                  value={referralCode}
+                  onChangeText={text => setReferralCode(text.toUpperCase())}
+                  placeholder="ABCD1234"
+                  placeholderTextColor={colors.textFaint}
+                  selectionColor={colors.accent}
+                  cursorColor={colors.accent}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  maxLength={REFERRAL_CODE_LENGTH + 4}
+                  editable={!busy}
+                />
+                {referralEntered && referralValid ? (
+                  <View style={styles.availableBadge}>
+                    <Icon type="check-circle" color={colors.success} size={13} />
+                    <Text style={styles.availableText}>VALID</Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text style={styles.hint}>
+                {referralEntered && !referralValid
+                  ? `Codes are ${REFERRAL_CODE_LENGTH} letters and numbers.`
+                  : 'Got a code from a friend? They earn a cut of your entry fees.'}
               </Text>
               {errorMessage ? (
                 <Text style={styles.error}>{errorMessage}</Text>
@@ -350,6 +396,15 @@ const styles = StyleSheet.create({
     fontSize: 10,
     letterSpacing: 0.6,
     color: colors.success,
+  },
+  referralLabel: {
+    ...type.caption,
+    color: colors.textSecondary,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  referralOptional: {
+    color: colors.textFaint,
   },
   hint: {
     ...type.caption,

@@ -34,7 +34,16 @@ worked example.
    and add an enforcer to `GameDeadlineSweeper`. The `seq` guard is what stops
    a stale deadline enforcing a turn that already moved on.
 
-5. **Register the game type** in `MULTIPLAYER_GAME_TYPES`
+5. **Read the roster with `participantsOf(room)`.** A two-player game's
+   joiner is seated in `opponent_id`; a multi-seat game's in `opponent_ids`.
+   Which one you get is decided by `isMultiSeatGame(gameType)`, far from the
+   match service that consumes it, so reading either column directly is a
+   silent trap - Salvo shipped reading the wrong one and every match hung on
+   a loading spinner. Dispatch the new type in `GET /games/rooms/:id/state`
+   too: it falls through to Battleship, so a missing branch creates a
+   Battleship match against your room id.
+
+6. **Register the game type** in `MULTIPLAYER_GAME_TYPES`
    (`core/games/game-room.types.ts`) **only once the gateway exists**.
    `CreateGameRoomDto` validates `gameType` with `@IsEnum(GameType)`, which
    accepts every enum member - so a value without a gateway behind it would
@@ -60,6 +69,18 @@ simulates and ships the result; the client replays it.
 
 Never broadcast information a player has not committed to yet - a dialled aim,
 an unplayed hand. Send it with the action, not before it.
+
+## Cache staleness
+
+`findGameRoomById` reads through a 60s cache. With `REDIS_URL` unset the store
+is per-process, so an invalidation only clears the instance that performed the
+write - another instance can serve a stale room for the whole TTL.
+
+Anything that decides **whether a match may start**, or who may act, must use
+`findGameRoomByIdFresh` instead. Hot per-action paths stay on the cached read.
+Correctness must never depend on Redis being configured; Redis makes this
+faster, not correct. See
+`apps/mobile/claude/reports/MATCH_START_STUCK_LOADING.md`.
 
 ## Events that move the client between screens
 
