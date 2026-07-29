@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ApiError,
   CHROMA_EVENTS,
   type ChromaCard,
   type ChromaColorPickedPayload,
@@ -59,6 +60,7 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
   const [endReason, setEndReason] = useState<ChromaEndReason | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [waitingError, setWaitingError] = useState<string | null>(null);
 
   const myUserIdRef = useRef(myUserId);
   myUserIdRef.current = myUserId;
@@ -123,9 +125,15 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
       setWinnerUserId(s.winnerUserId);
       setEndReason(s.endReason);
       setNotice(null);
+      setWaitingError(null);
       setLoaded(true);
-    } catch {
-      // Transient - reconnect/mount retries.
+    } catch (err) {
+      // Keep retrying (useMatchSyncRetry), but say WHY on the waiting screen
+      // - a silent catch here is how "stuck on a spinner" bugs stay unsolvable.
+      const message =
+        err instanceof ApiError ? err.message : 'Could not reach the server.';
+      console.warn('[match-sync] snapshot fetch failed:', message);
+      setWaitingError(message);
     }
   }, [roomId]);
 
@@ -198,6 +206,16 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
       const p = payload as ChromaPresencePayload;
       setOnline(prev => ({ ...prev, [p.userId]: p.online }));
     });
+    // Gateway failures (enter and every action) surface here; the
+    // client ignored them entirely before, which is how silent hangs
+    // happen.
+    const offGatewayError = on(CHROMA_EVENTS.error, raw => {
+      const message =
+        (raw as { message?: string }).message ?? 'Something went wrong.';
+      console.warn('[chroma] server error:', message);
+      setWaitingError(message);
+    });
+
     const offEnded = on(CHROMA_EVENTS.ended, payload => {
       const p = payload as ChromaEndedPayload;
       setWinnerUserId(p.winnerUserId);
@@ -214,6 +232,7 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
       offEliminated();
       offPresence();
       offEnded();
+      offGatewayError();
       leaveChannel(channel);
     };
   }, [roomId, joinChannel, leaveChannel, on, emit, syncState, applyTable, nameOf]);
@@ -318,5 +337,10 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
     onPickColor,
   };
 
-  return { phase: loaded && discardTop !== null ? 'play' : 'waiting', forfeit, playProps };
+  return {
+    phase: loaded && discardTop !== null ? 'play' : 'waiting',
+    waitingError,
+    forfeit,
+    playProps,
+  };
 }

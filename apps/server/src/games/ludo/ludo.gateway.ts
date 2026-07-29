@@ -160,6 +160,15 @@ export class LudoGateway {
     if (await this.matchService.setPresence(roomId, userId, true)) {
       this.broadcastPresence(roomId, userId, true);
     }
+    // Enter may fire many times on one socket (the client retries until its
+    // snapshot lands, and reconnect replays it), so the disconnect hook must
+    // be registered once per socket+room or every retry stacks another
+    // listener (MaxListenersExceededWarning in the server logs).
+    const data = client.data as { presenceHookedRooms?: Set<string> };
+    if (data.presenceHookedRooms?.has(roomId)) {
+      return;
+    }
+    (data.presenceHookedRooms ??= new Set()).add(roomId);
     client.once('disconnect', () => {
       void this.matchService
         .setPresence(roomId, userId, false)

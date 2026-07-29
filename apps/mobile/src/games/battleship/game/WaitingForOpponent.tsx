@@ -32,6 +32,8 @@ type Props = {
   opponent: { initial: string; name: string };
   /** Epoch ms when fleet setup auto-forfeits (null hides the countdown). */
   deadline: number | null;
+  /** Last sync/gateway failure - shown so a stuck wait is never mute. */
+  error?: string | null;
   /** Confirmed cancel - forfeits the match. */
   onCancel: () => void;
 };
@@ -119,7 +121,7 @@ function Radar() {
  * (server-enforced - see SETUP_SECONDS) and a cancel-with-confirm that
  * forfeits the match.
  */
-export default function WaitingForOpponent({ opponent, deadline, onCancel }: Props) {
+export default function WaitingForOpponent({ opponent, deadline, error, onCancel }: Props) {
   const confirm = useConfirm();
   const confirmCancel = async () => {
     const ok = await confirm({
@@ -192,6 +194,9 @@ export default function WaitingForOpponent({ opponent, deadline, onCancel }: Pro
               <Text style={styles.deployingText}>Deploying</Text>
             </View>
           </View>
+
+          {/* A stuck wait must say why - a mute screen is undebuggable. */}
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
           {/* Cancel (forfeits the match) */}
           <Pressable style={styles.cancelButton} onPress={() => void confirmCancel()}>
@@ -389,6 +394,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: mono.semiBold,
     color: BRAND_SWEEP,
+  },
+  errorText: {
+    marginBottom: spacing.sm,
+    marginHorizontal: spacing.lg,
+    textAlign: 'center',
+    fontSize: 12,
+    color: colors.textMuted,
   },
   cancelButton: {
     flexDirection: 'row',

@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import {
   useNavigation,
   usePreventRemove,
@@ -8,7 +8,7 @@ import {
 import type { StakeAsset } from '@gaming-platform/core';
 
 import { useConfirm } from '../../components/ui';
-import { colors } from '../../theme/colors';
+import { colors, spacing } from '../../theme/colors';
 import { formatRoomCode } from '../room-code';
 import LudoPlayScreen from './LudoPlayScreen';
 import type { LudoEngine } from './ludo-engine';
@@ -121,6 +121,10 @@ function LudoGameFlow({
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={colors.accent} size="large" />
+        {/* A stuck load must say why - a mute spinner is undebuggable. */}
+        {engine.waitingError ? (
+          <Text style={styles.loadingError}>{engine.waitingError}</Text>
+        ) : null}
       </View>
     );
   }
@@ -141,5 +145,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  loadingError: {
+    marginTop: spacing.md,
+    marginHorizontal: spacing.xl,
+    textAlign: 'center',
+    fontSize: 13,
+    color: colors.textMuted,
   },
 });

@@ -26,7 +26,9 @@ worked example.
 3. **Gateway** (`<game>.gateway.ts`) mirrors the others: `@UsePipes(new
    ValidationPipe({ whitelist: true }))`, prove the caller is a participant,
    broadcast public payloads to `gameChannel(roomId)`, push anything private
-   to the caller only. On a terminal result call
+   to the caller only. Enter runs **many times per socket** (client retries,
+   reconnect replays) - it must be idempotent including resource
+   registration; a disconnect hook added per enter leaks listeners. On a terminal result call
    `stakesService.completeMatch(roomId, winnerUserId, reason)` - that records
    history and queues escrow settlement.
 

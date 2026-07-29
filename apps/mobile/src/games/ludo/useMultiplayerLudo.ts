@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ApiError,
   HOME_PROGRESS,
   LUDO_EVENTS,
   type LudoColor,
@@ -53,6 +54,7 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
   const [notice, setNotice] = useState<string | null>(null);
   const [myCaptures, setMyCaptures] = useState(0);
   const [loaded, setLoaded] = useState(false);
+  const [waitingError, setWaitingError] = useState<string | null>(null);
 
   // Seat usernames resolve through the shared cache (usually already warm).
   const usernames = useUsernames(players.map(p => p.userId));
@@ -101,9 +103,15 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
       setTurnDeadline(state.turnDeadline);
       setWinnerUserId(state.winnerUserId);
       setEndReason(state.endReason);
+      setWaitingError(null);
       setLoaded(true);
-    } catch {
-      // Transient - the next reconnect/mount retries.
+    } catch (err) {
+      // Keep retrying (useMatchSyncRetry), but say WHY on the waiting screen
+      // - a silent catch here is how "stuck on a spinner" bugs stay unsolvable.
+      const message =
+        err instanceof ApiError ? err.message : 'Could not reach the server.';
+      console.warn('[match-sync] snapshot fetch failed:', message);
+      setWaitingError(message);
     }
   }, [roomId]);
 
@@ -189,6 +197,16 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
       const p = payload as LudoPresencePayload;
       setOnline(prev => ({ ...prev, [p.userId]: p.online }));
     });
+    // Gateway failures (enter and every action) surface here; the
+    // client ignored them entirely before, which is how silent hangs
+    // happen.
+    const offGatewayError = on(LUDO_EVENTS.error, raw => {
+      const message =
+        (raw as { message?: string }).message ?? 'Something went wrong.';
+      console.warn('[ludo] server error:', message);
+      setWaitingError(message);
+    });
+
     const offEnded = on(LUDO_EVENTS.ended, payload => {
       const p = payload as { winnerUserId: string; reason: LudoEndReason };
       setWinnerUserId(p.winnerUserId);
@@ -202,6 +220,7 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
       offEliminated();
       offPresence();
       offEnded();
+      offGatewayError();
       leaveChannel(channel);
     };
   }, [roomId, joinChannel, leaveChannel, on, emit, syncState, nameOf]);
@@ -279,6 +298,7 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
 
   return {
     phase: loaded ? 'play' : 'waiting',
+    waitingError,
     forfeit,
     playProps: {
       seats,

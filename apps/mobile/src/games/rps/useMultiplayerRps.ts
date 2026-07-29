@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ApiError,
   resolveRound,
   RPS_EVENTS,
   type RpsEndReason,
@@ -54,6 +55,7 @@ export function useMultiplayerRps(roomId: string): RpsEngine {
   const [winnerUserId, setWinnerUserId] = useState<string | null>(null);
   const [endReason, setEndReason] = useState<RpsEndReason | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [waitingError, setWaitingError] = useState<string | null>(null);
 
   // A reveal advances the server immediately; the client holds it until Next
   // Round, so the next round's info waits here.
@@ -96,9 +98,15 @@ export function useMultiplayerRps(roomId: string): RpsEngine {
       setStage('choosing');
       setReveal(null);
       pendingRef.current = null;
+      setWaitingError(null);
       setLoaded(true);
-    } catch {
-      // Transient - reconnect/mount retries.
+    } catch (err) {
+      // Keep retrying (useMatchSyncRetry), but say WHY on the waiting screen
+      // - a silent catch here is how "stuck on a spinner" bugs stay unsolvable.
+      const message =
+        err instanceof ApiError ? err.message : 'Could not reach the server.';
+      console.warn('[match-sync] snapshot fetch failed:', message);
+      setWaitingError(message);
     }
   }, [roomId]);
 
@@ -141,6 +149,16 @@ export function useMultiplayerRps(roomId: string): RpsEngine {
         setOpponentOnline(p.online);
       }
     });
+    // Gateway failures (enter and every action) surface here; the
+    // client ignored them entirely before, which is how silent hangs
+    // happen.
+    const offGatewayError = on(RPS_EVENTS.error, raw => {
+      const message =
+        (raw as { message?: string }).message ?? 'Something went wrong.';
+      console.warn('[rps] server error:', message);
+      setWaitingError(message);
+    });
+
     const offEnded = on(RPS_EVENTS.ended, payload => {
       const p = payload as { winnerUserId: string; reason: RpsEndReason };
       // Forfeit/timeout end with no reveal to show - jump straight to result.
@@ -155,6 +173,7 @@ export function useMultiplayerRps(roomId: string): RpsEngine {
       offReveal();
       offPresence();
       offEnded();
+      offGatewayError();
       leaveChannel(channel);
     };
   }, [roomId, joinChannel, leaveChannel, on, emit, syncState]);
@@ -237,5 +256,5 @@ export function useMultiplayerRps(roomId: string): RpsEngine {
     onNextRound,
   };
 
-  return { phase: loaded ? 'play' : 'waiting', forfeit, playProps };
+  return { phase: loaded ? 'play' : 'waiting', waitingError, forfeit, playProps };
 }
