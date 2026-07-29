@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ApiError,
   resolveRound,
   RPS_EVENTS,
   type RpsEndReason,
@@ -54,6 +55,7 @@ export function useMultiplayerRps(roomId: string): RpsEngine {
   const [winnerUserId, setWinnerUserId] = useState<string | null>(null);
   const [endReason, setEndReason] = useState<RpsEndReason | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [waitingError, setWaitingError] = useState<string | null>(null);
 
   // A reveal advances the server immediately; the client holds it until Next
   // Round, so the next round's info waits here.
@@ -96,9 +98,15 @@ export function useMultiplayerRps(roomId: string): RpsEngine {
       setStage('choosing');
       setReveal(null);
       pendingRef.current = null;
+      setWaitingError(null);
       setLoaded(true);
-    } catch {
-      // Transient - reconnect/mount retries.
+    } catch (err) {
+      // Keep retrying (useMatchSyncRetry), but say WHY on the waiting screen
+      // - a silent catch here is how "stuck on a spinner" bugs stay unsolvable.
+      const message =
+        err instanceof ApiError ? err.message : 'Could not reach the server.';
+      console.warn('[match-sync] snapshot fetch failed:', message);
+      setWaitingError(message);
     }
   }, [roomId]);
 
@@ -237,5 +245,5 @@ export function useMultiplayerRps(roomId: string): RpsEngine {
     onNextRound,
   };
 
-  return { phase: loaded ? 'play' : 'waiting', forfeit, playProps };
+  return { phase: loaded ? 'play' : 'waiting', waitingError, forfeit, playProps };
 }

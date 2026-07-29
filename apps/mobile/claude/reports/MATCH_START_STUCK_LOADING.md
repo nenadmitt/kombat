@@ -161,6 +161,49 @@ claimed restarting the app fixed it. That was wrong on both counts: restarting
 does not fix it, and a transient cause cannot explain a permanent hang. The
 seating mismatch above is the actual cause.
 
+## Third round: joiner-only spinner (Salvo), and what the evidence proved
+
+Reported after the seating fix: creator enters and plays fine, the joiner
+stays on the spinner. Two log lines cracked the shape of it:
+
+- The creator sees "<joiner> ran out of time" notices. So the match exists,
+  the turn clock runs, and the sweeper enforces it - the server core is
+  healthy, and after MAX_TIMEOUTS the stuck joiner loses by timeout. That
+  part is by design, given the joiner never acts.
+- The server logs `MaxListenersExceededWarning: 11 disconnect listeners
+  added to [Socket]`. `markOnline` added a disconnect hook on **every**
+  enter, and the only thing that re-emits enter is the retry loop added in
+  round two. Eleven listeners on one socket = eleven enters that ran all the
+  way through `handleEnter` - which means `client.emit(salvo:state, ...)`
+  executed each time, on the joiner's own socket.
+
+So by round three the server was demonstrably accepting the joiner's enter
+and pushing the snapshot repeatedly, and the client was not applying it. The
+defect is in the last hop - delivery or reception on the joiner's device -
+which static review cannot pin from here (it needs the two-device setup).
+
+Fixed this round:
+
+- **Listener leak**: every gateway's `markOnline` now registers its
+  disconnect hook once per socket+room. Retried enters are normal and must
+  be idempotent.
+- **The spinner can no longer be mute.** All four multiplayer engines expose
+  `waitingError`; the four game containers render it under the spinner. The
+  REST engines surface the snapshot fetch's failure message; Salvo
+  subscribes to `salvo:error`, which the client previously ignored
+  entirely. Everything is also `console.warn`ed.
+
+If the joiner still spins, the screen now names the reason. If it spins
+with **no** message while the server stacks enters, reception is the fault,
+and the checklist is environmental:
+
+1. Do both devices point at the **same** `apiBaseUrl` in `apps/mobile/.env`?
+   (Simulator on localhost + device on a LAN IP hitting a different server
+   instance produces exactly this split.)
+2. Were both app bundles rebuilt after the fixes?
+3. Is the server a single instance, or multi-instance with `REDIS_URL` set?
+   In-memory match state cannot be shared across instances.
+
 ## Rules to prevent recurrence
 
 1. **A screen whose only exit is a successful fetch must retry that fetch.**
@@ -180,3 +223,6 @@ seating mismatch above is the actual cause.
 6. **Dispatch every new game type in `GET /games/rooms/:id/state`.** It falls
    through to Battleship, so a missing branch silently creates a Battleship
    match against another game's room id.
+7. **Socket enter handlers run many times per socket.** Client retries and
+   reconnect replays make enter idempotency mandatory - including resource
+   registration like disconnect hooks, not just state writes.

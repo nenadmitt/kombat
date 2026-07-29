@@ -1,12 +1,12 @@
 import { useRef } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, usePreventRemove, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { StakeAsset } from '@gaming-platform/core';
 
 import { useConfirm } from '../../components/ui';
 import type { RootStackParamList } from '../../navigation/types';
-import { colors } from '../../theme/colors';
+import { colors, spacing } from '../../theme/colors';
 import SalvoPlayScreen from './SalvoPlayScreen';
 import type { SalvoEngine } from './salvo-engine';
 import { useLocalSalvo } from './useLocalSalvo';
@@ -123,6 +123,10 @@ function SalvoGameFlow({
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={colors.accent} size="large" />
+        {/* A stuck load must say why - a mute spinner is undebuggable. */}
+        {engine.waitingError ? (
+          <Text style={styles.loadingError}>{engine.waitingError}</Text>
+        ) : null}
       </View>
     );
   }
@@ -143,5 +147,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.salvoGround,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  loadingError: {
+    marginTop: spacing.md,
+    marginHorizontal: spacing.xl,
+    textAlign: 'center',
+    fontSize: 13,
+    color: colors.textMuted,
   },
 });

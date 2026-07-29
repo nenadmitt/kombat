@@ -50,6 +50,9 @@ export type ChromaPlayProps = {
  */
 export type ChromaEngine = {
   phase: 'waiting' | 'play';
+  /** Why the snapshot has not landed yet - shown under the waiting
+   *  spinner so a stuck load is never a mute hang. */
+  waitingError?: string | null;
   forfeit: () => void;
   playProps: ChromaPlayProps;
 };

@@ -70,6 +70,7 @@ export function useMultiplayerSalvo(roomId: string): SalvoEngine {
   const [resultRevealed, setResultRevealed] = useState(false);
   const [destroyedUserId, setDestroyedUserId] = useState<string | null>(null);
 
+  const [waitingError, setWaitingError] = useState<string | null>(null);
   const [flight, setFlight] = useState<SalvoFlight | null>(null);
   const [trail, setTrail] = useState<SalvoTrail | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -112,6 +113,7 @@ export function useMultiplayerSalvo(roomId: string): SalvoEngine {
   useEffect(() => clearTimers, [clearTimers]);
 
   const applyState = useCallback((s: SalvoRoomState) => {
+    setWaitingError(null);
     setTerrain({
       width: s.terrain.length,
       height: SALVO_FIELD_HEIGHT,
@@ -296,6 +298,15 @@ export function useMultiplayerSalvo(roomId: string): SalvoEngine {
       );
     });
 
+    // The gateway reports enter/action failures on salvo:error. Surfacing
+    // them is what turns "stuck on a spinner" into a readable bug report.
+    const offError = on(SALVO_EVENTS.error, raw => {
+      const message =
+        (raw as { message?: string }).message ?? 'Something went wrong.';
+      console.warn('[salvo] server error:', message);
+      setWaitingError(message);
+    });
+
     const offEnded = on(SALVO_EVENTS.ended, raw => {
       const payload = raw as SalvoEndedPayload;
       setWinnerUserId(payload.winnerUserId);
@@ -305,6 +316,7 @@ export function useMultiplayerSalvo(roomId: string): SalvoEngine {
 
     return () => {
       offState();
+      offError();
       offMoved();
       offShot();
       offTimeout();
@@ -437,6 +449,7 @@ export function useMultiplayerSalvo(roomId: string): SalvoEngine {
 
   return {
     phase: terrain === null || seats.length < 2 ? 'waiting' : 'play',
+    waitingError,
     forfeit,
     playProps,
   };
