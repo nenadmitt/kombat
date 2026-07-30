@@ -12,6 +12,11 @@ import { StakeEscrowEntity } from './entities/stake-escrow.entity';
 import { UserEntity } from './entities/user.entity';
 import { WalletEntity } from './entities/wallet.entity';
 import { MigrationService } from './migration.service';
+import { StakedBalanceEntity } from '../stake-pot/entities/staked-balance.entity';
+import { StakeLedgerEntryEntity } from '../stake-pot/entities/stake-ledger-entry.entity';
+import { StakePotCursorEntity } from '../stake-pot/entities/stake-pot-cursor.entity';
+import { StakePotGrantEntity } from '../stake-pot/entities/stake-pot-grant.entity';
+import { StakePotWithdrawalEntity } from '../stake-pot/entities/stake-pot-withdrawal.entity';
 
 // Global — DbService is the sole way other modules touch the database, so
 // every module needs it available without importing DbModule individually
@@ -40,6 +45,14 @@ import { MigrationService } from './migration.service';
           GameRoomEntity,
           StakeEscrowEntity,
           AppSettingEntity,
+          // Owned by StakePotModule (which registers their repositories
+          // itself, so it can be lifted out into its own service), but the
+          // connection still has to know their metadata.
+          StakedBalanceEntity,
+          StakeLedgerEntryEntity,
+          StakePotWithdrawalEntity,
+          StakePotCursorEntity,
+          StakePotGrantEntity,
         ],
         synchronize: false,
         // Migrations are applied explicitly by MigrationService on boot, not

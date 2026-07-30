@@ -5,8 +5,12 @@ import {
   NotImplementedException,
 } from '@nestjs/common';
 
+import type { Address } from 'viem';
+
 import { ChainService } from '../chain';
+import { ConfigurationService } from '../configuration/configuration.service';
 import { DbService } from '../db';
+import { FaucetService } from '../stake-pot';
 import { WalletNetwork, WalletOrigin } from '../db/types/wallet';
 import { generateEthereumWallet } from './ethereum-wallet.util';
 import { WalletEncryptionService } from './wallet-encryption.service';
@@ -21,6 +25,8 @@ export class WalletsService {
     private readonly dbService: DbService,
     private readonly walletEncryptionService: WalletEncryptionService,
     private readonly chainService: ChainService,
+    private readonly configurationService: ConfigurationService,
+    private readonly faucetService: FaucetService,
   ) {}
 
   async createWallet(
@@ -48,17 +54,20 @@ export class WalletsService {
       network,
     });
 
-    // Bundled setup for staking: gas-dust the fresh wallet and pre-approve
-    // the escrow for every ERC20 stake asset, so joining a staked match
-    // later is a single operator tx. Fire-and-forget — the funding path
-    // re-checks allowances anyway; this just front-loads the latency.
-    void this.chainService.prepareWalletForStaking(userId).catch(error => {
+    // The wallet needs gas to sign its own first pot deposit. Fire-and-forget:
+    // a dusting failure must not fail wallet creation.
+    void this.chainService.fundGasFor(userId).catch((error: unknown) => {
       this.logger.warn(
-        `Wallet staking setup failed for user ${userId}: ${
+        `Wallet gas top-up failed for user ${userId}: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
     });
+
+    // Starting balance, paid into the new player's stake pot. Fire-and-forget
+    // and internally guarded: a faucet problem must never fail wallet creation,
+    // and the player can still deposit their own funds.
+    void this.faucetService.grantSignupBonus(userId, address as Address);
 
     return { address, mnemonic };
   }

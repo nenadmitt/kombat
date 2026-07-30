@@ -16,5 +16,8 @@ import { AdminService } from './admin.service';
   imports: [WebsocketsModule, MaintenanceModule],
   controllers: [AdminController],
   providers: [AdminService, AdminTokenGuard],
+  // The guard is exported so other modules can put their own operator-only
+  // endpoints behind the same token (e.g. the stake pot's reconciliation read).
+  exports: [AdminTokenGuard],
 })
 export class AdminModule {}

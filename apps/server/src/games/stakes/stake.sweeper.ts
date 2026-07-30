@@ -1,5 +1,4 @@
 import {
-  ConflictException,
   Injectable,
   Logger,
   OnModuleDestroy,
@@ -7,28 +6,26 @@ import {
 } from '@nestjs/common';
 import { EscrowStatus } from '@gaming-platform/core';
 
-import { ChainService } from '../../chain';
 import { DbService } from '../../db';
 import { StakesService } from './stakes.service';
 
 const SWEEP_INTERVAL_MS = 5_000;
 const SWEEP_BATCH_LIMIT = 10;
-/**
- * A Funding row untouched this long is presumed orphaned (crash) and retried.
- * Must stay ABOVE the funding lock's TTL (FUNDING_LOCK_TTL_MS = 120s in
- * stakes.service): while a real funding job is still running it holds that
- * lock, so a shorter window here just makes the sweeper collide with a healthy
- * job. We only treat funding as orphaned once its lock could no longer exist.
- */
-const FUNDING_STALE_MS = 130_000;
 
 /**
- * Drains pending on-chain stake work from the stake_escrows table:
- * settlements, voids/refunds, and funding jobs orphaned by a crash or
- * restart. DB-status-driven (same philosophy as BattleshipDeadlineSweeper's
- * schedule): safe to run on every instance — each work item is re-validated
- * under the room's funding lock / against on-chain state, so double
- * processing degrades to a no-op.
+ * Recovers staked rooms orphaned in Funding.
+ *
+ * Holding a stake is a database transaction that runs inline, so Funding lasts
+ * microseconds - except when the process dies between writing the escrow row
+ * and taking the hold. Without recovery that room is unplayable forever, and a
+ * crash the other way round would leave holds locked with nothing to release
+ * them. Cheap insurance for the one window that can strand money.
+ *
+ * No staleness window, deliberately: colliding with a live `beginFunding` is
+ * harmless because both calls serialize on the same balance rows and the hold
+ * is idempotent per (room, player). A cutoff would mean comparing `Date.now()`
+ * against a `timestamp` column, which skews by the database/process timezone
+ * offset (see bugs-and-inconsistencies/SERVER.BAI.md).
  */
 @Injectable()
 export class StakeSweeper implements OnModuleInit, OnModuleDestroy {
@@ -39,12 +36,11 @@ export class StakeSweeper implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly dbService: DbService,
     private readonly stakesService: StakesService,
-    private readonly chainService: ChainService,
   ) {}
 
   onModuleInit(): void {
-    if (!this.chainService.enabled) {
-      return; // Staking disabled — nothing to sweep, don't spin.
+    if (!this.stakesService.enabled) {
+      return; // Staking disabled - nothing to sweep, don't spin.
     }
     this.interval = setInterval(() => {
       void this.sweep();
@@ -57,41 +53,25 @@ export class StakeSweeper implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async sweep(): Promise<void> {
+  /** One pass. Public so tests can drive it deterministically. */
+  async sweep(): Promise<void> {
     if (this.sweeping) {
-      return; // Never stack sweeps (slow RPC, lock contention).
+      return;
     }
     this.sweeping = true;
     try {
       const pending = await this.dbService.findStakeEscrowsByStatus(
-        [EscrowStatus.SettlePending, EscrowStatus.VoidPending, EscrowStatus.Funding],
+        [EscrowStatus.Funding],
         SWEEP_BATCH_LIMIT,
       );
       for (const escrow of pending) {
         try {
-          if (escrow.status === EscrowStatus.SettlePending) {
-            await this.stakesService.settleEscrow(escrow.roomId);
-          } else if (escrow.status === EscrowStatus.VoidPending) {
-            await this.stakesService.voidEscrow(escrow.roomId);
-          } else if (
-            Date.now() - escrow.updatedAt.getTime() >
-            FUNDING_STALE_MS
-          ) {
-            // Orphaned funding (e.g. server died mid-job) — fundRoom is
-            // idempotent and re-checks on-chain state under the room lock.
-            await this.stakesService.fundRoom(escrow.roomId);
-          }
+          await this.stakesService.recoverFunding(escrow.roomId);
         } catch (error) {
-          if (error instanceof ConflictException) {
-            // The room lock is held by an in-flight action (e.g. funding still
-            // working through its txs). Not a failure - this row is being
-            // handled; leave it untouched and retry on the next sweep.
-            this.logger.debug(
-              `Room ${escrow.roomId} busy, skipping this sweep`,
-            );
-            continue;
-          }
-          await this.stakesService.recordSweepFailure(escrow.roomId, error);
+          this.logger.error(
+            `Funding recovery failed for room ${escrow.roomId}`,
+            error instanceof Error ? error.stack : String(error),
+          );
         }
       }
     } catch (error) {

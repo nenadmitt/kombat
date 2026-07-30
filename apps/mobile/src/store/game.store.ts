@@ -24,11 +24,9 @@ type GameState = {
   isForfeiting: boolean;
   /** A staked room is escrowing both stakes (stake:funding received; waiting
    *  for stake:funded/failed). Drives the "setting up your match" overlay. */
-  isSecuringStakes: boolean;
 
   setWaitingRoom: (room: GameRoomSummary, asJoiner?: boolean) => void;
   setWaitingJoinedCount: (count: number) => void;
-  setSecuringStakes: (securing: boolean) => void;
   minimize: () => void;
   expand: () => void;
   /** Closes (creator) or leaves (joiner) the room server-side, then clears
@@ -54,7 +52,6 @@ const EMPTY: Pick<
   | 'isStarting'
   | 'resumableMatch'
   | 'isForfeiting'
-  | 'isSecuringStakes'
 > = {
   waitingRoom: null,
   waitingJoinedCount: 1,
@@ -64,7 +61,6 @@ const EMPTY: Pick<
   isStarting: false,
   resumableMatch: null,
   isForfeiting: false,
-  isSecuringStakes: false,
 };
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -78,7 +74,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       isMinimized: false,
     }),
   setWaitingJoinedCount: count => set({ waitingJoinedCount: count }),
-  setSecuringStakes: securing => set({ isSecuringStakes: securing }),
   minimize: () => set({ isMinimized: true }),
   expand: () => set({ isMinimized: false }),
 

@@ -14,6 +14,12 @@ import type {
   StakeAsset,
   WalletBalances,
 } from '../games/stake.types';
+import type {
+  StakePotBalances,
+  StakePotDepositTarget,
+  StakePotHistoryEntry,
+  StakePotWithdrawalResponse,
+} from '../games/stake-pot.types';
 import type { BattleshipRoomState } from '../games/battleship/battleship.protocol';
 import type { LudoRoomState } from '../games/ludo/ludo.protocol';
 import type { RpsRoomState } from '../games/rps/rps.protocol';
@@ -188,6 +194,38 @@ export class ApiClient {
   /** On-chain balances for the user's wallet. */
   getWalletBalances(): Promise<WalletBalances> {
     return this.request('GET', '/wallets/balances', undefined, true);
+  }
+
+  // ---- stake pot -----------------------------------------------------------
+
+  /** Pooled stake balance: spendable, locked by live matches, withdrawing. */
+  getStakePotBalances(): Promise<StakePotBalances> {
+    return this.request('GET', '/stake-pot/balances', undefined, true);
+  }
+
+  getStakePotHistory(limit?: number): Promise<StakePotHistoryEntry[]> {
+    return this.request(
+      'GET',
+      `/stake-pot/history${limit ? `?limit=${limit}` : ''}`,
+      undefined,
+      true,
+    );
+  }
+
+  /**
+   * Queue a withdrawal from the pot. The destination is always the caller's
+   * own wallet, resolved server-side, so there is nothing to pass.
+   */
+  withdrawFromStakePot(
+    asset: StakeAsset,
+    amount: string,
+  ): Promise<StakePotWithdrawalResponse> {
+    return this.request('POST', '/stake-pot/withdraw', { asset, amount }, true);
+  }
+
+  /** Where deposits go: the pot contract, its chain, and the token addresses. */
+  getStakePotDepositTarget(): Promise<StakePotDepositTarget> {
+    return this.request('GET', '/stake-pot/deposit-target', undefined, true);
   }
 
   listPendingGameRooms(options?: {

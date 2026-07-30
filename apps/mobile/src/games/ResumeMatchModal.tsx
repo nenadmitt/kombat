@@ -18,7 +18,7 @@ type Props = {
 /** Which card the single Modal shows. The forfeit confirmation is a second
  *  face of the same Modal (not a useConfirm sheet): presenting a second
  *  native Modal on top of this one wedges iOS's presentation stack, same
- *  rule as WaitingForPlayersPopup / StakeFundingOverlay. */
+ *  rule as WaitingForPlayersPopup. */
 type Face = 'resume' | 'confirm-forfeit';
 
 /**

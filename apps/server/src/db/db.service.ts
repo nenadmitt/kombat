@@ -249,6 +249,25 @@ export class DbService {
     return this.walletRepository.findOneBy({ userId });
   }
 
+  /**
+   * Reverse lookup for the stake pot's event watcher: an on-chain `Staked`
+   * event names an address, and the credit has to land on the owning user.
+   *
+   * Case-insensitive on purpose — wallets are stored checksummed but decoded
+   * log arguments are not reliably in that form, and crediting the wrong (or
+   * no) user over a capitalisation difference would lose a deposit. Served by
+   * the IDX_wallets_address_lower functional index.
+   */
+  async findWalletByAddress(
+    address: string,
+  ): Promise<Pick<WalletEntity, 'userId' | 'address'> | null> {
+    return this.walletRepository
+      .createQueryBuilder('wallet')
+      .select(['wallet.userId', 'wallet.address'])
+      .where('LOWER(wallet.address) = LOWER(:address)', { address })
+      .getOne();
+  }
+
   // --- game rooms ---
 
   /** A room in Pending or InProgress status — i.e. still "active" for the 1-room-per-user rule. */

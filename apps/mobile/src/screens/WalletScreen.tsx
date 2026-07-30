@@ -17,9 +17,14 @@ import { Card, Screen, SectionLabel } from '../components/ui';
 import ChainSelector from '../components/wallet/ChainSelector';
 import DepositModal from '../components/wallet/DepositModal';
 import ReceiveModal from '../components/wallet/ReceiveModal';
+import StakePotCard from '../components/wallet/StakePotCard';
+import StakePotModal, {
+  type StakePotMode,
+} from '../components/wallet/StakePotModal';
 import TransactionModal from '../components/wallet/TransactionModal';
 import WithdrawModal from '../components/wallet/WithdrawModal';
 import { useCurrentUserStore } from '../store/currentUser.store';
+import { useStakePotStore } from '../store/stakePot.store';
 import { useTransactionsStore, type WalletTx } from '../store/transactions.store';
 import {
   MANUAL_REFRESH_COOLDOWN_MS,
@@ -64,6 +69,9 @@ export default function WalletScreen() {
   const [openModal, setOpenModal] = useState<
     'receive' | 'deposit' | 'withdraw' | null
   >(null);
+  // Separate from openModal so the two can never both be presented; only one
+  // of the two is ever non-null (see the guards on each handler).
+  const [potMode, setPotMode] = useState<StakePotMode | null>(null);
   const [activeTxHash, setActiveTxHash] = useState<Hex | null>(null);
   const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -77,6 +85,12 @@ export default function WalletScreen() {
   const txs = chainTxs ?? EMPTY_TXS;
   const track = useTransactionsStore(state => state.track);
 
+  const pot = useStakePotStore(state => state.balances);
+  const potStatus = useStakePotStore(state => state.status);
+  const potUnavailable = useStakePotStore(state => state.unavailable);
+  const potError = useStakePotStore(state => state.error);
+  const refreshPot = useStakePotStore(state => state.refresh);
+
   const activeChain = CHAINS.find(c => c.id === chainId) ?? CHAINS[0];
   const address = wallet?.address as Address | undefined;
   const canRead = supportsBalances(chainId) && !!address;
@@ -85,13 +99,14 @@ export default function WalletScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      void refreshPot();
       if (!supportsBalances(chainId) || !address) {
         return;
       }
       refresh(chainId, address);
       const id = setInterval(() => refresh(chainId, address), REFRESH_INTERVAL_MS);
       return () => clearInterval(id);
-    }, [chainId, address, refresh]),
+    }, [chainId, address, refresh, refreshPot]),
   );
 
   useEffect(
@@ -231,6 +246,26 @@ export default function WalletScreen() {
           </Card>
         ))}
       </View>
+
+      {/* Stake pot - hidden entirely on a server without pooled staking. */}
+      {!potUnavailable && supportsBalances(chainId) ? (
+        <StakePotCard
+          chainId={chainId}
+          pot={pot}
+          loading={potStatus === 'loading'}
+          error={potError}
+          onAdd={() => {
+            if (openModal === null) {
+              setPotMode('add');
+            }
+          }}
+          onWithdraw={() => {
+            if (openModal === null) {
+              setPotMode('withdraw');
+            }
+          }}
+        />
+      ) : null}
 
       {/* Assets */}
       <View style={styles.assetsHeader}>
@@ -399,6 +434,31 @@ export default function WalletScreen() {
                 });
                 setActiveTxHash(submitted.hash);
                 refresh(chainId, address);
+              }}
+            />
+          ) : null}
+          {supportsBalances(chainId) && address ? (
+            <StakePotModal
+              mode={potMode}
+              onClose={() => setPotMode(null)}
+              chainId={chainId}
+              walletBalances={balances}
+              pot={pot}
+              onDeposited={submitted => {
+                track({
+                  hash: submitted.hash,
+                  chainId,
+                  tokenSymbol: submitted.symbol,
+                  amount: submitted.amount,
+                  to: wallet.address as Address,
+                  toLabel: 'Stake pot',
+                });
+                // Funds left the wallet now; the pot credit follows once the
+                // server's watcher has enough confirmations and pushes it.
+                refresh(chainId, address);
+              }}
+              onWithdrawRequested={() => {
+                void refreshPot();
               }}
             />
           ) : null}

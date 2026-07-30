@@ -7,9 +7,11 @@ import {
   PLATFORM_EVENTS,
   ROOM_EVENTS,
   STAKE_EVENTS,
+  STAKE_POT_EVENTS,
   type GameRoomSummary,
   type PlatformStatus,
   type RoomPlayerJoinedPayload,
+  type StakePotBalances,
 } from '@gaming-platform/core';
 
 import { apiClient } from '../api/client';
@@ -22,6 +24,7 @@ import WaitingForPlayersPopup from '../games/WaitingForPlayersPopup';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import { useGameStore } from '../store/game.store';
 import { useServerStore } from '../store/server.store';
+import { useStakePotStore } from '../store/stakePot.store';
 import { useWebsocketStore } from '../store/websocket.store';
 import MainTabNavigator from './MainTabNavigator';
 import type { RootStackParamList } from './types';
@@ -46,7 +49,6 @@ export default function MainTabsWithGameOverlay() {
   const setWaitingRoom = useGameStore(state => state.setWaitingRoom);
   const setResumableMatch = useGameStore(state => state.setResumableMatch);
   const clearWaitingRoom = useGameStore(state => state.clear);
-  const setSecuringStakes = useGameStore(state => state.setSecuringStakes);
   const onSocketEvent = useWebsocketStore(state => state.on);
   const confirm = useConfirm();
   const serverStatus = useServerStore(state => state.status);
@@ -63,21 +65,22 @@ export default function MainTabsWithGameOverlay() {
     });
   }, [onSocketEvent]);
 
-  // Stake lifecycle for the room CREATOR: their app sits in the waiting
-  // popup while the joiner triggers escrow. funding swaps the popup for the
-  // playful "setting up your match" overlay; funded clears it (the deferred
-  // game:opponent-joined below does the navigation); failed means voided.
+  // Pot balance changes (deposit credited, stake held, prize paid, withdrawal
+  // confirmed) arrive as a full snapshot, so the wallet screen is already
+  // correct whenever the user next opens it.
   useEffect(() => {
-    const offFunding = onSocketEvent(STAKE_EVENTS.funding, () =>
-      setSecuringStakes(true),
-    );
-    const offFunded = onSocketEvent(STAKE_EVENTS.funded, () =>
-      setSecuringStakes(false),
-    );
+    return onSocketEvent(STAKE_POT_EVENTS.balance, payload => {
+      if (payload && typeof payload === 'object' && 'available' in payload) {
+        useStakePotStore.getState().apply(payload as StakePotBalances);
+      }
+    });
+  }, [onSocketEvent]);
+
+  // A staked join that could not be funded. The joiner learns from their own
+  // failed request; the creator only finds out here.
+  useEffect(() => {
     const offFailed = onSocketEvent(STAKE_EVENTS.failed, payload => {
-      setSecuringStakes(false);
-      // Only the creator holds a waitingRoom - the joiner's lobby screen
-      // shows its own alert for this event.
+      // Only the creator holds a waitingRoom.
       if (useGameStore.getState().waitingRoom) {
         clearWaitingRoom();
         const reason =
@@ -96,12 +99,8 @@ export default function MainTabsWithGameOverlay() {
         }, 500);
       }
     });
-    return () => {
-      offFunding();
-      offFunded();
-      offFailed();
-    };
-  }, [onSocketEvent, setSecuringStakes, clearWaitingRoom, confirm]);
+    return offFailed;
+  }, [onSocketEvent, clearWaitingRoom, confirm]);
 
   useEffect(() => {
     apiClient

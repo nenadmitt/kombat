@@ -19,7 +19,6 @@ import {
   LOBBY_CHANNEL,
   LOBBY_EVENTS,
   STAKE_ASSET_SYMBOLS,
-  STAKE_EVENTS,
   formatStakeAmount,
   type GameRoomSummary,
   type LobbyRoomRemovedPayload,
@@ -27,7 +26,7 @@ import {
 
 import { apiClient } from '../api/client';
 import Icon from '../components/Icon';
-import { Button, Card, Chip, StakeFundingOverlay, useConfirm } from '../components/ui';
+import { Button, Card, Chip, useConfirm } from '../components/ui';
 import CreateGameRoomModal from '../games/CreateGameRoomModal';
 import JoinByCodeSheet from '../games/JoinByCodeSheet';
 import LobbyFilterSheet from '../games/LobbyFilterSheet';
@@ -89,17 +88,12 @@ export default function GameLobyScreen() {
   const [joinCodeVisible, setJoinCodeVisible] = useState(false);
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
-  /** A joined staked room whose escrow is in flight - blocks with an overlay
-   *  until the server broadcasts stake:funded / stake:failed. */
-  const [fundingRoom, setFundingRoom] = useState<GameRoomSummary | null>(null);
-
   const rooms = useLobbyStore(s => s.rooms);
   const status = useLobbyStore(s => s.status);
   const storeError = useLobbyStore(s => s.error);
   const filters = useLobbyStore(s => s.filters);
   const setFilters = useLobbyStore(s => s.setFilters);
 
-  const onSocketEvent = useWebsocketStore(s => s.on);
   const serverStatus = useServerStore(s => s.status);
   const maintenanceMessage = useServerStore(s => s.message);
   const online = serverStatus === 'online';
@@ -203,47 +197,6 @@ export default function GameLobyScreen() {
     [navigation],
   );
 
-  // While a joined staked room is funding, wait for the escrow verdict.
-  useEffect(() => {
-    if (!fundingRoom) {
-      return;
-    }
-    const offFunded = onSocketEvent(STAKE_EVENTS.funded, payload => {
-      if ((payload as { roomId?: string }).roomId !== fundingRoom.id) {
-        return;
-      }
-      // Dismiss the funding overlay first, then navigate once it has fully
-      // faded out. Pushing the match screen while a transparent Modal is
-      // still mid-dismiss wedges iOS's presentation stack - the classic
-      // "I can see the screen but nothing is tappable" freeze.
-      const room = fundingRoom;
-      setFundingRoom(null);
-      setTimeout(() => enterMatch(room), 350);
-    });
-    const offFailed = onSocketEvent(STAKE_EVENTS.failed, payload => {
-      const p = payload as { roomId?: string; reason?: string };
-      if (p.roomId !== fundingRoom.id) {
-        return;
-      }
-      setFundingRoom(null);
-      void useLobbyStore.getState().fetch({ force: true });
-      // Let the funding overlay finish dismissing before presenting the
-      // notice sheet - overlapping Modal transitions wedge iOS touches.
-      setTimeout(() => {
-        void confirm({
-          title: 'Stakes could not be secured',
-          message: p.reason ?? 'The match was voided.',
-          icon: 'warning',
-          mode: 'info',
-        });
-      }, 500);
-    });
-    return () => {
-      offFunded();
-      offFailed();
-    };
-  }, [fundingRoom, onSocketEvent, enterMatch, confirm]);
-
   const joinRoom = async (room: GameRoomSummary) => {
     setJoiningRoomId(room.id);
     try {
@@ -257,19 +210,32 @@ export default function GameLobyScreen() {
         joined.status === GameRoomStatus.Pending
       ) {
         useGameStore.getState().setWaitingRoom(joined, true);
-      } else if (room.stakeToken !== null) {
-        // Staked: the server is escrowing all stakes - hold here until the
-        // stake:funded event; the match is gated server-side anyway.
-        setFundingRoom(room);
       } else {
+        // A staked join only returns once the stakes are held, so there is
+        // nothing left to wait for. Waiting on stake:funded here would hang:
+        // the event fires before this response arrives.
         enterMatch(room);
       }
     } catch (err) {
+      const message =
+        err instanceof ApiError ? err.message : 'Something went wrong.';
+      // An empty stake pot is the one join failure the user can fix right now,
+      // so offer the way there instead of a dead-end notice.
+      const needsTopUp = /stake pot/i.test(message);
       void confirm({
-        title: 'Could not join room',
-        message: err instanceof ApiError ? err.message : 'Something went wrong.',
-        icon: 'warning',
-        mode: 'info',
+        title: needsTopUp ? 'Not enough in your pot' : 'Could not join room',
+        message,
+        icon: needsTopUp ? 'dollar' : 'warning',
+        ...(needsTopUp
+          ? { confirmLabel: 'Top up' }
+          : { mode: 'info' as const }),
+      }).then(ok => {
+        if (ok && needsTopUp) {
+          (navigation.navigate as (screen: string, params?: unknown) => void)(
+            'MainTabs',
+            { screen: 'Wallet' },
+          );
+        }
       });
     } finally {
       setJoiningRoomId(null);
@@ -531,12 +497,6 @@ export default function GameLobyScreen() {
           setFilterSheetVisible(false);
         }}
         onClose={() => setFilterSheetVisible(false)}
-      />
-
-      {/* Staked-join "getting ready" overlay (funny, no on-chain wording). */}
-      <StakeFundingOverlay
-        visible={fundingRoom !== null}
-        subtitle={fundingRoom ? `${stakeLabel(fundingRoom)} on the line` : undefined}
       />
     </SafeAreaView>
   );
