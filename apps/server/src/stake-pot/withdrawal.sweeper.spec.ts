@@ -90,6 +90,7 @@ describe('WithdrawalSweeper', () => {
   });
 
   afterAll(async () => {
+    await truncatePotTables(dataSource);
     await dataSource.destroy();
   });
 

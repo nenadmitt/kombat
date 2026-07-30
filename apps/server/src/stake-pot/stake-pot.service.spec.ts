@@ -62,6 +62,7 @@ describe('StakePotService (ledger)', () => {
   });
 
   afterAll(async () => {
+    await truncatePotTables(dataSource);
     await dataSource.destroy();
   });
 

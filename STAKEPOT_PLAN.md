@@ -46,12 +46,17 @@
 >   reconciliation endpoint can reuse it.
 > - **Jest needs an ESM transform for `uuid`** (v14 is ESM-only and is reached
 >   through `db-utils`); see `apps/server/jest.config.js`.
-> - **Ledger tests run against the app's own database** (POSTGRES_* from
->   `.env`), truncating only the four stake-pot tables between cases. Start the
->   stack with `docker compose -p kombat-server up -d`: without the explicit
->   project name Compose resolves this directory to project `server`, which
->   collides with another checkout and tries to recreate its database (logged in
->   SERVER.BAI.md).
+> - **Ledger tests use the app's Postgres server but their own database**
+>   (`<POSTGRES_DB>_test`, created on first run). They truncate the stake-pot
+>   tables between cases, so sharing the development database corrupts live
+>   state: running the suite while a dev server is up wipes the deposit cursor
+>   mid-scan, sending the watcher back to the deploy block to re-credit every
+>   deposit, and deletes withdrawal rows so balances rebuild without them. That
+>   happened once during this work and was repaired from the on-chain events.
+>   Start the stack with `docker compose -p kombat-server up -d`: without the
+>   explicit project name Compose resolves this directory to project `server`,
+>   which collides with another checkout and tries to recreate its database
+>   (logged in SERVER.BAI.md).
 >
 > One incident worth knowing about: `migration:generate` writes into
 > `src/db/migrations/`, and a `start:dev` server watching that directory applies
