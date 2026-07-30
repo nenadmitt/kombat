@@ -53,7 +53,7 @@ export class ConfigurationService {
   public readonly STAKE_POT_ADDRESS: string | undefined;
   /** Platform fee on a settled match, in basis points. Capped at 10%. */
   public readonly STAKE_FEE_BPS: number;
-  /** How often the deposit watcher scans for new `Staked` events. */
+  /** How often the watcher scans for new pot events. */
   public readonly STAKE_POT_POLL_MS: number;
   /** Block the pot was deployed in — where a fresh cursor starts scanning.
    *  Unset ⇒ start at the current head (no backfill). */

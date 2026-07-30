@@ -250,7 +250,7 @@ export class DbService {
   }
 
   /**
-   * Reverse lookup for the stake pot's deposit watcher: an on-chain `Staked`
+   * Reverse lookup for the stake pot's event watcher: an on-chain `Staked`
    * event names an address, and the credit has to land on the owning user.
    *
    * Case-insensitive on purpose — wallets are stored checksummed but decoded

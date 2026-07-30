@@ -528,6 +528,94 @@ describe('StakePotService (ledger)', () => {
     expect(await service.availableBalance(ALICE, StakeAsset.Native)).toBe(0n);
   });
 
+  // ---- fee sweeps ----------------------------------------------------------
+
+  it('debits the platform account when the owner sweeps fees', async () => {
+    await deposit(ALICE, STAKE);
+    await deposit(BOB, STAKE);
+    await service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE);
+    const settlement = await service.settleMatch(ROOM, ALICE, [ALICE, BOB], ASSET, STAKE);
+    const fee = settlement!.fee;
+
+    await service.recordFeeSweep(ASSET, fee, { txHash: '0xsweep', logIndex: 0 });
+
+    const platform = await balances.findOneBy({
+      userId: PLATFORM_ACCOUNT_ID,
+      asset: ASSET,
+    });
+    expect(BigInt(platform!.available)).toBe(0n);
+    expect(
+      await ledger.countBy({ kind: StakeLedgerKind.FeeSweep }),
+    ).toBe(1);
+  });
+
+  it('records a sweep once, however often the range is re-scanned', async () => {
+    await deposit(ALICE, STAKE);
+    await deposit(BOB, STAKE);
+    await service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE);
+    const settlement = await service.settleMatch(ROOM, ALICE, [ALICE, BOB], ASSET, STAKE);
+
+    await service.recordFeeSweep(ASSET, settlement!.fee, { txHash: '0xdup', logIndex: 0 });
+    await service.recordFeeSweep(ASSET, settlement!.fee, { txHash: '0xdup', logIndex: 0 });
+
+    expect(await ledger.countBy({ kind: StakeLedgerKind.FeeSweep })).toBe(1);
+  });
+
+  /**
+   * An owner withdrawal bigger than the accrued fees is a rescue of player
+   * funds, not a sweep. Forcing it onto the platform account would hide a real
+   * shortfall behind a plausible-looking entry.
+   */
+  it('refuses to book a withdrawal larger than the accrued fees', async () => {
+    await deposit(ALICE, STAKE);
+
+    await service.recordFeeSweep(ASSET, STAKE, { txHash: '0xrescue', logIndex: 0 });
+
+    expect(await ledger.countBy({ kind: StakeLedgerKind.FeeSweep })).toBe(0);
+    expect((await balanceOf(ALICE)).available).toBe(STAKE);
+  });
+
+  it('reports fees accrued, swept and claimable', async () => {
+    await deposit(ALICE, STAKE);
+    await deposit(BOB, STAKE);
+    await service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE);
+    const settlement = await service.settleMatch(ROOM, ALICE, [ALICE, BOB], ASSET, STAKE);
+    const fee = settlement!.fee;
+
+    let summary = (await service.getFeeSummary()).find(f => f.asset === ASSET)!;
+    expect(summary).toMatchObject({
+      accrued: fee.toString(),
+      swept: '0',
+      claimable: fee.toString(),
+    });
+
+    await service.recordFeeSweep(ASSET, fee, { txHash: '0xs2', logIndex: 0 });
+
+    summary = (await service.getFeeSummary()).find(f => f.asset === ASSET)!;
+    expect(summary).toMatchObject({
+      accrued: fee.toString(),
+      swept: fee.toString(),
+      claimable: '0',
+    });
+  });
+
+  it('keeps the reconciliation total in step with a sweep', async () => {
+    await deposit(ALICE, STAKE);
+    await deposit(BOB, STAKE);
+    await service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE);
+    const settlement = await service.settleMatch(ROOM, ALICE, [ALICE, BOB], ASSET, STAKE);
+
+    const before = (await service.getLedgerTotals())[ASSET];
+    await service.recordFeeSweep(ASSET, settlement!.fee, {
+      txHash: '0xs3',
+      logIndex: 0,
+    });
+    const after = (await service.getLedgerTotals())[ASSET];
+
+    // The expected on-chain holdings drop by exactly what left the contract.
+    expect(before - after).toBe(settlement!.fee);
+  });
+
   it('does not push socket events to the platform fee account', async () => {
     await deposit(ALICE, STAKE);
     await deposit(BOB, STAKE);

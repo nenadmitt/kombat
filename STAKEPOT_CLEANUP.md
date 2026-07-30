@@ -47,14 +47,23 @@ encrypted keys still exist in `wallets` as the user's recovery artifact.
   now, but they are a cheap, accurate lifecycle signal and the natural hook for
   a future web client.
 
+## Fees
+
+The owner sweeps fees on-chain with `ownerWithdrawTo` from the cold key; the
+server has no payout path for them, by design. What the server does is keep the
+books straight: `PotEventWatcher` reads `Withdrawn` events, and any withdrawal
+whose id was not minted here is recorded as a `FeeSweep` against the platform
+account. Without that the ledger would keep claiming fees the pot no longer
+holds and reconciliation would report a permanent shortfall.
+
+`GET /stake-pot/admin/fees` reports accrued / swept / claimable per asset.
+
+A withdrawal larger than the accrued fee balance is an owner *rescue*, not a
+sweep, so it is logged and deliberately not booked - reconciliation should
+surface that rather than have it hidden behind a plausible-looking entry.
+
 ## Still open
 
-- **No fee sweep.** Fees accrue to `PLATFORM_ACCOUNT_ID` in the ledger and
-  there is no way to move them out: `POST /stake-pot/withdraw` resolves the
-  destination from the caller's own wallet, and the platform account is not a
-  user. `requestWithdrawal(PLATFORM_ACCOUNT_ID, …)` already does the right
-  thing, so this is an admin endpoint behind `AdminTokenGuard`, not new
-  machinery.
 - `StakePotChainService.isPaused()` and `remainingDailyAllowance` (in the ABI)
   are unused reads, intended for an admin health view. Drop them if that never
   lands.

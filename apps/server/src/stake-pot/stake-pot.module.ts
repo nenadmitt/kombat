@@ -5,7 +5,7 @@ import { AdminModule } from '../admin/admin.module';
 import { AuthenticationModule } from '../authentication/authentication.module';
 import { ConfigurationModule } from '../configuration/configuration.module';
 import { WebsocketsModule } from '../websockets';
-import { DepositWatcher } from './deposit.watcher';
+import { PotEventWatcher } from './pot-event.watcher';
 import { FaucetService } from './faucet.service';
 import { StakeLedgerEntryEntity } from './entities/stake-ledger-entry.entity';
 import { StakePotGrantEntity } from './entities/stake-pot-grant.entity';
@@ -20,7 +20,7 @@ import { WithdrawalSweeper } from './withdrawal.sweeper';
 
 /**
  * Pooled staking: the balance ledger, its chain access, and the jobs that move
- * money in (DepositWatcher) and out (WithdrawalSweeper).
+ * money in (PotEventWatcher) and out (WithdrawalSweeper).
  *
  * Self-contained so it can be lifted into its own service later: it owns its
  * four tables and registers their repositories here instead of going through
@@ -47,7 +47,7 @@ import { WithdrawalSweeper } from './withdrawal.sweeper';
   providers: [
     StakePotService,
     StakePotChainService,
-    DepositWatcher,
+    PotEventWatcher,
     WithdrawalSweeper,
     ReconciliationJob,
     FaucetService,

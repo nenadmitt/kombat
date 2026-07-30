@@ -1,16 +1,20 @@
-import { StakeAsset } from '@gaming-platform/core';
+import { StakeAsset, StakeLedgerKind } from '@gaming-platform/core';
 import { DataSource, Repository } from 'typeorm';
 
 import { ConfigurationService } from '../configuration/configuration.service';
 import { DbService } from '../db/db.service';
 import { WebsocketsService } from '../websockets/websockets.service';
-import { DepositWatcher } from './deposit.watcher';
+import { PotEventWatcher } from './pot-event.watcher';
 import { StakeLedgerEntryEntity } from './entities/stake-ledger-entry.entity';
 import { StakePotCursorEntity } from './entities/stake-pot-cursor.entity';
 import { StakePotWithdrawalEntity } from './entities/stake-pot-withdrawal.entity';
 import { StakedBalanceEntity } from './entities/staked-balance.entity';
-import type { StakePotChainService, StakedDeposit } from './stake-pot-chain.service';
-import { StakePotService } from './stake-pot.service';
+import type {
+  PotWithdrawal,
+  StakePotChainService,
+  StakedDeposit,
+} from './stake-pot-chain.service';
+import { PLATFORM_ACCOUNT_ID, StakePotService } from './stake-pot.service';
 import {
   createTestDataSource,
   testUserId,
@@ -25,6 +29,7 @@ const CONFIRMATIONS = 3;
 /** Chain stub: a fixed head plus logs the test places at chosen blocks. */
 function makeChain(head: bigint) {
   const logs: StakedDeposit[] = [];
+  const withdrawnLogs: (PotWithdrawal & { blockNumber: bigint })[] = [];
   const rangesQueried: [bigint, bigint][] = [];
   let failNext = false;
 
@@ -39,12 +44,16 @@ function makeChain(head: bigint) {
       rangesQueried.push([from, to]);
       return logs.filter(l => l.blockNumber >= from && l.blockNumber <= to);
     },
+    getWithdrawals: async (from: bigint, to: bigint) =>
+      withdrawnLogs.filter(l => l.blockNumber >= from && l.blockNumber <= to),
   } as unknown as StakePotChainService;
 
   return {
     chain,
     rangesQueried,
     addLog: (deposit: StakedDeposit) => logs.push(deposit),
+    addWithdrawn: (w: PotWithdrawal & { blockNumber: bigint }) =>
+      withdrawnLogs.push(w),
     failOnce: () => {
       failNext = true;
     },
@@ -67,7 +76,7 @@ function deposit(
   };
 }
 
-describe('DepositWatcher', () => {
+describe('PotEventWatcher', () => {
   let dataSource: DataSource;
   let cursors: Repository<StakePotCursorEntity>;
   let ledger: Repository<StakeLedgerEntryEntity>;
@@ -119,7 +128,7 @@ describe('DepositWatcher', () => {
   });
 
   const makeWatcher = (chain: StakePotChainService, deployBlock?: number) =>
-    new DepositWatcher(
+    new PotEventWatcher(
       cursors,
       chain,
       stakePotService,
@@ -279,5 +288,62 @@ describe('DepositWatcher', () => {
     await watcher.scan();
 
     expect(harness.rangesQueried.length).toBe(before);
+  });
+
+  // ---- owner fee sweeps ----------------------------------------------------
+
+  /**
+   * `ownerWithdrawTo` never touches the server, so without this the ledger keeps
+   * claiming fees the pot no longer holds and reconciliation reports a permanent
+   * shortfall.
+   */
+  it('records an owner sweep as a fee sweep', async () => {
+    const harness = makeChain(100n);
+    // Give the platform account some accrued fees to sweep against.
+    await stakePotService.credit(PLATFORM_ACCOUNT_ID, StakeAsset.Usdc, 500_000n, {
+      txHash: '0xfees',
+      logIndex: 0,
+    });
+    harness.addWithdrawn({
+      blockNumber: 90n,
+      withdrawalId: null, // not minted by this server
+      to: ALICE_ADDRESS as `0x${string}`,
+      asset: StakeAsset.Usdc,
+      value: 500_000n,
+      txHash: '0xownersweep' as `0x${string}`,
+      logIndex: 0,
+    });
+
+    await makeWatcher(harness.chain, 80).scan();
+
+    expect(
+      await stakePotService.availableBalance(PLATFORM_ACCOUNT_ID, StakeAsset.Usdc),
+    ).toBe(0n);
+    expect(await ledger.countBy({ kind: StakeLedgerKind.FeeSweep })).toBe(1);
+  });
+
+  it('leaves a withdrawal this server minted alone', async () => {
+    const harness = makeChain(100n);
+    await stakePotService.credit(PLATFORM_ACCOUNT_ID, StakeAsset.Usdc, 500_000n, {
+      txHash: '0xfees2',
+      logIndex: 0,
+    });
+    harness.addWithdrawn({
+      blockNumber: 90n,
+      // A real withdrawal row id: already debited at request time.
+      withdrawalId: '019fafe8-4741-76c5-ad43-0b919261bc32',
+      to: ALICE_ADDRESS as `0x${string}`,
+      asset: StakeAsset.Usdc,
+      value: 500_000n,
+      txHash: '0xplayerpayout' as `0x${string}`,
+      logIndex: 0,
+    });
+
+    await makeWatcher(harness.chain, 80).scan();
+
+    expect(
+      await stakePotService.availableBalance(PLATFORM_ACCOUNT_ID, StakeAsset.Usdc),
+    ).toBe(500_000n);
+    expect(await ledger.countBy({ kind: StakeLedgerKind.FeeSweep })).toBe(0);
   });
 });

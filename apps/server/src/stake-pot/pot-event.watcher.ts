@@ -23,17 +23,19 @@ const CURSOR_ID = 1;
 const MAX_BLOCKS_PER_QUERY = 2_000n;
 
 /**
- * Credits on-chain deposits into the ledger.
+ * Brings the ledger in line with the pot's events: credits deposits, and records
+ * withdrawals the server did not initiate (the owner sweeping fees straight out
+ * of the contract).
  *
  * Correctness rests on the confirmation lag (a reorg can't strand a credit for
  * a log that never happened) and on journal uniqueness (re-reading a range is a
  * no-op), not on the cursor. So the cursor is only an optimisation, and is
- * advanced only after a chunk is fully credited: a crash mid-chunk re-reads
+ * advanced only after a chunk is fully applied: a crash mid-chunk re-reads
  * rather than skips, the one direction that can't lose money.
  */
 @Injectable()
-export class DepositWatcher implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(DepositWatcher.name);
+export class PotEventWatcher implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(PotEventWatcher.name);
   private interval?: ReturnType<typeof setInterval>;
   private scanning = false;
 
@@ -89,7 +91,8 @@ export class DepositWatcher implements OnModuleInit, OnModuleDestroy {
           from + MAX_BLOCKS_PER_QUERY - 1n < safeHead
             ? from + MAX_BLOCKS_PER_QUERY - 1n
             : safeHead;
-        await this.creditRange(from, to);
+        await this.creditDeposits(from, to);
+        await this.recordExternalWithdrawals(from, to);
         await this.saveCursor(to);
         from = to + 1n;
       }
@@ -104,7 +107,7 @@ export class DepositWatcher implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async creditRange(from: bigint, to: bigint): Promise<void> {
+  private async creditDeposits(from: bigint, to: bigint): Promise<void> {
     const deposits = await this.chainService.getDeposits(from, to);
     if (deposits.length === 0) {
       return;
@@ -131,6 +134,30 @@ export class DepositWatcher implements OnModuleInit, OnModuleDestroy {
         deposit.asset,
         deposit.value,
         { txHash: deposit.txHash, logIndex: deposit.logIndex },
+      );
+    }
+  }
+
+  /**
+   * Withdrawals the server has no row for came from `ownerWithdrawTo`, which
+   * bypasses the ledger. Recording them is what stops a fee sweep looking like
+   * a permanent shortfall to the reconciliation job.
+   */
+  private async recordExternalWithdrawals(
+    from: bigint,
+    to: bigint,
+  ): Promise<void> {
+    const withdrawals = await this.chainService.getWithdrawals(from, to);
+    for (const withdrawal of withdrawals) {
+      if (withdrawal.withdrawalId) {
+        // Minted by this server, so the ledger already debited it at request
+        // time. Recording it again would double-count.
+        continue;
+      }
+      await this.stakePotService.recordFeeSweep(
+        withdrawal.asset,
+        withdrawal.value,
+        { txHash: withdrawal.txHash, logIndex: withdrawal.logIndex },
       );
     }
   }

@@ -1,12 +1,14 @@
 import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
+  STAKE_ASSET_SYMBOLS,
   STAKE_POT_EVENTS,
   StakeAsset,
   StakeLedgerKind,
   StakeWithdrawalStatus,
   type StakePotAmounts,
   type StakePotBalances,
+  type StakePotFeeSummary,
   type StakePotHistoryEntry,
   emptyStakePotAmounts,
 } from '@gaming-platform/core';
@@ -195,6 +197,99 @@ export class StakePotService {
       );
       await this.pushBalances([userId]);
     }
+  }
+
+  /**
+   * Record fees the owner swept straight out of the contract with
+   * `ownerWithdrawTo`. That call bypasses the server, so without this the
+   * ledger would keep claiming fees the pot no longer holds and reconciliation
+   * would report a permanent shortfall.
+   *
+   * Idempotent on (txHash, logIndex). A withdrawal larger than the accrued fee
+   * balance is not a fee sweep - it is the owner rescuing player funds - so it
+   * is logged and left for reconciliation to surface rather than forced onto
+   * the platform account.
+   */
+  async recordFeeSweep(
+    asset: StakeAsset,
+    amount: bigint,
+    source: { txHash: string; logIndex: number },
+  ): Promise<void> {
+    await this.dataSource.transaction(async manager => {
+      const already = await manager.findOneBy(StakeLedgerEntryEntity, {
+        txHash: source.txHash,
+        logIndex: source.logIndex,
+      });
+      if (already) {
+        return;
+      }
+      const balance = await this.lockBalance(
+        manager,
+        PLATFORM_ACCOUNT_ID,
+        asset,
+      );
+      const available = BigInt(balance.available);
+      if (available < amount) {
+        this.logger.error(
+          `Out-of-band withdrawal of ${amount} (asset ${asset}) in ${source.txHash} ` +
+            `exceeds accrued fees of ${available} - treating as a rescue, not a fee sweep`,
+        );
+        return;
+      }
+      const remaining = available - amount;
+      await this.writeBalance(manager, balance, { available: remaining });
+      await this.appendEntry(manager, {
+        userId: PLATFORM_ACCOUNT_ID,
+        asset,
+        kind: StakeLedgerKind.FeeSweep,
+        amount: -amount,
+        balanceAfter: remaining,
+        txHash: source.txHash,
+        logIndex: source.logIndex,
+      });
+      this.logger.log(
+        `Recorded fee sweep of ${amount} (asset ${asset}) in ${source.txHash}`,
+      );
+    });
+  }
+
+  /** Fees taken, fees swept out, and what is still sitting in the pot. */
+  async getFeeSummary(): Promise<StakePotFeeSummary[]> {
+    const rows = await this.ledgerRepository
+      .createQueryBuilder('entry')
+      .select('entry.asset', 'asset')
+      .addSelect('entry.kind', 'kind')
+      .addSelect('SUM(entry.amount)', 'total')
+      .where('entry.user_id = :userId', { userId: PLATFORM_ACCOUNT_ID })
+      .andWhere('entry.kind IN (:...kinds)', {
+        kinds: [StakeLedgerKind.Fee, StakeLedgerKind.FeeSweep],
+      })
+      .groupBy('entry.asset')
+      .addGroupBy('entry.kind')
+      .getRawMany<{ asset: number; kind: number; total: string }>();
+
+    const balances = await this.balanceRepository.findBy({
+      userId: PLATFORM_ACCOUNT_ID,
+    });
+
+    return ALL_ASSETS.map(asset => {
+      const of = (kind: StakeLedgerKind) =>
+        this.toBigInt(
+          rows.find(r => Number(r.asset) === asset && Number(r.kind) === kind)
+            ?.total ?? '0',
+        );
+      const claimable = BigInt(
+        balances.find(b => b.asset === asset)?.available ?? 0,
+      );
+      return {
+        asset,
+        symbol: STAKE_ASSET_SYMBOLS[asset],
+        accrued: of(StakeLedgerKind.Fee).toString(),
+        // FeeSweep amounts are stored negative; report the magnitude.
+        swept: (-of(StakeLedgerKind.FeeSweep)).toString(),
+        claimable: claimable.toString(),
+      };
+    });
   }
 
   // ---- match funding -------------------------------------------------------

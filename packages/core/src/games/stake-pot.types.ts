@@ -40,6 +40,12 @@ export enum StakeLedgerKind {
   WithdrawalRequest = 6,
   /** Withdrawal failed terminally: the debit is given back. */
   WithdrawalRefund = 7,
+  /**
+   * Platform fees moved out of the pot by the owner, recorded from the
+   * contract's `Withdrawn` event. The owner sweeps on-chain without going
+   * through the server, so the ledger learns about it afterwards.
+   */
+  FeeSweep = 8,
 }
 
 /** Lifecycle of a withdrawal request. Stored server-side as smallint. */
@@ -63,6 +69,18 @@ export type StakePotHistoryEntry = {
   /** Set for deposits. */
   txHash: string | null;
   createdAt: string;
+};
+
+/** GET /stake-pot/admin/fees response. All amounts in base units. */
+export type StakePotFeeSummary = {
+  asset: StakeAsset;
+  symbol: string;
+  /** Taken from settled matches, all time. */
+  accrued: string;
+  /** Already swept out by the owner. */
+  swept: string;
+  /** Sitting in the pot, waiting to be swept. */
+  claimable: string;
 };
 
 /** POST /stake-pot/withdraw response. */

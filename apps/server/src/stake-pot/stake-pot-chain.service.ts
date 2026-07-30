@@ -25,6 +25,17 @@ const NATIVE_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
 
 const MAX_UINT256 = 2n ** 256n - 1n;
 
+/** A decoded `Withdrawn` event. */
+export type PotWithdrawal = {
+  /** The uuid form, or null when the id was not minted by this server. */
+  withdrawalId: string | null;
+  to: Address;
+  asset: StakeAsset;
+  value: bigint;
+  txHash: Hex;
+  logIndex: number;
+};
+
 /** A decoded `Staked` event, resolved to the platform's own asset enum. */
 export type StakedDeposit = {
   beneficiary: Address;
@@ -123,6 +134,25 @@ export class StakePotChainService {
     return padHex(`0x${id.replace(/-/g, '')}`, { size: 32 });
   }
 
+  /**
+   * Inverse of `withdrawalIdToBytes32`, or null when the id cannot have come
+   * from a withdrawal row - the owner picks its own ids when sweeping directly.
+   */
+  bytes32ToWithdrawalId(value: Hex): string | null {
+    const hex = value.slice(2).toLowerCase();
+    if (hex.length !== 64 || !/^0{32}[0-9a-f]{32}$/.test(hex)) {
+      return null;
+    }
+    const uuid = hex.slice(32);
+    return [
+      uuid.slice(0, 8),
+      uuid.slice(8, 12),
+      uuid.slice(12, 16),
+      uuid.slice(16, 20),
+      uuid.slice(20),
+    ].join('-');
+  }
+
   // ---- reads ---------------------------------------------------------------
 
   getLatestBlock(): Promise<bigint> {
@@ -164,6 +194,50 @@ export class StakePotChainService {
       });
     }
     return deposits;
+  }
+
+  /**
+   * Decoded `Withdrawn` events in an inclusive block range. Covers both the
+   * operator's payouts and the owner's direct sweeps - they are the same event.
+   */
+  async getWithdrawals(
+    fromBlock: bigint,
+    toBlock: bigint,
+  ): Promise<PotWithdrawal[]> {
+    const logs = await this.publicClient.getContractEvents({
+      address: this.pot,
+      abi: STAKE_POT_ABI,
+      eventName: 'Withdrawn',
+      fromBlock,
+      toBlock,
+    });
+
+    const withdrawals: PotWithdrawal[] = [];
+    for (const log of logs) {
+      const { withdrawalId, to, token, value } = log.args;
+      if (!withdrawalId || !to || !token || value === undefined) {
+        this.logger.warn(
+          `Skipping malformed Withdrawn log in ${log.transactionHash}`,
+        );
+        continue;
+      }
+      const asset = this.assetByAddress.get(token.toLowerCase());
+      if (asset === undefined) {
+        this.logger.warn(
+          `Withdrawn event for unknown token ${token} in ${log.transactionHash}`,
+        );
+        continue;
+      }
+      withdrawals.push({
+        withdrawalId: this.bytes32ToWithdrawalId(withdrawalId),
+        to,
+        asset,
+        value,
+        txHash: log.transactionHash,
+        logIndex: log.logIndex,
+      });
+    }
+    return withdrawals;
   }
 
   /** The sweeper's answer to "did my transaction land before I crashed?" -

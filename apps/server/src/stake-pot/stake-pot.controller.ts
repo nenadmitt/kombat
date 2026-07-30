@@ -14,6 +14,7 @@ import {
 import {
   STAKE_ASSET_SYMBOLS,
   type StakePotBalances,
+  type StakePotFeeSummary,
   type StakePotHistoryEntry,
   type StakePotWithdrawalResponse,
 } from '@gaming-platform/core';
@@ -118,6 +119,18 @@ export class StakePotController {
     return (
       this.reconciliationJob.snapshot ?? (await this.reconciliationJob.run())
     );
+  }
+
+  /**
+   * Platform fees: taken, swept out, and still claimable. The owner sweeps with
+   * `ownerWithdrawTo` from the cold key; the watcher records it, so `swept`
+   * reflects what has actually left the pot.
+   */
+  @Get('admin/fees')
+  @UseGuards(AdminTokenGuard)
+  async getFees(): Promise<StakePotFeeSummary[]> {
+    this.assertEnabled();
+    return this.stakePotService.getFeeSummary();
   }
 
   /** Where deposits should be sent, and in which assets. */

@@ -1,7 +1,7 @@
 import { Column, Entity, PrimaryColumn, UpdateDateColumn } from 'typeorm';
 
 /**
- * How far the DepositWatcher has scanned for `Staked` events. Single row, so a
+ * How far the PotEventWatcher has scanned the pot's events. Single row, so a
  * plain integer PK rather than the shared uuid BaseEntity.
  *
  * A stale cursor is safe (credits are idempotent); one ahead of reality would

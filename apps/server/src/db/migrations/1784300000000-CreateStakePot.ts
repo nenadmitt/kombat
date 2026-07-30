@@ -2,7 +2,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 
 /**
  * Stake pot ledger: pooled balances, the append-only journal, the withdrawal
- * queue, and the deposit watcher's block cursor.
+ * queue, and the event watcher's block cursor.
  *
  * Two indexes carry correctness, not performance:
  * `UQ_stake_ledger_deposit_tx` is partial so it constrains deposits only (match
@@ -97,7 +97,7 @@ export class CreateStakePot1784300000000 implements MigrationInterface {
       )
     `);
 
-    // The deposit watcher resolves a beneficiary address to its owner once per
+    // The event watcher resolves a beneficiary address to its owner once per
     // event, case-insensitively (decoded log args are not reliably
     // checksummed). The plain unique index on address can't serve that.
     await queryRunner.query(
