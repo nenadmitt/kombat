@@ -1,19 +1,10 @@
-# Build context hygiene for apps/server/Dockerfile (context = repo root).
+# The image builds from the repo root; keep local artefacts out of the context
+# so they cannot leak into a layer (a dev .next is ~300MB on its own).
 .git
 **/node_modules
+**/.next
 **/dist
-**/.turbo
-.turbo
-
-# Not part of the server image
-apps/mobile
-apps/evm-contracts
-prompts
-bugs-and-improvements
-bugs-and-inconsistencies
-*.md
-
-# Never bake secrets or local config into images
 **/.env
 **/.env.*
-**/*.log
+apps/mobile
+apps/web/screenshots
