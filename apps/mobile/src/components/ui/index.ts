@@ -12,6 +12,10 @@ export {
 } from './ConfirmSheet';
 export { default as Screen } from './Screen';
 export { default as SectionLabel } from './SectionLabel';
+export {
+  default as SegmentedTabs,
+  type SegmentedTab,
+} from './SegmentedTabs';
 export { default as StatTile } from './StatTile';
 export { default as Stepper } from './Stepper';
 export { default as Toggle } from './Toggle';

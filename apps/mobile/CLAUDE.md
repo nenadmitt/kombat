@@ -1,5 +1,48 @@
 # apps/mobile — conventions
 
+## 0. **ALWAYS USE THE SPACING SCALE. ALWAYS VERIFY IT.**
+
+# **NO RAW PIXEL NUMBERS FOR SPACING. EVER.**
+
+Every `padding*`, `margin*`, and `gap` **MUST** be a token from `spacing` in
+`src/theme/colors.ts`, and every `borderRadius` **MUST** be a token from
+`radius`. There is no such thing as "close enough": `7`, `9`, `11`, `13`, `44`
+are all **WRONG**, even when a design file says so.
+
+```
+spacing   xxs 4   xs 8   sm 12   md 16   lg 24   xl 32   xxl 48
+radius    sm 12   md 16   lg 20   xl 28   pill 100
+```
+
+**When a design gives odd values, round to the nearest token.** Designs are
+drawn at arbitrary pixel values; this app is built on a scale. Translating the
+design means mapping onto the scale, not transcribing numbers out of it.
+
+**Rules that keep being broken:**
+
+- **One block gap per screen.** `Screen` already puts `spacing.md` between
+  every top-level block. **NEVER** add `paddingTop`/`marginTop` on top of it -
+  that silently makes one gap 24 where every other is 16, and it is instantly
+  visible.
+- **Equal inset on all four sides.** If a card pads `spacing.md` horizontally,
+  it pads `spacing.md` vertically. **NEVER** set only `paddingVertical` on a
+  component whose horizontal padding comes from `Card`.
+- **Sibling elements get identical spacing.** Cards in a row, rows in a list,
+  icons in a tile - same value, from the same token, every time.
+- **Repeated fixed sizes get a named constant** (`const ICON_TILE = 40`), not
+  the number typed in three places at three different values (34/40/42).
+
+**VERIFY BEFORE SAYING IT IS DONE.** Not by eye, and not by "it typechecks":
+
+```bash
+# Must return NOTHING for any file you touched.
+grep -nE "(padding|margin|gap)[A-Za-z]*: *[0-9]" src/path/to/File.tsx
+grep -nE "borderRadius: *[0-9]" src/path/to/File.tsx
+```
+
+Then screenshot the screen and check the gaps actually match. A spacing bug
+always ships if it is only checked by reading the diff.
+
 1. **Design tasks**: use the Figma MCP tools to look up the actual design
    reference before implementing a screen or component. Always reuse the
    existing color tokens in `src/theme/colors.ts` — don't introduce new
@@ -8,10 +51,12 @@
 
 2. **Icons**: never use emoji as icons. Always use the shared `Icon` component
    at `src/components/Icon.tsx` (`<Icon type="user" />`) instead of importing
-   from `lucide-react-native` directly. If a screen needs an icon that isn't
-   in `Icon.tsx`'s `ICONS` map yet, add it there (import the `lucide-react-native`
-   icon and register a new `type` name) rather than importing the icon
-   component directly in the screen.
+   from the icon package directly. The set is Hugeicons stroke-rounded
+   (`@hugeicons/core-free-icons` + `@hugeicons/react-native`); duotone-rounded
+   is a Pro style and needs a licence, so `Icon.tsx` is the one file that would
+   change to adopt it. If a screen needs an icon that isn't in `Icon.tsx`'s
+   `ICONS` map yet, add it there (import the Hugeicons icon and register a new
+   `type` name) rather than importing the icon component directly in the screen.
 
 3. **No em-dashes, ever**: never use the em-dash character (`-`, U+2014) in any
    file - code, comments, JSDoc, UI copy, docs, commit messages, anything. Use a

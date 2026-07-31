@@ -17,12 +17,18 @@ type Props = {
   evmAddress: string;
   selected: ChainId;
   onSelect: (chainId: ChainId) => void;
+  /**
+   * `pill` is the compact header trigger; `row` is the full-width card that
+   * heads the wallet tab. Both open the same sheet.
+   */
+  variant?: 'pill' | 'row';
 };
 
 export default function ChainSelector({
   evmAddress,
   selected,
   onSelect,
+  variant = 'pill',
 }: Props) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -51,11 +57,26 @@ export default function ChainSelector({
         onPress={() => setOpen(true)}
         accessibilityRole="button"
         accessibilityLabel="Select network"
-        style={({ pressed }) => [styles.pill, pressed && styles.pressed]}
+        style={({ pressed }) => [
+          variant === 'row' ? styles.row : styles.pill,
+          pressed && styles.pressed,
+        ]}
       >
-        <BrandIcon type={activeChain.icon} size={26} />
-        <Text style={styles.pillText}>{truncateAddress(activeAddress)}</Text>
-        <Icon type="chevron-down" color={colors.textMuted} size={18} />
+        {variant === 'row' ? (
+          <>
+            <View style={styles.rowIcon}>
+              <BrandIcon type={activeChain.icon} size={20} />
+            </View>
+            <Text style={styles.rowName}>{activeChain.network}</Text>
+            <Icon type="chevron-down" color={colors.textMuted} size={16} />
+          </>
+        ) : (
+          <>
+            <BrandIcon type={activeChain.icon} size={26} />
+            <Text style={styles.pillText}>{truncateAddress(activeAddress)}</Text>
+            <Icon type="chevron-down" color={colors.textMuted} size={18} />
+          </>
+        )}
       </Pressable>
 
       <Modal
@@ -145,13 +166,38 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderStrong,
     borderRadius: radius.pill,
-    paddingLeft: 5,
+    paddingLeft: spacing.xxs,
     paddingRight: spacing.sm,
-    paddingVertical: 5,
+    paddingVertical: spacing.xxs,
   },
   pillText: {
     fontFamily: mono.semiBold,
     fontSize: 15,
+    color: colors.textPrimary,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    borderRadius: radius.md,
+    padding: spacing.xs,
+    paddingRight: spacing.sm,
+  },
+  rowIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowName: {
+    ...type.body,
+    fontFamily: type.button.fontFamily,
+    flex: 1,
     color: colors.textPrimary,
   },
   pressed: {
@@ -181,7 +227,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: 38,
     height: 4,
-    borderRadius: 3,
+    borderRadius: radius.pill,
     backgroundColor: colors.borderStrong,
   },
   title: {
@@ -218,7 +264,7 @@ const styles = StyleSheet.create({
   },
   chainMid: {
     flex: 1,
-    gap: 2,
+    gap: spacing.xxs,
   },
   chainNameRow: {
     flexDirection: 'row',
@@ -237,8 +283,8 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     backgroundColor: 'rgba(255,255,255,0.06)',
     borderRadius: radius.pill,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xxs,
     overflow: 'hidden',
   },
   chainAddress: {

@@ -71,7 +71,11 @@ export default function StakePotModal({
       setAssetPickerOpen(false);
       setBusy(false);
       setError(null);
+      return;
     }
+    // The sheet is reused across openings, so reset the picker rather than
+    // reopening on whatever was chosen last time.
+    setAsset(StakeAsset.Usdc);
   }, [mode]);
 
   /** The ceiling in base units: wallet balance when adding, pot when taking out. */
@@ -347,9 +351,9 @@ const styles = StyleSheet.create({
   tokenPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.xs,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
+    paddingVertical: spacing.xs,
     borderRadius: radius.pill,
     backgroundColor: colors.surfaceMuted,
   },
@@ -364,7 +368,7 @@ const styles = StyleSheet.create({
   },
   fractionBtn: {
     paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
+    paddingVertical: spacing.xxs,
     borderRadius: radius.pill,
     backgroundColor: colors.surfaceMuted,
   },
@@ -373,7 +377,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   tokenList: {
-    gap: 2,
+    gap: spacing.xxs,
   },
   tokenRow: {
     flexDirection: 'row',
