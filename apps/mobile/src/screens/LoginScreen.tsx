@@ -116,7 +116,7 @@ export default function LoginScreen(_props: Props) {
     <SafeAreaView style={styles.screen}>
       <View style={styles.content}>
         <View style={styles.logoStack}>
-          <LogoMark size={96} />
+          <LogoMark size={44} />
           <Text style={styles.wordmark}>kombat</Text>
         </View>
 
@@ -339,14 +339,17 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xxl,
     paddingBottom: spacing.xl,
   },
+  // The web's lockup ratios: wordmark 0.88x the mark's height, gap 0.25x.
   logoStack: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    justifyContent: 'center',
+    gap: spacing.sm,
   },
   wordmark: {
     fontFamily: brand.bold,
-    fontSize: 40,
-    letterSpacing: -1.8,
+    fontSize: 39,
+    letterSpacing: -1.75,
     color: colors.textPrimary,
   },
   footer: {
