@@ -71,7 +71,7 @@
 .hero {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr 500px;
+  grid-template-columns: minmax(0, 1fr) 500px;
   gap: 60px;
   align-items: center;
   padding: 74px 60px 80px;
@@ -177,7 +177,7 @@
 
 .howGrid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 24px;
   margin-top: 44px;
 }
@@ -230,7 +230,7 @@
 
 .pot {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 70px;
   align-items: center;
   padding: 80px 60px;
@@ -292,7 +292,7 @@
 
 .trustGrid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 20px;
 }
 
@@ -318,7 +318,7 @@
 
 .invite {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 70px;
   align-items: center;
   padding: 80px 60px;
@@ -514,7 +514,7 @@
 .applyGrid {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr 470px;
+  grid-template-columns: minmax(0, 1fr) 470px;
   gap: 60px;
   align-items: center;
 }
@@ -585,7 +585,7 @@
   .pot,
   .invite,
   .applyGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .hero,
@@ -605,6 +605,135 @@
 
   .howGrid,
   .trustGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .nav {
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 16px 20px;
+  }
+
+  /* Full-width rows rather than a burger: no JS, nothing hidden. */
+  .navLinks {
+    order: 3;
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 14px 16px;
+  }
+
+  .navLink {
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+
+  .navCta {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .hero,
+  .how,
+  .pot,
+  .trust,
+  .invite,
+  .apply,
+  .footer {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .hero {
+    gap: 40px;
+    padding-top: 44px;
+    padding-bottom: 52px;
+  }
+
+  .heroTitle {
+    font-size: 40px;
+  }
+
+  .heroStats {
+    flex-wrap: wrap;
+    gap: 22px;
+    margin-top: 32px;
+  }
+
+  .heroPhoneBack {
+    --phone-w: 150px;
+  }
+
+  .heroPhoneFront {
+    --phone-w: 168px;
+    margin-left: -22px;
+  }
+
+  .how,
+  .trust {
+    padding-top: 52px;
+    padding-bottom: 56px;
+  }
+
+  .pot,
+  .invite,
+  .apply {
+    padding-top: 56px;
+    padding-bottom: 56px;
+  }
+
+  .pot,
+  .invite {
+    gap: 44px;
+  }
+
+  .sectionTitle,
+  .applyTitle {
+    font-size: 28px;
+  }
+
+  .howCard,
+  .trustCard,
+  .referralCard {
+    padding: 20px;
+  }
+
+  .referralCodeRow {
+    flex-direction: column;
+  }
+
+  .referralCode {
+    padding: 18px;
+    font-size: 21px;
+  }
+
+  .shareBtn {
+    justify-content: center;
+    padding: 15px 22px;
+  }
+
+  .referralStats {
+    gap: 10px;
+  }
+
+  .referralStat {
+    padding: 15px;
+  }
+
+  .referralStatValue {
+    font-size: 21px;
+  }
+
+  .footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 18px;
+  }
+
+  .footerLinks {
+    flex-wrap: wrap;
+    gap: 18px;
   }
 }

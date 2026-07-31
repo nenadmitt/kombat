@@ -162,3 +162,19 @@
     padding: 30px 28px 60px;
   }
 }
+
+@media (max-width: 640px) {
+  .nav {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px 20px;
+  }
+
+  .main {
+    padding: 24px 20px 48px;
+  }
+
+  .title {
+    font-size: 26px;
+  }
+}

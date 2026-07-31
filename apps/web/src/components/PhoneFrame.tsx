@@ -29,11 +29,20 @@ export function PhoneFrame({
         variant === "front" ? styles.front : styles.back,
         className ?? "",
       ].join(" ")}
-      style={{ width, padding: pad, borderRadius: outerRadius }}
+      style={
+        {
+          // Width as a custom property so a media query can shrink the phone;
+          // the screen then follows by ratio rather than a fixed height.
+          "--phone-w": `${width}px`,
+          "--phone-ratio": `${width - pad * 2} / ${height}`,
+          padding: pad,
+          borderRadius: outerRadius,
+        } as React.CSSProperties
+      }
     >
       <div
         className={styles.screen}
-        style={{ height, borderRadius: outerRadius - 7 }}
+        style={{ borderRadius: outerRadius - 7 }}
       >
         {src ? (
           <Image src={src} alt={alt} fill sizes={`${width}px`} className={styles.img} />

@@ -116,7 +116,7 @@
 
 .grid {
   display: grid;
-  grid-template-columns: 1fr 400px;
+  grid-template-columns: minmax(0, 1fr) 400px;
   gap: 36px;
   padding: 44px 60px 70px;
   align-items: start;
@@ -958,7 +958,72 @@
   }
 
   .grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     padding: 36px 28px 60px;
+  }
+}
+
+@media (max-width: 640px) {
+  .nav {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px 20px;
+  }
+
+  .navChips {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .grid {
+    gap: 28px;
+    padding: 28px 20px 48px;
+  }
+
+  .title {
+    font-size: 26px;
+  }
+
+  .tabs {
+    gap: 18px;
+  }
+
+  .panel {
+    padding: 20px;
+  }
+
+  .amountBox,
+  .destBox {
+    padding: 16px;
+  }
+
+  .amountBoxHead {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 7px;
+  }
+
+  .amountRow {
+    gap: 12px;
+  }
+
+  .amountValue {
+    font-size: 34px;
+  }
+
+  .caret {
+    height: 26px;
+  }
+
+  .percentRow {
+    gap: 7px;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .cancelBtn {
+    padding: 16px;
   }
 }
