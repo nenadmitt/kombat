@@ -271,13 +271,6 @@ export default function LoginScreen(_props: Props) {
                 {errorMessage ? (
                   <Text style={styles.error}>{errorMessage}</Text>
                 ) : null}
-
-                <View style={styles.assuranceRow}>
-                  <Icon type="lock" color={colors.textFaint} size={14} />
-                  <Text style={styles.assurance}>
-                    We never share your address.
-                  </Text>
-                </View>
               </View>
             )}
 
@@ -538,16 +531,6 @@ const styles = StyleSheet.create({
     fontFamily: mono.medium,
     fontSize: 16,
     color: colors.textPrimary,
-  },
-  assuranceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-  },
-  assurance: {
-    ...type.caption,
-    color: colors.textFaint,
   },
   codeRow: {
     flexDirection: 'row',
