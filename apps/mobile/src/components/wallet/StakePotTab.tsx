@@ -4,7 +4,7 @@ import {
   formatStakeAmount,
   type StakePotBalances,
 } from '@gaming-platform/core';
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { formatUnits } from 'viem';
 
 import { colors, radius, spacing } from '../../theme/colors';
@@ -65,80 +65,85 @@ export default function StakePotTab({
   );
 
   return (
-    <>
-      <View style={styles.hero}>
-        <Glow
-          size={210}
-          color={colors.gold}
-          opacity={0.22}
-          edge={0.66}
-          style={styles.heroGlow}
-        />
-        <View style={styles.heroLeft}>
-          <View style={styles.heroLabelRow}>
-            <Icon type="shield" color={colors.gold} size={13} />
-            <Text style={styles.heroLabel}>Stake pot</Text>
-          </View>
-          <Text style={styles.heroValue}>
-            {whole}
-            <Text style={styles.heroCents}>.{cents}</Text>
-          </Text>
-          {lockedUsd > 0 ? (
-            <Text style={styles.heroNote}>
-              ${lockedUsd.toFixed(2)} in play right now
+    <View style={styles.tab}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollBody}
+      >
+          <View style={styles.hero}>
+          <Glow
+            size={210}
+            color={colors.gold}
+            opacity={0.22}
+            edge={0.66}
+            style={styles.heroGlow}
+          />
+          <View style={styles.heroLeft}>
+            <View style={styles.heroLabelRow}>
+              <Icon type="shield" color={colors.gold} size={13} />
+              <Text style={styles.heroLabel}>Stake pot</Text>
+            </View>
+            <Text style={styles.heroValue}>
+              {whole}
+              <Text style={styles.heroCents}>.{cents}</Text>
             </Text>
-          ) : null}
-        </View>
-        <CoinJar width={132} />
-      </View>
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <View style={styles.info}>
-        <Icon type="help" color={colors.gold} size={15} />
-        <Text style={styles.infoText}>
-          To play staked games you have to move funds into the pot. Deposit once
-          - after that, entering a match costs no transaction at all.
-        </Text>
-      </View>
-
-      <View>
-        {rows.map((row, index) => (
-          <View
-            key={row.asset}
-            style={[styles.row, index < rows.length - 1 && styles.rowRule]}
-          >
-            {row.token?.brand ? (
-              <View style={styles.rowIcon}>
-                <BrandIcon type={row.token.brand} size={34} />
-              </View>
-            ) : (
-              <View style={styles.rowGlyphCircle}>
-                <Text style={styles.rowGlyph}>{row.token?.glyph ?? '◆'}</Text>
-              </View>
-            )}
-            <View style={styles.rowMid}>
-              <Text style={styles.rowSymbol}>{row.token?.symbol}</Text>
-              <Text style={styles.rowName}>{row.token?.name}</Text>
-            </View>
-            <View style={styles.rowRight}>
-              <Text style={styles.rowAmount}>
-                {formatStakeAmount(row.available.toString(), row.asset)}
+            {lockedUsd > 0 ? (
+              <Text style={styles.heroNote}>
+                ${lockedUsd.toFixed(2)} in play right now
               </Text>
-              {row.locked > 0n ? (
-                <Text style={styles.rowNote}>
-                  {formatStakeAmount(row.locked.toString(), row.asset)} in play
-                </Text>
-              ) : row.pending > 0n ? (
-                <Text style={styles.rowNote}>
-                  {formatStakeAmount(row.pending.toString(), row.asset)}{' '}
-                  withdrawing
-                </Text>
-              ) : null}
-            </View>
+            ) : null}
           </View>
-        ))}
-      </View>
+          <CoinJar width={132} />
+        </View>
+
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        <View style={styles.info}>
+          <Icon type="help" color={colors.gold} size={15} />
+          <Text style={styles.infoText}>
+            To play staked games you have to move funds into the pot. Deposit once
+            - after that, entering a match costs no transaction at all.
+          </Text>
+        </View>
+
+        <View>
+          {rows.map((row, index) => (
+            <View
+              key={row.asset}
+              style={[styles.row, index < rows.length - 1 && styles.rowRule]}
+            >
+              {row.token?.brand ? (
+                <View style={styles.rowIcon}>
+                  <BrandIcon type={row.token.brand} size={34} />
+                </View>
+              ) : (
+                <View style={styles.rowGlyphCircle}>
+                  <Text style={styles.rowGlyph}>{row.token?.glyph ?? '◆'}</Text>
+                </View>
+              )}
+              <View style={styles.rowMid}>
+                <Text style={styles.rowSymbol}>{row.token?.symbol}</Text>
+                <Text style={styles.rowName}>{row.token?.name}</Text>
+              </View>
+              <View style={styles.rowRight}>
+                <Text style={styles.rowAmount}>
+                  {formatStakeAmount(row.available.toString(), row.asset)}
+                </Text>
+                {row.locked > 0n ? (
+                  <Text style={styles.rowNote}>
+                    {formatStakeAmount(row.locked.toString(), row.asset)} in play
+                  </Text>
+                ) : row.pending > 0n ? (
+                  <Text style={styles.rowNote}>
+                    {formatStakeAmount(row.pending.toString(), row.asset)}{' '}
+                    withdrawing
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+            ))}
+          </View>
+      </ScrollView>
 
       <View style={styles.actions}>
         <Button
@@ -157,7 +162,7 @@ export default function StakePotTab({
           style={styles.action}
         />
       </View>
-    </>
+    </View>
   );
 }
 
@@ -183,6 +188,13 @@ function splitUsd(total: number): [string, string] {
 }
 
 const styles = StyleSheet.create({
+  tab: {
+    flex: 1,
+  },
+  scrollBody: {
+    gap: spacing.md,
+    paddingBottom: spacing.md,
+  },
   hero: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -298,7 +310,7 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginTop: 'auto',
+    paddingTop: spacing.sm,
   },
   addAction: {
     flex: 1.4,

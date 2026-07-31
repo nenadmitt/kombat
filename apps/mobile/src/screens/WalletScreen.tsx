@@ -6,6 +6,7 @@ import { type Address, type Hex } from 'viem';
 
 import Icon from '../components/Icon';
 import { Screen, SectionLabel, SegmentedTabs, type SegmentedTab } from '../components/ui';
+import ChainSelector from '../components/wallet/ChainSelector';
 import DepositModal from '../components/wallet/DepositModal';
 import ReceiveModal from '../components/wallet/ReceiveModal';
 import StakePotModal, {
@@ -150,6 +151,16 @@ export default function WalletScreen() {
         {potUnavailable ? null : (
           <SegmentedTabs tabs={TABS} value={activeTab} onChange={setTab} />
         )}
+        {/* Balances - wallet and pot alike - are per network, so the selector
+            heads both tabs rather than living inside one of them. */}
+        {wallet ? (
+          <ChainSelector
+            variant="row"
+            evmAddress={wallet.address}
+            selected={chainId}
+            onSelect={setChainId}
+          />
+        ) : null}
       </View>
 
       {activeTab === 'pot' ? (
@@ -166,7 +177,7 @@ export default function WalletScreen() {
           ) : (
             <Text style={styles.unavailable}>
               {address
-                ? `The stake pot is not available on ${activeChain.network}. Switch network on the Wallet tab to use it.`
+                ? `The stake pot is not available on ${activeChain.network}. Pick another network above to use it.`
                 : 'Your wallet is still being set up. The stake pot opens once it is ready.'}
             </Text>
           )}
@@ -181,7 +192,6 @@ export default function WalletScreen() {
             <WalletAssetsTab
               address={wallet.address}
               chainId={chainId}
-              onSelectChain={setChainId}
               balances={balances}
               loading={isLoading}
               onRefresh={canRead && !isLoading && !coolingDown ? handleRefresh : null}
@@ -340,11 +350,10 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   potBody: {
+    // StakePotTab scrolls its own body and pins its CTAs, so this is just the
+    // frame. The tab bar's raised LOBBY action overhangs content by 42px.
     flex: 1,
-    gap: spacing.md,
     paddingTop: spacing.xs,
-    // The tab bar's raised LOBBY action overhangs the content by 42px, and the
-    // pot's CTAs sit on the bottom edge - without this they end up under it.
     paddingBottom: 44,
   },
   unavailable: {

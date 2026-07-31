@@ -12,7 +12,6 @@ import { CHAIN_TOKENS, supportsBalances, type TokenSymbol } from '../../wallet/t
 import BrandIcon from '../BrandIcon';
 import Icon, { type IconName } from '../Icon';
 import { Card } from '../ui';
-import ChainSelector from './ChainSelector';
 
 const ACTIONS = [
   { key: 'receive', label: 'Receive', icon: 'arrow-down' as IconName },
@@ -30,7 +29,6 @@ const STAKE_ASSET_BY_SYMBOL = new Map<TokenSymbol, StakeAsset>(
 type Props = {
   address: string;
   chainId: ChainId;
-  onSelectChain: (chainId: ChainId) => void;
   balances: Partial<Record<TokenSymbol, TokenBalance>>;
   loading: boolean;
   /** Manual refresh is null while it is on cooldown or unavailable. */
@@ -50,7 +48,6 @@ type Props = {
 export default function WalletAssetsTab({
   address,
   chainId,
-  onSelectChain,
   balances,
   loading,
   onRefresh,
@@ -63,13 +60,6 @@ export default function WalletAssetsTab({
 
   return (
     <>
-      <ChainSelector
-        variant="row"
-        evmAddress={address}
-        selected={chainId}
-        onSelect={onSelectChain}
-      />
-
       <Card style={styles.addressCard}>
         <View style={styles.addressHead}>
           <View style={styles.addressLabelRow}>
