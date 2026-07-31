@@ -8,6 +8,7 @@ import { AppSettingEntity } from './entities/app-setting.entity';
 import { DbService } from './db.service';
 import { EmailLoginTokenEntity } from './entities/email-login-token.entity';
 import { GameRoomEntity } from './entities/game-room.entity';
+import { RefreshTokenEntity } from './entities/refresh-token.entity';
 import { StakeEscrowEntity } from './entities/stake-escrow.entity';
 import { UserEntity } from './entities/user.entity';
 import { WalletEntity } from './entities/wallet.entity';
@@ -41,6 +42,7 @@ import { StakePotWithdrawalEntity } from '../stake-pot/entities/stake-pot-withdr
         entities: [
           UserEntity,
           EmailLoginTokenEntity,
+          RefreshTokenEntity,
           WalletEntity,
           GameRoomEntity,
           StakeEscrowEntity,
@@ -66,6 +68,7 @@ import { StakePotWithdrawalEntity } from '../stake-pot/entities/stake-pot-withdr
     TypeOrmModule.forFeature([
       UserEntity,
       EmailLoginTokenEntity,
+      RefreshTokenEntity,
       WalletEntity,
       GameRoomEntity,
       StakeEscrowEntity,

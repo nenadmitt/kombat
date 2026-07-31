@@ -1,4 +1,5 @@
 import type {
+  AuthSession,
   ExchangeTokenResponse,
   PublicUserProfile,
   UserProfile,
@@ -36,6 +37,12 @@ export type ApiClientOptions = {
   baseUrl: string;
   /** Injected by the consumer — core stays platform-agnostic (no AsyncStorage/Keychain here). */
   getAccessToken?: () => Promise<string | null>;
+  /** The stored refresh token. Without it, an expired access token is fatal. */
+  getRefreshToken?: () => Promise<string | null>;
+  /** Persist a rotated pair. Called before the original request is retried. */
+  onSessionRefreshed?: (session: AuthSession) => Promise<void>;
+  /** The refresh token is gone or rejected: the user has to log in again. */
+  onSessionExpired?: () => Promise<void>;
   /** Request timeout in ms before it's treated as a network failure. Defaults to 10000. */
   timeoutMs?: number;
 };
@@ -86,6 +93,24 @@ export class ApiClient {
       email,
       token,
     });
+  }
+
+  /**
+   * Trade a refresh token for a new pair. Callers rarely need this directly -
+   * `request` drives it automatically when an access token has expired.
+   */
+  refreshSession(refreshToken: string): Promise<AuthSession> {
+    return this.request('POST', '/authentication/refresh', { refreshToken });
+  }
+
+  /** Revoke a session server-side. Never throws - logout must always finish. */
+  async logout(refreshToken: string): Promise<void> {
+    try {
+      await this.request('POST', '/authentication/logout', { refreshToken });
+    } catch {
+      // The local session is being cleared regardless; a failed revoke just
+      // leaves a row that expires on its own.
+    }
   }
 
   createWallet(network: WalletNetwork): Promise<CreateWalletResponse> {
@@ -301,6 +326,16 @@ export class ApiClient {
     return this.request('GET', `/games/rooms/${roomId}/state`, undefined, true);
   }
 
+  /**
+   * In-flight refresh, shared by every caller that hits a 401 at once.
+   *
+   * On a cold start half a dozen screens fire at the same moment; without this
+   * they would each spend the refresh token, and rotation means only the first
+   * would succeed - the rest would look like a stolen token and log the user
+   * out. One refresh, everyone awaits it.
+   */
+  private refreshInFlight: Promise<boolean> | null = null;
+
   private async request<T>(
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
     path: string,
@@ -308,6 +343,8 @@ export class ApiClient {
     authenticated = false,
     /** Probe endpoints (`/status`) live outside the /api/v1 prefix. */
     versioned = true,
+    /** Set on the one retry after a refresh, so a failure can't loop. */
+    isRetry = false,
   ): Promise<T> {
     const headers: Record<string, string> = {};
     if (body !== undefined) {
@@ -357,6 +394,25 @@ export class ApiClient {
     const data: unknown = isJson ? await response.json() : undefined;
 
     if (!response.ok) {
+      // An expired access token is recoverable: rotate the session once and
+      // replay. `isRetry` bounds it to a single attempt, so a server that 401s
+      // for any other reason fails instead of looping.
+      if (
+        response.status === 401 &&
+        authenticated &&
+        !isRetry &&
+        (await this.refreshSessionOnce())
+      ) {
+        return this.request<T>(
+          method,
+          path,
+          body,
+          authenticated,
+          versioned,
+          true,
+        );
+      }
+
       const errorBody =
         data && typeof data === 'object'
           ? (data as { message?: unknown; error?: unknown; code?: unknown })
@@ -371,5 +427,38 @@ export class ApiClient {
     }
 
     return data as T;
+  }
+
+  /**
+   * Rotate the session, coalescing concurrent callers onto one attempt.
+   * Resolves true when a fresh access token is stored and the caller should
+   * retry, false when the user has to log in again.
+   */
+  private refreshSessionOnce(): Promise<boolean> {
+    this.refreshInFlight ??= this.doRefresh().finally(() => {
+      this.refreshInFlight = null;
+    });
+    return this.refreshInFlight;
+  }
+
+  private async doRefresh(): Promise<boolean> {
+    const refreshToken = await this.options.getRefreshToken?.();
+    if (!refreshToken) {
+      await this.options.onSessionExpired?.();
+      return false;
+    }
+    try {
+      const session = await this.refreshSession(refreshToken);
+      await this.options.onSessionRefreshed?.(session);
+      return true;
+    } catch (error) {
+      // A network blip must not sign the user out - only the server actually
+      // rejecting the refresh token means the session is really gone.
+      if (error instanceof ApiError && error.status === 0) {
+        return false;
+      }
+      await this.options.onSessionExpired?.();
+      return false;
+    }
   }
 }

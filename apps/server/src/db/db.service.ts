@@ -11,6 +11,7 @@ import {
 import { AppSettingEntity } from './entities/app-setting.entity';
 import { EmailLoginTokenEntity } from './entities/email-login-token.entity';
 import { GameRoomEntity } from './entities/game-room.entity';
+import { RefreshTokenEntity } from './entities/refresh-token.entity';
 import { StakeEscrowEntity } from './entities/stake-escrow.entity';
 import { UserEntity } from './entities/user.entity';
 import { WalletEntity } from './entities/wallet.entity';
@@ -30,6 +31,8 @@ export class DbService {
     private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(EmailLoginTokenEntity)
     private readonly emailLoginTokenRepository: Repository<EmailLoginTokenEntity>,
+    @InjectRepository(RefreshTokenEntity)
+    private readonly refreshTokenRepository: Repository<RefreshTokenEntity>,
     @InjectRepository(WalletEntity)
     private readonly walletRepository: Repository<WalletEntity>,
     @InjectRepository(GameRoomEntity)
@@ -208,6 +211,45 @@ export class DbService {
     await this.emailLoginTokenRepository.delete({ id });
   }
 
+  // --- refresh tokens -------------------------------------------------------
+
+  createRefreshToken(data: {
+    userId: string;
+    tokenHash: string;
+    expiresAt: Date;
+  }): Promise<RefreshTokenEntity> {
+    return this.refreshTokenRepository.save(
+      this.refreshTokenRepository.create(data),
+    );
+  }
+
+  /** Looked up by hash - the plaintext token is never stored. */
+  findRefreshTokenByHash(tokenHash: string): Promise<RefreshTokenEntity | null> {
+    return this.refreshTokenRepository.findOneBy({ tokenHash });
+  }
+
+  /**
+   * Revoke one token, but only if it is still live. The affected-row count is
+   * what makes rotation safe under concurrency: two requests racing with the
+   * same token both find it live, and only the one that flips `revoked_at`
+   * gets to mint the replacement pair.
+   */
+  async revokeRefreshToken(id: string): Promise<boolean> {
+    const result = await this.refreshTokenRepository.update(
+      { id, revokedAt: IsNull() },
+      { revokedAt: new Date() },
+    );
+    return result.affected === 1;
+  }
+
+  /** Reuse detection and logout-everywhere: drop every live token for a user. */
+  async revokeRefreshTokensForUser(userId: string): Promise<void> {
+    await this.refreshTokenRepository.update(
+      { userId, revokedAt: IsNull() },
+      { revokedAt: new Date() },
+    );
+  }
+
   // --- wallets ---
 
   countWalletsForUser(userId: string): Promise<number> {
@@ -224,7 +266,6 @@ export class DbService {
   createWallet(data: {
     userId: string;
     address: string;
-    key: string;
     type: WalletOrigin;
     network: WalletNetwork;
   }): Promise<WalletEntity> {
@@ -578,6 +619,49 @@ export class DbService {
     >,
   ): Promise<void> {
     await this.stakeEscrowRepository.update({ roomId }, patch);
+  }
+
+  /**
+   * Claim a live escrow for exactly one terminal transition.
+   *
+   * The conditional UPDATE is the serialization point for settlement: a room
+   * can leave Funding/Funded once, so concurrent completions (a forfeit racing
+   * a timeout, a replayed socket event) can neither settle twice nor settle and
+   * void the same room. Returns true only for the caller that won it.
+   */
+  async claimStakeEscrow(
+    roomId: string,
+    next: EscrowStatus.SettlePending | EscrowStatus.VoidPending,
+  ): Promise<boolean> {
+    const result = await this.stakeEscrowRepository.update(
+      {
+        roomId,
+        status: In([EscrowStatus.Funding, EscrowStatus.Funded]),
+      },
+      { status: next },
+    );
+    return result.affected === 1;
+  }
+
+  /**
+   * Hand a claim back after the settlement work failed, so a retry can pick it
+   * up instead of the stake staying locked forever.
+   *
+   * Guarded on the pending statuses: if another worker already carried this
+   * room to Settled/Voided, this must not drag it back to Funded.
+   */
+  async releaseStakeEscrowClaim(
+    roomId: string,
+    previous: EscrowStatus,
+    error: string,
+  ): Promise<void> {
+    await this.stakeEscrowRepository.update(
+      {
+        roomId,
+        status: In([EscrowStatus.SettlePending, EscrowStatus.VoidPending]),
+      },
+      { status: previous, error },
+    );
   }
 
   /** Sweeper scan: escrows awaiting on-chain work, oldest-touched first. */

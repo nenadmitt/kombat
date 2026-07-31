@@ -168,6 +168,12 @@ export class RpsMatchService {
     return this.locked(roomId, async () => {
       const match = await this.require(roomId);
       this.assertParticipant(match, userId);
+      // A finished match stays cached for its whole TTL so both players can
+      // still read the 'over' state - without this guard it stays forfeitable
+      // too, and every replay fires another settlement at the pot.
+      if (match.phase === 'over') {
+        throw new ConflictException('The match is already over.');
+      }
       const opponentId = this.opponentOf(match, userId);
       this.endMatch(match, opponentId, 'forfeit');
       await this.persist(match);

@@ -103,6 +103,35 @@ describe('StakesService (pot mode)', () => {
         const row = escrowRows.get(roomId);
         return row ? { roomId, ...row } : null;
       },
+      // Models the conditional UPDATE, not a stub that always succeeds - the
+      // "only one caller may settle a room" guarantee is exactly what these
+      // tests are here to hold onto.
+      claimStakeEscrow: async (roomId: string, next: EscrowStatus) => {
+        const current = escrowRows.get(roomId);
+        if (
+          !current ||
+          (current.status !== EscrowStatus.Funding &&
+            current.status !== EscrowStatus.Funded)
+        ) {
+          return false;
+        }
+        escrowRows.set(roomId, { ...current, status: next });
+        return true;
+      },
+      releaseStakeEscrowClaim: async (
+        roomId: string,
+        previous: EscrowStatus,
+      ) => {
+        const current = escrowRows.get(roomId);
+        if (
+          !current ||
+          (current.status !== EscrowStatus.SettlePending &&
+            current.status !== EscrowStatus.VoidPending)
+        ) {
+          return;
+        }
+        escrowRows.set(roomId, { ...current, status: previous });
+      },
       completeGameRoom: async (
         roomId: string,
         d: { winnerUserId: string | null; endReason: string },
@@ -175,6 +204,60 @@ describe('StakesService (pot mode)', () => {
       status: EscrowStatus.Settled,
       payout: (pot - fee).toString(),
     });
+  });
+
+  /**
+   * The pot-drain regression. `completeMatch` holds no lock and can be reached
+   * concurrently - a forfeit is replayable for the whole match TTL, and a
+   * timeout enforcer can race one. Settling twice would credit the winner two
+   * full pots out of other players' pooled funds.
+   */
+  it('pays exactly one pot when settlement is driven concurrently', async () => {
+    await fund(CREATOR, STAKE);
+    await fund(JOINER, STAKE);
+    await service.beginFunding(room());
+
+    await Promise.all(
+      Array.from({ length: 8 }, () =>
+        service.completeMatch(ROOM, CREATOR, 'forfeit'),
+      ),
+    );
+
+    const pot = STAKE * 2n;
+    const fee = (pot * 500n) / 10_000n;
+    expect(await stakePotService.availableBalance(CREATOR, ASSET)).toBe(
+      pot - fee,
+    );
+    expect(await stakePotService.availableBalance(JOINER, ASSET)).toBe(0n);
+    expect(escrowRows.get(ROOM)?.status).toBe(EscrowStatus.Settled);
+  });
+
+  /** A settle racing a void must not pay the winner AND refund the stakes. */
+  it('never both settles and releases the same room', async () => {
+    await fund(CREATOR, STAKE);
+    await fund(JOINER, STAKE);
+    await service.beginFunding(room());
+
+    await Promise.all([
+      service.completeMatch(ROOM, CREATOR, 'forfeit'),
+      service.completeMatch(ROOM, null, 'void'),
+    ]);
+
+    const pot = STAKE * 2n;
+    const fee = (pot * 500n) / 10_000n;
+    const creator = await stakePotService.availableBalance(CREATOR, ASSET);
+    const joiner = await stakePotService.availableBalance(JOINER, ASSET);
+    const settled = escrowRows.get(ROOM)?.status === EscrowStatus.Settled;
+
+    // Exactly one outcome happened, and the pot is conserved either way.
+    if (settled) {
+      expect(creator).toBe(pot - fee);
+      expect(joiner).toBe(0n);
+    } else {
+      expect(creator).toBe(STAKE);
+      expect(joiner).toBe(STAKE);
+    }
+    expect(creator + joiner).toBeLessThanOrEqual(pot);
   });
 
   it('releases every hold when a match ends with no winner', async () => {

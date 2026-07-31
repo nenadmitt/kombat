@@ -37,7 +37,9 @@ function KombatMark({ size = 96 }: { size?: number }) {
 }
 
 export default function LoginScreen(_props: Props) {
-  const loginWithToken = useCurrentUserStore(state => state.loginWithToken);
+  const loginWithSession = useCurrentUserStore(
+    state => state.loginWithSession,
+  );
 
   const [sheetVisible, setSheetVisible] = useState(false);
   const [step, setStep] = useState<SheetStep>('methods');
@@ -73,11 +75,11 @@ export default function LoginScreen(_props: Props) {
     setErrorMessage(null);
     setBusy(true);
     try {
-      const { accessToken } = await apiClient.exchangeLoginToken(
+      const session = await apiClient.exchangeLoginToken(
         email.trim(),
         code.trim(),
       );
-      await loginWithToken(accessToken);
+      await loginWithSession(session);
       setSheetVisible(false);
     } catch (err) {
       setErrorMessage(err instanceof ApiError ? err.message : 'Something went wrong');

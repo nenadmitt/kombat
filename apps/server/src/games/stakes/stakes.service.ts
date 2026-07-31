@@ -246,34 +246,101 @@ export class StakesService {
       return;
     }
 
-    if (!winnerUserId) {
-      await this.stakePotService.releaseMatch(roomId);
-      await this.dbService.updateStakeEscrow(roomId, {
-        status: EscrowStatus.Voided,
-        error: null,
-      });
-      return;
+    // Claim the escrow BEFORE touching the ledger. This runs outside any room
+    // lock and can be reached concurrently (a forfeit racing its own retry, a
+    // timeout enforcer racing a forfeit), and the status check above is a plain
+    // read - so the conditional UPDATE is what actually decides who settles.
+    // Without it two callers both credit the winner a full pot.
+    const claimed = await this.dbService.claimStakeEscrow(
+      roomId,
+      winnerUserId ? EscrowStatus.SettlePending : EscrowStatus.VoidPending,
+    );
+    if (!claimed) {
+      return; // Another completion owns this room.
     }
 
-    const settlement = await this.stakePotService.settleMatch(
-      roomId,
-      winnerUserId,
-      participantsOf(room),
-      room.stakeToken,
-      BigInt(room.stakeAmount!),
+    await this.applySettlement(room, winnerUserId, escrow.status);
+  }
+
+  /**
+   * Move the money for a claimed escrow and carry it to its terminal status.
+   *
+   * The caller must already hold the claim. On failure the claim is handed back
+   * so a retry can finish the job - a stake left locked under a *Pending status
+   * is money stranded with no owner.
+   */
+  private async applySettlement(
+    room: GameRoomEntity,
+    winnerUserId: string | null,
+    previousStatus: EscrowStatus,
+  ): Promise<void> {
+    try {
+      if (!winnerUserId) {
+        await this.stakePotService.releaseMatch(room.id);
+        await this.dbService.updateStakeEscrow(room.id, {
+          status: EscrowStatus.Voided,
+          error: null,
+        });
+        return;
+      }
+
+      const settlement = await this.stakePotService.settleMatch(
+        room.id,
+        winnerUserId,
+        participantsOf(room),
+        room.stakeToken!,
+        BigInt(room.stakeAmount!),
+      );
+      await this.dbService.updateStakeEscrow(room.id, {
+        status: EscrowStatus.Settled,
+        // Null when the room was already settled (a replayed completion); leave
+        // the recorded figures alone in that case.
+        ...(settlement
+          ? {
+              payout: settlement.payout.toString(),
+              fee: settlement.fee.toString(),
+            }
+          : {}),
+        error: null,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await this.dbService.releaseStakeEscrowClaim(
+        room.id,
+        previousStatus,
+        message,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Finish a settlement whose owner died mid-flight, leaving the escrow claimed
+   * but not settled. Rare (the claim and the ledger write are milliseconds
+   * apart) and harmless to run against a healthy job: the ledger's per-room
+   * uniqueness means the loser of any race rolls back instead of double-paying.
+   */
+  async recoverSettlement(roomId: string): Promise<void> {
+    const escrow = await this.dbService.findStakeEscrowByRoomId(roomId);
+    if (
+      !escrow ||
+      (escrow.status !== EscrowStatus.SettlePending &&
+        escrow.status !== EscrowStatus.VoidPending)
+    ) {
+      return;
+    }
+    const room = await this.dbService.findGameRoomByIdFresh(roomId);
+    if (!room || room.stakeToken === null) {
+      return;
+    }
+    this.logger.warn(`Recovering stalled settlement for room ${roomId}`);
+    // VoidPending was claimed by a no-winner completion; for SettlePending the
+    // winner is whatever the room recorded when it was completed.
+    await this.applySettlement(
+      room,
+      escrow.status === EscrowStatus.VoidPending ? null : room.winnerUserId,
+      escrow.status,
     );
-    await this.dbService.updateStakeEscrow(roomId, {
-      status: EscrowStatus.Settled,
-      // Null when the room was already settled (a replayed completion); leave
-      // the recorded figures alone in that case.
-      ...(settlement
-        ? {
-            payout: settlement.payout.toString(),
-            fee: settlement.fee.toString(),
-          }
-        : {}),
-      error: null,
-    });
   }
 
   private notifyPlayers(

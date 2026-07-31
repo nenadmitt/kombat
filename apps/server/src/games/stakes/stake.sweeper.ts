@@ -13,13 +13,15 @@ const SWEEP_INTERVAL_MS = 5_000;
 const SWEEP_BATCH_LIMIT = 10;
 
 /**
- * Recovers staked rooms orphaned in Funding.
+ * Recovers staked rooms orphaned mid-transition: Funding (the hold was never
+ * taken) and SettlePending/VoidPending (the escrow was claimed but the money
+ * never moved).
  *
- * Holding a stake is a database transaction that runs inline, so Funding lasts
- * microseconds - except when the process dies between writing the escrow row
- * and taking the hold. Without recovery that room is unplayable forever, and a
- * crash the other way round would leave holds locked with nothing to release
- * them. Cheap insurance for the one window that can strand money.
+ * Both windows are microseconds wide - each is a database transaction that runs
+ * inline - and both only open when the process dies inside one. Without
+ * recovery the first leaves a room unplayable forever and the second leaves
+ * every player's stake locked with nothing to release it. Cheap insurance for
+ * the two windows that can strand money.
  *
  * No staleness window, deliberately: colliding with a live `beginFunding` is
  * harmless because both calls serialize on the same balance rows and the hold
@@ -61,15 +63,25 @@ export class StakeSweeper implements OnModuleInit, OnModuleDestroy {
     this.sweeping = true;
     try {
       const pending = await this.dbService.findStakeEscrowsByStatus(
-        [EscrowStatus.Funding],
+        [
+          EscrowStatus.Funding,
+          // Claimed for settlement but never finished - the owner died between
+          // taking the claim and moving the money, so the stake is still locked.
+          EscrowStatus.SettlePending,
+          EscrowStatus.VoidPending,
+        ],
         SWEEP_BATCH_LIMIT,
       );
       for (const escrow of pending) {
         try {
-          await this.stakesService.recoverFunding(escrow.roomId);
+          if (escrow.status === EscrowStatus.Funding) {
+            await this.stakesService.recoverFunding(escrow.roomId);
+          } else {
+            await this.stakesService.recoverSettlement(escrow.roomId);
+          }
         } catch (error) {
           this.logger.error(
-            `Funding recovery failed for room ${escrow.roomId}`,
+            `Stake recovery failed for room ${escrow.roomId}`,
             error instanceof Error ? error.stack : String(error),
           );
         }

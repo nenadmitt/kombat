@@ -12,9 +12,10 @@ export class ConfigurationService {
   /** TLS to Postgres (managed providers require it; sslmode=require
    *  semantics - encrypted, no CA verification). */
   public readonly POSTGRES_SSL: boolean;
-  public readonly WALLET_ENCRYPTION_KEY: string;
   public readonly JWT_SECRET: string;
   public readonly JWT_EXPIRES_IN: string;
+  /** Lifetime of a refresh token, in days. Rotated on every use. */
+  public readonly REFRESH_TOKEN_EXPIRES_IN_DAYS: number;
   /** Optional — when unset, the cache falls back to in-memory (single instance). */
   public readonly REDIS_URL: string | undefined;
   /** Optional — when unset, EmailService logs tokens instead of sending them. */
@@ -81,11 +82,14 @@ export class ConfigurationService {
     this.POSTGRES_PASSWORD =
       this.configService.getOrThrow('POSTGRES_PASSWORD');
     this.POSTGRES_SSL = this.configService.get('POSTGRES_SSL') === 'true';
-    this.WALLET_ENCRYPTION_KEY = this.configService.getOrThrow(
-      'WALLET_ENCRYPTION_KEY',
-    );
     this.JWT_SECRET = this.configService.getOrThrow('JWT_SECRET');
-    this.JWT_EXPIRES_IN = this.configService.get('JWT_EXPIRES_IN') ?? '30d';
+    // Short by design: the refresh token carries session longevity now, and a
+    // leaked access token stops being useful in days rather than a month.
+    this.JWT_EXPIRES_IN = this.configService.get('JWT_EXPIRES_IN') ?? '2d';
+    this.REFRESH_TOKEN_EXPIRES_IN_DAYS = parseInt(
+      this.configService.get('REFRESH_TOKEN_EXPIRES_IN_DAYS') ?? '30',
+      10,
+    );
     this.REDIS_URL = this.configService.get('REDIS_URL');
     this.RESEND_API_KEY = this.configService.get('RESEND_API_KEY');
     this.ADMIN_TOKEN = this.configService.get('ADMIN_TOKEN');

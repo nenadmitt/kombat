@@ -13,7 +13,6 @@ import { DbService } from '../db';
 import { FaucetService } from '../stake-pot';
 import { WalletNetwork, WalletOrigin } from '../db/types/wallet';
 import { generateEthereumWallet } from './ethereum-wallet.util';
-import { WalletEncryptionService } from './wallet-encryption.service';
 
 const MAX_WALLETS_PER_USER = 1;
 
@@ -23,7 +22,6 @@ export class WalletsService {
 
   constructor(
     private readonly dbService: DbService,
-    private readonly walletEncryptionService: WalletEncryptionService,
     private readonly chainService: ChainService,
     private readonly configurationService: ConfigurationService,
     private readonly faucetService: FaucetService,
@@ -44,12 +42,17 @@ export class WalletsService {
       );
     }
 
-    const { mnemonic, address, privateKey } = generateEthereumWallet();
+    // The mnemonic is handed to the caller once and never persisted: the
+    // server has no path that signs for a player (deposits, transfers and
+    // permits are all signed on the device), so keeping the key would add no
+    // capability and make this database a single point of total loss. The
+    // consequence is deliberate - a player who loses their mnemonic cannot be
+    // recovered by the platform.
+    const { mnemonic, address } = generateEthereumWallet();
 
     await this.dbService.createWallet({
       userId,
       address,
-      key: this.walletEncryptionService.encrypt(privateKey),
       type: WalletOrigin.Platform,
       network,
     });
