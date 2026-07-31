@@ -10,6 +10,7 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "mobile": "npm run start --workspace @gaming-platform/mobile",
+    "web": "npm run dev --workspace @gaming-platform/web",
     "mobile:ios": "npm run ios --workspace @gaming-platform/mobile",
     "mobile:android": "npm run android --workspace @gaming-platform/mobile",
     "server": "npm run start:dev --workspace @gaming-platform/server",

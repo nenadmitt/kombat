@@ -1,0 +1,389 @@
+import Link from "next/link";
+import {
+  ArrowRight,
+  Crosshair,
+  EnvelopeSimple,
+  FileCode,
+  GameController,
+  CaretDown,
+  Key,
+  LockSimple,
+  Percent,
+  Copy,
+  ShareNetwork,
+  ShieldCheck,
+  Trophy,
+  UsersThree,
+  CheckCircle,
+} from "@phosphor-icons/react/dist/ssr";
+import { LogoMark } from "@/components/Logo";
+import { PhoneFrame } from "@/components/PhoneFrame";
+import { GamesCarousel } from "@/components/GamesCarousel";
+import { PotIllustration } from "@/components/PotIllustration";
+import styles from "./page.module.css";
+
+export default function LandingPage() {
+  return (
+    <div className={styles.page}>
+      <header className={styles.nav}>
+        <div className={styles.brand}>
+          <LogoMark size={34} />
+          <span className={styles.brandName}>KOMBAT</span>
+        </div>
+        <nav className={styles.navLinks}>
+          <a href="#games" className={styles.navLink}>Games</a>
+          <a href="#how" className={styles.navLink}>How it works</a>
+          <a href="#pot" className={styles.navLink}>Stake pot</a>
+          <a href="#invite" className={styles.navLink}>Invite &amp; earn</a>
+          <a href="#apply" className={styles.navCta}>
+            Apply for access
+            <ArrowRight size={14} weight="bold" />
+          </a>
+        </nav>
+      </header>
+
+      <section className={styles.hero}>
+        <div className={styles.heroGlow} />
+        <div className={styles.heroCopy}>
+          <h1 className={styles.heroTitle}>
+            Play.
+            <br />
+            Compete.
+            <br />
+            <span className={styles.heroTitleAccent}>Win.</span>
+          </h1>
+          <p className={styles.heroLead}>
+            Skill games for real stakes. Stake once into your pot, match
+            against a real opponent, and the winner takes it. No house, no
+            bots, settled on-chain.
+          </p>
+          <div className={styles.heroForm}>
+            <div className={styles.heroFormRow}>
+              <label className={styles.emailField}>
+                <EnvelopeSimple size={17} className={styles.emailFieldIcon} />
+                <input
+                  type="email"
+                  placeholder="you@email.com"
+                  className={styles.emailInput}
+                />
+              </label>
+              <button type="button" className={styles.heroSubmit}>
+                Request an invite
+              </button>
+            </div>
+            <div className={styles.heroFormNote}>
+              <LockSimple size={13} />
+              Test mode on Ethereum Sepolia — no real funds at risk.
+            </div>
+          </div>
+          <div className={styles.heroStats}>
+            <div>
+              <div className={styles.heroStatValue}>5</div>
+              <div className={styles.heroStatLabel}>GAMES LIVE · MORE SOON</div>
+            </div>
+            <div>
+              <div className={styles.heroStatValue}>1,284</div>
+              <div className={styles.heroStatLabel}>TESTERS PLAYING</div>
+            </div>
+            <div>
+              <div className={`${styles.heroStatValue} ${styles.amber}`}>4</div>
+              <div className={styles.heroStatLabel}>STAKEABLE TOKENS</div>
+            </div>
+          </div>
+        </div>
+        <div className={styles.heroPhones}>
+          <PhoneFrame
+            variant="back"
+            width={236}
+            height={476}
+            src="/screenshots/battleship-game-ss1.png"
+            alt="Kombat match screen"
+            className={styles.heroPhoneBack}
+          />
+          <PhoneFrame
+            variant="front"
+            width={262}
+            height={526}
+            src="/screenshots/battleship-game-ss.png"
+            alt="Kombat fleet deployment screen"
+            className={styles.heroPhoneFront}
+          />
+        </div>
+      </section>
+
+      <section id="how" className={styles.how}>
+        <div className={styles.kicker}>HOW IT WORKS</div>
+        <h2 className={styles.sectionTitle}>
+          Three steps between your wallet and the pot.
+        </h2>
+        <div className={styles.howGrid}>
+          <div className={styles.howCard}>
+            <div className={styles.howCardTop}>
+              <span className={`${styles.howIcon} ${styles.howIconAmber}`}>
+                <ShieldCheck size={20} weight="bold" />
+              </span>
+              <span className={styles.howIndex}>01</span>
+            </div>
+            <div className={styles.howCardTitle}>Stake into your pot</div>
+            <p className={styles.howCardBody}>
+              Send KOMBAT, USDC, USDT or ETH to the match contract once. Your
+              balance becomes in-game credit — no signing per match.
+            </p>
+          </div>
+          <div className={styles.howCard}>
+            <div className={styles.howCardTop}>
+              <span className={styles.howIcon}>
+                <Crosshair size={20} weight="bold" />
+              </span>
+              <span className={styles.howIndex}>02</span>
+            </div>
+            <div className={styles.howCardTitle}>Match an opponent</div>
+            <p className={styles.howCardBody}>
+              Open a room at your stake or join one from the lobby. Both sides
+              lock the same amount before the first move.
+            </p>
+          </div>
+          <div className={styles.howCard}>
+            <div className={styles.howCardTop}>
+              <span className={styles.howIcon}>
+                <Trophy size={20} weight="bold" />
+              </span>
+              <span className={styles.howIndex}>03</span>
+            </div>
+            <div className={styles.howCardTitle}>Winner takes the pot</div>
+            <p className={styles.howCardBody}>
+              The pot settles to the winner&apos;s stake balance the moment the
+              match ends, minus a 5% platform fee. Withdraw any time.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <GamesCarousel />
+
+      <section id="pot" className={styles.pot}>
+        <div>
+          <div className={`${styles.kicker} ${styles.kickerAmber}`}>
+            THE STAKE POT
+          </div>
+          <h2 className={styles.sectionTitle}>Sign once. Play all night.</h2>
+          <p className={styles.sectionLead}>
+            Your pot is a balance held in the match contract. Fund it from any
+            wallet, and every match after that is instant — no transaction, no
+            gas, no waiting on a confirmation between rounds.
+          </p>
+          <div className={styles.checkList}>
+            <div className={styles.checkItem}>
+              <CheckCircle size={18} weight="fill" className={styles.amber} />
+              Stake KOMBAT, USDC, USDT or ETH
+            </div>
+            <div className={styles.checkItem}>
+              <CheckCircle size={18} weight="fill" className={styles.amber} />
+              Winnings land in your pot the instant a match ends
+            </div>
+            <div className={styles.checkItem}>
+              <CheckCircle size={18} weight="fill" className={styles.amber} />
+              Withdraw the unlocked balance whenever you like
+            </div>
+          </div>
+          <Link href="/stake" className={styles.amberCta}>
+            Open the stake page
+            <ArrowRight size={15} weight="bold" />
+          </Link>
+        </div>
+        <div className={styles.potArt}>
+          <div className={styles.potArtGlow} />
+          <PotIllustration />
+        </div>
+      </section>
+
+      <section className={styles.trust}>
+        <div className={styles.trustGrid}>
+          <div className={styles.trustCard}>
+            <FileCode size={22} className={styles.green} />
+            <div className={styles.trustTitle}>Settled on-chain</div>
+            <p className={styles.trustBody}>
+              Every stake and payout is a contract call you can read yourself.
+            </p>
+          </div>
+          <div className={styles.trustCard}>
+            <UsersThree size={22} className={styles.green} />
+            <div className={styles.trustTitle}>Real opponents</div>
+            <p className={styles.trustBody}>
+              Matches are human vs human. Bots only exist in free demo mode.
+            </p>
+          </div>
+          <div className={styles.trustCard}>
+            <Key size={22} className={styles.green} />
+            <div className={styles.trustTitle}>Your keys</div>
+            <p className={styles.trustBody}>
+              Wallet made on device with a recovery phrase only you hold.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="invite" className={styles.invite}>
+        <div>
+          <div className={`${styles.kicker} ${styles.kickerAmber}`}>
+            INVITE &amp; EARN
+          </div>
+          <h2 className={styles.sectionTitle}>
+            Invite players, earn on every match
+          </h2>
+          <p className={styles.sectionLead}>
+            Share your code and 0.1% of the platform fee from every staked
+            match your invites play lands straight in your stake pot — for as
+            long as they keep playing.
+          </p>
+          <div className={styles.checkList}>
+            <div className={styles.checkItem}>
+              <CheckCircle size={18} weight="fill" className={styles.amber} />
+              Credited per settled match — no claim step
+            </div>
+            <div className={styles.checkItem}>
+              <CheckCircle size={18} weight="fill" className={styles.amber} />
+              Paid into your pot, ready to stake again
+            </div>
+            <div className={styles.checkItem}>
+              <CheckCircle size={18} weight="fill" className={styles.amber} />
+              Codes and totals carry over at launch
+            </div>
+          </div>
+          <Link href="/stake?tab=invite" className={styles.amberCta}>
+            See your referral page
+            <ArrowRight size={15} weight="bold" />
+          </Link>
+        </div>
+        <div className={styles.referralCard}>
+          <div className={styles.referralHead}>
+            <div className={styles.panelKicker}>YOUR REFERRAL CODE</div>
+            <span className={styles.feeBadge}>
+              <Percent size={11} weight="fill" />
+              0.1% OF FEES
+            </span>
+          </div>
+          <div className={styles.referralCodeRow}>
+            <div className={styles.referralCode}>
+              <span>ARTHY_REF</span>
+              <Copy size={19} className={styles.copyIcon} />
+            </div>
+            <button type="button" className={styles.shareBtn}>
+              <ShareNetwork size={16} weight="bold" />
+              Share
+            </button>
+          </div>
+          <div className={styles.referralStats}>
+            <div className={styles.referralStat}>
+              <div className={styles.referralStatValue}>14</div>
+              <div className={styles.referralStatLabel}>PLAYERS JOINED</div>
+            </div>
+            <div className={styles.referralStat}>
+              <div className={styles.referralStatValue}>386</div>
+              <div className={styles.referralStatLabel}>THEIR MATCHES</div>
+            </div>
+            <div className={`${styles.referralStat} ${styles.referralStatHot}`}>
+              <div className={`${styles.referralStatValue} ${styles.amber}`}>
+                $48.20
+              </div>
+              <div className={styles.referralStatLabel}>EARNED TO POT</div>
+            </div>
+          </div>
+          <div className={styles.feeSplit}>
+            <div className={styles.panelKickerSm}>
+              WHERE A 5% PLATFORM FEE GOES
+            </div>
+            <div className={styles.feeRows}>
+              <div className={styles.feeRow}>
+                <span className={styles.feeRowLabel}>YOU · 0.1%</span>
+                <span className={styles.feeBar}>
+                  <span
+                    className={`${styles.feeBarFill} ${styles.feeBarYou}`}
+                    style={{ width: "12%" }}
+                  />
+                </span>
+              </div>
+              <div className={styles.feeRow}>
+                <span className={styles.feeRowLabel}>PRIZE FLOOR</span>
+                <span className={styles.feeBar}>
+                  <span
+                    className={`${styles.feeBarFill} ${styles.feeBarPrize}`}
+                    style={{ width: "34%" }}
+                  />
+                </span>
+              </div>
+              <div className={styles.feeRow}>
+                <span className={styles.feeRowLabel}>PLATFORM</span>
+                <span className={styles.feeBar}>
+                  <span
+                    className={`${styles.feeBarFill} ${styles.feeBarPlatform}`}
+                    style={{ width: "54%" }}
+                  />
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="apply" className={styles.apply}>
+        <div className={styles.applyGlow} />
+        <div className={styles.applyGrid}>
+          <div>
+            <div className={styles.testBadge}>TEST MODE</div>
+            <h2 className={styles.applyTitle}>Kombat is in closed testing.</h2>
+            <p className={styles.sectionLead}>
+              We&apos;re onboarding testers in small batches on Ethereum
+              Sepolia. Leave your email and we&apos;ll send an invite with test
+              funds — nothing you stake during the test is real money.
+            </p>
+          </div>
+          <div className={styles.applyCard}>
+            <div className={styles.panelKicker}>APPLY FOR ACCESS</div>
+            <label className={styles.applyField}>
+              <EnvelopeSimple size={17} className={styles.emailFieldIcon} />
+              <input
+                type="email"
+                placeholder="you@email.com"
+                className={styles.emailInput}
+              />
+            </label>
+            <label className={styles.applyField}>
+              <GameController size={17} className={styles.emailFieldIcon} />
+              <select className={styles.applySelect} defaultValue="">
+                <option value="" disabled>
+                  Which game are you here for?
+                </option>
+                <option>Battleships</option>
+                <option>Chroma Clash</option>
+                <option>Salvo</option>
+                <option>Ludo Royale</option>
+                <option>Triple Cut</option>
+              </select>
+              <CaretDown size={13} weight="bold" className={styles.emailFieldIcon} />
+            </label>
+            <button type="button" className={styles.applySubmit}>
+              Request an invite
+            </button>
+            <div className={styles.applyNote}>
+              We email once, when your invite is ready. No newsletter.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer className={styles.footer}>
+        <div className={styles.brand}>
+          <LogoMark size={22} />
+          <span className={styles.footerBrandName}>KOMBAT</span>
+        </div>
+        <div className={styles.footerLinks}>
+          <a href="#" className={styles.footerLink}>Contract</a>
+          <a href="#" className={styles.footerLink}>Discord</a>
+          <a href="#" className={styles.footerLink}>Terms</a>
+          <span>Test mode · Sepolia</span>
+        </div>
+      </footer>
+    </div>
+  );
+}
