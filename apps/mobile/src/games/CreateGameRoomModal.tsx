@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import {
   ApiError,
   GameType,
@@ -68,6 +69,7 @@ function trimNum(value: number): string {
 }
 
 export default function CreateGameRoomModal({ visible, onClose }: Props) {
+  const navigation = useNavigation();
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [gameType, setGameType] = useState<GameType>(GameType.NavalBattle);
@@ -132,6 +134,16 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
   const exceedsPot = stakeRaw !== null && stakeRaw > potAvailable;
   const cannotCreate =
     isCreating || (staked && (stakeRaw === null || stakeRaw <= 0n || exceedsPot));
+
+  const goToPot = () => {
+    onClose();
+    setTimeout(() => {
+      (navigation.navigate as (screen: string, params?: unknown) => void)(
+        'MainTabs',
+        { screen: 'Wallet' },
+      );
+    }, MODAL_DISMISS_MS);
+  };
 
   const handleCreate = async () => {
     setIsCreating(true);
@@ -317,11 +329,17 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
           </View>
 
           {staked && exceedsPot ? (
-            <Text style={styles.error}>
-              Only {formatStakeAmount(pot.available[stakeToken!], stakeToken!)}{' '}
-              {STAKE_ASSET_SYMBOLS[stakeToken!]} in your pot. Add funds from the
-              Wallet tab, or lower the stake.
-            </Text>
+            <View style={styles.potWarning}>
+              <Text style={styles.error}>
+                Your pot holds{' '}
+                {formatStakeAmount(pot.available[stakeToken!], stakeToken!)}{' '}
+                {STAKE_ASSET_SYMBOLS[stakeToken!]}. Staked games are paid from
+                your pot, so add funds to it or lower the stake.
+              </Text>
+              <Pressable onPress={goToPot} hitSlop={spacing.xs}>
+                <Text style={styles.potLink}>Add funds to your pot</Text>
+              </Pressable>
+            </View>
           ) : null}
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -619,8 +637,16 @@ const styles = StyleSheet.create({
     ...type.caption,
     color: colors.textMuted,
   },
+  potWarning: {
+    gap: spacing.xs,
+  },
   error: {
     ...type.caption,
     color: colors.danger,
+  },
+  potLink: {
+    ...type.caption,
+    color: colors.accent,
+    textDecorationLine: 'underline',
   },
 });

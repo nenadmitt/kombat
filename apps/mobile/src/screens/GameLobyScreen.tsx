@@ -35,17 +35,12 @@ import { GAME_TYPE_LABELS } from '../games/game-type-labels';
 import { GAME_TYPE_SCREENS } from '../games/game-type-screens';
 import { formatRoomCode } from '../games/room-code';
 import type { RootStackParamList } from '../navigation/types';
-import { useCurrentUserStore } from '../store/currentUser.store';
 import { useGameStore } from '../store/game.store';
 import { useLobbyStore } from '../store/lobby.store';
 import { useServerStore } from '../store/server.store';
 import { useWebsocketStore } from '../store/websocket.store';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
-
-/** No balance/pool backend for the header yet - visual parity with the design. */
-const MOCK_USD_BALANCE = '4,240';
-const FEATURED_POOL = '480';
 
 /** "10 USDC" / "0.01 ETH" / "FREE" for a room's per-player stake. */
 function stakeLabel(room: GameRoomSummary): string {
@@ -55,16 +50,22 @@ function stakeLabel(room: GameRoomSummary): string {
   return `${formatStakeAmount(room.stakeAmount, room.stakeToken)} ${STAKE_ASSET_SYMBOLS[room.stakeToken]}`;
 }
 
-/** The featured banner keeps the crosshair (Battleships). */
-const GAME_ICON = 'crosshair' as const;
-
-/** The inline multi-select game chips (stake + token live in the filter sheet). */
+/** The inline multi-select game chips (stake + token live in the filter sheet).
+ *  One entry per MULTIPLAYER_GAME_TYPES member - a missing one hides that
+ *  game's rooms behind a filter nobody can select. */
 const GAME_FILTERS: { key: GameType; label: string }[] = [
   { key: GameType.NavalBattle, label: 'Battleships' },
   { key: GameType.Ludo, label: 'Ludo' },
   { key: GameType.TripleCut, label: 'Triple Cut' },
   { key: GameType.ChromaClash, label: 'Chroma' },
+  { key: GameType.Salvo, label: 'Salvo' },
 ];
+
+/** No pool backend for the featured banner yet - visual parity with the design. */
+const FEATURED_POOL = '480';
+
+/** The featured banner's "live" dot. */
+const DOT_SIZE = 6;
 
 function timeAgo(iso: string): string {
   const seconds = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -81,7 +82,6 @@ export default function GameLobyScreen() {
   // needed since this screen's own nav type doesn't know about it.
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const username = useCurrentUserStore(state => state.username);
   const confirm = useConfirm();
 
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
@@ -178,8 +178,6 @@ export default function GameLobyScreen() {
     setFilters({ ...filters, gameTypes: next });
   };
 
-  const initial = (username ?? '?').charAt(0).toUpperCase();
-
   const enterMatch = useCallback(
     (room: GameRoomSummary) => {
       // navigate's params type is tied to a literal route name; the target
@@ -227,7 +225,7 @@ export default function GameLobyScreen() {
         message,
         icon: needsTopUp ? 'dollar' : 'warning',
         ...(needsTopUp
-          ? { confirmLabel: 'Top up' }
+          ? { confirmLabel: 'Add funds' }
           : { mode: 'info' as const }),
       }).then(ok => {
         if (ok && needsTopUp) {
@@ -277,22 +275,7 @@ export default function GameLobyScreen() {
     <SafeAreaView style={styles.screen} edges={['top']}>
       {/* Fixed header */}
       <View style={styles.header}>
-        <View style={styles.headerText}>
-          <Text style={[type.label, styles.welcome]}>Welcome back</Text>
-          <Text style={styles.name} numberOfLines={1}>
-            {username ?? 'Player'}
-          </Text>
-        </View>
-        <View style={styles.headerRight}>
-          <View style={styles.balancePill}>
-            <Icon type="gem" color={colors.accent} size={14} />
-            <Text style={styles.balanceValue}>{MOCK_USD_BALANCE}</Text>
-            <Text style={styles.balanceUnit}>USD</Text>
-          </View>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarInitial}>{initial}</Text>
-          </View>
-        </View>
+        <Text style={styles.title}>Lobby</Text>
       </View>
 
       <FlatList
@@ -314,7 +297,7 @@ export default function GameLobyScreen() {
               style={styles.featured}
             >
               <View style={styles.featuredThumb}>
-                <Icon type={GAME_ICON} color={colors.accentLight} size={30} />
+                <GameIcon type={GameType.NavalBattle} size={38} />
               </View>
               <View style={styles.featuredBody}>
                 <View style={styles.featuredEyebrow}>
@@ -508,64 +491,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: spacing.md,
+    gap: spacing.xs,
   },
-  headerText: {
-    flex: 1,
-    gap: spacing.xxs,
-  },
-  welcome: {
-    color: colors.textMuted,
-  },
-  name: {
+  title: {
     fontFamily: display.bold,
-    fontSize: 26,
+    fontSize: 28,
     letterSpacing: -0.3,
     color: colors.textPrimary,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  balancePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 7,
-  },
-  balanceValue: {
-    fontFamily: mono.bold,
-    fontSize: 14,
-    color: colors.textPrimary,
-  },
-  balanceUnit: {
-    fontFamily: mono.medium,
-    fontSize: 10,
-    color: colors.textMuted,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitial: {
-    fontFamily: display.bold,
-    fontSize: 18,
-    color: colors.onAccent,
   },
   listContent: {
     paddingHorizontal: spacing.lg,
@@ -601,9 +537,9 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: DOT_SIZE,
+    height: DOT_SIZE,
+    borderRadius: radius.pill,
     backgroundColor: colors.accent,
     // 0 0 8px accent glow (iOS).
     shadowColor: colors.accent,

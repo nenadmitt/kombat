@@ -4,16 +4,19 @@ import { GameRoomStatus, GameType, StakeAsset } from '../types/game';
 
 @Entity('game_rooms')
 // Serves the lobby listing: filter by status, already in createdAt order.
-@Index(['status', 'createdAt'])
+@Index('IDX_game_rooms_status_created', ['status', 'createdAt'])
 // Partial index for the filterable lobby: only pending, public rooms, keyed on
 // game_type + stake_token with created_at ordering. Mirrors AddLobbyRoomIndex.
-@Index(['gameType', 'stakeToken', 'createdAt'], {
+@Index('IDX_game_rooms_lobby', ['gameType', 'stakeToken', 'createdAt'], {
   where: '"status" = 0 AND "is_private" = false',
 })
 // Serves the 1-open-room-per-user checks (create/close) keyed on userId + status.
-@Index(['userId', 'status'])
+@Index('IDX_game_rooms_user_status', ['userId', 'status'])
 // Serves join-by-code lookups; unique so a code resolves to one room.
-@Index(['code'], { unique: true, where: '"code" IS NOT NULL' })
+@Index('UQ_game_rooms_code', ['code'], {
+  unique: true,
+  where: '"code" IS NOT NULL',
+})
 export class GameRoomEntity extends BaseEntity {
   // Plain column, no FK relation to users — same choice as WalletEntity.
   @Column({ name: 'user_id', type: 'uuid' })
@@ -77,6 +80,6 @@ export class GameRoomEntity extends BaseEntity {
   @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })
   completedAt: Date | null;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 }

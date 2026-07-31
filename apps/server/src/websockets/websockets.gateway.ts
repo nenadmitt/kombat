@@ -17,10 +17,20 @@ import {
   CacheService,
   CHAT_TTL_SECONDS,
 } from '../cache';
+import { DbService } from '../db';
+import { participantsOf } from '../games/room.util';
 import { ChannelDto } from './dto/channel.dto';
 import { GameMessageDto } from './dto/game-message.dto';
-import { channelRoom, gameChannel, userRoom } from './rooms.util';
+import {
+  channelRoom,
+  gameChannel,
+  gameChannelRoomId,
+  userRoom,
+} from './rooms.util';
 import { WebsocketsService } from './websockets.service';
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface SocketData {
   userId: string;
@@ -57,6 +67,7 @@ export class WebsocketsGateway
     private readonly jwtService: JwtService,
     private readonly websocketsService: WebsocketsService,
     private readonly cacheService: CacheService,
+    private readonly dbService: DbService,
   ) {}
 
   afterInit(server: Server): void {
@@ -105,7 +116,50 @@ export class WebsocketsGateway
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() { channel }: ChannelDto,
   ): Promise<void> {
+    if (!(await this.mayJoin(client, channel))) {
+      return;
+    }
     await client.join(channelRoom(channel));
+  }
+
+  /**
+   * A game channel carries one match's live broadcasts, so only its seated
+   * players may subscribe - the channel name is client-supplied, and without
+   * this any signed-in user could name someone else's room and watch it.
+   * Non-game channels (the lobby) stay open to every authenticated socket.
+   */
+  private async mayJoin(
+    client: AuthenticatedSocket,
+    channel: string,
+  ): Promise<boolean> {
+    const userId = client.data.userId;
+    if (!userId) {
+      return false;
+    }
+    const roomId = gameChannelRoomId(channel);
+    if (!roomId) {
+      return true;
+    }
+    return this.isParticipant(roomId, userId);
+  }
+
+  private async isParticipant(
+    roomId: string,
+    userId: string,
+  ): Promise<boolean> {
+    // Room ids are uuids; a malformed one would make Postgres throw rather
+    // than simply miss.
+    if (!UUID_PATTERN.test(roomId)) {
+      return false;
+    }
+    const room = await this.dbService.findGameRoomById(roomId);
+    if (!room || !participantsOf(room).includes(userId)) {
+      this.logger.warn(
+        `User ${userId} was refused access to game room ${roomId}`,
+      );
+      return false;
+    }
+    return true;
   }
 
   @UsePipes(new ValidationPipe({ whitelist: true }))
@@ -129,6 +183,10 @@ export class WebsocketsGateway
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() { roomId, text }: GameMessageDto,
   ): Promise<void> {
+    const userId = client.data.userId;
+    if (!userId || !(await this.isParticipant(roomId, userId))) {
+      return;
+    }
     // Unlocked read-append-write: two simultaneous messages may drop one.
     // Acceptable for this placeholder feature — not worth a lock.
     const key = CacheKeys.battleshipChat(roomId);

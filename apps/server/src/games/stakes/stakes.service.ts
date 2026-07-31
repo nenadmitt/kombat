@@ -5,7 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import {
-  EscrowStatus,
+  SettlementStatus,
   ROOM_EVENTS,
   STAKE_ASSET_DECIMALS,
   STAKE_ASSET_MIN,
@@ -13,7 +13,6 @@ import {
   STAKE_EVENTS,
   StakeAsset,
 } from '@gaming-platform/core';
-import { keccak256, stringToBytes } from 'viem';
 
 import { ConfigurationService } from '../../configuration/configuration.service';
 import { DbService } from '../../db';
@@ -29,7 +28,7 @@ import { participantsOf } from '../room.util';
  * (stakeToken null) never touch any of this.
  *
  * Every step is a database transaction, so a staked match starts as fast as a
- * free one and costs nothing on-chain. The `stake_escrows` row is still written
+ * free one and costs nothing on-chain. The `match_settlements` row is still written
  * because `assertRoomPlayable`, the match history and the net-stake reporting
  * all read it.
  */
@@ -98,14 +97,14 @@ export class StakesService {
     if (room.stakeToken === null) {
       return;
     }
-    const escrow = await this.dbService.findStakeEscrowByRoomId(room.id);
-    if (!escrow || escrow.status === EscrowStatus.Funding) {
+    const settlement = await this.dbService.findMatchSettlementByRoomId(room.id);
+    if (!settlement || settlement.status === SettlementStatus.Funding) {
       throw new ConflictException('Stakes are still being secured.');
     }
     if (
-      escrow.status === EscrowStatus.Failed ||
-      escrow.status === EscrowStatus.VoidPending ||
-      escrow.status === EscrowStatus.Voided
+      settlement.status === SettlementStatus.Failed ||
+      settlement.status === SettlementStatus.VoidPending ||
+      settlement.status === SettlementStatus.Voided
     ) {
       throw new ConflictException('Stake funding failed - the match was voided.');
     }
@@ -122,10 +121,9 @@ export class StakesService {
    * waiting on the event.
    */
   async beginFunding(room: GameRoomEntity): Promise<void> {
-    await this.dbService.createStakeEscrow({
+    await this.dbService.createMatchSettlement({
       roomId: room.id,
-      matchId: matchIdFor(room.id),
-      status: EscrowStatus.Funding,
+      status: SettlementStatus.Funding,
     });
     this.notifyPlayers(room, STAKE_EVENTS.funding, { roomId: room.id });
 
@@ -137,13 +135,13 @@ export class StakesService {
   }
 
   /**
-   * Recovery for a room orphaned in Funding by a crash between the escrow row
-   * and the hold. Idempotent per (room, player), so re-running only fills in
+   * Recovery for a room orphaned in Funding by a crash between the settlement
+   * row and the hold. Idempotent per (room, player), so re-running only fills in
    * what is missing.
    */
   async recoverFunding(roomId: string): Promise<void> {
-    const escrow = await this.dbService.findStakeEscrowByRoomId(roomId);
-    if (!escrow || escrow.status !== EscrowStatus.Funding) {
+    const settlement = await this.dbService.findMatchSettlementByRoomId(roomId);
+    if (!settlement || settlement.status !== SettlementStatus.Funding) {
       return;
     }
     const room = await this.dbService.findGameRoomByIdFresh(roomId);
@@ -164,8 +162,8 @@ export class StakesService {
         BigInt(room.stakeAmount!),
       );
     } catch (error) {
-      await this.dbService.updateStakeEscrow(room.id, {
-        status: EscrowStatus.Voided,
+      await this.dbService.updateMatchSettlement(room.id, {
+        status: SettlementStatus.Voided,
         attempts: 1,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -181,8 +179,8 @@ export class StakesService {
       return false;
     }
 
-    await this.dbService.updateStakeEscrow(room.id, {
-      status: EscrowStatus.Funded,
+    await this.dbService.updateMatchSettlement(room.id, {
+      status: SettlementStatus.Funded,
       error: null,
     });
     this.emitFundedAndStart(room);
@@ -228,13 +226,13 @@ export class StakesService {
   ): Promise<void> {
     await this.dbService.completeGameRoom(roomId, { winnerUserId, endReason });
 
-    const escrow = await this.dbService.findStakeEscrowByRoomId(roomId);
-    if (!escrow) {
+    const settlement = await this.dbService.findMatchSettlementByRoomId(roomId);
+    if (!settlement) {
       return; // Free game.
     }
     if (
-      escrow.status !== EscrowStatus.Funding &&
-      escrow.status !== EscrowStatus.Funded
+      settlement.status !== SettlementStatus.Funding &&
+      settlement.status !== SettlementStatus.Funded
     ) {
       return; // Already terminal.
     }
@@ -246,34 +244,101 @@ export class StakesService {
       return;
     }
 
-    if (!winnerUserId) {
-      await this.stakePotService.releaseMatch(roomId);
-      await this.dbService.updateStakeEscrow(roomId, {
-        status: EscrowStatus.Voided,
-        error: null,
-      });
-      return;
+    // Claim BEFORE touching the ledger. This runs outside any room
+    // lock and can be reached concurrently (a forfeit racing its own retry, a
+    // timeout enforcer racing a forfeit), and the status check above is a plain
+    // read - so the conditional UPDATE is what actually decides who settles.
+    // Without it two callers both credit the winner a full pot.
+    const claimed = await this.dbService.claimMatchSettlement(
+      roomId,
+      winnerUserId ? SettlementStatus.SettlePending : SettlementStatus.VoidPending,
+    );
+    if (!claimed) {
+      return; // Another completion owns this room.
     }
 
-    const settlement = await this.stakePotService.settleMatch(
-      roomId,
-      winnerUserId,
-      participantsOf(room),
-      room.stakeToken,
-      BigInt(room.stakeAmount!),
+    await this.applySettlement(room, winnerUserId, settlement.status);
+  }
+
+  /**
+   * Move the money for a claimed settlement and carry it to its terminal status.
+   *
+   * The caller must already hold the claim. On failure the claim is handed back
+   * so a retry can finish the job - a stake left locked under a *Pending status
+   * is money stranded with no owner.
+   */
+  private async applySettlement(
+    room: GameRoomEntity,
+    winnerUserId: string | null,
+    previousStatus: SettlementStatus,
+  ): Promise<void> {
+    try {
+      if (!winnerUserId) {
+        await this.stakePotService.releaseMatch(room.id);
+        await this.dbService.updateMatchSettlement(room.id, {
+          status: SettlementStatus.Voided,
+          error: null,
+        });
+        return;
+      }
+
+      const settlement = await this.stakePotService.settleMatch(
+        room.id,
+        winnerUserId,
+        participantsOf(room),
+        room.stakeToken!,
+        BigInt(room.stakeAmount!),
+      );
+      await this.dbService.updateMatchSettlement(room.id, {
+        status: SettlementStatus.Settled,
+        // Null when the room was already settled (a replayed completion); leave
+        // the recorded figures alone in that case.
+        ...(settlement
+          ? {
+              payout: settlement.payout.toString(),
+              fee: settlement.fee.toString(),
+            }
+          : {}),
+        error: null,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await this.dbService.releaseMatchSettlementClaim(
+        room.id,
+        previousStatus,
+        message,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Finish a settlement whose owner died mid-flight, leaving the settlement claimed
+   * but not settled. Rare (the claim and the ledger write are milliseconds
+   * apart) and harmless to run against a healthy job: the ledger's per-room
+   * uniqueness means the loser of any race rolls back instead of double-paying.
+   */
+  async recoverSettlement(roomId: string): Promise<void> {
+    const settlement = await this.dbService.findMatchSettlementByRoomId(roomId);
+    if (
+      !settlement ||
+      (settlement.status !== SettlementStatus.SettlePending &&
+        settlement.status !== SettlementStatus.VoidPending)
+    ) {
+      return;
+    }
+    const room = await this.dbService.findGameRoomByIdFresh(roomId);
+    if (!room || room.stakeToken === null) {
+      return;
+    }
+    this.logger.warn(`Recovering stalled settlement for room ${roomId}`);
+    // VoidPending was claimed by a no-winner completion; for SettlePending the
+    // winner is whatever the room recorded when it was completed.
+    await this.applySettlement(
+      room,
+      settlement.status === SettlementStatus.VoidPending ? null : room.winnerUserId,
+      settlement.status,
     );
-    await this.dbService.updateStakeEscrow(roomId, {
-      status: EscrowStatus.Settled,
-      // Null when the room was already settled (a replayed completion); leave
-      // the recorded figures alone in that case.
-      ...(settlement
-        ? {
-            payout: settlement.payout.toString(),
-            fee: settlement.fee.toString(),
-          }
-        : {}),
-      error: null,
-    });
   }
 
   private notifyPlayers(
@@ -287,9 +352,4 @@ export class StakesService {
       this.websocketsService.sendToUser(participant, event, payload);
     }
   }
-}
-
-/** The `stake_escrows.match_id` value for a room. */
-function matchIdFor(roomId: string): string {
-  return keccak256(stringToBytes(roomId));
 }

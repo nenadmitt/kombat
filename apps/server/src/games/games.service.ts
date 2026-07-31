@@ -76,7 +76,7 @@ export class GamesService {
     }
 
     // Staked room: bounds + can the creator actually cover it? Nothing is
-    // escrowed yet — stakes are pulled only when an opponent joins.
+    // held yet — stakes are pulled only when an opponent joins.
     if (stake) {
       this.stakesService.validateStake(stake.token, stake.amount);
       await this.stakesService.assertSufficientBalance(
@@ -152,7 +152,7 @@ export class GamesService {
    * and flips it to InProgress.
    *
    * Free rooms notify the creator right away (their app leaves "waiting" and
-   * both transfer into the match). Staked rooms first escrow both stakes —
+   * both transfer into the match). Staked rooms first settlement both stakes —
    * StakesService emits stake:funding now and stake:funded (plus the
    * creator's opponent-joined) once the pot is on-chain; the match start is
    * gated on that.
@@ -332,7 +332,7 @@ export class GamesService {
   /**
    * Flip a multi-seat room to InProgress exactly once and kick the match
    * off. Free rooms notify every participant immediately; staked rooms first
-   * escrow every player's stake - StakesService emits stake:funding now and
+   * settlement every player's stake - StakesService emits stake:funding now and
    * (once the pot is on-chain) stake:funded plus the started event.
    */
   private async startMultiSeatMatch(room: GameRoomEntity): Promise<void> {
@@ -438,10 +438,10 @@ export class GamesService {
           if (isVoid) {
             prizeDelta = '0';
           } else if (isWinner) {
-            const escrow = await this.dbService.findStakeEscrowByRoomId(room.id);
+            const settlement = await this.dbService.findMatchSettlementByRoomId(room.id);
             // payout − own stake; before settlement lands, estimate as stake.
-            prizeDelta = escrow?.payout
-              ? (BigInt(escrow.payout) - stake).toString()
+            prizeDelta = settlement?.payout
+              ? (BigInt(settlement.payout) - stake).toString()
               : stake.toString();
           } else {
             prizeDelta = (-stake).toString();

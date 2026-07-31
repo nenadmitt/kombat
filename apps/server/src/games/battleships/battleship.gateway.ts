@@ -55,7 +55,7 @@ export class BattleshipGateway {
     }
     try {
       const room = await this.loadParticipantRoom(dto.roomId, userId, true);
-      // Staked rooms are playable only once the pot is escrowed (Funded).
+      // Staked rooms are playable only once the stakes are held (Funded).
       await this.stakesService.assertRoomPlayable(room);
       // The match may not exist yet if this is the first player in; create it
       // so presence can be recorded before either side has submitted a fleet.

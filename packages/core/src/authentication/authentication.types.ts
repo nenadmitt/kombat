@@ -1,6 +1,16 @@
-export type ExchangeTokenResponse = {
+/**
+ * A logged-in session. The access token is short-lived and sent as the bearer
+ * on every request; the refresh token is long-lived, single-use, and buys a
+ * whole new pair. Both must be stored somewhere secure (the mobile client keeps
+ * them in the Keychain/Keystore) - the refresh token is a login credential in
+ * its own right.
+ */
+export type AuthSession = {
   accessToken: string;
+  refreshToken: string;
 };
+
+export type ExchangeTokenResponse = AuthSession;
 
 export type UserProfile = {
   id: string;

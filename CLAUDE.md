@@ -13,9 +13,13 @@ on-chain stakes. npm workspaces + turbo.
   cache for live match state, one GameDeadlineSweeper for every game's
   turn/setup timeouts, and the staking/escrow chain service (operator hot
   key, stake sweeper).
-- `apps/evm-contracts` - Solidity (Foundry): the N-player MatchEscrow the
-  chain service talks to; `apps/server/src/chain/escrow.abi.ts` is the
-  hand-kept ABI mirror and must stay in sync with it.
+- `apps/evm-contracts` - Solidity (Foundry): `StakePot`, the pooled custody
+  contract players deposit into, plus the KombatCoin token;
+  `apps/server/src/stake-pot/stake-pot.abi.ts` is the hand-kept ABI mirror and
+  must stay in sync with it. There is no escrow contract - `MatchEscrow` and
+  `escrow.abi.ts` were deleted at the pot cutover (see `STAKEPOT_CLEANUP.md`).
+  The surviving `stake_escrows` table is a per-room **settlement-state** row,
+  not an escrow: matches settle in the off-chain ledger.
 - `packages/core` - platform-agnostic shared domain code: game rules
   (`games/battleship`: fleet, mines, power-ups, shot resolution;
   `games/ludo`: board topology, dice/turn rules, bot policy), the socket
@@ -47,9 +51,29 @@ fixes it.
 
 ## Comments
 
-Write a comment only when it states something the code cannot: a non-obvious
+# **THE DEFAULT IS NO COMMENT. DO NOT NARRATE YOUR WORK.**
+
+**Write a comment only when it states something the code cannot**: a non-obvious
 constraint, a why, a protocol/ordering requirement, a deliberate trade-off.
-Match the surrounding style (this codebase favors short "why" comments on
-tricky seams). Never narrate what the next line does, never leave
-change-log-style comments ("now uses X", "added for feature Y"), and never
-comment to justify your change to a reviewer.
+Match the surrounding style - this codebase favors **short** "why" comments on
+tricky seams. One line. Two at the outside.
+
+**NEVER write any of these. This is the single most repeated piece of feedback
+in this repo:**
+
+- **Justifying your change to a reviewer.** "This is what makes X safe",
+  "without this, Y would happen", "the reason this is correct is...". That
+  belongs in the commit message or the PR, never in the file.
+- **An essay above a function.** If a docstring runs to paragraphs explaining a
+  threat model, a race, or a design rationale, it is slop. Cut it to the one
+  line a future reader actually needs, or delete it.
+- **Narrating the next line.** `// Memory first, so nothing reads a stale value`
+  above `cached = null` says nothing the code doesn't.
+- **Change-log comments.** "now uses X", "added for feature Y", "moved from Z".
+  Git already knows.
+- **Restating an identifier.** `/** The user's id. */` over `userId: string`.
+
+**Rule of thumb: if the comment would be equally true and equally interesting to
+someone reading the file a year from now with no idea a change happened, keep
+it. Otherwise delete it.** Deleting a comment you were about to write is
+almost always the right call.

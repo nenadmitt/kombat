@@ -286,7 +286,7 @@ export class StakePotChainService {
   // ---- writes --------------------------------------------------------------
 
   /** Runs under the shared operator lock, so pot payouts and any remaining
-   *  escrow traffic stay on one nonce stream. */
+   *  other operator traffic stay on one nonce stream. */
   async withdrawTo(args: {
     withdrawalId: string;
     to: Address;

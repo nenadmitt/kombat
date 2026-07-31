@@ -22,13 +22,13 @@ export class EmailLoginTokenEntity extends BaseEntity {
   @JoinColumn({ name: 'user_id' })
   user: UserEntity;
 
-  @Index()
+  @Index('IDX_email_login_tokens_token')
   @Column({ name: 'token', type: 'varchar', length: 8 })
   token: string;
 
   @Column({ name: 'expires_at', type: 'timestamptz' })
   expiresAt: Date;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 }

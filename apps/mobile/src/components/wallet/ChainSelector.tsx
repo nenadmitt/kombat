@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, radius, spacing } from '../../theme/colors';
 import { display, mono, type } from '../../theme/typography';
-import { addressForChain, CHAINS, type ChainId } from '../../wallet/chains';
+import { CHAINS, type ChainId } from '../../wallet/chains';
 import { truncateAddress } from '../../wallet/format-address';
 import BrandIcon from '../BrandIcon';
 import Icon from '../Icon';
@@ -34,7 +34,6 @@ export default function ChainSelector({
   const [copied, setCopied] = useState(false);
 
   const activeChain = CHAINS.find(c => c.id === selected) ?? CHAINS[0];
-  const activeAddress = addressForChain(selected, evmAddress);
 
   const handleSelect = (chainId: ChainId) => {
     onSelect(chainId);
@@ -42,7 +41,7 @@ export default function ChainSelector({
   };
 
   const handleCopy = () => {
-    Clipboard.setString(activeAddress);
+    Clipboard.setString(evmAddress);
     setCopied(true);
   };
 
@@ -73,7 +72,7 @@ export default function ChainSelector({
         ) : (
           <>
             <BrandIcon type={activeChain.icon} size={26} />
-            <Text style={styles.pillText}>{truncateAddress(activeAddress)}</Text>
+            <Text style={styles.pillText}>{truncateAddress(evmAddress)}</Text>
             <Icon type="chevron-down" color={colors.textMuted} size={18} />
           </>
         )}
@@ -98,7 +97,6 @@ export default function ChainSelector({
             <View style={styles.list}>
               {CHAINS.map(chain => {
                 const isSelected = chain.id === selected;
-                const address = addressForChain(chain.id, evmAddress);
                 return (
                   <Pressable
                     key={chain.id}
@@ -122,7 +120,7 @@ export default function ChainSelector({
                         )}
                       </View>
                       <Text style={styles.chainAddress}>
-                        {truncateAddress(address)}
+                        {truncateAddress(evmAddress)}
                       </Text>
                     </View>
                     {isSelected && (

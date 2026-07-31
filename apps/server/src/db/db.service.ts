@@ -11,10 +11,11 @@ import {
 import { AppSettingEntity } from './entities/app-setting.entity';
 import { EmailLoginTokenEntity } from './entities/email-login-token.entity';
 import { GameRoomEntity } from './entities/game-room.entity';
-import { StakeEscrowEntity } from './entities/stake-escrow.entity';
+import { RefreshTokenEntity } from './entities/refresh-token.entity';
+import { MatchSettlementEntity } from './entities/match-settlement.entity';
 import { UserEntity } from './entities/user.entity';
 import { WalletEntity } from './entities/wallet.entity';
-import { EscrowStatus, GameRoomStatus, GameType, StakeAsset } from './types/game';
+import { SettlementStatus, GameRoomStatus, GameType, StakeAsset } from './types/game';
 import { WalletNetwork, WalletOrigin } from './types/wallet';
 
 /**
@@ -30,12 +31,14 @@ export class DbService {
     private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(EmailLoginTokenEntity)
     private readonly emailLoginTokenRepository: Repository<EmailLoginTokenEntity>,
+    @InjectRepository(RefreshTokenEntity)
+    private readonly refreshTokenRepository: Repository<RefreshTokenEntity>,
     @InjectRepository(WalletEntity)
     private readonly walletRepository: Repository<WalletEntity>,
     @InjectRepository(GameRoomEntity)
     private readonly gameRoomRepository: Repository<GameRoomEntity>,
-    @InjectRepository(StakeEscrowEntity)
-    private readonly stakeEscrowRepository: Repository<StakeEscrowEntity>,
+    @InjectRepository(MatchSettlementEntity)
+    private readonly matchSettlementRepository: Repository<MatchSettlementEntity>,
     @InjectRepository(AppSettingEntity)
     private readonly appSettingRepository: Repository<AppSettingEntity>,
     private readonly cacheService: CacheService,
@@ -123,7 +126,7 @@ export class DbService {
 
   /**
    * Net staked outcome per asset: what a win actually paid out (from the
-   * settled escrow) minus every stake this player put up. Void rooms are
+   * settled settlement) minus every stake this player put up. Void rooms are
    * excluded - the stake is returned, so they net zero.
    */
   async findStakeNetByTokenForUser(
@@ -131,12 +134,12 @@ export class DbService {
   ): Promise<{ stakeToken: number; net: string }[]> {
     const rows = await this.gameRoomRepository
       .createQueryBuilder('room')
-      .leftJoin('stake_escrows', 'escrow', 'escrow.room_id = room.id')
+      .leftJoin('match_settlements', 'settlement', 'settlement.room_id = room.id')
       .select('room.stake_token', 'stakeToken')
       .addSelect(
         `SUM(
            CASE WHEN room.winner_user_id = :userId
-                THEN COALESCE(escrow.payout, room.stake_amount)::numeric - room.stake_amount::numeric
+                THEN COALESCE(settlement.payout, room.stake_amount)::numeric - room.stake_amount::numeric
                 ELSE -room.stake_amount::numeric
            END
          )`,
@@ -208,6 +211,45 @@ export class DbService {
     await this.emailLoginTokenRepository.delete({ id });
   }
 
+  // --- refresh tokens -------------------------------------------------------
+
+  createRefreshToken(data: {
+    userId: string;
+    tokenHash: string;
+    expiresAt: Date;
+  }): Promise<RefreshTokenEntity> {
+    return this.refreshTokenRepository.save(
+      this.refreshTokenRepository.create(data),
+    );
+  }
+
+  /** Looked up by hash - the plaintext token is never stored. */
+  findRefreshTokenByHash(tokenHash: string): Promise<RefreshTokenEntity | null> {
+    return this.refreshTokenRepository.findOneBy({ tokenHash });
+  }
+
+  /**
+   * Revoke one token, but only if it is still live. The affected-row count is
+   * what makes rotation safe under concurrency: two requests racing with the
+   * same token both find it live, and only the one that flips `revoked_at`
+   * gets to mint the replacement pair.
+   */
+  async revokeRefreshToken(id: string): Promise<boolean> {
+    const result = await this.refreshTokenRepository.update(
+      { id, revokedAt: IsNull() },
+      { revokedAt: new Date() },
+    );
+    return result.affected === 1;
+  }
+
+  /** Reuse detection and logout-everywhere: drop every live token for a user. */
+  async revokeRefreshTokensForUser(userId: string): Promise<void> {
+    await this.refreshTokenRepository.update(
+      { userId, revokedAt: IsNull() },
+      { revokedAt: new Date() },
+    );
+  }
+
   // --- wallets ---
 
   countWalletsForUser(userId: string): Promise<number> {
@@ -224,7 +266,6 @@ export class DbService {
   createWallet(data: {
     userId: string;
     address: string;
-    key: string;
     type: WalletOrigin;
     network: WalletNetwork;
   }): Promise<WalletEntity> {
@@ -545,47 +586,82 @@ export class DbService {
     });
   }
 
-  // --- stake escrows ---
+  // --- match settlements ---
 
-  createStakeEscrow(data: {
+  createMatchSettlement(data: {
     roomId: string;
-    matchId: string;
-    status: EscrowStatus;
-  }): Promise<StakeEscrowEntity> {
-    return this.stakeEscrowRepository.save(
-      this.stakeEscrowRepository.create(data),
+    status: SettlementStatus;
+  }): Promise<MatchSettlementEntity> {
+    return this.matchSettlementRepository.save(
+      this.matchSettlementRepository.create(data),
     );
   }
 
-  findStakeEscrowByRoomId(roomId: string): Promise<StakeEscrowEntity | null> {
-    return this.stakeEscrowRepository.findOneBy({ roomId });
+  findMatchSettlementByRoomId(roomId: string): Promise<MatchSettlementEntity | null> {
+    return this.matchSettlementRepository.findOneBy({ roomId });
   }
 
-  async updateStakeEscrow(
+  async updateMatchSettlement(
     roomId: string,
     patch: Partial<
       Pick<
-        StakeEscrowEntity,
-        | 'status'
-        | 'fundTxHashes'
-        | 'settleTx'
-        | 'voidTx'
-        | 'payout'
-        | 'fee'
-        | 'attempts'
-        | 'error'
+        MatchSettlementEntity,
+        'status' | 'payout' | 'fee' | 'attempts' | 'error'
       >
     >,
   ): Promise<void> {
-    await this.stakeEscrowRepository.update({ roomId }, patch);
+    await this.matchSettlementRepository.update({ roomId }, patch);
   }
 
-  /** Sweeper scan: escrows awaiting on-chain work, oldest-touched first. */
-  findStakeEscrowsByStatus(
-    statuses: EscrowStatus[],
+  /**
+   * Claim a live settlement for exactly one terminal transition.
+   *
+   * The conditional UPDATE is the serialization point for settlement: a room
+   * can leave Funding/Funded once, so concurrent completions (a forfeit racing
+   * a timeout, a replayed socket event) can neither settle twice nor settle and
+   * void the same room. Returns true only for the caller that won it.
+   */
+  async claimMatchSettlement(
+    roomId: string,
+    next: SettlementStatus.SettlePending | SettlementStatus.VoidPending,
+  ): Promise<boolean> {
+    const result = await this.matchSettlementRepository.update(
+      {
+        roomId,
+        status: In([SettlementStatus.Funding, SettlementStatus.Funded]),
+      },
+      { status: next },
+    );
+    return result.affected === 1;
+  }
+
+  /**
+   * Hand a claim back after the settlement work failed, so a retry can pick it
+   * up instead of the stake staying locked forever.
+   *
+   * Guarded on the pending statuses: if another worker already carried this
+   * room to Settled/Voided, this must not drag it back to Funded.
+   */
+  async releaseMatchSettlementClaim(
+    roomId: string,
+    previous: SettlementStatus,
+    error: string,
+  ): Promise<void> {
+    await this.matchSettlementRepository.update(
+      {
+        roomId,
+        status: In([SettlementStatus.SettlePending, SettlementStatus.VoidPending]),
+      },
+      { status: previous, error },
+    );
+  }
+
+  /** Sweeper scan: settlements still needing work, oldest-touched first. */
+  findMatchSettlementsByStatus(
+    statuses: SettlementStatus[],
     limit = 20,
-  ): Promise<StakeEscrowEntity[]> {
-    return this.stakeEscrowRepository.find({
+  ): Promise<MatchSettlementEntity[]> {
+    return this.matchSettlementRepository.find({
       where: { status: In(statuses) },
       order: { updatedAt: 'ASC' },
       take: limit,

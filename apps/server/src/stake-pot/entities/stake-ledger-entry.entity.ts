@@ -22,6 +22,12 @@ import { BaseEntity } from '../../db/entities/base.entity';
   unique: true,
   where: '"tx_hash" IS NOT NULL',
 })
+// One Hold/Capture/Release per player per room, one Prize, one Fee. This is
+// what stops two concurrent settlements both paying out.
+@Index('UQ_stake_ledger_room_entry', ['roomId', 'userId', 'kind'], {
+  unique: true,
+  where: '"room_id" IS NOT NULL',
+})
 export class StakeLedgerEntryEntity extends BaseEntity {
   @Column({ name: 'user_id', type: 'uuid' })
   userId: string;

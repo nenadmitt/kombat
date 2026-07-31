@@ -4,14 +4,17 @@ import {
   ApiError,
   ErrorCode,
   WalletNetwork,
+  type AuthSession,
   type WalletSummary,
 } from '@gaming-platform/core';
 
 import { apiClient } from '../api/client';
+import { BOOT_SNAPSHOT_STORAGE_KEY } from '../storage/storage-keys';
 import {
-  ACCESS_TOKEN_STORAGE_KEY,
-  BOOT_SNAPSHOT_STORAGE_KEY,
-} from '../storage/storage-keys';
+  clearSession,
+  getSession,
+  saveSession,
+} from '../storage/session-keychain';
 import {
   deriveAddressFromPrivateKey,
   derivePrivateKeyFromMnemonic,
@@ -105,7 +108,7 @@ async function resolveOfflineWallet(): Promise<WalletSummary | null> {
 }
 
 /**
- * Everything about the current user: auth (JWT persisted in AsyncStorage),
+ * Everything about the current user: auth (session persisted in the Keychain),
  * profile (email/username), and wallet (mnemonic/private key persisted in
  * Keychain). Kept as one store since they're tightly coupled - logging out
  * clears auth + profile, but not the wallet (see `logout` below).
@@ -128,11 +131,13 @@ type CurrentUserState = {
   wallet: WalletSummary | null;
   walletError: LoadError | null;
 
-  /** Reads the persisted JWT on app start. */
+  /** Reads the persisted session on app start (migrating a legacy one). */
   load: () => Promise<void>;
-  /** Persists the JWT after a successful login and marks the user authenticated. */
-  loginWithToken: (accessToken: string) => Promise<void>;
-  /** Clears the persisted JWT and profile state (wallet is left intact - see below). */
+  /** Persists the session after a successful login and marks the user authenticated. */
+  loginWithSession: (session: AuthSession) => Promise<void>;
+  /** Stores a rotated pair after ApiClient refreshed it mid-flight. */
+  applyRefreshedSession: (session: AuthSession) => Promise<void>;
+  /** Revokes and clears the session and profile state (wallet is left intact). */
   logout: () => Promise<void>;
   /** Fetches the user's email/username. */
   loadProfile: () => Promise<void>;
@@ -160,23 +165,35 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
   walletError: null,
 
   load: async () => {
-    // TODO: this only checks whether a token is present, not whether it's
-    // expired - a stale JWT is currently only caught the first time an API
-    // call 401s, not here. Revisit once refresh tokens are implemented.
-    const accessToken = await AsyncStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
+    // Presence is all that is checked here: an access token now lives days
+    // rather than a month, so the first 401 refreshes it transparently
+    // (ApiClient drives that) and only a dead refresh token logs the user out.
+    const session = await getSession();
     set({
-      accessToken,
-      authStatus: accessToken ? 'authenticated' : 'unauthenticated',
+      accessToken: session?.accessToken ?? null,
+      authStatus: session ? 'authenticated' : 'unauthenticated',
     });
   },
 
-  loginWithToken: async accessToken => {
-    await AsyncStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, accessToken);
-    set({ accessToken, authStatus: 'authenticated' });
+  loginWithSession: async session => {
+    await saveSession(session);
+    set({ accessToken: session.accessToken, authStatus: 'authenticated' });
+  },
+
+  /** Store a rotated pair and keep the socket's copy of the token current. */
+  applyRefreshedSession: async session => {
+    await saveSession(session);
+    set({ accessToken: session.accessToken });
   },
 
   logout: async () => {
-    await AsyncStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+    // Revoke server-side first, so a stolen refresh token dies with the
+    // session rather than outliving it for a month.
+    const session = await getSession();
+    if (session?.refreshToken) {
+      await apiClient.logout(session.refreshToken);
+    }
+    await clearSession();
     // The snapshot belongs to this login - a different account must not
     // boot offline into someone else's profile.
     await AsyncStorage.removeItem(BOOT_SNAPSHOT_STORAGE_KEY);

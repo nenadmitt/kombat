@@ -9,11 +9,13 @@ export class WalletEntity extends BaseEntity {
   @Column({ name: 'user_id', type: 'uuid' })
   userId: string;
 
+  // The only thing the platform keeps. An on-chain Staked event names a
+  // beneficiary address; this is what maps it back to a user so the stake pot
+  // can be credited. The private key is deliberately NOT stored - it never
+  // left the player's device after wallet creation, and the server has no
+  // path that signs with it.
   @Column({ name: 'address', type: 'varchar', unique: true, nullable: false })
   address: string;
-
-  @Column({ name: 'key', type: 'varchar', unique: true, nullable: false })
-  key: string;
 
   @Column({ name: 'type', type: 'smallint', default: WalletOrigin.Platform })
   type: WalletOrigin;
@@ -21,6 +23,6 @@ export class WalletEntity extends BaseEntity {
   @Column({ name: 'network', type: 'smallint', nullable: false })
   network: WalletNetwork;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 }

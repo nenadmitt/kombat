@@ -7,7 +7,6 @@ import { colors, radius, spacing } from '../../theme/colors';
 import { mono, type } from '../../theme/typography';
 import type { ChainId } from '../../wallet/chains';
 import { truncateAddress } from '../../wallet/format-address';
-import { MOCK_TRENDS } from '../../wallet/market-mock';
 import { POT_ASSETS } from '../../wallet/stake-pot-assets';
 import { CHAIN_TOKENS, supportsBalances, type TokenSymbol } from '../../wallet/tokens';
 import BrandIcon from '../BrandIcon';
@@ -142,7 +141,6 @@ export default function WalletAssetsTab({
       <View>
         {tokens.map((token, index) => {
           const balance = balances[token.symbol];
-          const trend = MOCK_TRENDS[token.symbol];
           const staked = stakedAmount(token.symbol, pot);
           return (
             <View
@@ -159,17 +157,7 @@ export default function WalletAssetsTab({
                 </View>
               )}
               <View style={styles.rowMid}>
-                <View style={styles.symbolRow}>
-                  <Text style={styles.symbol}>{token.symbol}</Text>
-                  <Text
-                    style={[
-                      styles.trend,
-                      { color: trend.up ? colors.success : colors.danger },
-                    ]}
-                  >
-                    {trend.pct}
-                  </Text>
-                </View>
+                <Text style={styles.symbol}>{token.symbol}</Text>
                 {staked ? (
                   <Text style={styles.rowSub}>
                     <Text style={styles.staked}>{staked}</Text> in pot
@@ -322,18 +310,9 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: spacing.xxs,
   },
-  symbolRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
   symbol: {
     ...type.subheading,
     color: colors.textPrimary,
-  },
-  trend: {
-    fontFamily: mono.bold,
-    fontSize: 12,
   },
   rowSub: {
     ...type.caption,
