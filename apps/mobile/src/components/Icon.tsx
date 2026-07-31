@@ -66,6 +66,7 @@ import {
   UserIcon,
   Wallet01Icon,
   WifiOff01Icon,
+  Wrench01Icon,
   ZapIcon,
 } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon, type HugeiconsProps } from '@hugeicons/react-native';
@@ -142,6 +143,7 @@ const ICONS = {
   warning: Alert01Icon,
   'wifi-off': WifiOff01Icon,
   wind: Tornado01Icon,
+  wrench: Wrench01Icon,
   zap: ZapIcon,
 } as const;
 

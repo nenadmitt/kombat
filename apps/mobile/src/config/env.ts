@@ -14,7 +14,14 @@ function required(key: keyof typeof Config): string {
   return value;
 }
 
+/** Optional: absent means the feature that reads it stays hidden. */
+function optional(key: keyof typeof Config): string | null {
+  return Config[key] || null;
+}
+
 export const env = {
   apiBaseUrl: required('API_BASE_URL'),
-  alchemyToken: required('ALCHEMY_TOKEN')
+  alchemyToken: required('ALCHEMY_TOKEN'),
+  /** Status/incident page linked from the maintenance banner. */
+  maintenanceDetailsUrl: optional('MAINTENANCE_DETAILS_URL'),
 };

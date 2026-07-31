@@ -57,6 +57,8 @@ export const colors = {
   /** Negative - losses, destructive. */
   danger: '#ff5a6e',
   dangerSoft: 'rgba(255, 90, 110, 0.16)',
+  /** Red hairline - mirrors goldBorder, for outlined error surfaces. */
+  dangerBorder: 'rgba(255, 90, 110, 0.4)',
   /** Lighter red for text/icons on a dark red tint (the "INCOMING" strip). */
   dangerLight: '#ff8792',
   /** Gold - the secondary accent: earnings, achievements, KOMBAT token. */
