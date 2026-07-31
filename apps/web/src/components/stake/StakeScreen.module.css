@@ -72,7 +72,7 @@
 }
 
 .chipLabel {
-  font: 700 12.5px/1 var(--font-heading);
+  font: 700 13px/1 var(--font-heading);
 }
 
 .chipCaret {
@@ -103,7 +103,7 @@
 }
 
 .walletAddress {
-  font: 700 12.5px/1 var(--font-heading);
+  font: 700 13px/1 var(--font-heading);
   color: var(--green-light);
 }
 
@@ -121,7 +121,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font: 600 12.5px/1 var(--font-heading);
+  font: 600 13px/1 var(--font-heading);
   color: rgba(233, 233, 237, 0.5);
 }
 
@@ -161,7 +161,7 @@
   padding: 0 2px 14px;
   border: 0;
   background: none;
-  font: 700 13.5px/1 var(--font-heading);
+  font: 700 14px/1 var(--font-heading);
   color: rgba(233, 233, 237, 0.45);
   cursor: pointer;
 }
@@ -203,15 +203,15 @@
 }
 
 .panelKicker {
-  font: 600 10.5px/1 var(--font-heading);
+  font: 600 13px/1 var(--font-heading);
   letter-spacing: 0.13em;
-  color: var(--text-45);
+  color: var(--text-55);
 }
 
 .panelKickerSm {
   font: 600 10px/1 var(--font-heading);
   letter-spacing: 0.13em;
-  color: var(--text-45);
+  color: var(--text-55);
 }
 
 .walletTag {
@@ -250,7 +250,7 @@
 }
 
 .balanceNote {
-  font-size: 12.5px;
+  font-size: 13px;
   color: rgba(233, 233, 237, 0.5);
 }
 
@@ -348,7 +348,7 @@
   border-radius: 11px;
   background: rgba(0, 0, 0, 0.32);
   color: rgba(233, 233, 237, 0.6);
-  font: 700 12.5px/1 var(--font-heading);
+  font: 700 13px/1 var(--font-heading);
   cursor: pointer;
 }
 
@@ -539,7 +539,7 @@
   border-radius: 14px;
   background: var(--amber);
   color: var(--panel);
-  font: 700 15.5px/1 var(--font-heading);
+  font: 700 16px/1 var(--font-heading);
 }
 
 .primaryBtn:hover {
@@ -555,7 +555,7 @@
   border-radius: 14px;
   background: transparent;
   color: var(--text);
-  font: 700 15.5px/1 var(--font-heading);
+  font: 700 16px/1 var(--font-heading);
 }
 
 .cancelBtn:hover {
@@ -569,7 +569,7 @@
   margin-top: 16px;
   font-size: 12px;
   line-height: 1.55;
-  color: var(--text-42);
+  color: var(--text-55);
 }
 
 .infoIcon {
@@ -629,7 +629,7 @@
   border-radius: 16px;
   background: var(--amber);
   color: var(--panel);
-  font: 700 14.5px/1 var(--font-heading);
+  font: 700 15px/1 var(--font-heading);
 }
 
 .shareBtn:hover {
@@ -694,10 +694,10 @@
 }
 
 .inviteStatLabel {
-  font: 600 9.5px/1 var(--font-heading);
+  font: 600 12px/1 var(--font-heading);
   letter-spacing: 0.11em;
   margin-top: 11px;
-  color: var(--text-45);
+  color: var(--text-55);
 }
 
 .feeSplit {
@@ -787,7 +787,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font: 600 10.5px/1 var(--font-heading);
+  font: 600 13px/1 var(--font-heading);
   letter-spacing: 0.13em;
   color: var(--amber);
 }
@@ -902,17 +902,17 @@
 }
 
 .earningsName {
-  font: 700 12.5px/1 var(--font-heading);
+  font: 700 13px/1 var(--font-heading);
 }
 
 .earningsMeta {
-  font-size: 10.5px;
+  font-size: 13px;
   margin-top: 5px;
-  color: var(--text-45);
+  color: var(--text-55);
 }
 
 .earningsAmount {
-  font: 700 12.5px/1 var(--font-heading);
+  font: 700 13px/1 var(--font-heading);
   color: var(--amber);
   flex: none;
 }
@@ -929,9 +929,9 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  font: 600 10.5px/1 var(--font-heading);
+  font: 600 13px/1 var(--font-heading);
   letter-spacing: 0.13em;
-  color: var(--text-45);
+  color: var(--text-55);
 }
 
 .testModeHead svg {
@@ -939,7 +939,7 @@
 }
 
 .testModeBody {
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.6;
   color: rgba(233, 233, 237, 0.5);
   margin: 14px 0 0;
@@ -1029,7 +1029,7 @@
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
   outline: none;
   color: var(--text);
-  font: 500 13.5px/1.2 var(--font-mono);
+  font: 500 14px/1.2 var(--font-mono);
 }
 
 .addressInput:focus {
@@ -1053,7 +1053,7 @@
   margin-top: 16px;
   padding: 13px 15px;
   border-radius: 13px;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.5;
 }
 
@@ -1079,7 +1079,7 @@
   background: rgba(142, 224, 90, 0.14);
   box-shadow: inset 0 0 0 1px rgba(142, 224, 90, 0.45);
   color: var(--green);
-  font: 700 12.5px/1 var(--font-heading);
+  font: 700 13px/1 var(--font-heading);
   cursor: pointer;
 }
 

@@ -54,15 +54,15 @@ export default function LandingPage() {
           <div className={styles.heroStats}>
             <div>
               <div className={styles.heroStatValue}>5</div>
-              <div className={styles.heroStatLabel}>GAMES LIVE · MORE SOON</div>
+              <div className={styles.heroStatLabel}>Games live · more soon</div>
             </div>
             <div>
               <div className={styles.heroStatValue}>50+</div>
-              <div className={styles.heroStatLabel}>TESTERS ALREADY</div>
+              <div className={styles.heroStatLabel}>Testers already</div>
             </div>
             <div>
               <div className={`${styles.heroStatValue} ${styles.amber}`}>4</div>
-              <div className={styles.heroStatLabel}>STAKEABLE TOKENS</div>
+              <div className={styles.heroStatLabel}>Stakeable tokens</div>
             </div>
           </div>
         </div>
@@ -87,7 +87,6 @@ export default function LandingPage() {
       </section>
 
       <section id="how" className={styles.how}>
-        <div className={styles.kicker}>HOW IT WORKS</div>
         <h2 className={styles.sectionTitle}>
           Three steps between your wallet and the pot.
         </h2>
@@ -138,9 +137,6 @@ export default function LandingPage() {
 
       <section id="pot" className={styles.pot}>
         <div>
-          <div className={`${styles.kicker} ${styles.kickerAmber}`}>
-            THE STAKE POT
-          </div>
           <h2 className={styles.sectionTitle}>Sign once. Play all night.</h2>
           <p className={styles.sectionLead}>
             Your pot is a balance held in the match contract. Fund it from any
@@ -175,7 +171,7 @@ export default function LandingPage() {
       <section id="invite" className={styles.invite}>
         <div className={styles.referralCard}>
           <div className={styles.referralHead}>
-            <div className={styles.panelKicker}>YOUR REFERRAL CODE</div>
+            <div className={styles.panelKicker}>Your referral code</div>
             <span className={styles.feeBadge}>
               <Percent size={11} weight="fill" />
               0.1% OF FEES
@@ -194,26 +190,26 @@ export default function LandingPage() {
           <div className={styles.referralStats}>
             <div className={styles.referralStat}>
               <div className={styles.referralStatValue}>14</div>
-              <div className={styles.referralStatLabel}>PLAYERS JOINED</div>
+              <div className={styles.referralStatLabel}>Players joined</div>
             </div>
             <div className={styles.referralStat}>
               <div className={styles.referralStatValue}>386</div>
-              <div className={styles.referralStatLabel}>THEIR MATCHES</div>
+              <div className={styles.referralStatLabel}>Their matches</div>
             </div>
             <div className={`${styles.referralStat} ${styles.referralStatHot}`}>
               <div className={`${styles.referralStatValue} ${styles.amber}`}>
                 $48.20
               </div>
-              <div className={styles.referralStatLabel}>EARNED TO POT</div>
+              <div className={styles.referralStatLabel}>Earned to pot</div>
             </div>
           </div>
           <div className={styles.feeSplit}>
             <div className={styles.panelKickerSm}>
-              WHERE A 5% PLATFORM FEE GOES
+              Where a 5% platform fee goes
             </div>
             <div className={styles.feeRows}>
               <div className={styles.feeRow}>
-                <span className={styles.feeRowLabel}>YOU · 0.1%</span>
+                <span className={styles.feeRowLabel}>You · 0.1%</span>
                 <span className={styles.feeBar}>
                   <span
                     className={`${styles.feeBarFill} ${styles.feeBarYou}`}
@@ -222,7 +218,7 @@ export default function LandingPage() {
                 </span>
               </div>
               <div className={styles.feeRow}>
-                <span className={styles.feeRowLabel}>PRIZE FLOOR</span>
+                <span className={styles.feeRowLabel}>Prize floor</span>
                 <span className={styles.feeBar}>
                   <span
                     className={`${styles.feeBarFill} ${styles.feeBarPrize}`}
@@ -231,7 +227,7 @@ export default function LandingPage() {
                 </span>
               </div>
               <div className={styles.feeRow}>
-                <span className={styles.feeRowLabel}>PLATFORM</span>
+                <span className={styles.feeRowLabel}>Platform</span>
                 <span className={styles.feeBar}>
                   <span
                     className={`${styles.feeBarFill} ${styles.feeBarPlatform}`}
@@ -243,9 +239,6 @@ export default function LandingPage() {
           </div>
         </div>
         <div className={styles.inviteCopy}>
-          <div className={`${styles.kicker} ${styles.kickerAmber}`}>
-            INVITE &amp; EARN
-          </div>
           <h2 className={styles.sectionTitle}>
             Invite players, earn on every match
           </h2>

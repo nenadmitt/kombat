@@ -109,7 +109,7 @@ export function ApplyForm() {
 
   return (
     <form className={styles.card} onSubmit={handleSubmit}>
-      <div className={styles.kicker}>APPLY FOR ACCESS</div>
+      <div className={styles.kicker}>Apply for access</div>
 
       <label className={styles.cardField}>
         <EnvelopeSimple size={17} className={styles.fieldIcon} />

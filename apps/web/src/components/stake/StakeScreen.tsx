@@ -83,7 +83,7 @@ export function StakeScreen() {
 
           {wallet.account ? (
             <div className={styles.soonWallet}>
-              <span className={styles.panelKickerSm}>CONNECTED WALLET</span>
+              <span className={styles.panelKickerSm}>Connected wallet</span>
               <div className={styles.soonWalletRow}>
                 <span className={styles.walletDot} />
                 <span className={styles.soonWalletAddress}>
