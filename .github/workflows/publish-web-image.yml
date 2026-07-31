@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE: registry.digitalocean.com/kombat-repo/webapp
+  IMAGE: registry.digitalocean.com/kombat-registry/webapp
 
 jobs:
   publish:
