@@ -2,12 +2,8 @@ import Link from "next/link";
 import {
   ArrowRight,
   Crosshair,
-  EnvelopeSimple,
   FileCode,
-  GameController,
-  CaretDown,
   Key,
-  LockSimple,
   Percent,
   Copy,
   ShareNetwork,
@@ -19,6 +15,7 @@ import {
 import { LogoMark } from "@/components/Logo";
 import { PhoneFrame } from "@/components/PhoneFrame";
 import { GamesCarousel } from "@/components/GamesCarousel";
+import { ApplyForm, HeroInviteForm } from "@/components/InviteForms";
 import { PotIllustration } from "@/components/PotIllustration";
 import styles from "./page.module.css";
 
@@ -57,25 +54,7 @@ export default function LandingPage() {
             against a real opponent, and the winner takes it. No house, no
             bots, settled on-chain.
           </p>
-          <div className={styles.heroForm}>
-            <div className={styles.heroFormRow}>
-              <label className={styles.emailField}>
-                <EnvelopeSimple size={17} className={styles.emailFieldIcon} />
-                <input
-                  type="email"
-                  placeholder="you@email.com"
-                  className={styles.emailInput}
-                />
-              </label>
-              <button type="button" className={styles.heroSubmit}>
-                Request an invite
-              </button>
-            </div>
-            <div className={styles.heroFormNote}>
-              <LockSimple size={13} />
-              Test mode on Ethereum Sepolia — no real funds at risk.
-            </div>
-          </div>
+          <HeroInviteForm />
           <div className={styles.heroStats}>
             <div>
               <div className={styles.heroStatValue}>5</div>
@@ -338,37 +317,7 @@ export default function LandingPage() {
               funds — nothing you stake during the test is real money.
             </p>
           </div>
-          <div className={styles.applyCard}>
-            <div className={styles.panelKicker}>APPLY FOR ACCESS</div>
-            <label className={styles.applyField}>
-              <EnvelopeSimple size={17} className={styles.emailFieldIcon} />
-              <input
-                type="email"
-                placeholder="you@email.com"
-                className={styles.emailInput}
-              />
-            </label>
-            <label className={styles.applyField}>
-              <GameController size={17} className={styles.emailFieldIcon} />
-              <select className={styles.applySelect} defaultValue="">
-                <option value="" disabled>
-                  Which game are you here for?
-                </option>
-                <option>Battleships</option>
-                <option>Chroma Clash</option>
-                <option>Salvo</option>
-                <option>Ludo Royale</option>
-                <option>Triple Cut</option>
-              </select>
-              <CaretDown size={13} weight="bold" className={styles.emailFieldIcon} />
-            </label>
-            <button type="button" className={styles.applySubmit}>
-              Request an invite
-            </button>
-            <div className={styles.applyNote}>
-              We email once, when your invite is ready. No newsletter.
-            </div>
-          </div>
+          <ApplyForm />
         </div>
       </section>
 

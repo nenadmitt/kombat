@@ -111,70 +111,6 @@
   text-wrap: pretty;
 }
 
-.heroForm {
-  margin-top: 34px;
-  max-width: 470px;
-}
-
-.heroFormRow {
-  display: flex;
-  gap: 11px;
-}
-
-.emailField {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 0 16px;
-  border-radius: 13px;
-  background: var(--surface);
-}
-
-.emailFieldIcon {
-  color: rgba(233, 233, 237, 0.4);
-  flex: none;
-}
-
-.emailInput {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  color: var(--text);
-  font: 400 14.5px/1 var(--font-body);
-  padding: 17px 0;
-  outline: none;
-}
-
-.emailInput::placeholder {
-  color: rgba(233, 233, 237, 0.4);
-}
-
-.heroSubmit {
-  border: 0;
-  cursor: pointer;
-  padding: 17px 24px;
-  border-radius: 13px;
-  background: var(--green);
-  color: var(--panel);
-  font: 700 14.5px/1 var(--font-heading);
-  white-space: nowrap;
-}
-
-.heroSubmit:hover {
-  filter: brightness(1.08);
-}
-
-.heroFormNote {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 14px;
-  font-size: 12.5px;
-  color: var(--text-42);
-}
-
 .heroStats {
   display: flex;
   gap: 44px;
@@ -600,66 +536,6 @@
   margin: 20px 0 0;
   font: 600 40px/1.1 var(--font-heading);
   letter-spacing: -0.025em;
-}
-
-.applyCard {
-  padding: 28px;
-  border-radius: 20px;
-  background: var(--surface);
-}
-
-.applyField {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  margin-top: 16px;
-  padding: 0 16px;
-  border-radius: 13px;
-  background: rgba(0, 0, 0, 0.3);
-}
-
-.applyField + .applyField {
-  margin-top: 11px;
-}
-
-.applySelect {
-  flex: 1;
-  min-width: 0;
-  appearance: none;
-  border: 0;
-  background: transparent;
-  color: rgba(233, 233, 237, 0.4);
-  font: 400 14.5px/1 var(--font-body);
-  padding: 16px 0;
-  outline: none;
-  cursor: pointer;
-}
-
-.applySelect option {
-  color: #0a0b12;
-}
-
-.applySubmit {
-  width: 100%;
-  margin-top: 16px;
-  border: 0;
-  cursor: pointer;
-  padding: 17px;
-  border-radius: 13px;
-  background: var(--green);
-  color: var(--panel);
-  font: 700 15px/1 var(--font-heading);
-}
-
-.applySubmit:hover {
-  filter: brightness(1.08);
-}
-
-.applyNote {
-  margin-top: 14px;
-  font-size: 12px;
-  line-height: 1.55;
-  color: rgba(233, 233, 237, 0.4);
 }
 
 /* ── footer ── */
