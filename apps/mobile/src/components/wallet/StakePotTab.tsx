@@ -17,6 +17,9 @@ import Icon from '../Icon';
 import { Button } from '../ui';
 import CoinJar from './CoinJar';
 
+/** Token mark in a pot row - one size, matching the wallet tab's rows. */
+const ICON_TILE = 40;
+
 type Props = {
   chainId: BalanceChainId;
   pot: StakePotBalances;
@@ -114,7 +117,7 @@ export default function StakePotTab({
             >
               {row.token?.brand ? (
                 <View style={styles.rowIcon}>
-                  <BrandIcon type={row.token.brand} size={34} />
+                  <BrandIcon type={row.token.brand} size={ICON_TILE} />
                 </View>
               ) : (
                 <View style={styles.rowGlyphCircle}>
@@ -213,7 +216,7 @@ const styles = StyleSheet.create({
   heroLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: spacing.xs,
   },
   heroLabel: {
     ...type.label,
@@ -257,14 +260,14 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.goldSoft,
   },
   rowIcon: {
-    width: 34,
-    height: 34,
+    width: ICON_TILE,
+    height: ICON_TILE,
     alignItems: 'center',
     justifyContent: 'center',
   },
   rowGlyphCircle: {
-    width: 34,
-    height: 34,
+    width: ICON_TILE,
+    height: ICON_TILE,
     borderRadius: radius.pill,
     backgroundColor: colors.gold,
     alignItems: 'center',
@@ -277,7 +280,7 @@ const styles = StyleSheet.create({
   },
   rowMid: {
     flex: 1,
-    gap: 5,
+    gap: spacing.xxs,
   },
   rowSymbol: {
     ...type.subheading,
@@ -291,7 +294,7 @@ const styles = StyleSheet.create({
   },
   rowRight: {
     alignItems: 'flex-end',
-    gap: 5,
+    gap: spacing.xxs,
   },
   rowAmount: {
     fontFamily: mono.bold,

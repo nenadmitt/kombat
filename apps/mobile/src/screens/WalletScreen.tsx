@@ -353,8 +353,7 @@ const styles = StyleSheet.create({
     // StakePotTab scrolls its own body and pins its CTAs, so this is just the
     // frame. The tab bar's raised LOBBY action overhangs content by 42px.
     flex: 1,
-    paddingTop: spacing.xs,
-    paddingBottom: 44,
+    paddingBottom: spacing.xxl,
   },
   unavailable: {
     ...type.caption,
@@ -367,10 +366,11 @@ const styles = StyleSheet.create({
     marginHorizontal: -spacing.lg,
   },
   walletBody: {
+    // No paddingTop: Screen already puts one spacing.md between every block,
+    // and adding to it made the gap under the network card wider than the rest.
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xs,
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.xxl,
   },
   list: {
     gap: spacing.sm,
@@ -411,8 +411,8 @@ const styles = StyleSheet.create({
   },
   txBadge: {
     borderRadius: radius.pill,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xxs,
   },
   txBadgeText: {
     fontFamily: mono.bold,

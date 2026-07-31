@@ -19,6 +19,11 @@ const ACTIONS = [
   { key: 'withdraw', label: 'Withdraw', icon: 'arrow-up' as IconName },
 ] as const;
 
+/** Token mark in an asset row. */
+const ICON_TILE = 40;
+/** Square affordance: copy / QR / refresh. */
+const MINI_TILE = 32;
+
 export type WalletAction = (typeof ACTIONS)[number]['key'];
 
 /** The pot asset a wallet token can be staked as, if it has one at all. */
@@ -154,7 +159,7 @@ export default function WalletAssetsTab({
             >
               {token.brand ? (
                 <View style={styles.tokenIcon}>
-                  <BrandIcon type={token.brand} size={42} />
+                  <BrandIcon type={token.brand} size={ICON_TILE} />
                 </View>
               ) : (
                 <View style={[styles.tokenCircle, { backgroundColor: token.tint }]}>
@@ -228,7 +233,7 @@ const styles = StyleSheet.create({
   addressLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: spacing.xs,
   },
   addressLabel: {
     ...type.label,
@@ -236,12 +241,12 @@ const styles = StyleSheet.create({
   },
   addressActions: {
     flexDirection: 'row',
-    gap: 7,
+    gap: spacing.xs,
   },
   addressBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
+    width: MINI_TILE,
+    height: MINI_TILE,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -268,7 +273,9 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     gap: spacing.xs,
-    paddingVertical: spacing.sm,
+    // Card already pads spacing.md horizontally; match it vertically so the
+    // tile's inset is equal on all four sides.
+    paddingVertical: spacing.md,
   },
   actionLabel: {
     ...type.caption,
@@ -296,8 +303,8 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   refreshBtn: {
-    width: 30,
-    height: 30,
+    width: MINI_TILE,
+    height: MINI_TILE,
     borderRadius: radius.sm,
     backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
@@ -320,14 +327,14 @@ const styles = StyleSheet.create({
     borderColor: colors.gold,
   },
   tokenIcon: {
-    width: 42,
-    height: 42,
+    width: ICON_TILE,
+    height: ICON_TILE,
     alignItems: 'center',
     justifyContent: 'center',
   },
   tokenCircle: {
-    width: 42,
-    height: 42,
+    width: ICON_TILE,
+    height: ICON_TILE,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
@@ -339,7 +346,7 @@ const styles = StyleSheet.create({
   },
   assetMid: {
     flex: 1,
-    gap: 5,
+    gap: spacing.xxs,
   },
   assetSymbolRow: {
     flexDirection: 'row',
@@ -353,8 +360,8 @@ const styles = StyleSheet.create({
   },
   trendBadge: {
     borderRadius: radius.sm,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xxs,
   },
   trendText: {
     fontFamily: mono.semiBold,
@@ -367,7 +374,7 @@ const styles = StyleSheet.create({
   },
   assetRight: {
     alignItems: 'flex-end',
-    gap: 5,
+    gap: spacing.xxs,
   },
   assetBalance: {
     fontFamily: mono.bold,
@@ -380,11 +387,11 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   stakeBtn: {
-    borderRadius: 11,
+    borderRadius: radius.sm,
     borderWidth: 1,
     borderColor: colors.goldBorder,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 8,
+    paddingVertical: spacing.xs,
   },
   stakeLabel: {
     fontFamily: mono.bold,

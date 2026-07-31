@@ -186,17 +186,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.cardBorder,
     borderRadius: radius.md,
-    padding: spacing.sm,
+    padding: spacing.md,
   },
   rowIcon: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
   rowMid: {
     flex: 1,
-    gap: 5,
+    gap: spacing.xxs,
   },
   rowLabel: {
     ...type.label,

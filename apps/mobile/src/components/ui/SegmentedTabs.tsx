@@ -72,8 +72,8 @@ const styles = StyleSheet.create({
   track: {
     flexDirection: 'row',
     alignSelf: 'center',
-    padding: 3,
-    borderRadius: 15,
+    padding: spacing.xxs,
+    borderRadius: radius.md,
     backgroundColor: colors.canvas,
     borderWidth: 1,
     borderColor: colors.border,
@@ -81,9 +81,9 @@ const styles = StyleSheet.create({
   tab: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: spacing.xs,
     paddingHorizontal: spacing.md,
-    paddingVertical: 9,
+    paddingVertical: spacing.xs,
     borderRadius: radius.sm,
   },
   pressed: {
