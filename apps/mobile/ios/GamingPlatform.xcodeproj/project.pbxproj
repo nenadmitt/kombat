@@ -26,6 +26,7 @@
 		E4EB8FA3F0A04C4BB7834825 /* BricolageGrotesque-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7729E2CD0A9C442688090881 /* BricolageGrotesque-SemiBold.ttf */; };
 		F6C2B2EB6E2B400FAD4E2027 /* IBMPlexMono-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2DCF44B7B587467298541FDF /* IBMPlexMono-Bold.ttf */; };
 		F7EF6899CCEE4152BC85ECB9 /* Sora-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7E58838F313E4814BEFC4059 /* Sora-SemiBold.ttf */; };
+		372D79A2D293469CA2D3DFD9 /* SpaceGrotesk-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 4A085213980E4C3B9D45147D /* SpaceGrotesk-Bold.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -53,6 +54,7 @@
 		CDC4E2FCBC9946139455732E /* BricolageGrotesque-Bold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "BricolageGrotesque-Bold.ttf"; path = "../assets/fonts/BricolageGrotesque-Bold.ttf"; sourceTree = "<group>"; };
 		D9BEFD174FF04ECDA280D2B2 /* IBMPlexMono-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "IBMPlexMono-Regular.ttf"; path = "../assets/fonts/IBMPlexMono-Regular.ttf"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		4A085213980E4C3B9D45147D /* SpaceGrotesk-Bold.ttf */ = {isa = PBXFileReference; name = "SpaceGrotesk-Bold.ttf"; path = "../assets/fonts/SpaceGrotesk-Bold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -135,6 +137,7 @@
 				962AF41468E9453AB6C2BD36 /* IBMPlexMono-SemiBold.ttf */,
 				361D8EFF137A476DA7A7D401 /* Sora-Medium.ttf */,
 				07E56E55B0BD4EDF8CA0C8CA /* BricolageGrotesque-Medium.ttf */,
+				4A085213980E4C3B9D45147D /* SpaceGrotesk-Bold.ttf */,
 			);
 			name = Resources;
 			sourceTree = "<group>";
@@ -225,6 +228,7 @@
 				8C995D1E23D34438B3488D58 /* IBMPlexMono-SemiBold.ttf in Resources */,
 				449BDDE718BB4E7BBAA7CD73 /* Sora-Medium.ttf in Resources */,
 				D9972FEFD67D453A823A1F8C /* BricolageGrotesque-Medium.ttf in Resources */,
+				372D79A2D293469CA2D3DFD9 /* SpaceGrotesk-Bold.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

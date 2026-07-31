@@ -24,3 +24,40 @@ export function LogoMark({
     </svg>
   );
 }
+
+/**
+ * Mark + wordmark, at the handoff's lockup ratios: wordmark 0.88x the mark's
+ * height, gap 0.25x. Always lowercase, never re-spaced.
+ */
+export function LogoLockup({
+  size = 30,
+  color = "var(--text)",
+}: {
+  /** Mark height; everything else follows from it. */
+  size?: number;
+  color?: string;
+}) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: Math.round(size * 0.25),
+      }}
+    >
+      <LogoMark size={size} />
+      <span
+        style={{
+          fontFamily: "var(--font-brand)",
+          fontWeight: 700,
+          fontSize: Math.round(size * 0.88),
+          letterSpacing: "-0.045em",
+          lineHeight: 1,
+          color,
+        }}
+      >
+        kombat
+      </span>
+    </span>
+  );
+}
