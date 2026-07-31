@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   ArrowRight,
   Crosshair,
-  FileCode,
   Key,
   Percent,
   Copy,
@@ -52,7 +51,7 @@ export default function LandingPage() {
           <p className={styles.heroLead}>
             Skill games for real stakes. Stake once into your pot, match
             against a real opponent, and the winner takes it. No house, no
-            bots, settled on-chain.
+            bots.
           </p>
           <HeroInviteForm />
           <div className={styles.heroStats}>
@@ -61,8 +60,8 @@ export default function LandingPage() {
               <div className={styles.heroStatLabel}>GAMES LIVE · MORE SOON</div>
             </div>
             <div>
-              <div className={styles.heroStatValue}>1,284</div>
-              <div className={styles.heroStatLabel}>TESTERS PLAYING</div>
+              <div className={styles.heroStatValue}>50+</div>
+              <div className={styles.heroStatLabel}>TESTERS ALREADY</div>
             </div>
             <div>
               <div className={`${styles.heroStatValue} ${styles.amber}`}>4</div>
@@ -106,7 +105,7 @@ export default function LandingPage() {
             <div className={styles.howCardTitle}>Stake into your pot</div>
             <p className={styles.howCardBody}>
               Send KOMBAT, USDC, USDT or ETH to the match contract once. Your
-              balance becomes in-game credit — no signing per match.
+              balance becomes in-game credit - no signing per match.
             </p>
           </div>
           <div className={styles.howCard}>
@@ -148,7 +147,7 @@ export default function LandingPage() {
           <h2 className={styles.sectionTitle}>Sign once. Play all night.</h2>
           <p className={styles.sectionLead}>
             Your pot is a balance held in the match contract. Fund it from any
-            wallet, and every match after that is instant — no transaction, no
+            wallet, and every match after that is instant - no transaction, no
             gas, no waiting on a confirmation between rounds.
           </p>
           <div className={styles.checkList}>
@@ -179,13 +178,6 @@ export default function LandingPage() {
       <section className={styles.trust}>
         <div className={styles.trustGrid}>
           <div className={styles.trustCard}>
-            <FileCode size={22} className={styles.green} />
-            <div className={styles.trustTitle}>Settled on-chain</div>
-            <p className={styles.trustBody}>
-              Every stake and payout is a contract call you can read yourself.
-            </p>
-          </div>
-          <div className={styles.trustCard}>
             <UsersThree size={22} className={styles.green} />
             <div className={styles.trustTitle}>Real opponents</div>
             <p className={styles.trustBody}>
@@ -212,13 +204,13 @@ export default function LandingPage() {
           </h2>
           <p className={styles.sectionLead}>
             Share your code and 0.1% of the platform fee from every staked
-            match your invites play lands straight in your stake pot — for as
+            match your invites play lands straight in your stake pot - for as
             long as they keep playing.
           </p>
           <div className={styles.checkList}>
             <div className={styles.checkItem}>
               <CheckCircle size={18} weight="fill" className={styles.amber} />
-              Credited per settled match — no claim step
+              Credited per settled match - no claim step
             </div>
             <div className={styles.checkItem}>
               <CheckCircle size={18} weight="fill" className={styles.amber} />
@@ -314,7 +306,7 @@ export default function LandingPage() {
             <p className={styles.sectionLead}>
               We&apos;re onboarding testers in small batches on Ethereum
               Sepolia. Leave your email and we&apos;ll send an invite with test
-              funds — nothing you stake during the test is real money.
+              funds - nothing you stake during the test is real money.
             </p>
           </div>
           <ApplyForm />

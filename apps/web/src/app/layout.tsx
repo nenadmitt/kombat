@@ -9,9 +9,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Kombat — Play. Compete. Win.",
+  title: "Kombat - Play. Compete. Win.",
   description:
-    "Skill games for real stakes. Stake once into your pot, match against a real opponent, and the winner takes it. No house, no bots, settled on-chain.",
+    "Skill games for real stakes. Stake once into your pot, match against a real opponent, and the winner takes it. No house, no bots.",
 };
 
 export default function RootLayout({

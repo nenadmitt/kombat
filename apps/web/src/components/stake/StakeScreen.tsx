@@ -25,6 +25,9 @@ import {
   Wallet,
 } from "@phosphor-icons/react";
 import { LogoMark } from "@/components/Logo";
+import { shortAddress } from "@/lib/chain";
+import { useWallet } from "@/lib/useWallet";
+import { StakeForm } from "./StakeForm";
 import styles from "./StakeScreen.module.css";
 
 export type StakeTab = "stake" | "withdraw" | "invite";
@@ -34,6 +37,7 @@ const CONTRACT = "0x9C4e1aB7f0D2c8e5A6b31F94dE07c25B8aF6390D";
 
 export function StakeScreen({ initialTab }: { initialTab: StakeTab }) {
   const [tab, setTab] = useState<StakeTab>(initialTab);
+  const wallet = useWallet();
 
   return (
     <div className={styles.page}>
@@ -43,17 +47,43 @@ export function StakeScreen({ initialTab }: { initialTab: StakeTab }) {
           <span className={styles.brandName}>KOMBAT</span>
         </Link>
         <div className={styles.navChips}>
-          <span className={styles.networkChip}>
+          <button
+            type="button"
+            className={`${styles.networkChip} ${
+              wallet.wrongNetwork ? styles.networkChipWarn : ""
+            }`}
+            onClick={() => void wallet.switchNetwork()}
+          >
             <span className={styles.networkIcon}>
               <DiamondsFour size={11} weight="fill" />
             </span>
-            <span className={styles.chipLabel}>Ethereum Sepolia</span>
+            <span className={styles.chipLabel}>
+              {wallet.wrongNetwork ? "Wrong network" : "Ethereum Sepolia"}
+            </span>
             <CaretDown size={11} weight="bold" className={styles.chipCaret} />
-          </span>
-          <span className={styles.walletChip}>
-            <span className={styles.walletDot} />
-            <span className={styles.walletAddress}>{WALLET}</span>
-          </span>
+          </button>
+          {wallet.account ? (
+            <span className={styles.walletChip}>
+              <span className={styles.walletDot} />
+              <span className={styles.walletAddress}>
+                {shortAddress(wallet.account)}
+              </span>
+            </span>
+          ) : (
+            <button
+              type="button"
+              className={styles.connectBtn}
+              onClick={() => void wallet.connect()}
+              disabled={wallet.connecting || !wallet.hasWallet}
+            >
+              <Wallet size={13} weight="fill" />
+              {wallet.connecting
+                ? "Connecting…"
+                : wallet.hasWallet
+                  ? "Connect wallet"
+                  : "No wallet found"}
+            </button>
+          )}
         </div>
       </header>
 
@@ -72,7 +102,7 @@ export function StakeScreen({ initialTab }: { initialTab: StakeTab }) {
           </h1>
           <p className={styles.lead}>
             {tab === "invite"
-              ? "Share your code. When someone you invited plays a staked match, 0.1% of the platform fee lands straight in your stake pot — for as long as they keep playing."
+              ? "Share your code. When someone you invited plays a staked match, 0.1% of the platform fee lands straight in your stake pot - for as long as they keep playing."
               : tab === "withdraw"
                 ? "Move unlocked balance from your pot back to your wallet. Funds locked in an open match free up the moment it settles."
                 : "Send tokens from your wallet to the Kombat match contract. They arrive as in-game credit within one block and stay withdrawable at any time."}
@@ -105,7 +135,13 @@ export function StakeScreen({ initialTab }: { initialTab: StakeTab }) {
             </button>
           </div>
 
-          {tab === "invite" ? <InvitePanel /> : <TransferPanel mode={tab} />}
+          {tab === "invite" ? (
+            <InvitePanel />
+          ) : tab === "stake" ? (
+            <StakeForm wallet={wallet} />
+          ) : (
+            <WithdrawPanel />
+          )}
         </div>
 
         <aside className={styles.side}>
@@ -187,7 +223,7 @@ export function StakeScreen({ initialTab }: { initialTab: StakeTab }) {
             <p className={styles.testModeBody}>
               {tab === "invite"
                 ? "Referral payouts run on Sepolia during the closed test. Codes and totals carry over at launch."
-                : "Staking runs on Ethereum Sepolia during the closed test — nothing you send is real money."}
+                : "Staking runs on Ethereum Sepolia during the closed test - nothing you send is real money."}
             </p>
           </div>
         </aside>
@@ -196,14 +232,11 @@ export function StakeScreen({ initialTab }: { initialTab: StakeTab }) {
   );
 }
 
-function TransferPanel({ mode }: { mode: "stake" | "withdraw" }) {
-  const staking = mode === "stake";
+function WithdrawPanel() {
   return (
     <div className={styles.panel}>
       <div className={styles.panelHead}>
-        <div className={styles.panelKicker}>
-          {staking ? "FROM YOUR WALLET" : "FROM YOUR STAKE POT"}
-        </div>
+        <div className={styles.panelKicker}>FROM YOUR STAKE POT</div>
         <div className={styles.walletTag}>
           <Wallet size={13} weight="fill" className={styles.greenIcon} />
           <span className={styles.walletTagAddress}>{WALLET}</span>
@@ -213,11 +246,9 @@ function TransferPanel({ mode }: { mode: "stake" | "withdraw" }) {
 
       <div className={styles.amountBox}>
         <div className={styles.amountBoxHead}>
-          <span className={styles.amountLabel}>
-            {staking ? "AMOUNT TO STAKE" : "AMOUNT TO WITHDRAW"}
-          </span>
+          <span className={styles.amountLabel}>AMOUNT TO WITHDRAW</span>
           <span className={styles.balanceNote}>
-            {staking ? "Wallet balance " : "Unlocked balance "}
+            Unlocked balance{" "}
             <span className={styles.balanceValue}>412.50 USDC</span>
           </span>
         </div>
@@ -254,20 +285,12 @@ function TransferPanel({ mode }: { mode: "stake" | "withdraw" }) {
       </div>
 
       <div className={styles.destBox}>
-        <div className={styles.panelKickerSm}>
-          {staking ? "TO · KOMBAT MATCH CONTRACT" : "TO · YOUR WALLET"}
-        </div>
+        <div className={styles.panelKickerSm}>TO · YOUR WALLET</div>
         <div className={styles.destRow}>
           <span className={styles.destIcon}>
-            {staking ? (
-              <FileCode size={18} weight="bold" />
-            ) : (
-              <Wallet size={18} weight="bold" />
-            )}
+            <Wallet size={18} weight="bold" />
           </span>
-          <span className={styles.destAddress}>
-            {staking ? CONTRACT : WALLET}
-          </span>
+          <span className={styles.destAddress}>{WALLET}</span>
           <span className={styles.destActions}>
             <span className={`${styles.iconBtn} ${styles.iconBtnGreen}`}>
               <Copy size={14} weight="bold" />
@@ -277,12 +300,6 @@ function TransferPanel({ mode }: { mode: "stake" | "withdraw" }) {
             </span>
           </span>
         </div>
-        {staking && (
-          <div className={styles.verifiedNote}>
-            <SealCheck size={14} weight="fill" />
-            Verified on Etherscan · audited 04/2026
-          </div>
-        )}
       </div>
 
       <div className={styles.feeBox}>
@@ -291,42 +308,28 @@ function TransferPanel({ mode }: { mode: "stake" | "withdraw" }) {
           <span className={styles.feeLineValue}>~$0.12</span>
         </div>
         <div className={styles.feeLine}>
-          <span className={styles.feeLineLabel}>
-            {staking ? "Kombat staking fee" : "Kombat withdrawal fee"}
-          </span>
+          <span className={styles.feeLineLabel}>Kombat withdrawal fee</span>
           <span className={styles.feeLineValue}>None</span>
         </div>
         <div className={styles.feeRule} />
         <div className={styles.feeTotal}>
-          <span className={styles.feeTotalLabel}>
-            {staking ? "CREDITED TO POT" : "SENT TO WALLET"}
-          </span>
+          <span className={styles.feeTotalLabel}>SENT TO WALLET</span>
           <span className={styles.feeTotalValue}>250.00 USDC</span>
         </div>
       </div>
 
       <div className={styles.actions}>
         <button type="button" className={styles.primaryBtn}>
-          {staking ? (
-            <>
-              <ShieldCheck size={17} weight="bold" />
-              Stake 250 USDC
-            </>
-          ) : (
-            <>
-              <ArrowUUpLeft size={17} weight="bold" />
-              Withdraw 250 USDC
-            </>
-          )}
+          <ArrowUUpLeft size={17} weight="bold" />
+          Withdraw 250 USDC
         </button>
         <button type="button" className={styles.cancelBtn}>Cancel</button>
       </div>
       <div className={styles.infoNote}>
         <Info size={14} className={styles.infoIcon} />
         <span>
-          {staking
-            ? "Two signatures: one to approve the token, one to stake. Test mode uses Sepolia funds only."
-            : "One signature to withdraw. Balance locked in an open match frees up when it settles."}
+          One signature to withdraw. Balance locked in an open match frees up
+          when it settles.
         </span>
       </div>
     </div>
@@ -411,7 +414,7 @@ function InvitePanel() {
         <div className={styles.infoNote}>
           <Info size={14} className={styles.infoIcon} />
           <span>
-            Your share is credited per settled match — no claim step, nothing
+            Your share is credited per settled match - no claim step, nothing
             to withdraw first.
           </span>
         </div>

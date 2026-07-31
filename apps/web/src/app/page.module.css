@@ -234,7 +234,6 @@
   gap: 70px;
   align-items: center;
   padding: 80px 60px;
-  background: var(--panel-2);
 }
 
 .checkList {
@@ -292,7 +291,7 @@
 
 .trustGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
 }
 
@@ -497,7 +496,6 @@
   position: relative;
   padding: 76px 60px;
   overflow: hidden;
-  background: var(--panel-2);
 }
 
 .applyGlow {

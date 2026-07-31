@@ -1,6 +1,5 @@
 .arena {
   padding: 70px 0 74px;
-  background: var(--panel-2);
 }
 
 .head {
@@ -255,7 +254,7 @@
   flex-direction: column;
   justify-content: center;
   gap: 18px;
-  background: var(--panel-2);
+  background: var(--panel);
   box-shadow: none;
 }
 

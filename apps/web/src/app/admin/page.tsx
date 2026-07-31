@@ -14,7 +14,7 @@ import styles from "./page.module.css";
 
 type Signup = {
   id: string;
-  username: string;
+  username: string | null;
   email: string;
   country: string | null;
   createdAt: string;
@@ -128,7 +128,11 @@ export default function AdminPage() {
                   <tbody>
                     {state.signups.map((signup) => (
                       <tr key={signup.id}>
-                        <td className={styles.username}>{signup.username}</td>
+                        <td className={styles.username}>
+                          {signup.username ?? (
+                            <span className={styles.unknown}>-</span>
+                          )}
+                        </td>
                         <td className={styles.email}>{signup.email}</td>
                         <td>
                           {signup.country ?? (

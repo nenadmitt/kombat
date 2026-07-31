@@ -6,7 +6,6 @@ import {
   CheckCircle,
   EnvelopeSimple,
   LockSimple,
-  User,
   WarningCircle,
 } from "@phosphor-icons/react";
 
@@ -14,37 +13,22 @@ import { onInviteRequested, requestInvite } from "@/lib/invite-bus";
 import styles from "./InviteForms.module.css";
 
 export function HeroInviteForm() {
-  const [email, setEmail] = useState("");
-
-  const handleSubmit = (event: FormEvent) => {
-    event.preventDefault();
-    requestInvite(email);
-    document.getElementById("apply")?.scrollIntoView({ behavior: "smooth" });
-  };
-
   return (
-    <form className={styles.heroForm} onSubmit={handleSubmit}>
-      <div className={styles.heroFormRow}>
-        <label className={styles.field}>
-          <EnvelopeSimple size={17} className={styles.fieldIcon} />
-          <input
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="you@email.com"
-            aria-label="Email address"
-            className={styles.input}
-          />
-        </label>
-        <button type="submit" className={styles.heroSubmit}>
-          Request an invite
-        </button>
-      </div>
+    <div className={styles.heroForm}>
+      <button
+        type="button"
+        className={styles.heroSubmit}
+        onClick={() =>
+          document.getElementById("apply")?.scrollIntoView({ behavior: "smooth" })
+        }
+      >
+        Request an invite
+      </button>
       <div className={styles.heroNote}>
         <LockSimple size={13} />
-        Test mode on Ethereum Sepolia — no real funds at risk.
+        Test mode on Ethereum Sepolia - no real funds at risk.
       </div>
-    </form>
+    </div>
   );
 }
 
@@ -55,16 +39,15 @@ type Status =
   | { kind: "done"; alreadyRegistered: boolean };
 
 export function ApplyForm() {
-  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const emailRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
-  const usernameRef = useRef<HTMLInputElement>(null);
 
   useEffect(
     () =>
       onInviteRequested((incoming) => {
         if (incoming) setEmail(incoming);
-        usernameRef.current?.focus({ preventScroll: true });
+        emailRef.current?.focus({ preventScroll: true });
       }),
     [],
   );
@@ -78,7 +61,7 @@ export function ApplyForm() {
       const response = await fetch("/api/tester-signups", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ username, email }),
+        body: JSON.stringify({ email }),
       });
       const body = (await response.json()) as {
         error?: string;
@@ -129,23 +112,9 @@ export function ApplyForm() {
       <div className={styles.kicker}>APPLY FOR ACCESS</div>
 
       <label className={styles.cardField}>
-        <User size={17} className={styles.fieldIcon} />
-        <input
-          ref={usernameRef}
-          type="text"
-          value={username}
-          onChange={(event) => setUsername(event.target.value)}
-          placeholder="Pick a username"
-          aria-label="Username"
-          maxLength={32}
-          required
-          className={styles.input}
-        />
-      </label>
-
-      <label className={styles.cardField}>
         <EnvelopeSimple size={17} className={styles.fieldIcon} />
         <input
+          ref={emailRef}
           type="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}

@@ -32,7 +32,7 @@ const GAMES: Game[] = [
     badge: { label: "MOST PLAYED", tone: "amber" },
     category: "STRATEGY · 1V1",
     description:
-      "Place your fleet on a 10×10 grid, then hunt theirs one salvo at a time. Every shot you take is public information — reading their pattern matters more than luck.",
+      "Place your fleet on a 10×10 grid, then hunt theirs one salvo at a time. Every shot you take is public information - reading their pattern matters more than luck.",
     matchLength: "~6 min",
     screenshots: [
       "/screenshots/battleship-game-ss1.png",
@@ -61,7 +61,7 @@ const GAMES: Game[] = [
     icon: <DiceFive size={31} />,
     category: "BOARD · 1V1",
     description:
-      "The board game you already know, played for a pot. Four tokens home wins it — knock a rival back to start and the whole race resets in your favour.",
+      "The board game you already know, played for a pot. Four tokens home wins it - knock a rival back to start and the whole race resets in your favour.",
     matchLength: "~9 min",
   },
   {
@@ -119,14 +119,14 @@ export function GamesCarousel() {
           <div className={styles.kicker}>THE ARENA</div>
           <h2 className={styles.title}>Five games today. More every month.</h2>
           <p className={styles.lead}>
-            The roster keeps expanding — new arenas ship through the test and
+            The roster keeps expanding - new arenas ship through the test and
             testers pick the order.
           </p>
         </div>
         <div className={styles.headSide}>
           <div className={styles.liveNow}>
             <span className={styles.liveDot} />
-            1,284 in match right now
+            50+ testers in the arena
           </div>
           <div className={styles.arrows}>
             <button

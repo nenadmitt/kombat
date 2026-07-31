@@ -1,7 +1,7 @@
 import { StakeScreen, type StakeTab } from "@/components/stake/StakeScreen";
 
 export const metadata = {
-  title: "Kombat — Stake pot",
+  title: "Kombat - Stake pot",
 };
 
 export default async function StakePage({
