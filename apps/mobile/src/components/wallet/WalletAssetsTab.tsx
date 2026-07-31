@@ -1,4 +1,4 @@
-import { StakeAsset } from '@gaming-platform/core';
+import { formatStakeAmount, type StakePotBalances } from '@gaming-platform/core';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -6,6 +6,7 @@ import type { TokenBalance } from '../../store/walletBalances.store';
 import { colors, radius, spacing } from '../../theme/colors';
 import { mono, type } from '../../theme/typography';
 import type { ChainId } from '../../wallet/chains';
+import { truncateAddress } from '../../wallet/format-address';
 import { MOCK_TRENDS } from '../../wallet/market-mock';
 import { POT_ASSETS } from '../../wallet/stake-pot-assets';
 import { CHAIN_TOKENS, supportsBalances, type TokenSymbol } from '../../wallet/tokens';
@@ -13,52 +14,47 @@ import BrandIcon from '../BrandIcon';
 import Icon, { type IconName } from '../Icon';
 import { Card } from '../ui';
 
+/** Token mark in an asset row. */
+const ICON_TILE = 40;
+/** Square affordance: copy / QR. */
+const MINI_TILE = 32;
+
 const ACTIONS = [
   { key: 'receive', label: 'Receive', icon: 'arrow-down' as IconName },
   { key: 'deposit', label: 'Deposit', icon: 'plus' as IconName },
   { key: 'withdraw', label: 'Withdraw', icon: 'arrow-up' as IconName },
 ] as const;
 
-/** Token mark in an asset row. */
-const ICON_TILE = 40;
-/** Square affordance: copy / QR / refresh. */
-const MINI_TILE = 32;
-
 export type WalletAction = (typeof ACTIONS)[number]['key'];
-
-/** The pot asset a wallet token can be staked as, if it has one at all. */
-const STAKE_ASSET_BY_SYMBOL = new Map<TokenSymbol, StakeAsset>(
-  POT_ASSETS.map(({ asset, symbol }) => [symbol, asset]),
-);
 
 type Props = {
   address: string;
   chainId: ChainId;
   balances: Partial<Record<TokenSymbol, TokenBalance>>;
+  /** Pot balances, so a row can say how much of that token is already staked. */
+  pot: StakePotBalances;
   loading: boolean;
-  /** Manual refresh is null while it is on cooldown or unavailable. */
+  /** Null while the manual refresh is on cooldown or unavailable. */
   onRefresh: (() => void) | null;
   error: string | null;
   onAction: (action: WalletAction) => void;
-  /** Null when the server runs without pooled staking - no Stake buttons. */
-  onStake: ((asset: StakeAsset) => void) | null;
   onShowQr: () => void;
 };
 
 /**
- * The wallet tab: the network the app is reading, the custodial address, the
- * money in and out, and every token held on that chain. Staked funds are not
- * here - they live in the stake pot tab - so the assets header says so.
+ * The wallet tab: the custodial address, money in and out, and every token
+ * held on the selected chain. A row that also has funds in the pot says so,
+ * because the two balances are easy to confuse.
  */
 export default function WalletAssetsTab({
   address,
   chainId,
   balances,
+  pot,
   loading,
   onRefresh,
   error,
   onAction,
-  onStake,
   onShowQr,
 }: Props) {
   const tokens = supportsBalances(chainId) ? CHAIN_TOKENS[chainId] : [];
@@ -68,7 +64,7 @@ export default function WalletAssetsTab({
       <Card style={styles.addressCard}>
         <View style={styles.addressHead}>
           <View style={styles.addressLabelRow}>
-            <Icon type="wallet" color={colors.accent} size={12} />
+            <Icon type="wallet" color={colors.accent} size={14} />
             <Text style={styles.addressLabel}>Your address</Text>
           </View>
           <View style={styles.addressActions}>
@@ -83,7 +79,7 @@ export default function WalletAssetsTab({
                 pressed && styles.pressed,
               ]}
             >
-              <Icon type="copy" color={colors.accent100} size={14} />
+              <Icon type="copy" color={colors.accent100} size={16} />
             </Pressable>
             <Pressable
               onPress={onShowQr}
@@ -96,13 +92,11 @@ export default function WalletAssetsTab({
                 pressed && styles.pressed,
               ]}
             >
-              <Icon type="qr-code" color={colors.textPrimary} size={14} />
+              <Icon type="qr-code" color={colors.textPrimary} size={16} />
             </Pressable>
           </View>
         </View>
-        <Text numberOfLines={1} style={styles.address}>
-          {address}
-        </Text>
+        <Text style={styles.address}>{truncateAddress(address)}</Text>
       </Card>
 
       <View style={styles.actionRow}>
@@ -112,7 +106,7 @@ export default function WalletAssetsTab({
             style={styles.actionCard}
             onPress={() => onAction(action.key)}
           >
-            <Icon type={action.icon} color={colors.accent} size={18} />
+            <Icon type={action.icon} color={colors.accent} size={20} />
             <Text style={styles.actionLabel}>{action.label}</Text>
           </Card>
         ))}
@@ -120,42 +114,40 @@ export default function WalletAssetsTab({
 
       <View style={styles.assetsHeader}>
         <Text style={styles.assetsLabel}>Assets</Text>
-        <View style={styles.assetsHeaderRight}>
-          <Text style={styles.assetsNote}>Not staked</Text>
-          <Pressable
-            onPress={() => onRefresh?.()}
-            disabled={!onRefresh || loading}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Refresh balances"
-            style={({ pressed }) => [styles.refreshBtn, pressed && styles.pressed]}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color={colors.accentLight} />
-            ) : (
+        <Pressable
+          onPress={() => onRefresh?.()}
+          disabled={!onRefresh || loading}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Refresh balances"
+          style={({ pressed }) => [styles.refreshBtn, pressed && styles.pressed]}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color={colors.textMuted} />
+          ) : (
+            <>
               <Icon
                 type="refresh"
-                size={16}
-                color={onRefresh ? colors.accentLight : colors.textFaint}
+                size={14}
+                color={onRefresh ? colors.textMuted : colors.textFaint}
               />
-            )}
-          </Pressable>
-        </View>
+              <Text style={styles.refreshLabel}>Refresh</Text>
+            </>
+          )}
+        </Pressable>
       </View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <View style={styles.list}>
-        {tokens.map(token => {
+      <View>
+        {tokens.map((token, index) => {
           const balance = balances[token.symbol];
           const trend = MOCK_TRENDS[token.symbol];
-          const stakeAsset = STAKE_ASSET_BY_SYMBOL.get(token.symbol);
-          const highlight = token.symbol === 'KOMBAT';
+          const staked = stakedAmount(token.symbol, pot);
           return (
-            <Card
+            <View
               key={token.symbol}
-              flush
-              style={[styles.assetCard, highlight && styles.assetHighlight]}
+              style={[styles.row, index < tokens.length - 1 && styles.rowRule]}
             >
               {token.brand ? (
                 <View style={styles.tokenIcon}>
@@ -166,53 +158,35 @@ export default function WalletAssetsTab({
                   <Text style={styles.tokenGlyph}>{token.glyph}</Text>
                 </View>
               )}
-              <View style={styles.assetMid}>
-                <View style={styles.assetSymbolRow}>
-                  <Text style={styles.assetSymbol}>{token.symbol}</Text>
-                  <View
+              <View style={styles.rowMid}>
+                <View style={styles.symbolRow}>
+                  <Text style={styles.symbol}>{token.symbol}</Text>
+                  <Text
                     style={[
-                      styles.trendBadge,
-                      {
-                        backgroundColor: trend.up
-                          ? colors.successSoft
-                          : colors.dangerSoft,
-                      },
+                      styles.trend,
+                      { color: trend.up ? colors.success : colors.danger },
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.trendText,
-                        { color: trend.up ? colors.success : colors.danger },
-                      ]}
-                    >
-                      {trend.pct}
-                    </Text>
-                  </View>
+                    {trend.pct}
+                  </Text>
                 </View>
-                <Text style={styles.assetName}>{token.name}</Text>
+                {staked ? (
+                  <Text style={styles.rowSub}>
+                    <Text style={styles.staked}>{staked}</Text> in pot
+                  </Text>
+                ) : (
+                  <Text style={styles.rowSub}>{token.name}</Text>
+                )}
               </View>
-              <View style={styles.assetRight}>
-                <Text style={styles.assetBalance}>{balance?.formatted ?? '-'}</Text>
-                <Text style={styles.assetUsd}>
+              <View style={styles.rowRight}>
+                <Text style={styles.balance}>{balance?.formatted ?? '-'}</Text>
+                <Text style={styles.usd}>
                   {token.stable && balance?.raw != null
                     ? `$${balance.formatted}`
                     : token.symbol}
                 </Text>
               </View>
-              {onStake && stakeAsset !== undefined ? (
-                <Pressable
-                  onPress={() => onStake(stakeAsset)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Stake ${token.symbol}`}
-                  style={({ pressed }) => [
-                    styles.stakeBtn,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Text style={styles.stakeLabel}>Stake</Text>
-                </Pressable>
-              ) : null}
-            </Card>
+            </View>
           );
         })}
       </View>
@@ -220,10 +194,20 @@ export default function WalletAssetsTab({
   );
 }
 
+/** What this token already holds in the pot, formatted, or null if none. */
+function stakedAmount(symbol: TokenSymbol, pot: StakePotBalances): string | null {
+  const entry = POT_ASSETS.find(a => a.symbol === symbol);
+  if (!entry) {
+    return null;
+  }
+  const total =
+    BigInt(pot.available[entry.asset]) + BigInt(pot.locked[entry.asset]);
+  return total > 0n ? formatStakeAmount(total.toString(), entry.asset) : null;
+}
+
 const styles = StyleSheet.create({
   addressCard: {
     gap: spacing.sm,
-    padding: spacing.sm,
   },
   addressHead: {
     flexDirection: 'row',
@@ -258,8 +242,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   address: {
-    fontFamily: mono.semiBold,
-    fontSize: 13,
+    fontFamily: mono.bold,
+    fontSize: 22,
+    letterSpacing: -0.3,
     color: colors.textPrimary,
   },
   pressed: {
@@ -273,14 +258,14 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     gap: spacing.xs,
-    // Card already pads spacing.md horizontally; match it vertically so the
-    // tile's inset is equal on all four sides.
+    // Card pads spacing.md horizontally; match it vertically so the tile's
+    // inset is equal on all four sides.
     paddingVertical: spacing.md,
   },
   actionLabel: {
-    ...type.caption,
+    ...type.body,
     fontFamily: type.button.fontFamily,
-    fontSize: 12,
+    fontSize: 14,
     color: colors.textPrimary,
   },
   assetsHeader: {
@@ -290,41 +275,30 @@ const styles = StyleSheet.create({
   },
   assetsLabel: {
     ...type.label,
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  assetsHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  assetsNote: {
-    ...type.label,
     color: colors.textMuted,
   },
   refreshBtn: {
-    width: MINI_TILE,
-    height: MINI_TILE,
-    borderRadius: radius.sm,
-    backgroundColor: colors.surfaceMuted,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  refreshLabel: {
+    ...type.label,
+    color: colors.textMuted,
   },
   error: {
     ...type.caption,
     color: colors.danger,
   },
-  list: {
-    gap: spacing.sm,
-  },
-  assetCard: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    padding: spacing.sm,
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
   },
-  assetHighlight: {
-    borderColor: colors.gold,
+  rowRule: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   tokenIcon: {
     width: ICON_TILE,
@@ -341,61 +315,45 @@ const styles = StyleSheet.create({
   },
   tokenGlyph: {
     fontFamily: mono.bold,
-    fontSize: 19,
+    fontSize: 18,
     color: colors.onAccent,
   },
-  assetMid: {
+  rowMid: {
     flex: 1,
     gap: spacing.xxs,
   },
-  assetSymbolRow: {
+  symbolRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
   },
-  assetSymbol: {
+  symbol: {
     ...type.subheading,
-    fontSize: 15,
     color: colors.textPrimary,
   },
-  trendBadge: {
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.xxs,
+  trend: {
+    fontFamily: mono.bold,
+    fontSize: 12,
   },
-  trendText: {
-    fontFamily: mono.semiBold,
-    fontSize: 10,
-  },
-  assetName: {
+  rowSub: {
     ...type.caption,
-    fontSize: 11,
     color: colors.textMuted,
   },
-  assetRight: {
+  staked: {
+    fontFamily: mono.bold,
+    color: colors.gold,
+  },
+  rowRight: {
     alignItems: 'flex-end',
     gap: spacing.xxs,
   },
-  assetBalance: {
+  balance: {
     fontFamily: mono.bold,
-    fontSize: 14,
+    fontSize: 18,
     color: colors.textPrimary,
   },
-  assetUsd: {
+  usd: {
     ...type.caption,
-    fontSize: 10.5,
     color: colors.textMuted,
-  },
-  stakeBtn: {
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.goldBorder,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  stakeLabel: {
-    fontFamily: mono.bold,
-    fontSize: 11,
-    color: colors.gold,
   },
 });

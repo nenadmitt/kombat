@@ -65,13 +65,10 @@ export default function ChainSelector({
         {variant === 'row' ? (
           <>
             <View style={styles.rowIcon}>
-              <BrandIcon type={activeChain.icon} size={30} />
+              <BrandIcon type={activeChain.icon} size={26} />
             </View>
-            <View style={styles.rowMid}>
-              <Text style={styles.rowLabel}>Network</Text>
-              <Text style={styles.rowName}>{activeChain.network}</Text>
-            </View>
-            <Icon type="chevron-down" color={colors.textMuted} size={16} />
+            <Text style={styles.rowName}>{activeChain.network}</Text>
+            <Icon type="chevron-down" color={colors.textMuted} size={18} />
           </>
         ) : (
           <>
@@ -169,9 +166,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderStrong,
     borderRadius: radius.pill,
-    paddingLeft: 5,
+    paddingLeft: spacing.xxs,
     paddingRight: spacing.sm,
-    paddingVertical: 5,
+    paddingVertical: spacing.xxs,
   },
   pillText: {
     fontFamily: mono.semiBold,
@@ -191,20 +188,14 @@ const styles = StyleSheet.create({
   rowIcon: {
     width: 40,
     height: 40,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowMid: {
-    flex: 1,
-    gap: spacing.xxs,
-  },
-  rowLabel: {
-    ...type.label,
-    color: colors.textMuted,
-  },
   rowName: {
     ...type.subheading,
-    fontSize: 15,
+    flex: 1,
     color: colors.textPrimary,
   },
   pressed: {
@@ -234,7 +225,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: 38,
     height: 4,
-    borderRadius: 3,
+    borderRadius: radius.pill,
     backgroundColor: colors.borderStrong,
   },
   title: {
@@ -271,7 +262,7 @@ const styles = StyleSheet.create({
   },
   chainMid: {
     flex: 1,
-    gap: 2,
+    gap: spacing.xxs,
   },
   chainNameRow: {
     flexDirection: 'row',
@@ -290,8 +281,8 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     backgroundColor: 'rgba(255,255,255,0.06)',
     borderRadius: radius.pill,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xxs,
     overflow: 'hidden',
   },
   chainAddress: {

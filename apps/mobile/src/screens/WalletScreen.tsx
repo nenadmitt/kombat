@@ -1,4 +1,3 @@
-import { StakeAsset } from '@gaming-platform/core';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -38,7 +37,7 @@ const EMPTY_TXS: WalletTx[] = [];
 type TabKey = 'pot' | 'wallet';
 
 const TABS: readonly SegmentedTab<TabKey>[] = [
-  { value: 'pot', label: 'Stake pot', icon: 'shield', tint: colors.gold },
+  { value: 'pot', label: 'Pot', icon: 'shield', tint: colors.gold },
   { value: 'wallet', label: 'Wallet', icon: 'wallet' },
 ];
 
@@ -66,7 +65,6 @@ export default function WalletScreen() {
   // Separate from openModal so the two can never both be presented; only one
   // of the two is ever non-null (see the guards on each handler).
   const [potMode, setPotMode] = useState<StakePotMode | null>(null);
-  const [potAsset, setPotAsset] = useState<StakeAsset>(StakeAsset.Usdc);
   const [activeTxHash, setActiveTxHash] = useState<Hex | null>(null);
   const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -128,12 +126,9 @@ export default function WalletScreen() {
   };
 
   /** Opening a pot sheet is gated on no wallet sheet being up, and vice versa. */
-  const openPot = (mode: StakePotMode, asset?: StakeAsset) => {
+  const openPot = (mode: StakePotMode) => {
     if (openModal !== null) {
       return;
-    }
-    if (asset !== undefined) {
-      setPotAsset(asset);
     }
     setPotMode(mode);
   };
@@ -147,10 +142,12 @@ export default function WalletScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <Text style={styles.title}>Wallet</Text>
-        {potUnavailable ? null : (
-          <SegmentedTabs tabs={TABS} value={activeTab} onChange={setTab} />
-        )}
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>Wallet</Text>
+          {potUnavailable ? null : (
+            <SegmentedTabs tabs={TABS} value={activeTab} onChange={setTab} />
+          )}
+        </View>
         {/* Balances - wallet and pot alike - are per network, so the selector
             heads both tabs rather than living inside one of them. */}
         {wallet ? (
@@ -193,6 +190,7 @@ export default function WalletScreen() {
               address={wallet.address}
               chainId={chainId}
               balances={balances}
+              pot={pot}
               loading={isLoading}
               onRefresh={canRead && !isLoading && !coolingDown ? handleRefresh : null}
               error={
@@ -205,7 +203,6 @@ export default function WalletScreen() {
                   setOpenModal(action);
                 }
               }}
-              onStake={potChainId ? asset => openPot('add', asset) : null}
               onShowQr={() => {
                 if (potMode === null) {
                   setOpenModal('receive');
@@ -307,7 +304,6 @@ export default function WalletScreen() {
           {balanceChainId && address ? (
             <StakePotModal
               mode={potMode}
-              initialAsset={potAsset}
               onClose={() => setPotMode(null)}
               chainId={balanceChainId}
               walletBalances={balances}
@@ -344,6 +340,12 @@ export default function WalletScreen() {
 const styles = StyleSheet.create({
   header: {
     gap: spacing.md,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
   },
   title: {
     ...type.title,

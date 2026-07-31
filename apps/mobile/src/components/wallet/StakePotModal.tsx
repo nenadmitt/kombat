@@ -29,8 +29,6 @@ type Props = {
    */
   mode: StakePotMode | null;
   onClose: () => void;
-  /** Asset the sheet opens on, e.g. the row whose Stake button was tapped. */
-  initialAsset?: StakeAsset;
   chainId: BalanceChainId;
   /** On-chain wallet balances, the ceiling when adding. */
   walletBalances: Partial<Record<TokenSymbol, TokenBalance>>;
@@ -52,14 +50,13 @@ const QUICK_FRACTIONS = [0.25, 0.5, 1] as const;
 export default function StakePotModal({
   mode,
   onClose,
-  initialAsset = StakeAsset.Usdc,
   chainId,
   walletBalances,
   pot,
   onDeposited,
   onWithdrawRequested,
 }: Props) {
-  const [asset, setAsset] = useState<StakeAsset>(initialAsset);
+  const [asset, setAsset] = useState<StakeAsset>(StakeAsset.Usdc);
   const [amount, setAmount] = useState('');
   const [assetPickerOpen, setAssetPickerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -76,10 +73,10 @@ export default function StakePotModal({
       setError(null);
       return;
     }
-    // The sheet is reused across openings, so the caller's asset has to be
-    // re-applied every time it comes up, not just on mount.
-    setAsset(initialAsset);
-  }, [mode, initialAsset]);
+    // The sheet is reused across openings, so reset the picker rather than
+    // reopening on whatever was chosen last time.
+    setAsset(StakeAsset.Usdc);
+  }, [mode]);
 
   /** The ceiling in base units: wallet balance when adding, pot when taking out. */
   const maxRaw = (() => {
@@ -354,9 +351,9 @@ const styles = StyleSheet.create({
   tokenPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.xs,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
+    paddingVertical: spacing.xs,
     borderRadius: radius.pill,
     backgroundColor: colors.surfaceMuted,
   },
@@ -371,7 +368,7 @@ const styles = StyleSheet.create({
   },
   fractionBtn: {
     paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
+    paddingVertical: spacing.xxs,
     borderRadius: radius.pill,
     backgroundColor: colors.surfaceMuted,
   },
@@ -380,7 +377,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   tokenList: {
-    gap: 2,
+    gap: spacing.xxs,
   },
   tokenRow: {
     flexDirection: 'row',

@@ -12,7 +12,6 @@ import { mono, type } from '../../theme/typography';
 import { POT_ASSETS, tokenForAsset } from '../../wallet/stake-pot-assets';
 import { ETH_USD_FEED_DECIMALS, type BalanceChainId } from '../../wallet/tokens';
 import BrandIcon from '../BrandIcon';
-import Glow from '../Glow';
 import Icon from '../Icon';
 import { Button } from '../ui';
 import CoinJar from './CoinJar';
@@ -55,6 +54,9 @@ export default function StakePotTab({
   })).filter(row => row.token !== undefined);
 
   const canWithdraw = rows.some(row => row.available > 0n);
+  const funded = rows.filter(
+    row => row.available > 0n || row.locked > 0n || row.pending > 0n,
+  ).length;
 
   const lockedUsd = rows.reduce(
     (sum, row) => sum + usdValue(row.asset, row.locked, ethUsdPrice),
@@ -73,91 +75,87 @@ export default function StakePotTab({
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollBody}
       >
-          <View style={styles.hero}>
-          <Glow
-            size={210}
-            color={colors.gold}
-            opacity={0.22}
-            edge={0.66}
-            style={styles.heroGlow}
-          />
+        <View style={styles.hero}>
           <View style={styles.heroLeft}>
             <View style={styles.heroLabelRow}>
-              <Icon type="shield" color={colors.gold} size={13} />
-              <Text style={styles.heroLabel}>Stake pot</Text>
+              <Icon type="shield" color={colors.gold} size={14} />
+              <Text style={styles.heroLabel}>In the pot</Text>
             </View>
             <Text style={styles.heroValue}>
               {whole}
               <Text style={styles.heroCents}>.{cents}</Text>
             </Text>
-            {lockedUsd > 0 ? (
-              <Text style={styles.heroNote}>
-                ${lockedUsd.toFixed(2)} in play right now
-              </Text>
-            ) : null}
+            <Text style={styles.heroNote}>
+              {lockedUsd > 0
+                ? `Staked funds - $${lockedUsd.toFixed(2)} is in play right now.`
+                : 'Staked funds - join a match with no transaction.'}
+            </Text>
           </View>
-          <CoinJar width={132} />
+          <CoinJar width={112} />
         </View>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <View style={styles.info}>
-          <Icon type="help" color={colors.gold} size={15} />
-          <Text style={styles.infoText}>
-            To play staked games you have to move funds into the pot. Deposit once
-            - after that, entering a match costs no transaction at all.
+        <View style={styles.listHead}>
+          <Text style={styles.listLabel}>Currencies</Text>
+          <Text style={styles.listCount}>
+            {funded} of {rows.length} staked
           </Text>
         </View>
 
         <View>
-          {rows.map((row, index) => (
-            <View
-              key={row.asset}
-              style={[styles.row, index < rows.length - 1 && styles.rowRule]}
-            >
-              {row.token?.brand ? (
-                <View style={styles.rowIcon}>
-                  <BrandIcon type={row.token.brand} size={ICON_TILE} />
+          {rows.map((row, index) => {
+            const empty = row.available === 0n && row.locked === 0n;
+            return (
+              <View
+                key={row.asset}
+                style={[styles.row, index < rows.length - 1 && styles.rowRule]}
+              >
+                <View style={[styles.rowIcon, empty && styles.dim]}>
+                  {row.token?.brand ? (
+                    <BrandIcon type={row.token.brand} size={ICON_TILE} />
+                  ) : (
+                    <View style={styles.rowGlyphCircle}>
+                      <Text style={styles.rowGlyph}>
+                        {row.token?.glyph ?? '◆'}
+                      </Text>
+                    </View>
+                  )}
                 </View>
-              ) : (
-                <View style={styles.rowGlyphCircle}>
-                  <Text style={styles.rowGlyph}>{row.token?.glyph ?? '◆'}</Text>
+                <View style={styles.rowMid}>
+                  <Text style={[styles.rowSymbol, empty && styles.dimText]}>
+                    {row.token?.symbol}
+                  </Text>
+                  <Text style={styles.rowName}>{row.token?.name}</Text>
                 </View>
-              )}
-              <View style={styles.rowMid}>
-                <Text style={styles.rowSymbol}>{row.token?.symbol}</Text>
-                <Text style={styles.rowName}>{row.token?.name}</Text>
-              </View>
-              <View style={styles.rowRight}>
-                <Text style={styles.rowAmount}>
-                  {formatStakeAmount(row.available.toString(), row.asset)}
-                </Text>
-                {row.locked > 0n ? (
-                  <Text style={styles.rowNote}>
-                    {formatStakeAmount(row.locked.toString(), row.asset)} in play
+                <View style={styles.rowRight}>
+                  <Text style={[styles.rowAmount, empty && styles.rowAmountEmpty]}>
+                    {formatStakeAmount(row.available.toString(), row.asset)}
                   </Text>
-                ) : row.pending > 0n ? (
                   <Text style={styles.rowNote}>
-                    {formatStakeAmount(row.pending.toString(), row.asset)}{' '}
-                    withdrawing
+                    {row.locked > 0n
+                      ? `${formatStakeAmount(row.locked.toString(), row.asset)} in play`
+                      : row.pending > 0n
+                        ? `${formatStakeAmount(row.pending.toString(), row.asset)} withdrawing`
+                        : usdLabel(row.asset, row.available, ethUsdPrice)}
                   </Text>
-                ) : null}
+                </View>
               </View>
-            </View>
-            ))}
-          </View>
+            );
+          })}
+        </View>
       </ScrollView>
 
       <View style={styles.actions}>
         <Button
-          label="Add to pot"
+          label="Stake"
           icon="plus"
           variant="gold"
           onPress={onAdd}
           style={styles.addAction}
         />
         <Button
-          label="Cash out"
+          label="Withdraw"
           icon="arrow-up"
           variant="goldOutline"
           onPress={onWithdraw}
@@ -185,6 +183,18 @@ function usdValue(
   return 0;
 }
 
+/** Per-row USD, or the bare symbol when that token has no price feed. */
+function usdLabel(
+  asset: StakeAsset,
+  raw: bigint,
+  ethUsdPrice: bigint | null,
+): string {
+  if (asset === StakeAsset.Kombat) {
+    return 'KOMBAT';
+  }
+  return `$${usdValue(asset, raw, ethUsdPrice).toFixed(2)}`;
+}
+
 function splitUsd(total: number): [string, string] {
   const [intPart, fracPart = '00'] = total.toFixed(2).split('.');
   return [`$${intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`, fracPart];
@@ -201,17 +211,11 @@ const styles = StyleSheet.create({
   hero: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    overflow: 'hidden',
-  },
-  heroGlow: {
-    position: 'absolute',
-    right: -30,
-    top: -50,
+    gap: spacing.sm,
   },
   heroLeft: {
     flex: 1,
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   heroLabelRow: {
     flexDirection: 'row',
@@ -224,30 +228,30 @@ const styles = StyleSheet.create({
   },
   heroValue: {
     fontFamily: mono.bold,
-    fontSize: 38,
-    lineHeight: 42,
+    fontSize: 40,
+    lineHeight: 44,
     letterSpacing: -1,
     color: colors.gold,
   },
   heroCents: {
-    fontSize: 20,
+    fontSize: 22,
   },
   heroNote: {
     ...type.caption,
     color: colors.textMuted,
   },
-  info: {
+  listHead: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.xs,
-    padding: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.goldSoft,
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  infoText: {
-    ...type.caption,
-    flex: 1,
-    color: colors.textSecondary,
+  listLabel: {
+    ...type.label,
+    color: colors.textMuted,
+  },
+  listCount: {
+    ...type.label,
+    color: colors.textMuted,
   },
   row: {
     flexDirection: 'row',
@@ -257,13 +261,19 @@ const styles = StyleSheet.create({
   },
   rowRule: {
     borderBottomWidth: 1,
-    borderBottomColor: colors.goldSoft,
+    borderBottomColor: colors.border,
   },
   rowIcon: {
     width: ICON_TILE,
     height: ICON_TILE,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  dim: {
+    opacity: 0.45,
+  },
+  dimText: {
+    color: colors.textMuted,
   },
   rowGlyphCircle: {
     width: ICON_TILE,
@@ -275,7 +285,7 @@ const styles = StyleSheet.create({
   },
   rowGlyph: {
     fontFamily: mono.bold,
-    fontSize: 16,
+    fontSize: 18,
     color: colors.onAccent,
   },
   rowMid: {
@@ -284,12 +294,10 @@ const styles = StyleSheet.create({
   },
   rowSymbol: {
     ...type.subheading,
-    fontSize: 14,
     color: colors.textPrimary,
   },
   rowName: {
     ...type.caption,
-    fontSize: 11,
     color: colors.textMuted,
   },
   rowRight: {
@@ -298,12 +306,14 @@ const styles = StyleSheet.create({
   },
   rowAmount: {
     fontFamily: mono.bold,
-    fontSize: 14,
+    fontSize: 18,
     color: colors.gold,
+  },
+  rowAmountEmpty: {
+    color: colors.textMuted,
   },
   rowNote: {
     ...type.caption,
-    fontSize: 11,
     color: colors.textMuted,
   },
   error: {
