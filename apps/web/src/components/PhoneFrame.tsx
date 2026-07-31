@@ -45,7 +45,16 @@ export function PhoneFrame({
         style={{ borderRadius: outerRadius - 7 }}
       >
         {src ? (
-          <Image src={src} alt={alt} fill sizes={`${width}px`} className={styles.img} />
+          // 1.5x the slot and a high quality: a dense game UI at the default
+          // 75 is visibly mushy on a retina screen.
+          <Image
+            src={src}
+            alt={alt}
+            fill
+            sizes={`${Math.round(width * 1.5)}px`}
+            quality={92}
+            className={styles.img}
+          />
         ) : (
           <div className={styles.placeholder}>
             <span className={styles.placeholderLabel}>{placeholder ?? alt}</span>
