@@ -74,6 +74,10 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+/** Single source of truth for the app version - see ../../package.json. */
+def appPackageJson = new groovy.json.JsonSlurper()
+    .parseText(file("../../package.json").text)
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -84,8 +88,8 @@ android {
         applicationId "xyz.playkombat.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode appPackageJson.buildNumber
+        versionName appPackageJson.version
     }
     signingConfigs {
         debug {
