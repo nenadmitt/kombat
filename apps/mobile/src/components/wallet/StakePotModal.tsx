@@ -6,7 +6,14 @@ import {
   type StakePotBalances,
 } from '@gaming-platform/core';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Linking,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { formatUnits, type Address, type Hex } from 'viem';
 
 import { apiClient } from '../../api/client';
@@ -21,6 +28,9 @@ import Icon from '../Icon';
 import { BottomSheet, Button, Card } from '../ui';
 
 export type StakePotMode = 'add' | 'withdraw';
+
+/** Top up from a browser instead of an on-device wallet balance. */
+const STAKE_WEB_URL = 'https://playkombat.xyz/stake';
 
 type Props = {
   /**
@@ -308,11 +318,31 @@ export default function StakePotModal({
         disabled={busy || amountRaw == null || amountRaw <= 0n || exceedsMax}
         fullWidth
       />
+
+      {adding ? (
+        <>
+          <Text style={styles.orNote}>or</Text>
+          <Button
+            label="Add funds on the web"
+            variant="secondary"
+            trailingIcon="share"
+            onPress={() => {
+              void Linking.openURL(STAKE_WEB_URL);
+            }}
+            fullWidth
+          />
+        </>
+      ) : null}
     </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
+  orNote: {
+    ...type.caption,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
   amountCard: {
     gap: spacing.sm,
   },

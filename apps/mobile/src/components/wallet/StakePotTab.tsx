@@ -103,11 +103,7 @@ export default function StakePotTab({
               {whole}
               <Text style={styles.heroCents}>.{cents}</Text>
             </Text>
-            <Text style={styles.heroNote}>
-              {lockedUsd > 0
-                ? `Staked funds - $${lockedUsd.toFixed(2)} is in play right now.`
-                : 'Staked funds - join a match with no transaction.'}
-            </Text>
+            <Text style={styles.heroNote}>{potNote(funded, lockedUsd)}</Text>
           </View>
           <CoinJar width={112} />
         </View>
@@ -193,6 +189,17 @@ export default function StakePotTab({
       </View>
     </View>
   );
+}
+
+/** The hero's one-line explainer, in a player's words rather than the chain's. */
+function potNote(funded: number, lockedUsd: number): string {
+  if (lockedUsd > 0) {
+    return `$${lockedUsd.toFixed(2)} of your pot is in play right now.`;
+  }
+  if (funded === 0) {
+    return 'To play staked games, add some funds to your pot.';
+  }
+  return 'Your pot is funded. Jump into any staked game.';
 }
 
 /** USD for a pot balance. KOMBAT has no price feed, so it counts as zero. */

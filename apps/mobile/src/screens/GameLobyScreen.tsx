@@ -61,6 +61,12 @@ const GAME_FILTERS: { key: GameType; label: string }[] = [
   { key: GameType.Salvo, label: 'Salvo' },
 ];
 
+/** No pool backend for the featured banner yet - visual parity with the design. */
+const FEATURED_POOL = '480';
+
+/** The featured banner's "live" dot. */
+const DOT_SIZE = 6;
+
 function timeAgo(iso: string): string {
   const seconds = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
   if (seconds < 60) return 'just now';
@@ -219,7 +225,7 @@ export default function GameLobyScreen() {
         message,
         icon: needsTopUp ? 'dollar' : 'warning',
         ...(needsTopUp
-          ? { confirmLabel: 'Top up' }
+          ? { confirmLabel: 'Add funds' }
           : { mode: 'info' as const }),
       }).then(ok => {
         if (ok && needsTopUp) {
@@ -269,12 +275,7 @@ export default function GameLobyScreen() {
     <SafeAreaView style={styles.screen} edges={['top']}>
       {/* Fixed header */}
       <View style={styles.header}>
-        <View style={styles.headerText}>
-          <Text style={styles.name} numberOfLines={1}>
-            Lobby
-          </Text>
-          <Chip label="Open games" tone="accent" />
-        </View>
+        <Text style={styles.title}>Lobby</Text>
       </View>
 
       <FlatList
@@ -284,8 +285,37 @@ export default function GameLobyScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View style={styles.listHeader}>
-            <Card style={styles.featured}>
-              <Text style={styles.featuredEmpty}>No featured games here</Text>
+            {/* Featured game - diagonal ramp gradient + a corner accent bloom. */}
+            <Card
+              accent
+              gradient={{
+                colors: [colors.accent900, colors.accent800],
+                start: { x: 0, y: 0 },
+                end: { x: 1, y: 1 },
+              }}
+              glow={{ color: colors.accent, size: 150, opacity: 0.4, edge: 0.7, top: -45, right: -35 }}
+              style={styles.featured}
+            >
+              <View style={styles.featuredThumb}>
+                <GameIcon type={GameType.NavalBattle} size={38} />
+              </View>
+              <View style={styles.featuredBody}>
+                <View style={styles.featuredEyebrow}>
+                  <View style={styles.liveDot} />
+                  <Text style={styles.featuredEyebrowText}>Featured · Live</Text>
+                </View>
+                <Text style={styles.featuredTitle}>Battleships</Text>
+                <Text style={styles.featuredPool}>
+                  {FEATURED_POOL} <Text style={styles.featuredPoolUnit}>USDC POOL</Text>
+                </Text>
+              </View>
+              <Button
+                label="Play"
+                size="sm"
+                fullWidth={false}
+                disabled={!online}
+                onPress={() => setIsCreateModalVisible(true)}
+              />
             </Card>
 
             {/* Primary actions */}
@@ -461,18 +491,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
+    alignItems: 'center',
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: spacing.md,
+    gap: spacing.xs,
   },
-  headerText: {
-    // Keeps the chip to its own width instead of stretching the column.
-    alignItems: 'flex-start',
-    gap: spacing.xxs,
-  },
-  name: {
+  title: {
     fontFamily: display.bold,
-    fontSize: 26,
+    fontSize: 28,
     letterSpacing: -0.3,
     color: colors.textPrimary,
   },
@@ -486,14 +513,61 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   featured: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.lg,
+    gap: spacing.sm,
   },
-  featuredEmpty: {
-    fontFamily: mono.medium,
-    fontSize: 12,
+  featuredThumb: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.md,
+    backgroundColor: colors.canvas,
+    borderWidth: 1,
+    borderColor: colors.accentBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  featuredBody: {
+    flex: 1,
+    gap: spacing.xxs,
+  },
+  featuredEyebrow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  liveDot: {
+    width: DOT_SIZE,
+    height: DOT_SIZE,
+    borderRadius: radius.pill,
+    backgroundColor: colors.accent,
+    // 0 0 8px accent glow (iOS).
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 4,
+  },
+  featuredEyebrowText: {
+    fontFamily: mono.semiBold,
+    fontSize: 10,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
+    color: colors.accentLight,
+  },
+  featuredTitle: {
+    fontFamily: display.bold,
+    fontSize: 22,
+    letterSpacing: -0.3,
+    color: colors.textPrimary,
+  },
+  featuredPool: {
+    fontFamily: mono.bold,
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  featuredPoolUnit: {
+    fontFamily: mono.medium,
+    fontSize: 10,
     color: colors.textMuted,
   },
   actionRow: {
