@@ -3,7 +3,6 @@ import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { Canvas, Circle, SweepGradient, vec } from '@shopify/react-native-skia';
 import {
-  STAKE_ASSET_SYMBOLS,
   StakeAsset,
   achievementsFor,
   emptyPlayerStats,
@@ -17,7 +16,6 @@ import {
 import { apiClient } from '../api/client';
 import Icon, { type IconName } from '../components/Icon';
 import {
-  AddressPill,
   Button,
   Card,
   Screen,
@@ -86,9 +84,9 @@ function compactAmount(value: number): string {
 }
 
 /**
- * Net winnings headline: the asset the player has swung most on. The symbol
- * rides in the chip's label rather than its value, so a big number stays on
- * one line the way the design's "$4.2k" does.
+ * Net winnings headline: the asset the player has swung most on. The label
+ * stays a bare "Earned" (the design's own copy) - prefixing it with the token
+ * wrapped onto a second line and knocked the stat row out of alignment.
  */
 function earnedStat(stats: PlayerStats): { value: string; label: string } {
   const entries = Object.entries(stats.netByToken) as [string, string][];
@@ -106,13 +104,12 @@ function earnedStat(stats: PlayerStats): { value: string; label: string } {
   const amount = compactAmount(Number(formatStakeAmount(net, asset)));
   return {
     value: `${sign}${amount}`,
-    label: `${STAKE_ASSET_SYMBOLS[asset]} earned`,
+    label: 'Earned',
   };
 }
 
 export default function ProfileScreen() {
   const username = useCurrentUserStore(state => state.username);
-  const wallet = useCurrentUserStore(state => state.wallet);
   const referralCode = useCurrentUserStore(state => state.referralCode);
   const logout = useCurrentUserStore(state => state.logout);
   const confirm = useConfirm();
@@ -192,7 +189,6 @@ export default function ProfileScreen() {
         </View>
       </View>
       <Text style={styles.username}>{username ?? 'Player'}</Text>
-      {wallet ? <AddressPill address={wallet.address} /> : null}
 
       {/* Mini stats */}
       <View style={[styles.statsRow, styles.block]}>
@@ -322,14 +318,14 @@ const styles = StyleSheet.create({
   avatarRing: {
     width: 104,
     height: 104,
-    borderRadius: 52,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatar: {
     width: 90,
     height: 90,
-    borderRadius: 45,
+    borderRadius: radius.pill,
     backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
@@ -345,7 +341,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
+    paddingVertical: spacing.xxs,
     borderWidth: 3,
     borderColor: colors.background,
   },
@@ -372,7 +368,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.cardBorder,
     borderRadius: radius.md,
-    paddingVertical: spacing.md,
+    padding: spacing.md,
   },
   statValue: {
     fontFamily: mono.bold,
@@ -405,7 +401,7 @@ const styles = StyleSheet.create({
   achievementIcon: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: radius.pill,
     backgroundColor: colors.gold,
     alignItems: 'center',
     justifyContent: 'center',
