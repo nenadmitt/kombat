@@ -1,0 +1,346 @@
+.arena {
+  padding: 70px 0 74px;
+  background: var(--panel-2);
+}
+
+.head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 30px;
+  padding: 0 60px;
+}
+
+.kicker {
+  font: 600 11px/1 var(--font-heading);
+  letter-spacing: 0.15em;
+  color: var(--green);
+}
+
+.title {
+  margin: 18px 0 0;
+  font: 600 38px/1.1 var(--font-heading);
+  letter-spacing: -0.025em;
+}
+
+.lead {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--text-55);
+  margin: 16px 0 0;
+  max-width: 520px;
+  text-wrap: pretty;
+}
+
+.headSide {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.liveNow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-45);
+  white-space: nowrap;
+}
+
+.liveDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 7px var(--green);
+  animation: kpulse 1.6s infinite;
+}
+
+.arrows {
+  display: flex;
+  gap: 9px;
+}
+
+.arrowBtn {
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 13px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  background: transparent;
+  color: rgba(233, 233, 237, 0.5);
+}
+
+.arrowBtn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text);
+}
+
+.arrowBtnPrimary {
+  background: rgba(142, 224, 90, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(142, 224, 90, 0.45);
+  color: var(--green);
+}
+
+.arrowBtnPrimary:hover {
+  background: rgba(142, 224, 90, 0.26);
+  color: var(--green);
+}
+
+.track {
+  margin-top: 36px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  scroll-padding-left: 60px;
+}
+
+.track::-webkit-scrollbar {
+  display: none;
+}
+
+.row {
+  display: flex;
+  gap: 20px;
+  padding: 0 60px;
+  width: max-content;
+}
+
+.card {
+  flex: none;
+  width: min(1280px, calc(100vw - 120px));
+  display: grid;
+  grid-template-columns: 1fr 470px;
+  gap: 48px;
+  align-items: center;
+  padding: 38px 40px;
+  border-radius: 22px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px rgba(233, 233, 237, 0.16);
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.gameIcon {
+  width: 64px;
+  height: 64px;
+  border-radius: 19px;
+  background: rgba(142, 224, 90, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(142, 224, 90, 0.34);
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--green);
+}
+
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gameName {
+  font: 700 32px/1 var(--font-heading);
+  letter-spacing: -0.025em;
+}
+
+.badge {
+  padding: 5px 9px;
+  border-radius: 8px;
+  font: 700 9.5px/1 var(--font-heading);
+  letter-spacing: 0.09em;
+}
+
+.badgeAmber {
+  background: rgba(245, 184, 41, 0.16);
+  color: var(--amber);
+}
+
+.badgeGreen {
+  background: rgba(142, 224, 90, 0.2);
+  color: var(--green-light);
+}
+
+.category {
+  margin-top: 11px;
+  font: 600 12px/1 var(--font-heading);
+  letter-spacing: 0.11em;
+  color: var(--text-45);
+}
+
+.description {
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: var(--text-62);
+  margin: 26px 0 0;
+  max-width: 520px;
+  text-wrap: pretty;
+}
+
+.matchStat {
+  margin-top: 30px;
+}
+
+.matchStatValue {
+  font: 800 21px/1 var(--font-heading);
+}
+
+.matchStatLabel {
+  font: 600 9.5px/1 var(--font-heading);
+  letter-spacing: 0.12em;
+  margin-top: 9px;
+  color: var(--text-42);
+}
+
+.cardActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.howBtn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 14px 20px;
+  border: 0;
+  border-radius: 13px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  background: transparent;
+  color: var(--text);
+  font: 700 13.5px/1 var(--font-heading);
+  cursor: pointer;
+}
+
+.howBtn:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.phones {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+}
+
+.phonesGlow {
+  position: absolute;
+  top: 34px;
+  width: 330px;
+  height: 330px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(142, 224, 90, 0.13), transparent 66%);
+  pointer-events: none;
+}
+
+.phoneBack {
+  transform: rotate(-5deg) translateX(26px);
+}
+
+.phoneFront {
+  margin-left: -30px;
+}
+
+.moreCard {
+  width: 640px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+  background: var(--panel-2);
+  box-shadow: none;
+}
+
+.moreIcon {
+  width: 64px;
+  height: 64px;
+  border-radius: 19px;
+  box-shadow: inset 0 0 0 1px rgba(142, 224, 90, 0.34);
+  display: grid;
+  place-items: center;
+  color: var(--green);
+}
+
+.moreTitle {
+  font: 700 27px/1.15 var(--font-heading);
+  letter-spacing: -0.02em;
+}
+
+.moreBody {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--text-55);
+  margin: 0;
+  max-width: 420px;
+  text-wrap: pretty;
+}
+
+.moreLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 4px;
+  font: 700 13.5px/1 var(--font-heading);
+  color: var(--green);
+}
+
+.dots {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 26px;
+  padding: 0 60px;
+}
+
+.dot {
+  width: 26px;
+  height: 3px;
+  border: 0;
+  padding: 0;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.14);
+  cursor: pointer;
+  transition: width 0.25s, background 0.25s;
+}
+
+.dotActive {
+  width: 52px;
+  background: var(--green);
+}
+
+@media (max-width: 1080px) {
+  .head,
+  .dots {
+    padding: 0 28px;
+  }
+
+  .head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .row {
+    padding: 0 28px;
+  }
+
+  .track {
+    scroll-padding-left: 28px;
+  }
+
+  .card {
+    grid-template-columns: 1fr;
+    width: calc(100vw - 56px);
+  }
+
+  .moreCard {
+    width: calc(100vw - 56px);
+  }
+}

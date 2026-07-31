@@ -1,0 +1,56 @@
+.wrap {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 28px;
+  text-align: center;
+  background: var(--panel);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 44px;
+}
+
+.brandName {
+  font: 600 13px/1 var(--font-heading);
+  letter-spacing: 0.3em;
+  padding-left: 0.3em;
+  color: var(--text-55);
+}
+
+.code {
+  font: 800 76px/1 var(--font-heading);
+  letter-spacing: -0.035em;
+  color: var(--green);
+}
+
+.title {
+  margin: 20px 0 0;
+  font: 600 26px/1.2 var(--font-heading);
+  letter-spacing: -0.025em;
+}
+
+.body {
+  margin: 14px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-55);
+  max-width: 380px;
+}
+
+.link {
+  margin-top: 34px;
+  padding: 14px 22px;
+  border-radius: 13px;
+  border: 1px solid var(--green);
+  font: 700 13.5px/1 var(--font-heading);
+}
+
+.link:hover {
+  background: rgba(142, 224, 90, 0.14);
+}

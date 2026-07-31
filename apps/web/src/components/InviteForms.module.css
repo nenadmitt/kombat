@@ -1,0 +1,161 @@
+.field,
+.cardField {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 0 16px;
+  border-radius: 13px;
+}
+
+.field {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface);
+}
+
+.cardField {
+  margin-top: 16px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.cardField:focus-within,
+.field:focus-within {
+  box-shadow: inset 0 0 0 1px rgba(142, 224, 90, 0.45);
+}
+
+.fieldIcon {
+  color: rgba(233, 233, 237, 0.4);
+  flex: none;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: 400 14.5px/1 var(--font-body);
+  padding: 17px 0;
+  outline: none;
+}
+
+.input::placeholder {
+  color: rgba(233, 233, 237, 0.4);
+}
+
+/* ── hero ── */
+
+.heroForm {
+  margin-top: 34px;
+  max-width: 470px;
+}
+
+.heroFormRow {
+  display: flex;
+  gap: 11px;
+}
+
+.heroSubmit {
+  border: 0;
+  cursor: pointer;
+  padding: 17px 24px;
+  border-radius: 13px;
+  background: var(--green);
+  color: var(--panel);
+  font: 700 14.5px/1 var(--font-heading);
+  white-space: nowrap;
+}
+
+.heroSubmit:hover {
+  filter: brightness(1.08);
+}
+
+.heroNote {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 12.5px;
+  color: var(--text-42);
+}
+
+/* ── apply card ── */
+
+.card {
+  padding: 28px;
+  border-radius: 20px;
+  background: var(--surface);
+}
+
+.kicker {
+  font: 600 10.5px/1 var(--font-heading);
+  letter-spacing: 0.13em;
+  color: var(--text-45);
+}
+
+.submit {
+  width: 100%;
+  margin-top: 16px;
+  border: 0;
+  cursor: pointer;
+  padding: 17px;
+  border-radius: 13px;
+  background: var(--green);
+  color: var(--panel);
+  font: 700 15px/1 var(--font-heading);
+}
+
+.submit:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.note {
+  margin-top: 14px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: rgba(233, 233, 237, 0.4);
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 16px;
+  padding: 13px 16px;
+  border-radius: 13px;
+  background: rgba(245, 184, 41, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.3);
+  color: var(--amber);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* ── success ── */
+
+.successIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: rgba(142, 224, 90, 0.15);
+  display: grid;
+  place-items: center;
+  color: var(--green);
+}
+
+.successTitle {
+  margin-top: 20px;
+  font: 600 21px/1.2 var(--font-heading);
+  letter-spacing: -0.02em;
+}
+
+.successBody {
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-62);
+}

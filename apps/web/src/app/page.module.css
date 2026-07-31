@@ -1,0 +1,610 @@
+.page {
+  max-width: 1400px;
+  margin: 0 auto;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.amber {
+  color: var(--amber);
+}
+
+.green {
+  color: var(--green);
+}
+
+/* ── nav ── */
+
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 60px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.brandName {
+  font: 600 17px/1 var(--font-heading);
+  letter-spacing: 0.34em;
+  padding-left: 0.34em;
+}
+
+.navLinks {
+  display: flex;
+  align-items: center;
+  gap: 36px;
+}
+
+.navLink {
+  font: 600 13.5px/1 var(--font-heading);
+  color: var(--text-62);
+}
+
+.navLink:hover {
+  color: var(--text);
+}
+
+.navCta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 18px;
+  border-radius: 11px;
+  border: 1px solid var(--green);
+  color: var(--green);
+  font: 700 13px/1 var(--font-heading);
+}
+
+.navCta:hover {
+  background: rgba(142, 224, 90, 0.14);
+  color: var(--green-light);
+}
+
+/* ── hero ── */
+
+.hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 500px;
+  gap: 60px;
+  align-items: center;
+  padding: 74px 60px 80px;
+  overflow: hidden;
+}
+
+.heroGlow {
+  position: absolute;
+  left: -120px;
+  top: -140px;
+  width: 620px;
+  height: 620px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(142, 224, 90, 0.14), transparent 66%);
+  pointer-events: none;
+}
+
+.heroCopy {
+  position: relative;
+}
+
+.heroTitle {
+  margin: 0;
+  font: 800 76px/0.96 var(--font-heading);
+  letter-spacing: -0.035em;
+}
+
+.heroTitleAccent {
+  color: var(--green);
+}
+
+.heroLead {
+  font: 400 17px/1.6 var(--font-body);
+  color: var(--text-62);
+  margin: 24px 0 0;
+  max-width: 440px;
+  text-wrap: pretty;
+}
+
+.heroStats {
+  display: flex;
+  gap: 44px;
+  margin-top: 44px;
+}
+
+.heroStatValue {
+  font: 800 26px/1 var(--font-heading);
+}
+
+.heroStatLabel {
+  font: 600 10.5px/1 var(--font-heading);
+  letter-spacing: 0.12em;
+  margin-top: 9px;
+  color: var(--text-42);
+}
+
+.heroPhones {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+}
+
+.heroPhoneBack {
+  transform: rotate(-5deg) translateX(30px);
+}
+
+.heroPhoneFront {
+  margin-left: -34px;
+}
+
+/* ── how it works ── */
+
+.how {
+  padding: 70px 60px;
+}
+
+.kicker {
+  font: 600 11px/1 var(--font-heading);
+  letter-spacing: 0.15em;
+  color: var(--green);
+}
+
+.kickerAmber {
+  color: var(--amber);
+}
+
+.sectionTitle {
+  margin: 18px 0 0;
+  font: 600 38px/1.1 var(--font-heading);
+  letter-spacing: -0.025em;
+  max-width: 640px;
+}
+
+.sectionLead {
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: var(--text-62);
+  margin: 20px 0 0;
+  max-width: 480px;
+  text-wrap: pretty;
+}
+
+.howGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-top: 44px;
+}
+
+.howCard {
+  padding: 26px;
+  border-radius: 18px;
+  background: var(--surface);
+}
+
+.howCardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.howIcon {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: rgba(142, 224, 90, 0.15);
+  display: grid;
+  place-items: center;
+  color: var(--green);
+}
+
+.howIconAmber {
+  background: rgba(245, 184, 41, 0.15);
+  color: var(--amber);
+}
+
+.howIndex {
+  font: 600 12px/1 var(--font-mono);
+  color: rgba(233, 233, 237, 0.3);
+}
+
+.howCardTitle {
+  font: 600 19px/1.2 var(--font-heading);
+  margin-top: 22px;
+}
+
+.howCardBody {
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(233, 233, 237, 0.58);
+  margin: 11px 0 0;
+}
+
+/* ── stake pot ── */
+
+.pot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 70px;
+  align-items: center;
+  padding: 80px 60px;
+  background: var(--panel-2);
+}
+
+.checkList {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 32px;
+}
+
+.checkItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14.5px;
+}
+
+.amberCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 34px;
+  padding: 15px 22px;
+  border-radius: 13px;
+  background: var(--amber);
+  color: var(--panel);
+  font: 700 14.5px/1 var(--font-heading);
+}
+
+.amberCta:hover {
+  filter: brightness(1.07);
+  color: var(--panel);
+}
+
+.potArt {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.potArtGlow {
+  position: absolute;
+  top: 20px;
+  width: 420px;
+  height: 340px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245, 184, 41, 0.16), transparent 66%);
+  pointer-events: none;
+}
+
+/* ── trust cards ── */
+
+.trust {
+  padding: 70px 60px 76px;
+}
+
+.trustGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.trustCard {
+  padding: 24px;
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.trustTitle {
+  font: 600 16px/1.2 var(--font-heading);
+  margin-top: 16px;
+}
+
+.trustBody {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-55);
+  margin: 10px 0 0;
+}
+
+/* ── invite & earn ── */
+
+.invite {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 70px;
+  align-items: center;
+  padding: 80px 60px;
+}
+
+.referralCard {
+  border-radius: 22px;
+  padding: 28px;
+  background: var(--surface);
+}
+
+.referralHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.panelKicker {
+  font: 600 10.5px/1 var(--font-heading);
+  letter-spacing: 0.13em;
+  color: var(--text-45);
+}
+
+.panelKickerSm {
+  font: 600 10px/1 var(--font-heading);
+  letter-spacing: 0.13em;
+  color: var(--text-45);
+}
+
+.feeBadge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 11px;
+  border-radius: 9px;
+  background: rgba(245, 184, 41, 0.14);
+  font: 700 10px/1 var(--font-heading);
+  letter-spacing: 0.09em;
+  color: var(--amber);
+}
+
+.referralCodeRow {
+  display: flex;
+  gap: 13px;
+  margin-top: 18px;
+}
+
+.referralCode {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 22px;
+  border-radius: 16px;
+  background: rgba(245, 184, 41, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.3);
+  font: 800 24px/1 var(--font-heading);
+  letter-spacing: 0.06em;
+  color: var(--amber);
+}
+
+.copyIcon {
+  color: rgba(233, 233, 237, 0.5);
+  cursor: pointer;
+  flex: none;
+}
+
+.shareBtn {
+  flex: none;
+  box-sizing: border-box;
+  border: 1px solid var(--amber);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 22px;
+  border-radius: 16px;
+  background: var(--amber);
+  color: var(--panel);
+  font: 700 14px/1 var(--font-heading);
+}
+
+.shareBtn:hover {
+  filter: brightness(1.07);
+}
+
+.referralStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 13px;
+  margin-top: 20px;
+}
+
+.referralStat {
+  padding: 22px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.26);
+}
+
+.referralStatHot {
+  background: rgba(245, 184, 41, 0.09);
+  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.3);
+}
+
+.referralStatValue {
+  font: 800 27px/1 var(--font-heading);
+}
+
+.referralStatLabel {
+  font: 600 9.5px/1 var(--font-heading);
+  letter-spacing: 0.11em;
+  margin-top: 11px;
+  color: var(--text-45);
+}
+
+.feeSplit {
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.feeRows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.feeRow {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.feeRowLabel {
+  width: 80px;
+  flex: none;
+  font: 600 10px/1 var(--font-heading);
+  letter-spacing: 0.06em;
+  color: rgba(233, 233, 237, 0.5);
+}
+
+.feeBar {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.feeBarFill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+
+.feeBarYou {
+  background: var(--amber);
+}
+
+.feeBarPrize {
+  background: rgba(142, 224, 90, 0.55);
+}
+
+.feeBarPlatform {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ── apply ── */
+
+.apply {
+  position: relative;
+  padding: 76px 60px;
+  overflow: hidden;
+  background: var(--panel-2);
+}
+
+.applyGlow {
+  position: absolute;
+  right: -100px;
+  top: -120px;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(142, 224, 90, 0.13), transparent 66%);
+  pointer-events: none;
+}
+
+.applyGrid {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 470px;
+  gap: 60px;
+  align-items: center;
+}
+
+.testBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 18px;
+  background: rgba(245, 184, 41, 0.13);
+  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.4);
+  font: 700 10px/1 var(--font-heading);
+  letter-spacing: 0.14em;
+  color: var(--amber);
+}
+
+.applyTitle {
+  margin: 20px 0 0;
+  font: 600 40px/1.1 var(--font-heading);
+  letter-spacing: -0.025em;
+}
+
+/* ── footer ── */
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 30px 60px;
+}
+
+.footerBrandName {
+  font: 600 11.5px/1 var(--font-heading);
+  letter-spacing: 0.26em;
+  padding-left: 0.26em;
+  color: var(--text-55);
+}
+
+.footerLinks {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  font-size: 12.5px;
+  color: var(--text-42);
+}
+
+.footerLink {
+  color: var(--text-42);
+}
+
+.footerLink:hover {
+  color: var(--text);
+}
+
+/* ── responsive ── */
+
+@media (max-width: 1080px) {
+  .nav {
+    padding: 22px 28px;
+  }
+
+  .navLinks {
+    gap: 22px;
+  }
+
+  .hero,
+  .pot,
+  .invite,
+  .applyGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero,
+  .how,
+  .pot,
+  .trust,
+  .invite,
+  .apply,
+  .footer {
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+
+  .heroTitle {
+    font-size: 56px;
+  }
+
+  .howGrid,
+  .trustGrid {
+    grid-template-columns: 1fr;
+  }
+}

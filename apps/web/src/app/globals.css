@@ -1,0 +1,70 @@
+:root {
+  --bg: #07080d;
+  --panel: #0b0c14;
+  --panel-2: #0e1018;
+  --surface: #141724;
+  --text: #e9e9ed;
+  --text-62: rgba(233, 233, 237, 0.62);
+  --text-55: rgba(233, 233, 237, 0.55);
+  --text-45: rgba(233, 233, 237, 0.45);
+  --text-42: rgba(233, 233, 237, 0.42);
+  --green: #8ee05a;
+  --green-light: #c0f394;
+  --amber: #f5b829;
+  --phone-shell: #050509;
+  --phone-edge: #24263a;
+  --font-heading: var(--font-inter), system-ui, sans-serif;
+  --font-body: var(--font-inter), system-ui, sans-serif;
+  --font-mono: ui-monospace, Menlo, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+a {
+  color: var(--green);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--green-light);
+}
+
+button {
+  font-family: inherit;
+}
+
+@keyframes kpulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.75);
+  }
+}
+
+@keyframes kcaret {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
