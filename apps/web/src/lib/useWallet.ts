@@ -10,7 +10,7 @@ import {
   type EIP1193Provider,
 } from "viem";
 
-import { CHAIN_ID, CHAIN_ID_HEX, EXPLORER_URL } from "./chain";
+import { CHAIN_ID, EXPLORER_URL } from "./chain";
 
 declare global {
   interface Window {
@@ -29,13 +29,11 @@ export const chain = defineChain({
 export type WalletState = {
   provider: EIP1193Provider | undefined;
   account: Address | undefined;
-  chainId: number | undefined;
   connecting: boolean;
   error: string | undefined;
   hasWallet: boolean;
-  wrongNetwork: boolean;
   connect: () => Promise<void>;
-  switchNetwork: () => Promise<void>;
+  disconnect: () => void;
 };
 
 function message(error: unknown): string {
@@ -48,7 +46,6 @@ function message(error: unknown): string {
 export function useWallet(): WalletState {
   const [provider, setProvider] = useState<EIP1193Provider>();
   const [account, setAccount] = useState<Address>();
-  const [chainId, setChainId] = useState<number>();
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string>();
 
@@ -59,25 +56,14 @@ export function useWallet(): WalletState {
     }
     setProvider(injected);
 
-    // Reconnect silently: eth_accounts returns the already-authorised account
-    // without prompting, so a reload does not ask again.
-    void injected
-      .request({ method: "eth_accounts" })
-      .then((accounts) => setAccount((accounts as Address[])[0]))
-      .catch(() => undefined);
-    void injected
-      .request({ method: "eth_chainId" })
-      .then((id) => setChainId(Number(id)))
-      .catch(() => undefined);
-
+    // No eth_accounts probe on mount. It returns an already-authorised account
+    // without prompting, so the page came up connected to a wallet the visitor
+    // never chose here; connecting is now always an explicit act.
     const onAccounts = (accounts: unknown) =>
       setAccount((accounts as Address[])[0]);
-    const onChain = (id: unknown) => setChainId(Number(id));
     injected.on?.("accountsChanged", onAccounts);
-    injected.on?.("chainChanged", onChain);
     return () => {
       injected.removeListener?.("accountsChanged", onAccounts);
-      injected.removeListener?.("chainChanged", onChain);
     };
   }, []);
 
@@ -92,8 +78,6 @@ export function useWallet(): WalletState {
         method: "eth_requestAccounts",
       })) as Address[];
       setAccount(accounts[0]);
-      const id = await provider.request({ method: "eth_chainId" });
-      setChainId(Number(id));
     } catch (err) {
       setError(message(err));
     } finally {
@@ -101,51 +85,21 @@ export function useWallet(): WalletState {
     }
   }, [provider]);
 
-  const switchNetwork = useCallback(async () => {
-    if (!provider) {
-      return;
-    }
+  // Drops this page's handle on the account. The wallet keeps the site
+  // authorised - only the wallet itself can revoke that.
+  const disconnect = useCallback(() => {
+    setAccount(undefined);
     setError(undefined);
-    try {
-      await provider.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: CHAIN_ID_HEX }],
-      });
-    } catch (err) {
-      // 4902: the wallet does not know this chain yet, so offer to add it.
-      if ((err as { code?: number }).code !== 4902) {
-        setError(message(err));
-        return;
-      }
-      try {
-        await provider.request({
-          method: "wallet_addEthereumChain",
-          params: [
-            {
-              chainId: CHAIN_ID_HEX,
-              chainName: chain.name,
-              nativeCurrency: chain.nativeCurrency,
-              rpcUrls: chain.rpcUrls.default.http,
-              blockExplorerUrls: [EXPLORER_URL],
-            },
-          ],
-        });
-      } catch (addErr) {
-        setError(message(addErr));
-      }
-    }
-  }, [provider]);
+  }, []);
 
   return {
     provider,
     account,
-    chainId,
     connecting,
     error,
     hasWallet: provider !== undefined,
-    wrongNetwork: chainId !== undefined && chainId !== CHAIN_ID,
     connect,
-    switchNetwork,
+    disconnect,
   };
 }
 

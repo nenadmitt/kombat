@@ -124,7 +124,6 @@ export function GamesCarousel() {
     <section id="games" className={styles.arena}>
       <div className={styles.head}>
         <div>
-          <div className={styles.kicker}>THE ARENA</div>
           <h2 className={styles.title}>Five games today. More every month.</h2>
           <p className={styles.lead}>
             The roster keeps expanding - new arenas ship through the test and
@@ -230,7 +229,6 @@ export function GamesCarousel() {
             </p>
             <a href="#apply" className={styles.moreLink}>
               Join the test to vote
-              <ArrowRight size={14} weight="bold" />
             </a>
           </article>
         </div>

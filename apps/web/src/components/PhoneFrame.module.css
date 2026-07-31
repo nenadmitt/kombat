@@ -1,6 +1,6 @@
 .shell {
   position: relative;
-  width: var(--phone-w);
+  width: var(--phone-w, var(--phone-w-base));
   max-width: 100%;
   background: var(--phone-shell);
 }
@@ -42,5 +42,5 @@
   font: 600 11px/1.5 var(--font-heading);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-42);
+  color: var(--text-55);
 }

@@ -99,7 +99,6 @@ export default function AdminPage() {
       </header>
 
       <main className={styles.main}>
-        <div className={styles.kicker}>ADMIN</div>
         <h1 className={styles.title}>Tester signups</h1>
 
         {state.status === "error" ? (

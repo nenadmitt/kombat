@@ -5,7 +5,6 @@ import type { FormEvent } from "react";
 import {
   CheckCircle,
   EnvelopeSimple,
-  LockSimple,
   WarningCircle,
 } from "@phosphor-icons/react";
 
@@ -24,10 +23,6 @@ export function HeroInviteForm() {
       >
         Request an invite
       </button>
-      <div className={styles.heroNote}>
-        <LockSimple size={13} />
-        Test mode on Ethereum Sepolia - no real funds at risk.
-      </div>
     </div>
   );
 }
@@ -109,7 +104,7 @@ export function ApplyForm() {
 
   return (
     <form className={styles.card} onSubmit={handleSubmit}>
-      <div className={styles.kicker}>APPLY FOR ACCESS</div>
+      <div className={styles.kicker}>Apply for access</div>
 
       <label className={styles.cardField}>
         <EnvelopeSimple size={17} className={styles.fieldIcon} />

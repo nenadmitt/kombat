@@ -31,9 +31,10 @@ export function PhoneFrame({
       ].join(" ")}
       style={
         {
-          // Width as a custom property so a media query can shrink the phone;
-          // the screen then follows by ratio rather than a fixed height.
-          "--phone-w": `${width}px`,
+          // The default width, not the width: an inline `--phone-w` would
+          // outrank the media queries that shrink the phone. The screen then
+          // follows by ratio rather than a fixed height.
+          "--phone-w-base": `${width}px`,
           "--phone-ratio": `${width - pad * 2} / ${height}`,
           padding: pad,
           borderRadius: outerRadius,

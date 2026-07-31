@@ -4,10 +4,9 @@
   --panel-2: #0e1018;
   --surface: #141724;
   --text: #e9e9ed;
+  /* Two steps only: both clear 4.5:1 on --bg. Anything dimmer did not. */
   --text-62: rgba(233, 233, 237, 0.62);
   --text-55: rgba(233, 233, 237, 0.55);
-  --text-45: rgba(233, 233, 237, 0.45);
-  --text-42: rgba(233, 233, 237, 0.42);
   --green: #8ee05a;
   --green-light: #c0f394;
   --amber: #f5b829;
@@ -45,6 +44,23 @@ a:hover {
 
 button {
   font-family: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @keyframes kcaret {
