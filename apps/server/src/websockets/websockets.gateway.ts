@@ -49,10 +49,10 @@ type AuthenticatedSocket = Socket<
  * handshake (falls back to an `Authorization: Bearer` header). Unauthenticated
  * sockets are disconnected immediately rather than left connected.
  *
- * Every authenticated socket auto-joins a per-user room, so
- * WebsocketsService.sendToUser reaches all of that user's connections (e.g.
- * multiple devices). Channels are plain socket.io rooms that clients opt into
- * via `channel:join` / `channel:leave`.
+ * Every authenticated socket auto-joins a per-user room, which sendToUser
+ * targets. An account gets one live socket: a new connection disconnects the
+ * previous ones, so the room holds at most one member. Channels are plain
+ * socket.io rooms that clients opt into via `channel:join` / `channel:leave`.
  */
 @WebSocketGateway({ cors: true })
 export class WebsocketsGateway
@@ -87,6 +87,10 @@ export class WebsocketsGateway
         token,
       );
       client.data.userId = payload.sub;
+      // Kick predecessors before joining so the new socket never kicks
+      // itself. The kicked client sees 'io server disconnect', which
+      // socket.io does not auto-reconnect from.
+      this.server.in(userRoom(payload.sub)).disconnectSockets(true);
       await client.join(userRoom(payload.sub));
       this.websocketsService.markConnected(payload.sub);
       this.logger.log(`User ${payload.sub} connected (socket ${client.id})`);
