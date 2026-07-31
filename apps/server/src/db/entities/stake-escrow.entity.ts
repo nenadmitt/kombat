@@ -3,9 +3,19 @@ import { BaseEntity } from './base.entity';
 import { EscrowStatus } from '../types/game';
 
 /**
- * On-chain escrow lifecycle for a staked room: the audit trail (tx hashes,
- * payouts, errors) and the work queue the stake sweepers drain (Funding /
- * SettlePending / VoidPending rows are "to do"). Free rooms have no row.
+ * Per-room settlement state for a staked match: the audit trail (payout, fee,
+ * errors) and the work queue the stake sweeper drains (Funding / SettlePending
+ * / VoidPending rows are "to do"). Free rooms have no row.
+ *
+ * "Escrow" is vestigial. Nothing is escrowed: `MatchEscrow` was deleted at the
+ * pot cutover (see STAKEPOT_CLEANUP.md), stakes live in the pooled StakePot
+ * contract, and a match settles entirely in the off-chain ledger. What this row
+ * still does is decide *who settles a room* - `status` is the CAS target that
+ * makes settlement happen exactly once - so it is load-bearing under a
+ * misleading name.
+ *
+ * `matchId`, `fundTxHashes`, `settleTx` and `voidTx` are leftovers of the
+ * on-chain flow; nothing writes the last three any more.
  */
 @Entity('stake_escrows')
 // Serves the sweepers' "pending work" scans.

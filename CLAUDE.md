@@ -13,9 +13,13 @@ on-chain stakes. npm workspaces + turbo.
   cache for live match state, one GameDeadlineSweeper for every game's
   turn/setup timeouts, and the staking/escrow chain service (operator hot
   key, stake sweeper).
-- `apps/evm-contracts` - Solidity (Foundry): the N-player MatchEscrow the
-  chain service talks to; `apps/server/src/chain/escrow.abi.ts` is the
-  hand-kept ABI mirror and must stay in sync with it.
+- `apps/evm-contracts` - Solidity (Foundry): `StakePot`, the pooled custody
+  contract players deposit into, plus the KombatCoin token;
+  `apps/server/src/stake-pot/stake-pot.abi.ts` is the hand-kept ABI mirror and
+  must stay in sync with it. There is no escrow contract - `MatchEscrow` and
+  `escrow.abi.ts` were deleted at the pot cutover (see `STAKEPOT_CLEANUP.md`).
+  The surviving `stake_escrows` table is a per-room **settlement-state** row,
+  not an escrow: matches settle in the off-chain ledger.
 - `packages/core` - platform-agnostic shared domain code: game rules
   (`games/battleship`: fleet, mines, power-ups, shot resolution;
   `games/ludo`: board topology, dice/turn rules, bot policy), the socket
