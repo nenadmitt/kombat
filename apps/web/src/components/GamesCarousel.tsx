@@ -26,6 +26,10 @@ const GAMES: Game[] = [
     description:
       "Turn-based tank duel across broken terrain. Set angle and power, read the wind, and land a shell before they range in on you.",
     matchLength: "~5 min",
+    screenshots: [
+      "/screenshots/salvo-1.png",
+      "/screenshots/salvo-2.png",
+    ],
   },
   {
     name: "Battleships",
@@ -47,6 +51,10 @@ const GAMES: Game[] = [
     description:
       "The board game you already know, played for a pot. Four tokens home wins it - knock a rival back to start and the whole race resets in your favour.",
     matchLength: "~9 min",
+    screenshots: [
+      "/screenshots/ludo-1.png",
+      "/screenshots/ludo-2.png",
+    ],
   },
   {
     name: "Triple Cut",
@@ -55,6 +63,10 @@ const GAMES: Game[] = [
     description:
       "Three rounds, one call each. Fastest game on Kombat and the cheapest way to learn how staking feels before you size up.",
     matchLength: "~2 min",
+    screenshots: [
+      "/screenshots/triplecut-1.png",
+      "/screenshots/triplecut-2.png",
+    ],
   },
   {
     name: "Chroma Clash",
@@ -63,6 +75,10 @@ const GAMES: Game[] = [
     description:
       "A fast colour-chain duel. Play into your opponent's suit to steal the lead, hold a wildcard too long and it turns dead in your hand.",
     matchLength: "~4 min",
+    screenshots: [
+      "/screenshots/chroma-1.png",
+      "/screenshots/chroma-2.png",
+    ],
   },
 ];
 

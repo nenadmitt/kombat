@@ -72,16 +72,16 @@ export default function LandingPage() {
             variant="back"
             width={236}
             height={476}
-            src="/screenshots/battleship-game-ss1.png"
-            alt="Kombat match screen"
+            src="/screenshots/ludo-2.png"
+            alt="Ludo Royale board in the Kombat app"
             className={styles.heroPhoneBack}
           />
           <PhoneFrame
             variant="front"
             width={262}
             height={526}
-            src="/screenshots/battleship-game-ss.png"
-            alt="Kombat fleet deployment screen"
+            src="/screenshots/salvo-2.png"
+            alt="Salvo artillery duel in the Kombat app"
             className={styles.heroPhoneFront}
           />
         </div>
