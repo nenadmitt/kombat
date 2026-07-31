@@ -16,7 +16,6 @@ import { ApiError } from '@gaming-platform/core';
 import type { RootStackParamList } from '../navigation/types';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import { apiClient } from '../api/client';
-import Glow from '../components/Glow';
 import Icon, { type IconName } from '../components/Icon';
 import LogoMark from '../components/LogoMark';
 import { Button, Chip } from '../components/ui';
@@ -116,15 +115,7 @@ export default function LoginScreen(_props: Props) {
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.content}>
-        {/* Logo mark + wordmark over an accent bloom. */}
         <View style={styles.logoStack}>
-          <Glow
-            size={230}
-            color={colors.accent}
-            opacity={0.32}
-            edge={0.66}
-            style={styles.logoGlow}
-          />
           <LogoMark size={96} />
           <Text style={styles.wordmark}>KOMBAT</Text>
         </View>
@@ -351,12 +342,6 @@ const styles = StyleSheet.create({
   logoStack: {
     alignItems: 'center',
     gap: spacing.md,
-  },
-  logoGlow: {
-    position: 'absolute',
-    top: -16,
-    left: '50%',
-    marginLeft: -115,
   },
   wordmark: {
     fontFamily: mono.semiBold,
