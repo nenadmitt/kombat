@@ -2,16 +2,8 @@
 
 import { useRef, useState } from "react";
 import type { ReactNode } from "react";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Crosshair,
-  DiceFive,
-  Hand,
-  Plus,
-  Stack,
-  Target,
-} from "@phosphor-icons/react";
+import { ArrowLeft, ArrowRight, Plus } from "@phosphor-icons/react";
+import { GameIcon } from "@/components/GameIcon";
 import { PhoneFrame } from "@/components/PhoneFrame";
 import styles from "./GamesCarousel.module.css";
 
@@ -27,8 +19,17 @@ type Game = {
 
 const GAMES: Game[] = [
   {
+    name: "Salvo",
+    icon: <GameIcon game="salvo" />,
+    badge: { label: "NEW", tone: "green" },
+    category: "ARTILLERY · 1V1",
+    description:
+      "Turn-based tank duel across broken terrain. Set angle and power, read the wind, and land a shell before they range in on you.",
+    matchLength: "~5 min",
+  },
+  {
     name: "Battleships",
-    icon: <Crosshair size={31} />,
+    icon: <GameIcon game="battleships" />,
     badge: { label: "MOST PLAYED", tone: "amber" },
     category: "STRATEGY · 1V1",
     description:
@@ -40,25 +41,8 @@ const GAMES: Game[] = [
     ],
   },
   {
-    name: "Chroma Clash",
-    icon: <Stack size={31} />,
-    category: "CARDS · 1V1",
-    description:
-      "A fast colour-chain duel. Play into your opponent's suit to steal the lead, hold a wildcard too long and it turns dead in your hand.",
-    matchLength: "~4 min",
-  },
-  {
-    name: "Salvo",
-    icon: <Target size={31} />,
-    badge: { label: "NEW", tone: "green" },
-    category: "ARTILLERY · 1V1",
-    description:
-      "Turn-based tank duel across broken terrain. Set angle and power, read the wind, and land a shell before they range in on you.",
-    matchLength: "~5 min",
-  },
-  {
     name: "Ludo Royale",
-    icon: <DiceFive size={31} />,
+    icon: <GameIcon game="ludo" />,
     category: "BOARD · 1V1",
     description:
       "The board game you already know, played for a pot. Four tokens home wins it - knock a rival back to start and the whole race resets in your favour.",
@@ -66,11 +50,19 @@ const GAMES: Game[] = [
   },
   {
     name: "Triple Cut",
-    icon: <Hand size={31} />,
+    icon: <GameIcon game="tripleCut" />,
     category: "DUEL · 1V1",
     description:
       "Three rounds, one call each. Fastest game on Kombat and the cheapest way to learn how staking feels before you size up.",
     matchLength: "~2 min",
+  },
+  {
+    name: "Chroma Clash",
+    icon: <GameIcon game="chroma" />,
+    category: "CARDS · 1V1",
+    description:
+      "A fast colour-chain duel. Play into your opponent's suit to steal the lead, hold a wildcard too long and it turns dead in your hand.",
+    matchLength: "~4 min",
   },
 ];
 
@@ -124,10 +116,6 @@ export function GamesCarousel() {
           </p>
         </div>
         <div className={styles.headSide}>
-          <div className={styles.liveNow}>
-            <span className={styles.liveDot} />
-            50+ testers in the arena
-          </div>
           <div className={styles.arrows}>
             <button
               type="button"

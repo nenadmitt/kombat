@@ -1182,3 +1182,65 @@
     padding: 16px;
   }
 }
+
+/* ── coming soon ── */
+
+.soonWrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 44px 60px 90px;
+}
+
+.soonCard {
+  margin-top: 24px;
+  padding: 34px;
+  border-radius: 22px;
+  background: var(--surface);
+}
+
+.soonBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border-radius: 18px;
+  background: rgba(245, 184, 41, 0.13);
+  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.4);
+  font: 700 10px/1 var(--font-heading);
+  letter-spacing: 0.14em;
+  color: var(--amber);
+}
+
+.soonCard .primaryBtn {
+  margin-top: 26px;
+}
+
+.soonWallet {
+  margin-top: 26px;
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.soonWalletRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  min-width: 0;
+}
+
+.soonWalletAddress {
+  font: 500 13px/1.4 var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .soonWrap {
+    padding: 24px 20px 60px;
+  }
+
+  .soonCard {
+    padding: 22px;
+  }
+}

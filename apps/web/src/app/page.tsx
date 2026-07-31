@@ -2,13 +2,11 @@ import Link from "next/link";
 import {
   ArrowRight,
   Crosshair,
-  Key,
   Percent,
   Copy,
   ShareNetwork,
   ShieldCheck,
   Trophy,
-  UsersThree,
   CheckCircle,
 } from "@phosphor-icons/react/dist/ssr";
 import { LogoMark } from "@/components/Logo";
@@ -175,57 +173,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className={styles.trust}>
-        <div className={styles.trustGrid}>
-          <div className={styles.trustCard}>
-            <UsersThree size={22} className={styles.green} />
-            <div className={styles.trustTitle}>Real opponents</div>
-            <p className={styles.trustBody}>
-              Matches are human vs human. Bots only exist in free demo mode.
-            </p>
-          </div>
-          <div className={styles.trustCard}>
-            <Key size={22} className={styles.green} />
-            <div className={styles.trustTitle}>Your keys</div>
-            <p className={styles.trustBody}>
-              Wallet made on device with a recovery phrase only you hold.
-            </p>
-          </div>
-        </div>
-      </section>
-
       <section id="invite" className={styles.invite}>
-        <div>
-          <div className={`${styles.kicker} ${styles.kickerAmber}`}>
-            INVITE &amp; EARN
-          </div>
-          <h2 className={styles.sectionTitle}>
-            Invite players, earn on every match
-          </h2>
-          <p className={styles.sectionLead}>
-            Share your code and 0.1% of the platform fee from every staked
-            match your invites play lands straight in your stake pot - for as
-            long as they keep playing.
-          </p>
-          <div className={styles.checkList}>
-            <div className={styles.checkItem}>
-              <CheckCircle size={18} weight="fill" className={styles.amber} />
-              Credited per settled match - no claim step
-            </div>
-            <div className={styles.checkItem}>
-              <CheckCircle size={18} weight="fill" className={styles.amber} />
-              Paid into your pot, ready to stake again
-            </div>
-            <div className={styles.checkItem}>
-              <CheckCircle size={18} weight="fill" className={styles.amber} />
-              Codes and totals carry over at launch
-            </div>
-          </div>
-          <Link href="/stake?tab=invite" className={styles.amberCta}>
-            See your referral page
-            <ArrowRight size={15} weight="bold" />
-          </Link>
-        </div>
         <div className={styles.referralCard}>
           <div className={styles.referralHead}>
             <div className={styles.panelKicker}>YOUR REFERRAL CODE</div>
@@ -294,6 +242,37 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
+        </div>
+        <div className={styles.inviteCopy}>
+          <div className={`${styles.kicker} ${styles.kickerAmber}`}>
+            INVITE &amp; EARN
+          </div>
+          <h2 className={styles.sectionTitle}>
+            Invite players, earn on every match
+          </h2>
+          <p className={styles.sectionLead}>
+            Share your code and 0.1% of the platform fee from every staked
+            match your invites play lands straight in your stake pot - for as
+            long as they keep playing.
+          </p>
+          <div className={styles.checkList}>
+            <div className={styles.checkItem}>
+              <CheckCircle size={18} weight="fill" className={styles.amber} />
+              Credited per settled match - no claim step
+            </div>
+            <div className={styles.checkItem}>
+              <CheckCircle size={18} weight="fill" className={styles.amber} />
+              Paid into your pot, ready to stake again
+            </div>
+            <div className={styles.checkItem}>
+              <CheckCircle size={18} weight="fill" className={styles.amber} />
+              Codes and totals carry over at launch
+            </div>
+          </div>
+          <Link href="/stake?tab=invite" className={styles.amberCta}>
+            See your referral page
+            <ArrowRight size={15} weight="bold" />
+          </Link>
         </div>
       </section>
 
