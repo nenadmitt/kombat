@@ -140,19 +140,3 @@ fix. Remove an entry in the same change that fixes it.
 - **Suggested fix:** when more than one player is capped in the same resolution,
   end with a null winner so `completeMatch(null)` releases every hold, matching
   the Battleship setup-timeout behaviour.
-
-## 2026-08-01 — presence disconnect hooks accumulate per visited room
-
-- **Where:** `markOnline` in every game gateway (e.g.
-  `apps/server/src/games/salvo/salvo.gateway.ts:167-181`).
-- **Why it's wrong:** the `presenceHookedRooms` guard dedupes the
-  `client.once('disconnect', …)` hook per socket+room, but nothing removes a
-  hook when the player leaves the room. A socket that plays through many rooms
-  in one session accrues one listener per room — the production log shows
-  `MaxListenersExceededWarning: 11 disconnect listeners` — and on disconnect
-  every stale hook still runs `setPresence(roomId, …, false)` against
-  long-dead rooms. Harmless per hook, unbounded per session, and the warning
-  buries real problems.
-- **Suggested fix:** one `disconnect` listener per socket, registered on first
-  use, that walks `presenceHookedRooms`; drop a room from the set when the
-  match ends or the player leaves.
