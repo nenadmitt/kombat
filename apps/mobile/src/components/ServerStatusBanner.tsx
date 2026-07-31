@@ -1,16 +1,34 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { env } from '../config/env';
 import { useServerStore } from '../store/server.store';
-import { colors, spacing } from '../theme/colors';
-import { body } from '../theme/typography';
-import Icon from './Icon';
+import { colors, radius, spacing } from '../theme/colors';
+import { body, type } from '../theme/typography';
+import Icon, { type IconName } from './Icon';
+
+const ICON_TILE = 40;
+
+type Tone = {
+  icon: IconName;
+  fill: string;
+  border: string;
+  tileFill: string;
+  accent: string;
+  title: string;
+  actionLabel: string;
+};
 
 /**
- * Slim persistent bar above the tabs while the server is unreachable or in
+ * Persistent card above the tabs while the server is unreachable or in
  * maintenance. Renders nothing when everything is fine. Sits above the tab
  * navigator in normal layout flow, so screens are pushed down rather than
  * covered (their SafeAreaViews adapt - insets are position-aware).
+ *
+ * The wrapper and the card fill are opaque on purpose. This is the one surface
+ * that paints outside a `Screen`, so a translucent fill would composite against
+ * the light root window rather than the app background and the text would stop
+ * being readable. Tints inside the card are fine - they sit on that opaque fill.
  */
 export default function ServerStatusBanner() {
   const status = useServerStore(state => state.status);
@@ -23,49 +41,142 @@ export default function ServerStatusBanner() {
   }
 
   const offline = status === 'offline';
+  const tone = offline ? OFFLINE : MAINTENANCE;
+  const detailsUrl = env.maintenanceDetailsUrl;
   const copy = offline
-    ? "Can't reach the game server - online games are unavailable"
-    : (message ?? 'Maintenance in progress - multiplayer is temporarily unavailable');
+    ? 'Reconnecting to the game server. Online games are paused.'
+    : (message ??
+      'Matches are paused while we work. Your wallet and pot are untouched.');
+
+  // Offline retries by hand; maintenance sends the player to the status page,
+  // and with no URL configured there is nothing to send them to.
+  const action = offline
+    ? () => void refresh()
+    : detailsUrl
+      ? () => void Linking.openURL(detailsUrl)
+      : null;
 
   return (
-    <Pressable
-      style={[styles.banner, { paddingTop: insets.top + spacing.xs }]}
-      onPress={offline ? () => void refresh() : undefined}
-    >
-      <Icon
-        type={offline ? 'wifi-off' : 'warning'}
-        color={colors.danger}
-        size={16}
-      />
-      <View style={styles.textWrap}>
-        <Text style={styles.text}>{copy}</Text>
-        {offline && <Text style={styles.retry}>Tap to retry</Text>}
+    <View style={[styles.wrap, { paddingTop: insets.top + spacing.xs }]}>
+      <View
+        style={[
+          styles.card,
+          { backgroundColor: tone.fill, borderColor: tone.border },
+        ]}
+      >
+        <View style={[styles.tile, { backgroundColor: tone.tileFill }]}>
+          <Icon type={tone.icon} color={tone.accent} size={18} />
+        </View>
+
+        <View style={styles.mid}>
+          <View style={styles.titleRow}>
+            <View style={[styles.dot, { backgroundColor: tone.accent }]} />
+            <Text numberOfLines={1} style={styles.title}>
+              {tone.title}
+            </Text>
+          </View>
+          <Text style={styles.copy}>{copy}</Text>
+        </View>
+
+        {action ? (
+          <Pressable
+            onPress={action}
+            accessibilityRole="button"
+            accessibilityLabel={tone.actionLabel}
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.action,
+              { backgroundColor: tone.tileFill },
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={[styles.actionText, { color: tone.accent }]}>
+              {tone.actionLabel}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
-    </Pressable>
+    </View>
   );
 }
 
+const MAINTENANCE: Tone = {
+  icon: 'wrench',
+  fill: colors.surface,
+  border: colors.goldBorder,
+  tileFill: colors.goldSoft,
+  accent: colors.gold,
+  title: 'Maintenance in progress',
+  actionLabel: 'Details',
+};
+
+const OFFLINE: Tone = {
+  icon: 'wifi-off',
+  fill: colors.surface,
+  border: colors.dangerBorder,
+  tileFill: colors.dangerSoft,
+  accent: colors.dangerLight,
+  title: "You're offline",
+  actionLabel: 'Retry',
+};
+
 const styles = StyleSheet.create({
-  banner: {
+  wrap: {
+    paddingHorizontal: spacing.sm,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.canvas,
+  },
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
-    backgroundColor: colors.dangerSoft,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.cardBorder,
+    padding: spacing.sm,
+    borderRadius: radius.lg,
+    borderWidth: 1,
   },
-  textWrap: { flex: 1 },
-  text: {
-    fontFamily: body.medium,
-    fontSize: 12,
+  tile: {
+    width: ICON_TILE,
+    height: ICON_TILE,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mid: {
+    flex: 1,
+    gap: spacing.xxs,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: radius.pill,
+  },
+  title: {
+    ...type.subheading,
+    flex: 1,
+    fontSize: 15,
     color: colors.textPrimary,
   },
-  retry: {
+  copy: {
     fontFamily: body.medium,
-    fontSize: 11,
+    fontSize: 12,
+    lineHeight: 17,
     color: colors.textSecondary,
-    marginTop: 1,
+  },
+  action: {
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  pressed: {
+    opacity: 0.7,
+  },
+  actionText: {
+    fontFamily: body.bold,
+    fontSize: 13,
   },
 });
