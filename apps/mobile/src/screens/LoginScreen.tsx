@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -18,6 +18,7 @@ import type { RootStackParamList } from '../navigation/types';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import { apiClient } from '../api/client';
 import Glow from '../components/Glow';
+import Icon, { type IconName } from '../components/Icon';
 import { Button, Chip } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
@@ -25,6 +26,17 @@ import { display, mono, type } from '../theme/typography';
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 type SheetStep = 'methods' | 'email' | 'code';
+
+const CODE_LENGTH = 8;
+const CODE_BOX_HEIGHT = 52;
+const BACK_BUTTON = 44;
+/** Mirrors TOKEN_TTL_MS in the server's authentication service. */
+const CODE_TTL_MS = 15 * 60 * 1000;
+
+const SOON_METHODS: { icon: IconName; label: string }[] = [
+  { icon: 'google', label: 'Continue with Google' },
+  { icon: 'apple', label: 'Continue with Apple' },
+];
 
 /** The two-tone split-K brand mark from the redesign's welcome screen. */
 function KombatMark({ size = 96 }: { size?: number }) {
@@ -36,6 +48,30 @@ function KombatMark({ size = 96 }: { size?: number }) {
   );
 }
 
+function SheetHeader({ title, onBack }: { title: string; onBack: () => void }) {
+  return (
+    <View style={styles.sheetHeader}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Back"
+        onPress={onBack}
+        style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+      >
+        <Icon type="arrow-left" color={colors.textPrimary} size={20} />
+      </Pressable>
+      <Text style={styles.sheetTitle} numberOfLines={1}>
+        {title}
+      </Text>
+    </View>
+  );
+}
+
+function formatCountdown(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(total / 60);
+  return `${minutes}:${String(total % 60).padStart(2, '0')}`;
+}
+
 export default function LoginScreen(_props: Props) {
   const loginWithSession = useCurrentUserStore(
     state => state.loginWithSession,
@@ -44,9 +80,24 @@ export default function LoginScreen(_props: Props) {
   const [sheetVisible, setSheetVisible] = useState(false);
   const [step, setStep] = useState<SheetStep>('methods');
   const [email, setEmail] = useState('');
+  const [emailFocused, setEmailFocused] = useState(false);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState(0);
+  const [now, setNow] = useState(0);
+  const codeInputRef = useRef<TextInput>(null);
+
+  // A deadline rather than a counter, so a backgrounded app resumes on the
+  // real remaining time instead of a stalled tick count.
+  useEffect(() => {
+    if (step !== 'code') {
+      return;
+    }
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [step]);
 
   const openSheet = () => {
     setStep('methods');
@@ -58,11 +109,13 @@ export default function LoginScreen(_props: Props) {
 
   const closeSheet = () => setSheetVisible(false);
 
-  const handleSendCode = async () => {
+  const sendCode = async () => {
     setErrorMessage(null);
     setBusy(true);
     try {
       await apiClient.requestLoginToken(email.trim());
+      setCode('');
+      setExpiresAt(Date.now() + CODE_TTL_MS);
       setStep('code');
     } catch (err) {
       setErrorMessage(err instanceof ApiError ? err.message : 'Something went wrong');
@@ -89,7 +142,9 @@ export default function LoginScreen(_props: Props) {
   };
 
   const canSendCode = /\S+@\S+\.\S+/.test(email.trim()) && !busy;
-  const canVerify = code.trim().length === 8 && !busy;
+  const canVerify = code.trim().length === CODE_LENGTH && !busy;
+  const remainingMs = expiresAt - now;
+  const expired = remainingMs <= 0;
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -137,43 +192,98 @@ export default function LoginScreen(_props: Props) {
             <View style={styles.sheetHandle} />
             {step === 'methods' && (
               <View style={styles.sheetContent}>
-                <Text style={styles.sheetTitle}>Sign in</Text>
+                <View style={styles.titleBlock}>
+                  <Text style={styles.sheetTitle}>Sign in</Text>
+                  <Text style={styles.sheetSubtitle}>
+                    No password - we send a one-time code.
+                  </Text>
+                </View>
 
                 <Button
                   label="Continue with Email"
-                  icon="at-sign"
-                  variant="secondary"
+                  icon="mail"
                   onPress={() => setStep('email')}
                 />
 
-                <View style={styles.methodDisabled}>
-                  <Text style={styles.methodLabelDisabled}>
-                    Continue with Google
-                  </Text>
-                  <Chip label="Soon" tone="neutral" />
+                <View style={styles.dividerRow}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerLabel}>Coming soon</Text>
+                  <View style={styles.dividerLine} />
                 </View>
+
+                <View style={styles.methodList}>
+                  {SOON_METHODS.map(method => (
+                    <View key={method.label} style={styles.methodDisabled}>
+                      <Icon
+                        type={method.icon}
+                        color={colors.textMuted}
+                        size={20}
+                      />
+                      <Text style={styles.methodLabelDisabled}>
+                        {method.label}
+                      </Text>
+                      <View style={styles.spacer} />
+                      <Chip
+                        label="Soon"
+                        tone="neutral"
+                        style={styles.methodChip}
+                      />
+                    </View>
+                  ))}
+                </View>
+
+                <Text style={styles.legal}>
+                  By continuing you agree to the Terms and Privacy Policy.
+                </Text>
               </View>
             )}
 
             {step === 'email' && (
               <View style={styles.sheetContent}>
-                <Text style={styles.sheetTitle}>Enter your email</Text>
-                <TextInput
-                  style={styles.input}
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="you@example.com"
-                  placeholderTextColor={colors.textFaint}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="email"
-                  editable={!busy}
-                  autoFocus
-                />
+                <View style={styles.titleBlock}>
+                  <SheetHeader
+                    title="Enter your email"
+                    onBack={() => setStep('methods')}
+                  />
+                  <Text style={styles.sheetSubtitle}>
+                    We'll send an {CODE_LENGTH}-character code. No password to
+                    remember.
+                  </Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.inputRow,
+                    emailFocused && styles.inputRowFocused,
+                  ]}
+                >
+                  <Icon
+                    type="mail"
+                    color={emailFocused ? colors.accent : colors.textMuted}
+                    size={20}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    value={email}
+                    onChangeText={setEmail}
+                    onFocus={() => setEmailFocused(true)}
+                    onBlur={() => setEmailFocused(false)}
+                    placeholder="you@example.com"
+                    placeholderTextColor={colors.textFaint}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoComplete="email"
+                    editable={!busy}
+                    autoFocus
+                    onSubmitEditing={() => canSendCode && void sendCode()}
+                    returnKeyType="go"
+                  />
+                </View>
+
                 <Button
                   label={busy ? 'Sending code…' : 'Send code'}
-                  onPress={handleSendCode}
+                  onPress={sendCode}
                   disabled={!canSendCode}
                   loading={busy}
                   trailingIcon="arrow-right"
@@ -181,26 +291,85 @@ export default function LoginScreen(_props: Props) {
                 {errorMessage ? (
                   <Text style={styles.error}>{errorMessage}</Text>
                 ) : null}
+
+                <View style={styles.assuranceRow}>
+                  <Icon type="lock" color={colors.textFaint} size={14} />
+                  <Text style={styles.assurance}>
+                    We never share your address.
+                  </Text>
+                </View>
               </View>
             )}
 
             {step === 'code' && (
               <View style={styles.sheetContent}>
-                <Text style={styles.sheetTitle}>
-                  Enter the code sent to {email.trim()}
-                </Text>
-                <TextInput
-                  style={[styles.input, styles.codeInput]}
-                  value={code}
-                  onChangeText={setCode}
-                  placeholder="ABCD1234"
-                  placeholderTextColor={colors.textFaint}
-                  autoCapitalize="characters"
-                  autoComplete="one-time-code"
-                  maxLength={8}
-                  editable={!busy}
-                  autoFocus
-                />
+                <View style={styles.titleBlock}>
+                  <SheetHeader
+                    title="Enter your code"
+                    onBack={() => setStep('email')}
+                  />
+                  <Text style={styles.sheetSubtitle}>
+                    Sent to{' '}
+                    <Text style={styles.sheetSubtitleStrong}>
+                      {email.trim()}
+                    </Text>
+                  </Text>
+                </View>
+
+                <Pressable
+                  style={styles.codeRow}
+                  onPress={() => codeInputRef.current?.focus()}
+                >
+                  {Array.from({ length: CODE_LENGTH }, (_, index) => (
+                    <View
+                      key={index}
+                      style={[
+                        styles.codeBox,
+                        index < code.length && styles.codeBoxFilled,
+                        index === code.length && styles.codeBoxActive,
+                      ]}
+                    >
+                      <Text style={styles.codeChar}>{code[index] ?? ''}</Text>
+                    </View>
+                  ))}
+                  <TextInput
+                    ref={codeInputRef}
+                    style={styles.codeInput}
+                    value={code}
+                    onChangeText={value =>
+                      setCode(value.toUpperCase().slice(0, CODE_LENGTH))
+                    }
+                    accessibilityLabel="Login code"
+                    keyboardType="ascii-capable"
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    autoComplete="one-time-code"
+                    textContentType="oneTimeCode"
+                    maxLength={CODE_LENGTH}
+                    caretHidden
+                    editable={!busy}
+                    autoFocus
+                  />
+                </Pressable>
+
+                <View style={styles.codeMetaRow}>
+                  <Text style={styles.codeMeta}>
+                    {expired
+                      ? 'Code expired'
+                      : `Code expires in ${formatCountdown(remainingMs)}`}
+                  </Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={sendCode}
+                    disabled={busy}
+                    hitSlop={spacing.xs}
+                  >
+                    <Text style={[styles.resend, busy && styles.resendBusy]}>
+                      Resend
+                    </Text>
+                  </Pressable>
+                </View>
+
                 <Button
                   label={busy ? 'Verifying…' : 'Verify'}
                   onPress={handleVerify}
@@ -254,7 +423,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     letterSpacing: 8,
     // Optical-centre the wide tracking (the trailing space pushes it right).
-    paddingLeft: 8,
+    paddingLeft: spacing.xs,
     color: colors.textPrimary,
   },
   footer: {
@@ -294,7 +463,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: 40,
     height: 4,
-    borderRadius: 2,
+    borderRadius: radius.pill,
     backgroundColor: colors.borderStrong,
     marginTop: spacing.sm,
   },
@@ -302,18 +471,65 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.md,
   },
+  titleBlock: {
+    gap: spacing.xs,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  backButton: {
+    width: BACK_BUTTON,
+    height: BACK_BUTTON,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  pressed: {
+    opacity: 0.85,
+  },
   sheetTitle: {
-    ...type.heading,
+    ...type.title,
+    flexShrink: 1,
     color: colors.textPrimary,
+  },
+  sheetSubtitle: {
+    ...type.body,
+    color: colors.textMuted,
+  },
+  sheetSubtitleStrong: {
+    fontFamily: display.extraBold,
+    color: colors.textPrimary,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  dividerLabel: {
+    ...type.label,
+    color: colors.textMuted,
+  },
+  methodList: {
+    gap: spacing.sm,
   },
   methodDisabled: {
     height: 56,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: colors.borderStrong,
     alignItems: 'center',
-    justifyContent: 'center',
     flexDirection: 'row',
+    paddingHorizontal: spacing.md,
     gap: spacing.sm,
     opacity: 0.6,
   },
@@ -321,23 +537,103 @@ const styles = StyleSheet.create({
     ...type.button,
     color: colors.textMuted,
   },
-  input: {
-    width: '100%',
+  // Chip defaults to alignSelf 'flex-start', which top-aligns it in this row.
+  methodChip: {
+    alignSelf: 'center',
+  },
+  spacer: {
+    flex: 1,
+  },
+  legal: {
+    ...type.caption,
+    textAlign: 'center',
+    color: colors.textFaint,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     height: 56,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.borderStrong,
     backgroundColor: colors.surfaceMuted,
     paddingHorizontal: spacing.md,
+  },
+  inputRowFocused: {
+    borderColor: colors.accent,
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+  },
+  input: {
+    flex: 1,
+    height: '100%',
     fontFamily: mono.medium,
     fontSize: 16,
     color: colors.textPrimary,
   },
-  codeInput: {
-    textAlign: 'center',
-    fontSize: 24,
-    letterSpacing: 8,
+  assuranceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  assurance: {
+    ...type.caption,
+    color: colors.textFaint,
+  },
+  codeRow: {
+    flexDirection: 'row',
+    gap: spacing.xxs,
+  },
+  codeBox: {
+    flex: 1,
+    height: CODE_BOX_HEIGHT,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  codeBoxFilled: {
+    borderColor: colors.accent,
+  },
+  codeBoxActive: {
+    borderColor: colors.accentBorder,
+  },
+  codeChar: {
     fontFamily: mono.bold,
+    fontSize: 20,
+    color: colors.textPrimary,
+  },
+  // Invisible capture field over the boxes - the boxes are the visible input.
+  codeInput: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0,
+  },
+  codeMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  codeMeta: {
+    ...type.caption,
+    color: colors.textMuted,
+  },
+  resend: {
+    ...type.caption,
+    fontFamily: display.extraBold,
+    color: colors.accent,
+  },
+  resendBusy: {
+    color: colors.textFaint,
   },
   error: {
     ...type.caption,
