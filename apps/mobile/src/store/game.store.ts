@@ -22,7 +22,7 @@ type GameState = {
   /** An in-progress match the user can rejoin after reopening the app. */
   resumableMatch: GameRoomSummary | null;
   isForfeiting: boolean;
-  /** A staked room is escrowing both stakes (stake:funding received; waiting
+  /** A staked room is securing both stakes (stake:funding received; waiting
    *  for stake:funded/failed). Drives the "setting up your match" overlay. */
 
   setWaitingRoom: (room: GameRoomSummary, asJoiner?: boolean) => void;

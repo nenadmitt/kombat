@@ -9,7 +9,7 @@ import { DbService } from './db.service';
 import { EmailLoginTokenEntity } from './entities/email-login-token.entity';
 import { GameRoomEntity } from './entities/game-room.entity';
 import { RefreshTokenEntity } from './entities/refresh-token.entity';
-import { StakeEscrowEntity } from './entities/stake-escrow.entity';
+import { MatchSettlementEntity } from './entities/match-settlement.entity';
 import { UserEntity } from './entities/user.entity';
 import { WalletEntity } from './entities/wallet.entity';
 import { MigrationService } from './migration.service';
@@ -45,7 +45,7 @@ import { StakePotWithdrawalEntity } from '../stake-pot/entities/stake-pot-withdr
           RefreshTokenEntity,
           WalletEntity,
           GameRoomEntity,
-          StakeEscrowEntity,
+          MatchSettlementEntity,
           AppSettingEntity,
           // Owned by StakePotModule (which registers their repositories
           // itself, so it can be lifted out into its own service), but the
@@ -71,7 +71,7 @@ import { StakePotWithdrawalEntity } from '../stake-pot/entities/stake-pot-withdr
       RefreshTokenEntity,
       WalletEntity,
       GameRoomEntity,
-      StakeEscrowEntity,
+      MatchSettlementEntity,
       AppSettingEntity,
     ]),
   ],

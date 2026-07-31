@@ -4,7 +4,7 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
-import { EscrowStatus } from '@gaming-platform/core';
+import { SettlementStatus } from '@gaming-platform/core';
 
 import { DbService } from '../../db';
 import { StakesService } from './stakes.service';
@@ -14,7 +14,7 @@ const SWEEP_BATCH_LIMIT = 10;
 
 /**
  * Recovers staked rooms orphaned mid-transition: Funding (the hold was never
- * taken) and SettlePending/VoidPending (the escrow was claimed but the money
+ * taken) and SettlePending/VoidPending (the settlement was claimed but the money
  * never moved).
  *
  * Both windows are microseconds wide - each is a database transaction that runs
@@ -62,26 +62,26 @@ export class StakeSweeper implements OnModuleInit, OnModuleDestroy {
     }
     this.sweeping = true;
     try {
-      const pending = await this.dbService.findStakeEscrowsByStatus(
+      const pending = await this.dbService.findMatchSettlementsByStatus(
         [
-          EscrowStatus.Funding,
+          SettlementStatus.Funding,
           // Claimed for settlement but never finished - the owner died between
           // taking the claim and moving the money, so the stake is still locked.
-          EscrowStatus.SettlePending,
-          EscrowStatus.VoidPending,
+          SettlementStatus.SettlePending,
+          SettlementStatus.VoidPending,
         ],
         SWEEP_BATCH_LIMIT,
       );
-      for (const escrow of pending) {
+      for (const settlement of pending) {
         try {
-          if (escrow.status === EscrowStatus.Funding) {
-            await this.stakesService.recoverFunding(escrow.roomId);
+          if (settlement.status === SettlementStatus.Funding) {
+            await this.stakesService.recoverFunding(settlement.roomId);
           } else {
-            await this.stakesService.recoverSettlement(escrow.roomId);
+            await this.stakesService.recoverSettlement(settlement.roomId);
           }
         } catch (error) {
           this.logger.error(
-            `Stake recovery failed for room ${escrow.roomId}`,
+            `Stake recovery failed for room ${settlement.roomId}`,
             error instanceof Error ? error.stack : String(error),
           );
         }

@@ -47,7 +47,7 @@ export class ConfigurationService {
   /** Max stake per player in human units (applies to every asset). */
   public readonly STAKE_MAX: number;
   /** ETH sent to a fresh wallet so it can pay for its own first deposit. */
-  public readonly ESCROW_GAS_DUST_ETH: string;
+  public readonly WALLET_GAS_DUST_ETH: string;
 
   // ---- stake pot (pooled staking) ----------------------------------------
   /** The StakePot contract. Unset means staked games are unavailable. */
@@ -119,8 +119,8 @@ export class ConfigurationService {
       this.configService.get('STAKE_MAX') ?? '1000',
       10,
     );
-    this.ESCROW_GAS_DUST_ETH =
-      this.configService.get('ESCROW_GAS_DUST_ETH') ?? '0.002';
+    this.WALLET_GAS_DUST_ETH =
+      this.configService.get('WALLET_GAS_DUST_ETH') ?? '0.002';
 
     this.STAKE_POT_ADDRESS = this.configService.get('STAKE_POT_ADDRESS');
     const feeBps = parseInt(this.configService.get('STAKE_FEE_BPS') ?? '500', 10);

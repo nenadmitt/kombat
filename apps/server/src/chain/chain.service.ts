@@ -132,7 +132,7 @@ export class ChainService {
   }
 
   private async ensureGasFor(address: Address): Promise<void> {
-    const dust = parseEther(this.configurationService.ESCROW_GAS_DUST_ETH);
+    const dust = parseEther(this.configurationService.WALLET_GAS_DUST_ETH);
     const balance = await this.publicClient.getBalance({ address });
     // Half a dust unit is comfortably more than one transaction costs.
     if (balance >= dust / 2n) {

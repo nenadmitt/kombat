@@ -51,9 +51,29 @@ fixes it.
 
 ## Comments
 
-Write a comment only when it states something the code cannot: a non-obvious
+# **THE DEFAULT IS NO COMMENT. DO NOT NARRATE YOUR WORK.**
+
+**Write a comment only when it states something the code cannot**: a non-obvious
 constraint, a why, a protocol/ordering requirement, a deliberate trade-off.
-Match the surrounding style (this codebase favors short "why" comments on
-tricky seams). Never narrate what the next line does, never leave
-change-log-style comments ("now uses X", "added for feature Y"), and never
-comment to justify your change to a reviewer.
+Match the surrounding style - this codebase favors **short** "why" comments on
+tricky seams. One line. Two at the outside.
+
+**NEVER write any of these. This is the single most repeated piece of feedback
+in this repo:**
+
+- **Justifying your change to a reviewer.** "This is what makes X safe",
+  "without this, Y would happen", "the reason this is correct is...". That
+  belongs in the commit message or the PR, never in the file.
+- **An essay above a function.** If a docstring runs to paragraphs explaining a
+  threat model, a race, or a design rationale, it is slop. Cut it to the one
+  line a future reader actually needs, or delete it.
+- **Narrating the next line.** `// Memory first, so nothing reads a stale value`
+  above `cached = null` says nothing the code doesn't.
+- **Change-log comments.** "now uses X", "added for feature Y", "moved from Z".
+  Git already knows.
+- **Restating an identifier.** `/** The user's id. */` over `userId: string`.
+
+**Rule of thumb: if the comment would be equally true and equally interesting to
+someone reading the file a year from now with no idea a change happened, keep
+it. Otherwise delete it.** Deleting a comment you were about to write is
+almost always the right call.

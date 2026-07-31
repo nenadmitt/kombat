@@ -12,10 +12,10 @@ import { AppSettingEntity } from './entities/app-setting.entity';
 import { EmailLoginTokenEntity } from './entities/email-login-token.entity';
 import { GameRoomEntity } from './entities/game-room.entity';
 import { RefreshTokenEntity } from './entities/refresh-token.entity';
-import { StakeEscrowEntity } from './entities/stake-escrow.entity';
+import { MatchSettlementEntity } from './entities/match-settlement.entity';
 import { UserEntity } from './entities/user.entity';
 import { WalletEntity } from './entities/wallet.entity';
-import { EscrowStatus, GameRoomStatus, GameType, StakeAsset } from './types/game';
+import { SettlementStatus, GameRoomStatus, GameType, StakeAsset } from './types/game';
 import { WalletNetwork, WalletOrigin } from './types/wallet';
 
 /**
@@ -37,8 +37,8 @@ export class DbService {
     private readonly walletRepository: Repository<WalletEntity>,
     @InjectRepository(GameRoomEntity)
     private readonly gameRoomRepository: Repository<GameRoomEntity>,
-    @InjectRepository(StakeEscrowEntity)
-    private readonly stakeEscrowRepository: Repository<StakeEscrowEntity>,
+    @InjectRepository(MatchSettlementEntity)
+    private readonly matchSettlementRepository: Repository<MatchSettlementEntity>,
     @InjectRepository(AppSettingEntity)
     private readonly appSettingRepository: Repository<AppSettingEntity>,
     private readonly cacheService: CacheService,
@@ -126,7 +126,7 @@ export class DbService {
 
   /**
    * Net staked outcome per asset: what a win actually paid out (from the
-   * settled escrow) minus every stake this player put up. Void rooms are
+   * settled settlement) minus every stake this player put up. Void rooms are
    * excluded - the stake is returned, so they net zero.
    */
   async findStakeNetByTokenForUser(
@@ -134,12 +134,12 @@ export class DbService {
   ): Promise<{ stakeToken: number; net: string }[]> {
     const rows = await this.gameRoomRepository
       .createQueryBuilder('room')
-      .leftJoin('stake_escrows', 'escrow', 'escrow.room_id = room.id')
+      .leftJoin('match_settlements', 'settlement', 'settlement.room_id = room.id')
       .select('room.stake_token', 'stakeToken')
       .addSelect(
         `SUM(
            CASE WHEN room.winner_user_id = :userId
-                THEN COALESCE(escrow.payout, room.stake_amount)::numeric - room.stake_amount::numeric
+                THEN COALESCE(settlement.payout, room.stake_amount)::numeric - room.stake_amount::numeric
                 ELSE -room.stake_amount::numeric
            END
          )`,
@@ -586,57 +586,49 @@ export class DbService {
     });
   }
 
-  // --- stake escrows ---
+  // --- match settlements ---
 
-  createStakeEscrow(data: {
+  createMatchSettlement(data: {
     roomId: string;
-    matchId: string;
-    status: EscrowStatus;
-  }): Promise<StakeEscrowEntity> {
-    return this.stakeEscrowRepository.save(
-      this.stakeEscrowRepository.create(data),
+    status: SettlementStatus;
+  }): Promise<MatchSettlementEntity> {
+    return this.matchSettlementRepository.save(
+      this.matchSettlementRepository.create(data),
     );
   }
 
-  findStakeEscrowByRoomId(roomId: string): Promise<StakeEscrowEntity | null> {
-    return this.stakeEscrowRepository.findOneBy({ roomId });
+  findMatchSettlementByRoomId(roomId: string): Promise<MatchSettlementEntity | null> {
+    return this.matchSettlementRepository.findOneBy({ roomId });
   }
 
-  async updateStakeEscrow(
+  async updateMatchSettlement(
     roomId: string,
     patch: Partial<
       Pick<
-        StakeEscrowEntity,
-        | 'status'
-        | 'fundTxHashes'
-        | 'settleTx'
-        | 'voidTx'
-        | 'payout'
-        | 'fee'
-        | 'attempts'
-        | 'error'
+        MatchSettlementEntity,
+        'status' | 'payout' | 'fee' | 'attempts' | 'error'
       >
     >,
   ): Promise<void> {
-    await this.stakeEscrowRepository.update({ roomId }, patch);
+    await this.matchSettlementRepository.update({ roomId }, patch);
   }
 
   /**
-   * Claim a live escrow for exactly one terminal transition.
+   * Claim a live settlement for exactly one terminal transition.
    *
    * The conditional UPDATE is the serialization point for settlement: a room
    * can leave Funding/Funded once, so concurrent completions (a forfeit racing
    * a timeout, a replayed socket event) can neither settle twice nor settle and
    * void the same room. Returns true only for the caller that won it.
    */
-  async claimStakeEscrow(
+  async claimMatchSettlement(
     roomId: string,
-    next: EscrowStatus.SettlePending | EscrowStatus.VoidPending,
+    next: SettlementStatus.SettlePending | SettlementStatus.VoidPending,
   ): Promise<boolean> {
-    const result = await this.stakeEscrowRepository.update(
+    const result = await this.matchSettlementRepository.update(
       {
         roomId,
-        status: In([EscrowStatus.Funding, EscrowStatus.Funded]),
+        status: In([SettlementStatus.Funding, SettlementStatus.Funded]),
       },
       { status: next },
     );
@@ -650,26 +642,26 @@ export class DbService {
    * Guarded on the pending statuses: if another worker already carried this
    * room to Settled/Voided, this must not drag it back to Funded.
    */
-  async releaseStakeEscrowClaim(
+  async releaseMatchSettlementClaim(
     roomId: string,
-    previous: EscrowStatus,
+    previous: SettlementStatus,
     error: string,
   ): Promise<void> {
-    await this.stakeEscrowRepository.update(
+    await this.matchSettlementRepository.update(
       {
         roomId,
-        status: In([EscrowStatus.SettlePending, EscrowStatus.VoidPending]),
+        status: In([SettlementStatus.SettlePending, SettlementStatus.VoidPending]),
       },
       { status: previous, error },
     );
   }
 
-  /** Sweeper scan: escrows awaiting on-chain work, oldest-touched first. */
-  findStakeEscrowsByStatus(
-    statuses: EscrowStatus[],
+  /** Sweeper scan: settlements still needing work, oldest-touched first. */
+  findMatchSettlementsByStatus(
+    statuses: SettlementStatus[],
     limit = 20,
-  ): Promise<StakeEscrowEntity[]> {
-    return this.stakeEscrowRepository.find({
+  ): Promise<MatchSettlementEntity[]> {
+    return this.matchSettlementRepository.find({
       where: { status: In(statuses) },
       order: { updatedAt: 'ASC' },
       take: limit,

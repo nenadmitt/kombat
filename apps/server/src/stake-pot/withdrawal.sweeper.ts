@@ -29,7 +29,7 @@ const SENT_STALE_MS = 130_000;
 /**
  * Drains the withdrawal queue.
  *
- * Chain-state-first, like the escrow sweeper: every row starts by asking the
+ * Chain-state-first: every row starts by asking the
  * contract whether this id already paid. That one question covers every crash
  * window, because `processedWithdrawals` is written atomically by the payout
  * itself. Safe on every instance - the operator lock serialises the sends.

@@ -44,28 +44,6 @@ fix. Remove an entry in the same change that fixes it.
   `apps/server/docker-compose.yaml` so the project is explicit and can never
   collide with another checkout's `server` directory.
 
-## 2026-07-30 - StakeSweeper's staleness check is skewed by the DB/process timezone gap
-
-- **Where:** `apps/server/src/games/stakes/stake.sweeper.ts` (`Date.now() -
-  escrow.updatedAt.getTime() > FUNDING_STALE_MS`), against
-  `stake_escrows.updated_at`, which the migration declares as `TIMESTAMP`
-  (no time zone).
-- **Why it's wrong:** the column stores UTC (`DEFAULT now()` under a UTC
-  server) but node-postgres parses `timestamp without time zone` as *local*
-  time, so the JS Date is off by the process's UTC offset. Measured on this
-  machine (Postgres `Etc/UTC`, Node `UTC+2`) a row written a second earlier
-  reads as 2 hours old. East of UTC every Funding row looks stale
-  immediately, so the sweeper fights healthy funding jobs — exactly what the
-  `FUNDING_STALE_MS > FUNDING_LOCK_TTL_MS` comment is trying to prevent. West
-  of UTC the age goes negative and orphaned rows are never recovered at all.
-  Found while building the stake pot's own sweeper, which hit the identical
-  problem.
-- **Suggested fix:** evaluate the cutoff in SQL, where both sides use the
-  database clock — the stake pot does this in
-  `StakePotService.findSweepableWithdrawals` (`updated_at < now() -
-  make_interval(secs => :n)`). Declaring the timestamp columns `timestamptz`
-  (as the four `stake_pot_*` tables do) removes the ambiguity at the source.
-
 ## 2026-07-31 — Test module ships to production, gated only by an exact `NODE_ENV` string
 
 - **Where:** `apps/server/src/app.module.ts:25` (`TestModule` imported
@@ -112,7 +90,7 @@ fix. Remove an entry in the same change that fixes it.
   `UPDATE ... WHERE id = ?` with no status or winner guard.
 - **Why it's wrong:** combined with a forfeit arriving after a match is already
   over, the true winner's own client can rewrite `game_rooms.winnerUserId` to
-  the loser. The escrow's terminal-status guard keeps the *money* correct, but
+  the loser. The settlement row's terminal-status guard keeps the *money* correct, but
   the room record and the History feed then disagree with the ledger, which
   corrupts audit and any future dispute logic that trusts the room row.
   (The Battleship/RPS forfeit phase guards added on 2026-07-31 close the
@@ -133,16 +111,16 @@ fix. Remove an entry in the same change that fixes it.
   If both players close the app in that window — between the join completing and
   either client reaching the match screen — no match exists in the cache, so no
   deadline is ever armed, no timeout can fire, and `completeMatch` is never
-  reached. The escrow sits in `Funded` and the stakes stay locked with no
+  reached. The settlement row sits in `Funded` and the stakes stay locked with no
   recovery path: `StakeSweeper` scans `Funding`, `SettlePending` and
   `VoidPending`, never `Funded`, and nothing sweeps stale `InProgress` rooms.
   Discovered while tracing "what happens when both players leave" — every other
   abandonment case self-resolves via the turn clock, this one does not.
 - **Suggested fix:** arm a start deadline at funding time rather than at first
   `enter` (a room that is never entered then voids and refunds on its own), or
-  extend `StakeSweeper` to void `Funded` escrows whose room has been
+  extend `StakeSweeper` to void `Funded` settlements whose room has been
   `InProgress` past a generous cutoff with no match in the cache. Evaluate any
-  such cutoff in SQL, per the timezone entry above.
+  such cutoff in SQL rather than against `Date.now()`.
 
 ## 2026-07-31 — Triple Cut awards the pot to the joiner when *both* players abandon
 
@@ -162,27 +140,3 @@ fix. Remove an entry in the same change that fixes it.
 - **Suggested fix:** when more than one player is capped in the same resolution,
   end with a null winner so `completeMatch(null)` releases every hold, matching
   the Battleship setup-timeout behaviour.
-
-## 2026-07-31 — "Escrow" naming survives a design that was deleted, with dead columns behind it
-
-- **Where:** `apps/server/src/db/entities/stake-escrow.entity.ts` (table
-  `stake_escrows`), `EscrowStatus` in `apps/server/src/db/types/game.ts` /
-  `packages/core/src/games/stake.types.ts`, and every
-  `*StakeEscrow*` method in `db.service.ts`. Root `CLAUDE.md:16-17` described
-  a `MatchEscrow` contract and `chain/escrow.abi.ts` that no longer exist
-  (corrected 2026-07-31).
-- **Why it's wrong:** `STAKEPOT_CLEANUP.md` records that `MatchEscrow.sol`,
-  its tests, its deploy script and `escrow.abi.ts` were all removed at the pot
-  cutover. Nothing is escrowed any more - stakes sit in the pooled `StakePot`
-  contract and matches settle purely in the off-chain ledger. The table
-  survived as a per-room settlement-state row under its old name, and three of
-  its columns (`settle_tx`, `void_tx`, `fund_tx_hashes`) now have **zero
-  writers anywhere in the codebase**, while `match_id` is still populated with
-  `keccak256(roomId)` - a bytes32 id for a contract that is gone. The stale
-  CLAUDE.md line actively misled the 2026-07-31 audit into describing the
-  settlement fix in escrow terms.
-- **Suggested fix:** drop the four dead columns, and rename the table/entity/
-  enum to say what it is (`match_settlements` / `SettlementStatus`, or fold the
-  status onto `game_rooms` since it is 1:1 with a room). Both are mechanical but
-  touch migrations and `packages/core`, so worth doing deliberately rather than
-  alongside a security fix.

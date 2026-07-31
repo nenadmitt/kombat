@@ -1,7 +1,12 @@
-import { Column, CreateDateColumn, Entity } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index } from 'typeorm';
 import { BaseEntity } from './base.entity';
 
 @Entity('users')
+// Partial: a code is only assigned once a user picks a username.
+@Index('UQ_users_referral_code', ['referralCode'], {
+  unique: true,
+  where: '"referral_code" IS NOT NULL',
+})
 export class UserEntity extends BaseEntity {
   @Column({ name: 'email', type: 'varchar', unique: true, nullable: false })
   email: string;
@@ -17,6 +22,6 @@ export class UserEntity extends BaseEntity {
   @Column({ name: 'referred_by_user_id', type: 'uuid', nullable: true })
   referredByUserId: string | null;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 }

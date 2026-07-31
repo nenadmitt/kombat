@@ -25,6 +25,9 @@ import { UserEntity } from './user.entity';
  * token that never existed.
  */
 @Entity('refresh_tokens')
+@Index('IDX_refresh_tokens_user_live', ['userId'], {
+  where: '"revoked_at" IS NULL',
+})
 export class RefreshTokenEntity extends BaseEntity {
   @Column({ name: 'user_id', type: 'uuid' })
   userId: string;
@@ -34,7 +37,7 @@ export class RefreshTokenEntity extends BaseEntity {
   user: UserEntity;
 
   /** SHA-256 hex of the token handed to the client. Never the token itself. */
-  @Index({ unique: true })
+  @Index('UQ_refresh_tokens_hash', { unique: true })
   @Column({ name: 'token_hash', type: 'varchar', length: 64 })
   tokenHash: string;
 
@@ -45,6 +48,6 @@ export class RefreshTokenEntity extends BaseEntity {
   @Column({ name: 'revoked_at', type: 'timestamptz', nullable: true })
   revokedAt: Date | null;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 }

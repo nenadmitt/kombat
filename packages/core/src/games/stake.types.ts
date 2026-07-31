@@ -23,19 +23,15 @@ export const STAKE_ASSET_SYMBOLS: Record<StakeAsset, string> = {
   [StakeAsset.Usdc]: 'USDC',
 };
 
-/**
- * Escrow lifecycle for a staked room. Free rooms have no escrow record at
- * all; a room is playable only once its escrow is Funded (or it's free).
- */
-export enum EscrowStatus {
+/** Settlement lifecycle for a staked room. Free rooms have no row. */
+export enum SettlementStatus {
   Funding = 0,
   Funded = 1,
   SettlePending = 2,
   Settled = 3,
   VoidPending = 4,
   Voided = 5,
-  /** Terminal failure — needs manual attention; players can always recover
-   *  via the escrow's public 7-day withdrawStake. */
+  /** Terminal failure - needs manual attention. */
   Failed = 6,
 }
 
@@ -48,7 +44,7 @@ export const STAKE_ASSET_MIN: Record<StakeAsset, string> = {
 
 /** Socket events broadcast to a room's game channel during staking. */
 export const STAKE_EVENTS = {
-  /** Both players joined a staked room; stakes are being escrowed. */
+  /** Both players joined a staked room; stakes are being held. */
   funding: 'stake:funding',
   /** Stakes confirmed on-chain — the match may start. */
   funded: 'stake:funded',

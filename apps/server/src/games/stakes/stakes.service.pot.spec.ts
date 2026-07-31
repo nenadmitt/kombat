@@ -1,6 +1,6 @@
 import { ConflictException } from '@nestjs/common';
 import {
-  EscrowStatus,
+  SettlementStatus,
   GameType,
   STAKE_POT_EVENTS,
   StakeAsset,
@@ -41,7 +41,7 @@ describe('StakesService (pot mode)', () => {
   let dataSource: DataSource;
   let stakePotService: StakePotService;
   let service: StakesService;
-  let escrowRows: Map<string, { status: EscrowStatus; payout?: string | null }>;
+  let settlementRows: Map<string, { status: SettlementStatus; payout?: string | null }>;
   let completed: { roomId: string; winnerUserId: string | null; endReason: string }[];
   let events: { userId: string; event: string }[];
 
@@ -68,7 +68,7 @@ describe('StakesService (pot mode)', () => {
 
   beforeEach(async () => {
     await truncatePotTables(dataSource);
-    escrowRows = new Map();
+    settlementRows = new Map();
     completed = [];
     events = [];
 
@@ -89,48 +89,48 @@ describe('StakesService (pot mode)', () => {
     );
 
     const dbService = {
-      createStakeEscrow: async ({ roomId }: { roomId: string }) => {
-        escrowRows.set(roomId, { status: EscrowStatus.Funding });
+      createMatchSettlement: async ({ roomId }: { roomId: string }) => {
+        settlementRows.set(roomId, { status: SettlementStatus.Funding });
       },
-      updateStakeEscrow: async (
+      updateMatchSettlement: async (
         roomId: string,
-        patch: { status?: EscrowStatus; payout?: string | null },
+        patch: { status?: SettlementStatus; payout?: string | null },
       ) => {
-        const current = escrowRows.get(roomId) ?? { status: EscrowStatus.Funding };
-        escrowRows.set(roomId, { ...current, ...patch });
+        const current = settlementRows.get(roomId) ?? { status: SettlementStatus.Funding };
+        settlementRows.set(roomId, { ...current, ...patch });
       },
-      findStakeEscrowByRoomId: async (roomId: string) => {
-        const row = escrowRows.get(roomId);
+      findMatchSettlementByRoomId: async (roomId: string) => {
+        const row = settlementRows.get(roomId);
         return row ? { roomId, ...row } : null;
       },
       // Models the conditional UPDATE, not a stub that always succeeds - the
       // "only one caller may settle a room" guarantee is exactly what these
       // tests are here to hold onto.
-      claimStakeEscrow: async (roomId: string, next: EscrowStatus) => {
-        const current = escrowRows.get(roomId);
+      claimMatchSettlement: async (roomId: string, next: SettlementStatus) => {
+        const current = settlementRows.get(roomId);
         if (
           !current ||
-          (current.status !== EscrowStatus.Funding &&
-            current.status !== EscrowStatus.Funded)
+          (current.status !== SettlementStatus.Funding &&
+            current.status !== SettlementStatus.Funded)
         ) {
           return false;
         }
-        escrowRows.set(roomId, { ...current, status: next });
+        settlementRows.set(roomId, { ...current, status: next });
         return true;
       },
-      releaseStakeEscrowClaim: async (
+      releaseMatchSettlementClaim: async (
         roomId: string,
-        previous: EscrowStatus,
+        previous: SettlementStatus,
       ) => {
-        const current = escrowRows.get(roomId);
+        const current = settlementRows.get(roomId);
         if (
           !current ||
-          (current.status !== EscrowStatus.SettlePending &&
-            current.status !== EscrowStatus.VoidPending)
+          (current.status !== SettlementStatus.SettlePending &&
+            current.status !== SettlementStatus.VoidPending)
         ) {
           return;
         }
-        escrowRows.set(roomId, { ...current, status: previous });
+        settlementRows.set(roomId, { ...current, status: previous });
       },
       completeGameRoom: async (
         roomId: string,
@@ -165,7 +165,7 @@ describe('StakesService (pot mode)', () => {
     // Nothing is left in flight: the joiner's HTTP response can be trusted.
     expect(await stakePotService.availableBalance(CREATOR, ASSET)).toBe(0n);
     expect(await stakePotService.availableBalance(JOINER, ASSET)).toBe(0n);
-    expect(escrowRows.get(ROOM)?.status).toBe(EscrowStatus.Funded);
+    expect(settlementRows.get(ROOM)?.status).toBe(SettlementStatus.Funded);
     expect(
       await dataSource
         .getRepository(StakeLedgerEntryEntity)
@@ -183,7 +183,7 @@ describe('StakesService (pot mode)', () => {
 
     expect(await stakePotService.availableBalance(CREATOR, ASSET)).toBe(STAKE);
     expect(await stakePotService.availableBalance(JOINER, ASSET)).toBe(STAKE - 1n);
-    expect(escrowRows.get(ROOM)?.status).toBe(EscrowStatus.Voided);
+    expect(settlementRows.get(ROOM)?.status).toBe(SettlementStatus.Voided);
     expect(completed).toEqual([
       { roomId: ROOM, winnerUserId: null, endReason: 'stake-failed' },
     ]);
@@ -200,8 +200,8 @@ describe('StakesService (pot mode)', () => {
     const fee = (pot * 500n) / 10_000n;
     expect(await stakePotService.availableBalance(CREATOR, ASSET)).toBe(pot - fee);
     expect(await stakePotService.availableBalance(JOINER, ASSET)).toBe(0n);
-    expect(escrowRows.get(ROOM)).toMatchObject({
-      status: EscrowStatus.Settled,
+    expect(settlementRows.get(ROOM)).toMatchObject({
+      status: SettlementStatus.Settled,
       payout: (pot - fee).toString(),
     });
   });
@@ -229,7 +229,7 @@ describe('StakesService (pot mode)', () => {
       pot - fee,
     );
     expect(await stakePotService.availableBalance(JOINER, ASSET)).toBe(0n);
-    expect(escrowRows.get(ROOM)?.status).toBe(EscrowStatus.Settled);
+    expect(settlementRows.get(ROOM)?.status).toBe(SettlementStatus.Settled);
   });
 
   /** A settle racing a void must not pay the winner AND refund the stakes. */
@@ -247,7 +247,7 @@ describe('StakesService (pot mode)', () => {
     const fee = (pot * 500n) / 10_000n;
     const creator = await stakePotService.availableBalance(CREATOR, ASSET);
     const joiner = await stakePotService.availableBalance(JOINER, ASSET);
-    const settled = escrowRows.get(ROOM)?.status === EscrowStatus.Settled;
+    const settled = settlementRows.get(ROOM)?.status === SettlementStatus.Settled;
 
     // Exactly one outcome happened, and the pot is conserved either way.
     if (settled) {
@@ -269,7 +269,7 @@ describe('StakesService (pot mode)', () => {
 
     expect(await stakePotService.availableBalance(CREATOR, ASSET)).toBe(STAKE);
     expect(await stakePotService.availableBalance(JOINER, ASSET)).toBe(STAKE);
-    expect(escrowRows.get(ROOM)?.status).toBe(EscrowStatus.Voided);
+    expect(settlementRows.get(ROOM)?.status).toBe(SettlementStatus.Voided);
   });
 
   it('reads eligibility from the pot, not the wallet', async () => {
