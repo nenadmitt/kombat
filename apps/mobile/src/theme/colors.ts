@@ -62,6 +62,8 @@ export const colors = {
   /** Gold - the secondary accent: earnings, achievements, KOMBAT token. */
   gold: '#f5b829',
   goldSoft: 'rgba(245, 184, 41, 0.15)',
+  /** Gold hairline/border - the stake pot's outlined CTAs and row rules. */
+  goldBorder: 'rgba(245, 184, 41, 0.4)',
   /** Blue - informational (alt accent). */
   info: '#5b8def',
 

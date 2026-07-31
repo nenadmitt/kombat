@@ -64,3 +64,18 @@ fix. Remove an entry in the same change that fixes it.
   `navigation.canGoBack() ? navigation.goBack() : navigation.reset({ index: 0,
   routes: [{ name: 'MainTabs' }] })` - or hoist it into a shared
   `useMatchExit()` hook that all five containers call.
+
+## 2026-07-31 - Wallet balance-hero helpers orphaned by the wallet/stake-pot split
+
+- **Summary:** the redesigned wallet tab drops the gradient total-balance hero
+  (sparkline, week-change pill, allocation bar), leaving three exports with no
+  remaining caller.
+- **Where:** `src/components/Sparkline.tsx` (whole component),
+  `src/wallet/market-mock.ts` (`MOCK_BALANCE_SPARK`, `MOCK_WEEK_CHANGE` -
+  `MOCK_TRENDS` is still used by the asset rows), and `totalUsd` in
+  `src/store/walletBalances.store.ts:132`.
+- **Why it's wrong:** dead code that still typechecks and ships in the bundle,
+  and `totalUsd` reads as the wallet's live USD total when nothing calls it.
+- **Suggested fix:** delete all three if the balance hero is not coming back;
+  otherwise leave them and note the intent. Left in place because the call is
+  the design's, not a code question.

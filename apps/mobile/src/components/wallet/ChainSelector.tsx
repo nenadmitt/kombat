@@ -17,12 +17,18 @@ type Props = {
   evmAddress: string;
   selected: ChainId;
   onSelect: (chainId: ChainId) => void;
+  /**
+   * `pill` is the compact header trigger; `row` is the full-width card that
+   * heads the wallet tab. Both open the same sheet.
+   */
+  variant?: 'pill' | 'row';
 };
 
 export default function ChainSelector({
   evmAddress,
   selected,
   onSelect,
+  variant = 'pill',
 }: Props) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -51,11 +57,29 @@ export default function ChainSelector({
         onPress={() => setOpen(true)}
         accessibilityRole="button"
         accessibilityLabel="Select network"
-        style={({ pressed }) => [styles.pill, pressed && styles.pressed]}
+        style={({ pressed }) => [
+          variant === 'row' ? styles.row : styles.pill,
+          pressed && styles.pressed,
+        ]}
       >
-        <BrandIcon type={activeChain.icon} size={26} />
-        <Text style={styles.pillText}>{truncateAddress(activeAddress)}</Text>
-        <Icon type="chevron-down" color={colors.textMuted} size={18} />
+        {variant === 'row' ? (
+          <>
+            <View style={styles.rowIcon}>
+              <BrandIcon type={activeChain.icon} size={30} />
+            </View>
+            <View style={styles.rowMid}>
+              <Text style={styles.rowLabel}>Network</Text>
+              <Text style={styles.rowName}>{activeChain.network}</Text>
+            </View>
+            <Icon type="chevron-down" color={colors.textMuted} size={16} />
+          </>
+        ) : (
+          <>
+            <BrandIcon type={activeChain.icon} size={26} />
+            <Text style={styles.pillText}>{truncateAddress(activeAddress)}</Text>
+            <Icon type="chevron-down" color={colors.textMuted} size={18} />
+          </>
+        )}
       </Pressable>
 
       <Modal
@@ -151,6 +175,35 @@ const styles = StyleSheet.create({
   },
   pillText: {
     fontFamily: mono.semiBold,
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+  },
+  rowIcon: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowMid: {
+    flex: 1,
+    gap: 5,
+  },
+  rowLabel: {
+    ...type.label,
+    color: colors.textMuted,
+  },
+  rowName: {
+    ...type.subheading,
     fontSize: 15,
     color: colors.textPrimary,
   },

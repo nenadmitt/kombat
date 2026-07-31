@@ -18,7 +18,9 @@ export type ButtonVariant =
   | 'outline'
   | 'tinted'
   | 'ghost'
-  | 'danger';
+  | 'danger'
+  | 'gold'
+  | 'goldOutline';
 export type ButtonSize = 'lg' | 'md' | 'sm';
 
 type Props = {
@@ -107,6 +109,8 @@ const VARIANTS: Record<
   tinted: { bg: colors.accentSoft, fg: colors.accentLight },
   danger: { bg: colors.dangerSoft, fg: colors.danger },
   ghost: { bg: 'transparent', fg: colors.textSecondary },
+  gold: { bg: colors.gold, fg: colors.onAccent },
+  goldOutline: { bg: 'transparent', fg: colors.gold, border: colors.goldBorder },
 };
 
 const SIZES: Record<
