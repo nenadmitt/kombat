@@ -6,7 +6,7 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 
-/** Crypto brand marks (chain + token logos) - lucide ships none of these. */
+/** Crypto brand marks (chain + token logos) - the icon set ships none of these. */
 export type BrandIconName =
   | 'base'
   | 'ethereum'
