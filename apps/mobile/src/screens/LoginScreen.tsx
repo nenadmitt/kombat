@@ -28,7 +28,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 type SheetStep = 'methods' | 'email' | 'code';
 
 const CODE_LENGTH = 8;
-const CODE_BOX_HEIGHT = 52;
 const BACK_BUTTON = 44;
 
 const SOON_METHODS: { icon: IconName; label: string }[] = [
@@ -74,6 +73,7 @@ export default function LoginScreen(_props: Props) {
   const [email, setEmail] = useState('');
   const [emailFocused, setEmailFocused] = useState(false);
   const [code, setCode] = useState('');
+  const [codeFocused, setCodeFocused] = useState(false);
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const emailInputRef = useRef<TextInput>(null);
@@ -290,38 +290,33 @@ export default function LoginScreen(_props: Props) {
                 </View>
 
                 <Pressable
-                  style={styles.codeRow}
+                  style={[
+                    styles.inputRow,
+                    codeFocused && styles.inputRowFocused,
+                  ]}
                   onPress={() => codeInputRef.current?.focus()}
                 >
-                  {Array.from({ length: CODE_LENGTH }, (_, index) => (
-                    <View
-                      key={index}
-                      style={[
-                        styles.codeBox,
-                        index < code.length && styles.codeBoxFilled,
-                        index === code.length && styles.codeBoxActive,
-                      ]}
-                    >
-                      <Text style={styles.codeChar}>{code[index] ?? ''}</Text>
-                    </View>
-                  ))}
                   <TextInput
                     ref={codeInputRef}
-                    style={styles.codeInput}
+                    style={[styles.input, styles.codeInput]}
                     value={code}
                     onChangeText={value =>
                       setCode(value.toUpperCase().slice(0, CODE_LENGTH))
                     }
+                    onFocus={() => setCodeFocused(true)}
+                    onBlur={() => setCodeFocused(false)}
+                    placeholder="ABCD1234"
+                    placeholderTextColor={colors.textFaint}
                     accessibilityLabel="Login code"
-                    keyboardType="ascii-capable"
                     autoCapitalize="characters"
                     autoCorrect={false}
                     autoComplete="one-time-code"
                     textContentType="oneTimeCode"
                     maxLength={CODE_LENGTH}
-                    caretHidden
                     editable={!busy}
                     autoFocus
+                    onSubmitEditing={() => canVerify && void handleVerify()}
+                    returnKeyType="go"
                   />
                 </Pressable>
 
@@ -532,39 +527,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textPrimary,
   },
-  codeRow: {
-    flexDirection: 'row',
-    gap: spacing.xxs,
-  },
-  codeBox: {
-    flex: 1,
-    height: CODE_BOX_HEIGHT,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  codeBoxFilled: {
-    borderColor: colors.accent,
-  },
-  codeBoxActive: {
-    borderColor: colors.accentBorder,
-  },
-  codeChar: {
-    fontFamily: mono.bold,
-    fontSize: 20,
-    color: colors.textPrimary,
-  },
-  // Invisible capture field over the boxes - the boxes are the visible input.
   codeInput: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    opacity: 0,
+    textAlign: 'center',
+    fontFamily: mono.bold,
+    fontSize: 24,
+    letterSpacing: 8,
   },
   error: {
     ...type.caption,
