@@ -65,10 +65,10 @@ export default function ChainSelector({
         {variant === 'row' ? (
           <>
             <View style={styles.rowIcon}>
-              <BrandIcon type={activeChain.icon} size={26} />
+              <BrandIcon type={activeChain.icon} size={20} />
             </View>
             <Text style={styles.rowName}>{activeChain.network}</Text>
-            <Icon type="chevron-down" color={colors.textMuted} size={18} />
+            <Icon type="chevron-down" color={colors.textMuted} size={16} />
           </>
         ) : (
           <>
@@ -178,23 +178,25 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.cardBorder,
     borderRadius: radius.md,
-    padding: spacing.md,
+    padding: spacing.xs,
+    paddingRight: spacing.sm,
   },
   rowIcon: {
-    width: 40,
-    height: 40,
+    width: 28,
+    height: 28,
     borderRadius: radius.sm,
     backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   rowName: {
-    ...type.subheading,
+    ...type.body,
+    fontFamily: type.button.fontFamily,
     flex: 1,
     color: colors.textPrimary,
   },

@@ -22,7 +22,7 @@ const MINI_TILE = 32;
 const ACTIONS = [
   { key: 'receive', label: 'Receive', icon: 'arrow-down' as IconName },
   { key: 'deposit', label: 'Deposit', icon: 'plus' as IconName },
-  { key: 'withdraw', label: 'Withdraw', icon: 'arrow-up' as IconName },
+  { key: 'withdraw', label: 'Send', icon: 'arrow-up' as IconName },
 ] as const;
 
 export type WalletAction = (typeof ACTIONS)[number]['key'];

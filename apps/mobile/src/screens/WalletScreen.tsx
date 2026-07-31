@@ -37,7 +37,7 @@ const EMPTY_TXS: WalletTx[] = [];
 type TabKey = 'pot' | 'wallet';
 
 const TABS: readonly SegmentedTab<TabKey>[] = [
-  { value: 'pot', label: 'Pot', icon: 'shield', tint: colors.gold },
+  { value: 'pot', label: 'Pot', icon: 'coins', tint: colors.gold },
   { value: 'wallet', label: 'Wallet', icon: 'wallet' },
 ];
 
@@ -182,6 +182,10 @@ export default function WalletScreen() {
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
+          // iOS adds the top safe-area inset to a ScrollView's content by
+          // default, which showed up as a ~53pt void above the first card.
+          contentInsetAdjustmentBehavior="never"
+          automaticallyAdjustContentInsets={false}
           style={styles.scroll}
           contentContainerStyle={styles.walletBody}
         >

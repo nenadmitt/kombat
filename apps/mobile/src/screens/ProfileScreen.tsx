@@ -299,7 +299,21 @@ export default function ProfileScreen() {
         label="Sign Out"
         icon="log-out"
         variant="danger"
-        onPress={() => logout()}
+        onPress={() => {
+          void (async () => {
+            const ok = await confirm({
+              title: 'Sign out?',
+              message:
+                'Your wallet key stays on this device, so you can sign back in with the same account.',
+              confirmLabel: 'Sign out',
+              icon: 'log-out',
+              destructive: true,
+            });
+            if (ok) {
+              logout();
+            }
+          })();
+        }}
       />
     </Screen>
   );

@@ -9,8 +9,13 @@ import { formatUnits } from 'viem';
 
 import { colors, radius, spacing } from '../../theme/colors';
 import { mono, type } from '../../theme/typography';
-import { POT_ASSETS, tokenForAsset } from '../../wallet/stake-pot-assets';
-import { ETH_USD_FEED_DECIMALS, type BalanceChainId } from '../../wallet/tokens';
+import { CHAINS } from '../../wallet/chains';
+import { POT_ASSETS } from '../../wallet/stake-pot-assets';
+import {
+  CHAIN_TOKENS,
+  ETH_USD_FEED_DECIMALS,
+  type BalanceChainId,
+} from '../../wallet/tokens';
 import BrandIcon from '../BrandIcon';
 import Icon from '../Icon';
 import { Button } from '../ui';
@@ -45,26 +50,37 @@ export default function StakePotTab({
   onAdd,
   onWithdraw,
 }: Props) {
-  const rows = POT_ASSETS.map(({ asset }) => ({
-    asset,
-    token: tokenForAsset(chainId, asset),
-    available: BigInt(pot.available[asset]),
-    locked: BigInt(pot.locked[asset]),
-    pending: BigInt(pot.pendingWithdrawals[asset]),
-  })).filter(row => row.token !== undefined);
+  const network = CHAINS.find(c => c.id === chainId)?.network ?? chainId;
 
-  const canWithdraw = rows.some(row => row.available > 0n);
-  const funded = rows.filter(
+  // Every token the wallet shows gets a row, so the two tabs list the same
+  // currencies. One the pot cannot hold on this network stays visible and
+  // says why, rather than silently going missing.
+  const rows = CHAIN_TOKENS[chainId].map(token => {
+    const asset = POT_ASSETS.find(a => a.symbol === token.symbol)?.asset;
+    const stakeable = asset !== undefined && (token.native || !!token.address);
+    return {
+      token,
+      asset,
+      stakeable,
+      available: asset !== undefined ? BigInt(pot.available[asset]) : 0n,
+      locked: asset !== undefined ? BigInt(pot.locked[asset]) : 0n,
+      pending: asset !== undefined ? BigInt(pot.pendingWithdrawals[asset]) : 0n,
+    };
+  });
+
+  const stakeable = rows.filter(row => row.stakeable);
+  const canWithdraw = stakeable.some(row => row.available > 0n);
+  const funded = stakeable.filter(
     row => row.available > 0n || row.locked > 0n || row.pending > 0n,
   ).length;
 
-  const lockedUsd = rows.reduce(
-    (sum, row) => sum + usdValue(row.asset, row.locked, ethUsdPrice),
+  const lockedUsd = stakeable.reduce(
+    (sum, row) => sum + usdValue(row.asset!, row.locked, ethUsdPrice),
     0,
   );
   const [whole, cents] = splitUsd(
-    rows.reduce(
-      (sum, row) => sum + usdValue(row.asset, row.available, ethUsdPrice),
+    stakeable.reduce(
+      (sum, row) => sum + usdValue(row.asset!, row.available, ethUsdPrice),
       0,
     ),
   );
@@ -73,12 +89,14 @@ export default function StakePotTab({
     <View style={styles.tab}>
       <ScrollView
         showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="never"
+        automaticallyAdjustContentInsets={false}
         contentContainerStyle={styles.scrollBody}
       >
         <View style={styles.hero}>
           <View style={styles.heroLeft}>
             <View style={styles.heroLabelRow}>
-              <Icon type="shield" color={colors.gold} size={14} />
+              <Icon type="coins" color={colors.gold} size={14} />
               <Text style={styles.heroLabel}>In the pot</Text>
             </View>
             <Text style={styles.heroValue}>
@@ -99,47 +117,57 @@ export default function StakePotTab({
         <View style={styles.listHead}>
           <Text style={styles.listLabel}>Currencies</Text>
           <Text style={styles.listCount}>
-            {funded} of {rows.length} staked
+            {funded} of {stakeable.length} staked
           </Text>
         </View>
 
         <View>
           {rows.map((row, index) => {
-            const empty = row.available === 0n && row.locked === 0n;
+            const asset = row.asset;
+            const dimmed =
+              !row.stakeable || (row.available === 0n && row.locked === 0n);
             return (
               <View
-                key={row.asset}
+                key={row.token.symbol}
                 style={[styles.row, index < rows.length - 1 && styles.rowRule]}
               >
-                <View style={[styles.rowIcon, empty && styles.dim]}>
-                  {row.token?.brand ? (
+                <View style={[styles.rowIcon, dimmed && styles.dim]}>
+                  {row.token.brand ? (
                     <BrandIcon type={row.token.brand} size={ICON_TILE} />
                   ) : (
                     <View style={styles.rowGlyphCircle}>
                       <Text style={styles.rowGlyph}>
-                        {row.token?.glyph ?? '◆'}
+                        {row.token.glyph ?? '◆'}
                       </Text>
                     </View>
                   )}
                 </View>
                 <View style={styles.rowMid}>
-                  <Text style={[styles.rowSymbol, empty && styles.dimText]}>
-                    {row.token?.symbol}
+                  <Text style={[styles.rowSymbol, dimmed && styles.dimText]}>
+                    {row.token.symbol}
                   </Text>
-                  <Text style={styles.rowName}>{row.token?.name}</Text>
-                </View>
-                <View style={styles.rowRight}>
-                  <Text style={[styles.rowAmount, empty && styles.rowAmountEmpty]}>
-                    {formatStakeAmount(row.available.toString(), row.asset)}
-                  </Text>
-                  <Text style={styles.rowNote}>
-                    {row.locked > 0n
-                      ? `${formatStakeAmount(row.locked.toString(), row.asset)} in play`
-                      : row.pending > 0n
-                        ? `${formatStakeAmount(row.pending.toString(), row.asset)} withdrawing`
-                        : usdLabel(row.asset, row.available, ethUsdPrice)}
+                  <Text style={styles.rowName}>
+                    {row.stakeable
+                      ? row.token.name
+                      : `Disabled on ${network}`}
                   </Text>
                 </View>
+                {row.stakeable && asset !== undefined ? (
+                  <View style={styles.rowRight}>
+                    <Text style={[styles.rowAmount, dimmed && styles.rowAmountEmpty]}>
+                      {formatStakeAmount(row.available.toString(), asset)}
+                    </Text>
+                    <Text style={styles.rowNote}>
+                      {row.locked > 0n
+                        ? `${formatStakeAmount(row.locked.toString(), asset)} in play`
+                        : row.pending > 0n
+                          ? `${formatStakeAmount(row.pending.toString(), asset)} withdrawing`
+                          : usdLabel(asset, row.available, ethUsdPrice)}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.disabledTag}>Unavailable</Text>
+                )}
               </View>
             );
           })}
@@ -315,6 +343,10 @@ const styles = StyleSheet.create({
   rowNote: {
     ...type.caption,
     color: colors.textMuted,
+  },
+  disabledTag: {
+    ...type.caption,
+    color: colors.textFaint,
   },
   error: {
     ...type.caption,
