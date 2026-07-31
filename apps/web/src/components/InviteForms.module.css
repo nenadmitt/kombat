@@ -64,10 +64,13 @@
   color: var(--panel);
   font: 700 15px/1 var(--font-heading);
   white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(142, 224, 90, 0.35);
+  transition: filter 140ms ease-out, box-shadow 140ms ease-out;
 }
 
 .heroSubmit:hover {
   filter: brightness(1.08);
+  box-shadow: 0 6px 18px rgba(142, 224, 90, 0.45);
 }
 
 /* ── apply card ── */
@@ -93,10 +96,17 @@
   background: var(--green);
   color: var(--panel);
   font: 700 15px/1 var(--font-heading);
+  box-shadow: 0 4px 14px rgba(142, 224, 90, 0.35);
+  transition: filter 140ms ease-out, box-shadow 140ms ease-out;
 }
 
 .submit:hover:not(:disabled) {
   filter: brightness(1.08);
+  box-shadow: 0 6px 18px rgba(142, 224, 90, 0.45);
+}
+
+.submit:disabled {
+  box-shadow: none;
 }
 
 .submit:disabled {

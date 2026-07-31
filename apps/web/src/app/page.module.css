@@ -80,19 +80,8 @@
   margin: 0 24px;
   padding: 72px 36px 80px;
   border-radius: 24px;
+  background: var(--panel-2);
   overflow: hidden;
-}
-
-.heroGlow {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    rgba(142, 224, 90, 0.2),
-    rgba(142, 224, 90, 0.06) 38%,
-    transparent 64%
-  );
-  pointer-events: none;
 }
 
 .heroCopy {
@@ -255,10 +244,15 @@
   background: var(--amber);
   color: var(--panel);
   font: 700 15px/1 var(--font-heading);
+  box-shadow: 0 4px 14px rgba(245, 184, 41, 0.35);
 }
 
 .amberCta {
-  transition: filter 140ms ease-out;
+  transition: filter 140ms ease-out, box-shadow 140ms ease-out;
+}
+
+.amberCta:hover {
+  box-shadow: 0 6px 18px rgba(245, 184, 41, 0.45);
 }
 
 .amberCta:hover {
@@ -376,6 +370,7 @@
   background: var(--amber);
   color: var(--panel);
   font: 700 14px/1 var(--font-heading);
+  box-shadow: 0 4px 14px rgba(245, 184, 41, 0.35);
 }
 
 .shareBtn {
@@ -630,12 +625,9 @@
     margin-right: 0;
     padding: 40px 20px 52px;
     border-radius: 0;
+    background: transparent;
     gap: 40px;
     text-align: center;
-  }
-
-  .heroGlow {
-    display: none;
   }
 
   .apply {

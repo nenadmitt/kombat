@@ -79,3 +79,30 @@ fix. Remove an entry in the same change that fixes it.
 - **Suggested fix:** delete all three if the balance hero is not coming back;
   otherwise leave them and note the intent. Left in place because the call is
   the design's, not a code question.
+
+## 2026-08-01 — Salvo demo: a second tap on FIRE shoots twice and skips the bot's turn
+
+- **Observed:** two taps on FIRE in demo mode fired two shells and the bot never
+  took its turn.
+- **Where:** `apps/mobile/src/games/salvo/useLocalSalvo.ts:280-283` (`launch`)
+  and `SalvoPlayScreen.tsx:446-448` (the FIRE `Pressable`).
+- **Why it's wrong:** `launch` refuses a shot only while one is visibly in
+  progress - `s.winner !== null || s.flight !== null || s.driving ||
+  shellTimer.current`. Every one of those is false again the moment the shell
+  lands: `:321` nulls `shellTimer.current` and the flight clears, but the turn
+  does not hand over until the impact ring finishes lingering (`:44`). In that
+  gap it is still the player's turn, the button is still `armed`, and a second
+  tap passes every guard. `advanceTurn` (`:254`) then runs once per shot, and
+  the second hand-over consumes the bot's turn.
+  `launch` never checks `s.turn !== shooter`. The bot's path gets that check at
+  its call site (`:417`), so only the human-driven path is exposed.
+- **Suggested fix:** guard on the turn itself inside `launch` - reject when
+  `s.turn !== shooter` - so the settle window cannot be fired into. Keeping the
+  button disabled until the hand-over completes is worth doing too, but it
+  hides the bug rather than fixing it; the engine should refuse the second shot
+  regardless of what the UI allows.
+- **Not yet reproduced under a debugger** - the line references are read off
+  the code, so confirm the settle window is the actual gap before fixing.
+- **Multiplayer looks safe:** `apps/server/src/games/salvo/salvo-match.service.ts:175`
+  takes a per-room lock and calls `assertTurn` before resolving, so the same
+  double tap online should be rejected. Worth a check while fixing this.

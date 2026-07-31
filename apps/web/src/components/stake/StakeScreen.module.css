@@ -5,20 +5,6 @@
   background: var(--panel);
 }
 
-.amberText {
-  color: var(--amber);
-}
-
-.greenIcon {
-  color: var(--green);
-}
-
-.mutedIcon {
-  color: rgba(233, 233, 237, 0.5);
-  cursor: pointer;
-  flex: none;
-}
-
 /* ── nav ── */
 
 .nav {
@@ -26,13 +12,13 @@
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 22px 60px;
+  padding: 24px 60px;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 13px;
+  gap: 12px;
   color: var(--text);
 }
 
@@ -40,43 +26,10 @@
   color: var(--text);
 }
 
-
 .navChips {
   display: flex;
   align-items: center;
   gap: 14px;
-}
-
-.networkChip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  border-radius: 11px;
-  background: var(--surface);
-  cursor: pointer;
-}
-
-.networkChip:hover {
-  box-shadow: inset 0 0 0 1px rgba(142, 224, 90, 0.45);
-}
-
-.networkIcon {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: rgba(98, 126, 234, 0.34);
-  display: grid;
-  place-items: center;
-  color: #8aa0f5;
-}
-
-.chipLabel {
-  font: 700 13px/1 var(--font-heading);
-}
-
-.chipCaret {
-  color: rgba(233, 233, 237, 0.5);
 }
 
 .walletChip {
@@ -84,14 +37,26 @@
   align-items: center;
   gap: 9px;
   padding: 10px 14px;
-  border-radius: 11px;
+  border-radius: 12px;
   background: rgba(142, 224, 90, 0.14);
   box-shadow: inset 0 0 0 1px rgba(142, 224, 90, 0.4);
-  cursor: pointer;
 }
 
-.walletChip:hover {
-  background: rgba(142, 224, 90, 0.22);
+.disconnectBtn {
+  border: 0;
+  cursor: pointer;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgba(233, 233, 237, 0.18);
+  color: var(--text-55);
+  font: 700 13px/1 var(--font-heading);
+  transition: color 140ms ease-out, box-shadow 140ms ease-out;
+}
+
+.disconnectBtn:hover {
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px rgba(233, 233, 237, 0.34);
 }
 
 .walletDot {
@@ -107,22 +72,13 @@
   color: var(--green-light);
 }
 
-/* ── layout ── */
-
-.grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 400px;
-  gap: 36px;
-  padding: 44px 60px 70px;
-  align-items: start;
-}
-
 .backLink {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   font: 600 13px/1 var(--font-heading);
-  color: rgba(233, 233, 237, 0.5);
+  color: var(--text-55);
+  transition: color 140ms ease-out;
 }
 
 .backLink:hover {
@@ -138,911 +94,47 @@
 .lead {
   font-size: 15px;
   line-height: 1.6;
-  color: rgba(233, 233, 237, 0.58);
-  margin: 14px 0 0;
+  color: var(--text-62);
+  margin: 16px 0 0;
   max-width: 560px;
   text-wrap: pretty;
 }
 
-/* ── tabs ── */
-
-.tabs {
-  display: flex;
-  gap: 26px;
-  margin-top: 30px;
-  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.09);
-}
-
-.tab {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 2px 14px;
-  border: 0;
-  background: none;
-  font: 700 14px/1 var(--font-heading);
-  color: rgba(233, 233, 237, 0.45);
-  cursor: pointer;
-}
-
-.tab:hover {
-  color: var(--text);
-}
-
-.tabActive,
-.tabActive:hover {
-  color: var(--amber);
-}
-
-.tabActive::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -1px;
-  height: 2px;
-  border-radius: 1px;
-  background: var(--amber);
-}
-
-/* ── panel ── */
-
-.panel {
-  margin-top: 26px;
-  border-radius: 22px;
-  padding: 28px;
-  background: var(--surface);
-}
-
-.panelHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.panelKicker {
-  font: 600 13px/1 var(--font-heading);
-  letter-spacing: 0.13em;
-  color: var(--text-55);
-}
-
 .panelKickerSm {
-  font: 600 10px/1 var(--font-heading);
-  letter-spacing: 0.13em;
+  font: 500 13px/1.3 var(--font-body);
   color: var(--text-55);
-}
-
-.walletTag {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 12px;
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.32);
-}
-
-.walletTagAddress {
-  font: 700 12px/1 var(--font-mono);
-}
-
-/* ── amount box ── */
-
-.amountBox {
-  margin-top: 22px;
-  border-radius: 18px;
-  padding: 20px;
-  background: rgba(245, 184, 41, 0.07);
-  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.28);
-}
-
-.amountBoxHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.amountLabel {
-  font: 600 10px/1 var(--font-heading);
-  letter-spacing: 0.13em;
-  color: var(--amber);
-}
-
-.balanceNote {
-  font-size: 13px;
-  color: rgba(233, 233, 237, 0.5);
-}
-
-.balanceValue {
-  font-weight: 700;
-  color: var(--text);
-}
-
-.amountRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  margin-top: 18px;
-}
-
-.amountValueWrap {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-}
-
-.amountValue {
-  font: 800 46px/1 var(--font-heading);
-  letter-spacing: -0.03em;
-  white-space: nowrap;
-}
-
-.caret {
-  width: 2px;
-  height: 34px;
-  background: var(--amber);
-  flex: none;
-  animation: kcaret 1.05s infinite;
-}
-
-.tokenSelect {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 11px 15px;
-  border-radius: 13px;
-  background: rgba(0, 0, 0, 0.36);
-  cursor: pointer;
-}
-
-.tokenSelect:hover {
-  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.5);
-}
-
-.tokenSelectName {
-  font: 700 14px/1 var(--font-heading);
-}
-
-.tokenIcon {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  flex: none;
-}
-
-.tokenUsdc {
-  background: rgba(39, 117, 202, 0.34);
-  color: #4d97e8;
-}
-
-.tokenKombat {
-  width: 28px;
-  height: 28px;
-  background: var(--amber);
-  color: var(--panel);
-}
-
-.usdNote {
-  margin-top: 10px;
-  font-size: 13px;
-  color: rgba(233, 233, 237, 0.5);
-}
-
-.percentRow {
-  display: flex;
-  gap: 9px;
-  margin-top: 20px;
-}
-
-.percentBtn {
-  flex: 1;
-  text-align: center;
-  padding: 11px 0;
-  border: 0;
-  border-radius: 11px;
-  background: rgba(0, 0, 0, 0.32);
-  color: rgba(233, 233, 237, 0.6);
-  font: 700 13px/1 var(--font-heading);
-  cursor: pointer;
-}
-
-.percentBtn:hover {
-  color: var(--text);
-}
-
-.percentBtnActive,
-.percentBtnActive:hover {
-  background: rgba(245, 184, 41, 0.2);
-  box-shadow: inset 0 0 0 1px var(--amber);
-  color: var(--amber);
-}
-
-/* ── flow divider ── */
-
-.flowDivider {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin: 22px 0;
-}
-
-.flowLine {
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12));
-}
-
-.flowLineEnd {
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.12), transparent);
-}
-
-.flowArrow {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: rgba(142, 224, 90, 0.14);
-  display: grid;
-  place-items: center;
-  flex: none;
-  color: var(--green);
-}
-
-/* ── destination box ── */
-
-.destBox {
-  border-radius: 18px;
-  padding: 20px;
-  background: rgba(0, 0, 0, 0.3);
-}
-
-.destRow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 16px;
-}
-
-.destIcon {
-  width: 36px;
-  height: 36px;
-  border-radius: 11px;
-  background: rgba(142, 224, 90, 0.16);
-  display: grid;
-  place-items: center;
-  flex: none;
-  color: var(--green);
-}
-
-.destAddress {
-  flex: 1;
-  min-width: 0;
-  font: 600 14px/1 var(--font-mono);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.destActions {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  flex: none;
-}
-
-.iconBtn {
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  color: var(--text);
-}
-
-.iconBtn:hover {
-  background: rgba(255, 255, 255, 0.07);
-}
-
-.iconBtnGreen {
-  box-shadow: none;
-  background: rgba(142, 224, 90, 0.16);
-  color: var(--green-light);
-}
-
-.iconBtnGreen:hover {
-  background: rgba(142, 224, 90, 0.26);
-}
-
-.verifiedNote {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  margin-top: 15px;
-  font-size: 12px;
-  color: rgba(142, 224, 90, 0.85);
-}
-
-/* ── fees ── */
-
-.feeBox {
-  display: flex;
-  flex-direction: column;
-  gap: 13px;
-  margin-top: 22px;
-  padding: 18px 20px;
-  border-radius: 16px;
-  background: rgba(0, 0, 0, 0.22);
-}
-
-.feeLine {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 13px;
-}
-
-.feeLineLabel {
-  color: var(--text-55);
-}
-
-.feeLineValue {
-  font: 600 13px/1 var(--font-heading);
-}
-
-.feeRule {
-  height: 1px;
-  background: rgba(255, 255, 255, 0.09);
-}
-
-.feeTotal {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.feeTotalLabel {
-  font: 600 11px/1 var(--font-heading);
-  letter-spacing: 0.11em;
-  color: rgba(233, 233, 237, 0.5);
-}
-
-.feeTotalValue {
-  font: 800 18px/1 var(--font-heading);
-  color: var(--amber);
-}
-
-/* ── actions ── */
-
-.actions {
-  display: flex;
-  gap: 13px;
-  margin-top: 24px;
 }
 
 .primaryBtn {
-  flex: 1;
   box-sizing: border-box;
-  border: 1px solid var(--amber);
+  border: 0;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 18px;
-  border-radius: 14px;
+  padding: 17px 28px;
+  border-radius: 12px;
   background: var(--amber);
   color: var(--panel);
   font: 700 16px/1 var(--font-heading);
+  box-shadow: 0 4px 14px rgba(245, 184, 41, 0.35);
+  transition: filter 140ms ease-out, box-shadow 140ms ease-out;
 }
 
-.primaryBtn:hover {
+.primaryBtn:hover:not(:disabled) {
   filter: brightness(1.07);
+  box-shadow: 0 6px 18px rgba(245, 184, 41, 0.45);
 }
 
-.cancelBtn {
-  flex: none;
-  box-sizing: border-box;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  cursor: pointer;
-  padding: 18px 26px;
-  border-radius: 14px;
-  background: transparent;
-  color: var(--text);
-  font: 700 16px/1 var(--font-heading);
+.primaryBtn:active:not(:disabled) {
+  filter: brightness(0.96);
 }
 
-.cancelBtn:hover {
-  background: rgba(255, 255, 255, 0.07);
-}
-
-.infoNote {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  margin-top: 16px;
-  font-size: 12px;
-  line-height: 1.55;
-  color: var(--text-55);
-}
-
-.infoIcon {
-  color: var(--amber);
-  flex: none;
-  margin-top: 1px;
-}
-
-/* ── invite panel ── */
-
-.feeBadge {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 6px 11px;
-  border-radius: 9px;
-  background: rgba(245, 184, 41, 0.14);
-  font: 700 10px/1 var(--font-heading);
-  letter-spacing: 0.09em;
-  color: var(--amber);
-}
-
-.codeRow {
-  display: flex;
-  gap: 13px;
-  margin-top: 18px;
-}
-
-.codeBox {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 20px 22px;
-  border-radius: 16px;
-  background: rgba(245, 184, 41, 0.07);
-  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.3);
-}
-
-.codeValue {
-  font: 800 26px/1 var(--font-heading);
-  letter-spacing: 0.06em;
-  color: var(--amber);
-}
-
-.shareBtn {
-  flex: none;
-  box-sizing: border-box;
-  border: 1px solid var(--amber);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 0 24px;
-  border-radius: 16px;
-  background: var(--amber);
-  color: var(--panel);
-  font: 700 15px/1 var(--font-heading);
-}
-
-.shareBtn:hover {
-  filter: brightness(1.07);
-}
-
-.linkRow {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  margin-top: 13px;
-  padding: 14px 16px;
-  border-radius: 13px;
-  background: rgba(0, 0, 0, 0.3);
-}
-
-.linkValue {
-  flex: 1;
-  min-width: 0;
-  font: 600 13px/1 var(--font-mono);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: rgba(233, 233, 237, 0.72);
-}
-
-.copyChip {
-  padding: 7px 12px;
-  border: 0;
-  border-radius: 9px;
-  background: rgba(142, 224, 90, 0.16);
-  color: var(--green-light);
-  font: 700 11px/1 var(--font-heading);
-  cursor: pointer;
-  flex: none;
-}
-
-.copyChip:hover {
-  background: rgba(142, 224, 90, 0.26);
-}
-
-.inviteStats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 13px;
-  margin-top: 24px;
-}
-
-.inviteStat {
-  padding: 20px;
-  border-radius: 16px;
-  background: rgba(0, 0, 0, 0.26);
-}
-
-.inviteStatHot {
-  background: rgba(245, 184, 41, 0.09);
-  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.3);
-}
-
-.inviteStatValue {
-  font: 800 26px/1 var(--font-heading);
-}
-
-.inviteStatLabel {
-  font: 600 12px/1 var(--font-heading);
-  letter-spacing: 0.11em;
-  margin-top: 11px;
-  color: var(--text-55);
-}
-
-.feeSplit {
-  margin-top: 26px;
-  padding: 20px;
-  border-radius: 16px;
-  background: rgba(0, 0, 0, 0.22);
-}
-
-.feeSplitRows {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 18px;
-}
-
-.feeSplitRow {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-}
-
-.feeSplitLabel {
-  width: 80px;
-  flex: none;
-  font: 600 10px/1 var(--font-heading);
-  letter-spacing: 0.06em;
-  color: rgba(233, 233, 237, 0.5);
-}
-
-.feeSplitBar {
-  flex: 1;
-  height: 8px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.08);
-  overflow: hidden;
-}
-
-.feeSplitFill {
-  display: block;
-  height: 100%;
-  border-radius: 4px;
-}
-
-.fillYou {
-  background: var(--amber);
-}
-
-.fillPrize {
-  background: rgba(142, 224, 90, 0.55);
-}
-
-.fillPlatform {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-/* ── sidebar ── */
-
-.side {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.potCard {
-  position: relative;
-  border-radius: 22px;
-  padding: 24px;
-  overflow: hidden;
-  background: var(--surface);
-  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.34);
-}
-
-.potCardGlow {
-  position: absolute;
-  top: -56px;
-  right: -40px;
-  width: 200px;
-  height: 200px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(245, 184, 41, 0.18), transparent 68%);
-  pointer-events: none;
-}
-
-.potCardHead {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font: 600 13px/1 var(--font-heading);
-  letter-spacing: 0.13em;
-  color: var(--amber);
-}
-
-.potTotal {
-  position: relative;
-  display: flex;
-  align-items: baseline;
-  gap: 2px;
-  margin-top: 16px;
-  color: var(--amber);
-}
-
-.potTotalMajor {
-  font: 800 38px/1 var(--font-heading);
-  letter-spacing: -0.03em;
-}
-
-.potTotalMinor {
-  font: 800 20px/1 var(--font-heading);
-}
-
-.potReferralNote {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  font-size: 12px;
-  color: rgba(233, 233, 237, 0.5);
-}
-
-.potReferralNote svg {
-  color: var(--amber);
-}
-
-.potRows {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  margin-top: 20px;
-}
-
-.potRow {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 11px 0;
-}
-
-.potRowRule {
-  box-shadow: 0 1px 0 rgba(245, 184, 41, 0.15);
-}
-
-.potRowName {
-  flex: 1;
-  font: 700 13px/1 var(--font-heading);
-}
-
-.potRowValue {
-  font: 700 13px/1 var(--font-heading);
-  color: var(--amber);
-}
-
-/* ── referral earnings card ── */
-
-.earningsCard {
-  border-radius: 22px;
-  padding: 24px;
-  background: var(--surface);
-}
-
-.earningsHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.earningsRange {
-  font: 700 11.5px/1 var(--font-heading);
-  color: var(--green);
-}
-
-.earningsRows {
-  display: flex;
-  flex-direction: column;
-  margin-top: 14px;
-}
-
-.earningsRow {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 12px 0;
-}
-
-.earningsAvatar {
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
-  background: rgba(142, 224, 90, 0.14);
-  display: grid;
-  place-items: center;
-  flex: none;
-  font: 700 12px/1 var(--font-heading);
-  color: var(--green);
-}
-
-.earningsWho {
-  flex: 1;
-  min-width: 0;
-}
-
-.earningsName {
-  font: 700 13px/1 var(--font-heading);
-}
-
-.earningsMeta {
-  font-size: 13px;
-  margin-top: 5px;
-  color: var(--text-55);
-}
-
-.earningsAmount {
-  font: 700 13px/1 var(--font-heading);
-  color: var(--amber);
-  flex: none;
-}
-
-/* ── test mode card ── */
-
-.testModeCard {
-  border-radius: 22px;
-  padding: 24px;
-  background: var(--panel-2);
-}
-
-.testModeHead {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font: 600 13px/1 var(--font-heading);
-  letter-spacing: 0.13em;
-  color: var(--text-55);
-}
-
-.testModeHead svg {
-  color: var(--green);
-}
-
-.testModeBody {
-  font-size: 13px;
-  line-height: 1.6;
-  color: rgba(233, 233, 237, 0.5);
-  margin: 14px 0 0;
-}
-
-
-/* ── wallet form ── */
-
-.tokenStrip {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 18px;
-}
-
-.tokenCard {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px;
-  border: 0;
-  border-radius: 14px;
-  background: rgba(0, 0, 0, 0.3);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
-  color: var(--text);
-  cursor: pointer;
-  text-align: left;
-}
-
-.tokenCard:hover {
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
-}
-
-.tokenCardActive,
-.tokenCardActive:hover {
-  background: rgba(245, 184, 41, 0.1);
-  box-shadow: inset 0 0 0 1px var(--amber);
-}
-
-.tokenCardHead {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.tokenCard .tokenIcon {
-  width: 22px;
-  height: 22px;
-}
-
-.tokenCardName {
-  font: 700 10px/1 var(--font-heading);
-  letter-spacing: 0.02em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tokenCardBalance {
-  font: 700 15px/1 var(--font-heading);
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.amountInput {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  outline: none;
-  color: var(--text);
-  font: 800 46px/1 var(--font-heading);
-  letter-spacing: -0.03em;
-}
-
-.amountInput::placeholder {
-  color: rgba(233, 233, 237, 0.25);
-}
-
-.addressInput {
-  width: 100%;
-  margin-top: 12px;
-  padding: 15px 16px;
-  border: 0;
-  border-radius: 13px;
-  background: rgba(0, 0, 0, 0.32);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-  outline: none;
-  color: var(--text);
-  font: 500 14px/1.2 var(--font-mono);
-}
-
-.addressInput:focus {
-  box-shadow: inset 0 0 0 1px rgba(142, 224, 90, 0.5);
-}
-
-.addressInputBad,
-.addressInputBad:focus {
-  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.6);
-}
-
-.addressInput::placeholder {
-  color: rgba(233, 233, 237, 0.3);
+.primaryBtn:disabled,
+.connectBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .formError,
@@ -1063,12 +155,6 @@
   color: var(--amber);
 }
 
-.formSuccess {
-  background: rgba(142, 224, 90, 0.1);
-  box-shadow: inset 0 0 0 1px rgba(142, 224, 90, 0.3);
-  color: var(--green);
-}
-
 .connectBtn {
   display: flex;
   align-items: center;
@@ -1087,29 +173,16 @@
   background: rgba(142, 224, 90, 0.24);
 }
 
-.connectBtn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.networkChipWarn {
-  background: rgba(245, 184, 41, 0.12);
-  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.45);
-  color: var(--amber);
-  cursor: pointer;
-}
-
 /* ── responsive ── */
-
 
 @media (max-width: 1080px) {
   .nav {
-    padding: 22px 28px;
+    padding: 24px 28px;
   }
 
-  .grid {
-    grid-template-columns: minmax(0, 1fr);
-    padding: 36px 28px 60px;
+  .soonWrap {
+    padding-left: 28px;
+    padding-right: 28px;
   }
 }
 
@@ -1125,71 +198,37 @@
     gap: 10px;
   }
 
-  .grid {
-    gap: 28px;
-    padding: 28px 20px 48px;
+  .connectBtn,
+  .disconnectBtn {
+    flex: 1;
+    justify-content: center;
   }
 
   .title {
-    font-size: 26px;
+    font-size: 30px;
   }
 
-  .tabs {
-    gap: 18px;
-  }
-
-  .panel {
-    padding: 20px;
-  }
-
-  .amountBox,
-  .destBox {
-    padding: 16px;
-  }
-
-  .amountBoxHead {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 7px;
-  }
-
-  .amountRow {
-    gap: 12px;
-  }
-
-  .amountValue {
-    font-size: 34px;
-  }
-
-  .caret {
-    height: 26px;
-  }
-
-  .percentRow {
-    gap: 7px;
-  }
-
-  .actions {
-    flex-direction: column;
-  }
-
-  .cancelBtn {
-    padding: 16px;
+  .primaryBtn {
+    width: 100%;
   }
 }
 
 /* ── coming soon ── */
 
 .soonWrap {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: calc(100vh - 220px);
   max-width: 720px;
   margin: 0 auto;
-  padding: 44px 60px 90px;
+  padding: 24px 60px 80px;
 }
 
 .soonCard {
-  margin-top: 24px;
-  padding: 34px;
-  border-radius: 22px;
+  margin-top: 20px;
+  padding: 32px;
+  border-radius: 20px;
   background: var(--surface);
 }
 
@@ -1197,17 +236,17 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 6px 12px;
+  padding: 7px 12px;
   border-radius: 18px;
   background: rgba(245, 184, 41, 0.13);
   box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.4);
-  font: 700 10px/1 var(--font-heading);
+  font: 700 11px/1 var(--font-heading);
   letter-spacing: 0.14em;
   color: var(--amber);
 }
 
 .soonCard .primaryBtn {
-  margin-top: 26px;
+  margin-top: 28px;
 }
 
 .soonWallet {
@@ -1232,7 +271,8 @@
 
 @media (max-width: 640px) {
   .soonWrap {
-    padding: 24px 20px 60px;
+    min-height: 0;
+    padding: 16px 20px 56px;
   }
 
   .soonCard {

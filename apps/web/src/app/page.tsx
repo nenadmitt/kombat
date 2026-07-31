@@ -33,7 +33,6 @@ export default function LandingPage() {
       </header>
 
       <section className={styles.hero}>
-        <div className={styles.heroGlow} />
         <div className={styles.heroCopy}>
           <h1 className={styles.heroTitle}>
             Play.
