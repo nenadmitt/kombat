@@ -7,11 +7,6 @@ WORKDIR /app
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY apps/web/package.json apps/web/
 
-# Production node_modules straight from the lockfile - kept as its own stage
-# (npm prune over a partial workspace install drops real dependencies).
-FROM manifests AS deps-prod
-RUN npm ci -w @gaming-platform/web --include-workspace-root --omit=dev
-
 FROM manifests AS builder
 RUN npm ci -w @gaming-platform/web --include-workspace-root
 COPY apps/web apps/web
@@ -32,16 +27,23 @@ FROM node:22-alpine
 ENV NODE_ENV=production
 WORKDIR /app
 
-COPY --from=deps-prod /app /app
-COPY --from=builder /app/apps/web/.next apps/web/.next
-COPY apps/web/public apps/web/public
-COPY apps/web/next.config.ts apps/web/
+# `output: standalone` traces the modules the server actually imports and emits
+# them next to it, so the runtime never needs a node_modules install. Static
+# assets are the documented exception - they are not traced.
+COPY --from=builder /app/apps/web/.next/standalone ./
+COPY --from=builder /app/apps/web/.next/static apps/web/.next/static
+COPY --from=builder /app/apps/web/public apps/web/public
+
+# migrate.mjs is not part of the traced graph; dotenv is its only dependency
+# the server does not already pull in.
+COPY --from=builder /app/node_modules/dotenv node_modules/dotenv
 COPY apps/web/scripts apps/web/scripts
 COPY apps/web/migrations apps/web/migrations
 
 # Everything else (Postgres, ADMIN_TOKEN) comes from environment variables;
 # migrations run at boot, as they do for the server.
 WORKDIR /app/apps/web
+ENV PORT=4000 HOSTNAME=0.0.0.0
 EXPOSE 4000
 
-CMD ["sh", "-c", "node scripts/migrate.mjs && npm start"]
+CMD ["sh", "-c", "node scripts/migrate.mjs && node server.js"]
