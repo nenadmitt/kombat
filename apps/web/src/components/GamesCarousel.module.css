@@ -1,6 +1,5 @@
 .arena {
   padding: 70px 0 74px;
-  background: var(--panel-2);
 }
 
 .head {
@@ -36,24 +35,6 @@
   display: flex;
   align-items: center;
   gap: 20px;
-}
-
-.liveNow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--text-45);
-  white-space: nowrap;
-}
-
-.liveDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--green);
-  box-shadow: 0 0 7px var(--green);
-  animation: kpulse 1.6s infinite;
 }
 
 .arrows {
@@ -113,7 +94,7 @@
   flex: none;
   width: min(1280px, calc(100vw - 120px));
   display: grid;
-  grid-template-columns: 1fr 470px;
+  grid-template-columns: minmax(0, 1fr) 470px;
   gap: 48px;
   align-items: center;
   padding: 38px 40px;
@@ -255,7 +236,7 @@
   flex-direction: column;
   justify-content: center;
   gap: 18px;
-  background: var(--panel-2);
+  background: var(--panel);
   box-shadow: none;
 }
 
@@ -336,11 +317,74 @@
   }
 
   .card {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     width: calc(100vw - 56px);
   }
 
   .moreCard {
     width: calc(100vw - 56px);
+  }
+}
+
+@media (max-width: 640px) {
+  .arena {
+    padding: 52px 0 56px;
+  }
+
+  .head,
+  .dots {
+    padding: 0 20px;
+  }
+
+  .row {
+    padding: 0 20px;
+    gap: 14px;
+  }
+
+  .track {
+    margin-top: 26px;
+    scroll-padding-left: 20px;
+  }
+
+  .title {
+    font-size: 28px;
+  }
+
+  .card,
+  .moreCard {
+    width: calc(100vw - 40px);
+  }
+
+  .card {
+    gap: 32px;
+    padding: 24px 20px;
+  }
+
+  .gameIcon,
+  .moreIcon {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+  }
+
+  .gameName {
+    font-size: 24px;
+  }
+
+  .cardActions {
+    flex-wrap: wrap;
+  }
+
+  .phoneBack {
+    --phone-w: 138px;
+  }
+
+  .phoneFront {
+    --phone-w: 156px;
+    margin-left: -20px;
+  }
+
+  .moreTitle {
+    font-size: 22px;
   }
 }

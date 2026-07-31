@@ -56,6 +56,10 @@
     {
       "path": "assets/fonts/Sora-SemiBold.ttf",
       "sha1": "dadfac88eb00b8ad89b44652529f94f5a6121de1"
+    },
+    {
+      "path": "assets/fonts/SpaceGrotesk-Bold.ttf",
+      "sha1": "a9c030e3ebcd8ce7284f8382da8590609f1803c4"
     }
   ]
 }

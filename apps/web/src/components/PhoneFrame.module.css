@@ -1,5 +1,7 @@
 .shell {
   position: relative;
+  width: var(--phone-w);
+  max-width: 100%;
   background: var(--phone-shell);
 }
 
@@ -15,6 +17,7 @@
 .screen {
   position: relative;
   width: 100%;
+  aspect-ratio: var(--phone-ratio);
   overflow: hidden;
   background: var(--panel);
 }

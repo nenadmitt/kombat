@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowClockwise, SignOut } from "@phosphor-icons/react";
 
-import { LogoMark } from "@/components/Logo";
+import { LogoLockup } from "@/components/Logo";
 import {
   ADMIN_TOKEN_STORAGE_KEY,
   readAdminTokenFromUrl,
@@ -14,7 +14,7 @@ import styles from "./page.module.css";
 
 type Signup = {
   id: string;
-  username: string;
+  username: string | null;
   email: string;
   country: string | null;
   createdAt: string;
@@ -84,8 +84,7 @@ export default function AdminPage() {
     <div className={styles.page}>
       <header className={styles.nav}>
         <Link href="/" className={styles.brand}>
-          <LogoMark size={28} />
-          <span className={styles.brandName}>KOMBAT</span>
+          <LogoLockup size={26} />
         </Link>
         <div className={styles.navActions}>
           <button type="button" className={styles.navBtn} onClick={() => void load()}>
@@ -128,7 +127,11 @@ export default function AdminPage() {
                   <tbody>
                     {state.signups.map((signup) => (
                       <tr key={signup.id}>
-                        <td className={styles.username}>{signup.username}</td>
+                        <td className={styles.username}>
+                          {signup.username ?? (
+                            <span className={styles.unknown}>-</span>
+                          )}
+                        </td>
                         <td className={styles.email}>{signup.email}</td>
                         <td>
                           {signup.country ?? (

@@ -2,17 +2,14 @@ import Link from "next/link";
 import {
   ArrowRight,
   Crosshair,
-  FileCode,
-  Key,
   Percent,
   Copy,
   ShareNetwork,
   ShieldCheck,
   Trophy,
-  UsersThree,
   CheckCircle,
 } from "@phosphor-icons/react/dist/ssr";
-import { LogoMark } from "@/components/Logo";
+import { LogoLockup } from "@/components/Logo";
 import { PhoneFrame } from "@/components/PhoneFrame";
 import { GamesCarousel } from "@/components/GamesCarousel";
 import { ApplyForm, HeroInviteForm } from "@/components/InviteForms";
@@ -24,8 +21,7 @@ export default function LandingPage() {
     <div className={styles.page}>
       <header className={styles.nav}>
         <div className={styles.brand}>
-          <LogoMark size={34} />
-          <span className={styles.brandName}>KOMBAT</span>
+          <LogoLockup size={30} />
         </div>
         <nav className={styles.navLinks}>
           <a href="#games" className={styles.navLink}>Games</a>
@@ -52,7 +48,7 @@ export default function LandingPage() {
           <p className={styles.heroLead}>
             Skill games for real stakes. Stake once into your pot, match
             against a real opponent, and the winner takes it. No house, no
-            bots, settled on-chain.
+            bots.
           </p>
           <HeroInviteForm />
           <div className={styles.heroStats}>
@@ -61,8 +57,8 @@ export default function LandingPage() {
               <div className={styles.heroStatLabel}>GAMES LIVE · MORE SOON</div>
             </div>
             <div>
-              <div className={styles.heroStatValue}>1,284</div>
-              <div className={styles.heroStatLabel}>TESTERS PLAYING</div>
+              <div className={styles.heroStatValue}>50+</div>
+              <div className={styles.heroStatLabel}>TESTERS ALREADY</div>
             </div>
             <div>
               <div className={`${styles.heroStatValue} ${styles.amber}`}>4</div>
@@ -75,16 +71,16 @@ export default function LandingPage() {
             variant="back"
             width={236}
             height={476}
-            src="/screenshots/battleship-game-ss1.png"
-            alt="Kombat match screen"
+            src="/screenshots/ludo-2.png"
+            alt="Ludo Royale board in the Kombat app"
             className={styles.heroPhoneBack}
           />
           <PhoneFrame
             variant="front"
             width={262}
             height={526}
-            src="/screenshots/battleship-game-ss.png"
-            alt="Kombat fleet deployment screen"
+            src="/screenshots/salvo-2.png"
+            alt="Salvo artillery duel in the Kombat app"
             className={styles.heroPhoneFront}
           />
         </div>
@@ -106,7 +102,7 @@ export default function LandingPage() {
             <div className={styles.howCardTitle}>Stake into your pot</div>
             <p className={styles.howCardBody}>
               Send KOMBAT, USDC, USDT or ETH to the match contract once. Your
-              balance becomes in-game credit — no signing per match.
+              balance becomes in-game credit - no signing per match.
             </p>
           </div>
           <div className={styles.howCard}>
@@ -148,7 +144,7 @@ export default function LandingPage() {
           <h2 className={styles.sectionTitle}>Sign once. Play all night.</h2>
           <p className={styles.sectionLead}>
             Your pot is a balance held in the match contract. Fund it from any
-            wallet, and every match after that is instant — no transaction, no
+            wallet, and every match after that is instant - no transaction, no
             gas, no waiting on a confirmation between rounds.
           </p>
           <div className={styles.checkList}>
@@ -176,64 +172,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className={styles.trust}>
-        <div className={styles.trustGrid}>
-          <div className={styles.trustCard}>
-            <FileCode size={22} className={styles.green} />
-            <div className={styles.trustTitle}>Settled on-chain</div>
-            <p className={styles.trustBody}>
-              Every stake and payout is a contract call you can read yourself.
-            </p>
-          </div>
-          <div className={styles.trustCard}>
-            <UsersThree size={22} className={styles.green} />
-            <div className={styles.trustTitle}>Real opponents</div>
-            <p className={styles.trustBody}>
-              Matches are human vs human. Bots only exist in free demo mode.
-            </p>
-          </div>
-          <div className={styles.trustCard}>
-            <Key size={22} className={styles.green} />
-            <div className={styles.trustTitle}>Your keys</div>
-            <p className={styles.trustBody}>
-              Wallet made on device with a recovery phrase only you hold.
-            </p>
-          </div>
-        </div>
-      </section>
-
       <section id="invite" className={styles.invite}>
-        <div>
-          <div className={`${styles.kicker} ${styles.kickerAmber}`}>
-            INVITE &amp; EARN
-          </div>
-          <h2 className={styles.sectionTitle}>
-            Invite players, earn on every match
-          </h2>
-          <p className={styles.sectionLead}>
-            Share your code and 0.1% of the platform fee from every staked
-            match your invites play lands straight in your stake pot — for as
-            long as they keep playing.
-          </p>
-          <div className={styles.checkList}>
-            <div className={styles.checkItem}>
-              <CheckCircle size={18} weight="fill" className={styles.amber} />
-              Credited per settled match — no claim step
-            </div>
-            <div className={styles.checkItem}>
-              <CheckCircle size={18} weight="fill" className={styles.amber} />
-              Paid into your pot, ready to stake again
-            </div>
-            <div className={styles.checkItem}>
-              <CheckCircle size={18} weight="fill" className={styles.amber} />
-              Codes and totals carry over at launch
-            </div>
-          </div>
-          <Link href="/stake?tab=invite" className={styles.amberCta}>
-            See your referral page
-            <ArrowRight size={15} weight="bold" />
-          </Link>
-        </div>
         <div className={styles.referralCard}>
           <div className={styles.referralHead}>
             <div className={styles.panelKicker}>YOUR REFERRAL CODE</div>
@@ -303,6 +242,37 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
+        <div className={styles.inviteCopy}>
+          <div className={`${styles.kicker} ${styles.kickerAmber}`}>
+            INVITE &amp; EARN
+          </div>
+          <h2 className={styles.sectionTitle}>
+            Invite players, earn on every match
+          </h2>
+          <p className={styles.sectionLead}>
+            Share your code and 0.1% of the platform fee from every staked
+            match your invites play lands straight in your stake pot - for as
+            long as they keep playing.
+          </p>
+          <div className={styles.checkList}>
+            <div className={styles.checkItem}>
+              <CheckCircle size={18} weight="fill" className={styles.amber} />
+              Credited per settled match - no claim step
+            </div>
+            <div className={styles.checkItem}>
+              <CheckCircle size={18} weight="fill" className={styles.amber} />
+              Paid into your pot, ready to stake again
+            </div>
+            <div className={styles.checkItem}>
+              <CheckCircle size={18} weight="fill" className={styles.amber} />
+              Codes and totals carry over at launch
+            </div>
+          </div>
+          <Link href="/stake?tab=invite" className={styles.amberCta}>
+            See your referral page
+            <ArrowRight size={15} weight="bold" />
+          </Link>
+        </div>
       </section>
 
       <section id="apply" className={styles.apply}>
@@ -314,7 +284,7 @@ export default function LandingPage() {
             <p className={styles.sectionLead}>
               We&apos;re onboarding testers in small batches on Ethereum
               Sepolia. Leave your email and we&apos;ll send an invite with test
-              funds — nothing you stake during the test is real money.
+              funds - nothing you stake during the test is real money.
             </p>
           </div>
           <ApplyForm />
@@ -323,8 +293,7 @@ export default function LandingPage() {
 
       <footer className={styles.footer}>
         <div className={styles.brand}>
-          <LogoMark size={22} />
-          <span className={styles.footerBrandName}>KOMBAT</span>
+          <LogoLockup size={20} color="var(--text-55)" />
         </div>
         <div className={styles.footerLinks}>
           <a href="#" className={styles.footerLink}>Contract</a>

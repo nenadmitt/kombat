@@ -159,3 +159,21 @@
   line-height: 1.6;
   color: var(--text-62);
 }
+
+@media (max-width: 640px) {
+  .heroForm {
+    margin-top: 28px;
+  }
+
+  .heroFormRow {
+    flex-direction: column;
+  }
+
+  .heroSubmit {
+    padding: 16px 24px;
+  }
+
+  .card {
+    padding: 20px;
+  }
+}

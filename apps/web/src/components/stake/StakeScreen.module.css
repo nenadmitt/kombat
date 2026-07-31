@@ -40,11 +40,6 @@
   color: var(--text);
 }
 
-.brandName {
-  font: 600 17px/1 var(--font-heading);
-  letter-spacing: 0.34em;
-  padding-left: 0.34em;
-}
 
 .navChips {
   display: flex;
@@ -116,7 +111,7 @@
 
 .grid {
   display: grid;
-  grid-template-columns: 1fr 400px;
+  grid-template-columns: minmax(0, 1fr) 400px;
   gap: 36px;
   padding: 44px 60px 70px;
   align-items: start;
@@ -950,7 +945,162 @@
   margin: 14px 0 0;
 }
 
+
+/* ── wallet form ── */
+
+.tokenStrip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.tokenCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 0;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.tokenCard:hover {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.tokenCardActive,
+.tokenCardActive:hover {
+  background: rgba(245, 184, 41, 0.1);
+  box-shadow: inset 0 0 0 1px var(--amber);
+}
+
+.tokenCardHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tokenCard .tokenIcon {
+  width: 22px;
+  height: 22px;
+}
+
+.tokenCardName {
+  font: 700 10px/1 var(--font-heading);
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tokenCardBalance {
+  font: 700 15px/1 var(--font-heading);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.amountInput {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
+  color: var(--text);
+  font: 800 46px/1 var(--font-heading);
+  letter-spacing: -0.03em;
+}
+
+.amountInput::placeholder {
+  color: rgba(233, 233, 237, 0.25);
+}
+
+.addressInput {
+  width: 100%;
+  margin-top: 12px;
+  padding: 15px 16px;
+  border: 0;
+  border-radius: 13px;
+  background: rgba(0, 0, 0, 0.32);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  outline: none;
+  color: var(--text);
+  font: 500 13.5px/1.2 var(--font-mono);
+}
+
+.addressInput:focus {
+  box-shadow: inset 0 0 0 1px rgba(142, 224, 90, 0.5);
+}
+
+.addressInputBad,
+.addressInputBad:focus {
+  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.6);
+}
+
+.addressInput::placeholder {
+  color: rgba(233, 233, 237, 0.3);
+}
+
+.formError,
+.formSuccess {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 13px 15px;
+  border-radius: 13px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.formError {
+  background: rgba(245, 184, 41, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.3);
+  color: var(--amber);
+}
+
+.formSuccess {
+  background: rgba(142, 224, 90, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(142, 224, 90, 0.3);
+  color: var(--green);
+}
+
+.connectBtn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 11px;
+  background: rgba(142, 224, 90, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(142, 224, 90, 0.45);
+  color: var(--green);
+  font: 700 12.5px/1 var(--font-heading);
+  cursor: pointer;
+}
+
+.connectBtn:hover {
+  background: rgba(142, 224, 90, 0.24);
+}
+
+.connectBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.networkChipWarn {
+  background: rgba(245, 184, 41, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.45);
+  color: var(--amber);
+  cursor: pointer;
+}
+
 /* ── responsive ── */
+
 
 @media (max-width: 1080px) {
   .nav {
@@ -958,7 +1108,134 @@
   }
 
   .grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     padding: 36px 28px 60px;
+  }
+}
+
+@media (max-width: 640px) {
+  .nav {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px 20px;
+  }
+
+  .navChips {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .grid {
+    gap: 28px;
+    padding: 28px 20px 48px;
+  }
+
+  .title {
+    font-size: 26px;
+  }
+
+  .tabs {
+    gap: 18px;
+  }
+
+  .panel {
+    padding: 20px;
+  }
+
+  .amountBox,
+  .destBox {
+    padding: 16px;
+  }
+
+  .amountBoxHead {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 7px;
+  }
+
+  .amountRow {
+    gap: 12px;
+  }
+
+  .amountValue {
+    font-size: 34px;
+  }
+
+  .caret {
+    height: 26px;
+  }
+
+  .percentRow {
+    gap: 7px;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .cancelBtn {
+    padding: 16px;
+  }
+}
+
+/* ── coming soon ── */
+
+.soonWrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 44px 60px 90px;
+}
+
+.soonCard {
+  margin-top: 24px;
+  padding: 34px;
+  border-radius: 22px;
+  background: var(--surface);
+}
+
+.soonBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border-radius: 18px;
+  background: rgba(245, 184, 41, 0.13);
+  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.4);
+  font: 700 10px/1 var(--font-heading);
+  letter-spacing: 0.14em;
+  color: var(--amber);
+}
+
+.soonCard .primaryBtn {
+  margin-top: 26px;
+}
+
+.soonWallet {
+  margin-top: 26px;
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.soonWalletRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  min-width: 0;
+}
+
+.soonWalletAddress {
+  font: 500 13px/1.4 var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .soonWrap {
+    padding: 24px 20px 60px;
+  }
+
+  .soonCard {
+    padding: 22px;
   }
 }

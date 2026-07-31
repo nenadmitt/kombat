@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   const cleanEmail =
     typeof email === "string" ? email.trim().toLowerCase() : "";
 
-  if (!USERNAME.test(cleanUsername)) {
+  if (cleanUsername && !USERNAME.test(cleanUsername)) {
     return NextResponse.json(
       {
         error:
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
 
   try {
     await insertTesterSignup({
-      username: cleanUsername,
+      username: cleanUsername || null,
       email: cleanEmail,
       country,
     });

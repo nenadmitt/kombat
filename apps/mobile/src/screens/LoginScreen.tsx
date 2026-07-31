@@ -10,18 +10,17 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Path } from 'react-native-svg';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ApiError } from '@gaming-platform/core';
 
 import type { RootStackParamList } from '../navigation/types';
 import { useCurrentUserStore } from '../store/currentUser.store';
 import { apiClient } from '../api/client';
-import Glow from '../components/Glow';
 import Icon, { type IconName } from '../components/Icon';
+import LogoMark from '../components/LogoMark';
 import { Button, Chip } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
-import { display, mono, type } from '../theme/typography';
+import { brand, display, mono, type } from '../theme/typography';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
@@ -34,16 +33,6 @@ const SOON_METHODS: { icon: IconName; label: string }[] = [
   { icon: 'google', label: 'Continue with Google' },
   { icon: 'apple', label: 'Continue with Apple' },
 ];
-
-/** The two-tone split-K brand mark from the redesign's welcome screen. */
-function KombatMark({ size = 96 }: { size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 100 100">
-      <Path d="M28 27 L47 27 L40 48 L46 50 L42 75 L28 75 Z" fill={colors.textPrimary} />
-      <Path d="M54 27 L72 27 L72 75 L49 75 L53 50 L47 48 Z" fill={colors.accent} />
-    </Svg>
-  );
-}
 
 function SheetHeader({ title, onBack }: { title: string; onBack: () => void }) {
   return (
@@ -126,17 +115,9 @@ export default function LoginScreen(_props: Props) {
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.content}>
-        {/* Logo mark + wordmark over an accent bloom. */}
         <View style={styles.logoStack}>
-          <Glow
-            size={230}
-            color={colors.accent}
-            opacity={0.32}
-            edge={0.66}
-            style={styles.logoGlow}
-          />
-          <KombatMark size={96} />
-          <Text style={styles.wordmark}>KOMBAT</Text>
+          <LogoMark size={44} />
+          <Text style={styles.wordmark}>kombat</Text>
         </View>
 
         {/* Headline + CTA pushed to the lower third. */}
@@ -358,22 +339,17 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xxl,
     paddingBottom: spacing.xl,
   },
+  // The web's lockup ratios: wordmark 0.88x the mark's height, gap 0.25x.
   logoStack: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-  },
-  logoGlow: {
-    position: 'absolute',
-    top: -16,
-    left: '50%',
-    marginLeft: -115,
+    justifyContent: 'center',
+    gap: spacing.sm,
   },
   wordmark: {
-    fontFamily: mono.semiBold,
-    fontSize: 20,
-    letterSpacing: 8,
-    // Optical-centre the wide tracking (the trailing space pushes it right).
-    paddingLeft: spacing.xs,
+    fontFamily: brand.bold,
+    fontSize: 39,
+    letterSpacing: -1.75,
     color: colors.textPrimary,
   },
   footer: {
