@@ -1,13 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  ArrowLeft,
-  CaretDown,
-  DiamondsFour,
-  LockSimple,
-  Wallet,
-} from "@phosphor-icons/react";
+import { ArrowLeft, CaretDown, LockSimple } from "@phosphor-icons/react";
 import { LogoLockup } from "@/components/Logo";
 import { shortAddress } from "@/lib/chain";
 import { useWallet } from "@/lib/useWallet";
@@ -30,9 +24,6 @@ export function StakeScreen() {
             }`}
             onClick={() => void wallet.switchNetwork()}
           >
-            <span className={styles.networkIcon}>
-              <DiamondsFour size={11} weight="fill" />
-            </span>
             <span className={styles.chipLabel}>
               {wallet.wrongNetwork ? "Wrong network" : "Ethereum Sepolia"}
             </span>
@@ -52,7 +43,6 @@ export function StakeScreen() {
               onClick={() => void wallet.connect()}
               disabled={wallet.connecting || !wallet.hasWallet}
             >
-              <Wallet size={13} weight="fill" />
               {wallet.connecting
                 ? "Connecting…"
                 : wallet.hasWallet
@@ -98,7 +88,6 @@ export function StakeScreen() {
               onClick={() => void wallet.connect()}
               disabled={wallet.connecting || !wallet.hasWallet}
             >
-              <Wallet size={17} weight="bold" />
               {wallet.hasWallet ? "Connect wallet" : "No wallet found"}
             </button>
           )}

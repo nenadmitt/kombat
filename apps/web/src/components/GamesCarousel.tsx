@@ -229,7 +229,6 @@ export function GamesCarousel() {
             </p>
             <a href="#apply" className={styles.moreLink}>
               Join the test to vote
-              <ArrowRight size={14} weight="bold" />
             </a>
           </article>
         </div>

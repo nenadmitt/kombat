@@ -340,8 +340,17 @@
     scroll-padding-left: 20px;
   }
 
+  .head {
+    text-align: center;
+  }
+
   .title {
-    font-size: 28px;
+    font-size: 34px;
+  }
+
+  .lead {
+    margin-left: auto;
+    margin-right: auto;
   }
 
   .card,

@@ -77,18 +77,21 @@
   grid-template-columns: minmax(0, 1fr) 500px;
   gap: 60px;
   align-items: center;
-  padding: 72px 60px 80px;
+  margin: 0 24px;
+  padding: 72px 36px 80px;
+  border-radius: 24px;
   overflow: hidden;
 }
 
 .heroGlow {
   position: absolute;
-  left: -120px;
-  top: -140px;
-  width: 620px;
-  height: 620px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(142, 224, 90, 0.14), transparent 66%);
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(142, 224, 90, 0.2),
+    rgba(142, 224, 90, 0.06) 38%,
+    transparent 64%
+  );
   pointer-events: none;
 }
 
@@ -472,19 +475,19 @@
 
 .apply {
   position: relative;
-  padding: 72px 60px;
+  margin: 0 24px 8px;
+  padding: 64px 36px;
+  border-radius: 24px;
+  background: var(--green);
+  color: var(--panel);
   overflow: hidden;
 }
 
-.applyGlow {
-  position: absolute;
-  right: -100px;
-  top: -120px;
-  width: 520px;
-  height: 520px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(142, 224, 90, 0.13), transparent 66%);
-  pointer-events: none;
+/* Secondary text on the lime is the foreground at reduced alpha - a gray here
+   reads as dirt against the hue. */
+.apply .sectionLead {
+  color: rgba(11, 12, 20, 0.72);
+  max-width: 460px;
 }
 
 .applyGrid {
@@ -499,13 +502,12 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
+  padding: 7px 12px;
   border-radius: 18px;
-  background: rgba(245, 184, 41, 0.13);
-  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.4);
-  font: 700 10px/1 var(--font-heading);
+  background: rgba(11, 12, 20, 0.16);
+  font: 700 11px/1 var(--font-heading);
   letter-spacing: 0.14em;
-  color: var(--amber);
+  color: var(--panel);
 }
 
 .applyTitle {
@@ -562,14 +564,20 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .hero,
   .how,
   .pot,
   .invite,
-  .apply,
   .footer {
     padding-left: 28px;
     padding-right: 28px;
+  }
+
+  .hero,
+  .apply {
+    margin-left: 16px;
+    margin-right: 16px;
+    padding-left: 12px;
+    padding-right: 12px;
   }
 
   .heroTitle {
@@ -607,29 +615,50 @@
     justify-content: center;
   }
 
-  .hero,
   .how,
   .pot,
   .invite,
-  .apply,
   .footer {
     padding-left: 20px;
     padding-right: 20px;
   }
 
+  /* The inset card and its wash need width to read as anything but a seam;
+     on a phone the hero is simply the top of the page. */
   .hero {
+    margin-left: 0;
+    margin-right: 0;
+    padding: 40px 20px 52px;
+    border-radius: 0;
     gap: 40px;
-    padding-top: 44px;
-    padding-bottom: 52px;
+    text-align: center;
+  }
+
+  .heroGlow {
+    display: none;
+  }
+
+  .apply {
+    margin-left: 12px;
+    margin-right: 12px;
+    padding-left: 20px;
+    padding-right: 20px;
+    border-radius: 18px;
+    text-align: center;
   }
 
   .heroTitle {
-    font-size: 40px;
+    font-size: 52px;
+  }
+
+  .heroLead {
+    max-width: none;
   }
 
   .heroStats {
+    justify-content: center;
     flex-wrap: wrap;
-    gap: 22px;
+    gap: 22px 32px;
     margin-top: 32px;
   }
 
@@ -650,8 +679,8 @@
   .pot,
   .invite,
   .apply {
-    padding-top: 56px;
-    padding-bottom: 56px;
+    padding-top: 48px;
+    padding-bottom: 48px;
   }
 
   .pot,
@@ -665,7 +694,38 @@
 
   .sectionTitle,
   .applyTitle {
-    font-size: 28px;
+    font-size: 34px;
+  }
+
+  .how,
+  .pot,
+  .invite {
+    text-align: center;
+  }
+
+  .sectionTitle,
+  .sectionLead,
+  .apply .sectionLead {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* A ticked list still reads left-to-right; centre the block, not the rows. */
+  .checkList {
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: left;
+  }
+
+  .howCard,
+  .referralCard {
+    text-align: left;
+  }
+
+  .amberCta {
+    margin-left: auto;
+    margin-right: auto;
   }
 
   .howCard,

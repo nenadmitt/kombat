@@ -1,10 +1,8 @@
 import Link from "next/link";
 import {
-  ArrowRight,
   Crosshair,
   Percent,
   Copy,
-  ShareNetwork,
   ShieldCheck,
   Trophy,
   CheckCircle,
@@ -30,7 +28,6 @@ export default function LandingPage() {
           <a href="#invite" className={styles.navLink}>Invite &amp; earn</a>
           <a href="#apply" className={styles.navCta}>
             Apply for access
-            <ArrowRight size={14} weight="bold" />
           </a>
         </nav>
       </header>
@@ -159,7 +156,6 @@ export default function LandingPage() {
           </div>
           <Link href="/stake" className={styles.amberCta}>
             Open the stake page
-            <ArrowRight size={15} weight="bold" />
           </Link>
         </div>
         <div className={styles.potArt}>
@@ -183,7 +179,6 @@ export default function LandingPage() {
               <Copy size={19} className={styles.copyIcon} />
             </div>
             <button type="button" className={styles.shareBtn}>
-              <ShareNetwork size={16} weight="bold" />
               Share
             </button>
           </div>
@@ -263,13 +258,11 @@ export default function LandingPage() {
           </div>
           <Link href="/stake?tab=invite" className={styles.amberCta}>
             See your referral page
-            <ArrowRight size={15} weight="bold" />
           </Link>
         </div>
       </section>
 
       <section id="apply" className={styles.apply}>
-        <div className={styles.applyGlow} />
         <div className={styles.applyGrid}>
           <div>
             <div className={styles.testBadge}>TEST MODE</div>

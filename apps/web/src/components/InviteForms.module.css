@@ -24,7 +24,7 @@
 }
 
 .fieldIcon {
-  color: rgba(233, 233, 237, 0.4);
+  color: var(--text-55);
   flex: none;
 }
 
@@ -40,7 +40,7 @@
 }
 
 .input::placeholder {
-  color: rgba(233, 233, 237, 0.4);
+  color: var(--text-55);
 }
 
 /* ── hero ── */
@@ -68,15 +68,6 @@
 
 .heroSubmit:hover {
   filter: brightness(1.08);
-}
-
-.heroNote {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 14px;
-  font-size: 13px;
-  color: var(--text-55);
 }
 
 /* ── apply card ── */
@@ -117,7 +108,7 @@
   margin-top: 14px;
   font-size: 12px;
   line-height: 1.55;
-  color: rgba(233, 233, 237, 0.4);
+  color: var(--text-55);
 }
 
 .error {
@@ -169,7 +160,12 @@
   }
 
   .heroSubmit {
-    padding: 16px 24px;
+    width: 100%;
+    padding: 17px 24px;
+  }
+
+  .heroForm {
+    max-width: none;
   }
 
   .card {

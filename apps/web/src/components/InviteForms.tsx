@@ -5,7 +5,6 @@ import type { FormEvent } from "react";
 import {
   CheckCircle,
   EnvelopeSimple,
-  LockSimple,
   WarningCircle,
 } from "@phosphor-icons/react";
 
@@ -24,10 +23,6 @@ export function HeroInviteForm() {
       >
         Request an invite
       </button>
-      <div className={styles.heroNote}>
-        <LockSimple size={13} />
-        Test mode on Ethereum Sepolia - no real funds at risk.
-      </div>
     </div>
   );
 }
