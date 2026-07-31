@@ -14,11 +14,11 @@ export class WebsocketsService {
   private readonly logger = new Logger(WebsocketsService.name);
   private server?: Server;
   /**
-   * In-memory online presence: userId -> number of open sockets (a user may
-   * have several devices/tabs). Maintained by the gateway on connect/
-   * disconnect and read by the admin surface. This is per-instance, so with
-   * the multi-instance Redis setup it reflects only this node's connections
-   * (same single-instance caveat as the in-memory cache fallback).
+   * In-memory online presence: userId -> number of open sockets. The gateway
+   * allows one socket per account, but replacement overlaps briefly with the
+   * socket it kicks, so this stays a count rather than a set. Per-instance:
+   * with the multi-instance Redis setup it reflects only this node's
+   * connections (same single-instance caveat as the in-memory cache fallback).
    */
   private readonly onlineCounts = new Map<string, number>();
 
