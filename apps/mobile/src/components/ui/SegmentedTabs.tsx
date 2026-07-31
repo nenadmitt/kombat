@@ -71,7 +71,7 @@ export default function SegmentedTabs<T extends string>({
 const styles = StyleSheet.create({
   track: {
     flexDirection: 'row',
-    alignSelf: 'center',
+    alignSelf: 'stretch',
     padding: spacing.xxs,
     borderRadius: radius.md,
     backgroundColor: colors.canvas,
@@ -79,8 +79,10 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   tab: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,

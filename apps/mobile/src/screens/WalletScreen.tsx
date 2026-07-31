@@ -37,7 +37,7 @@ const EMPTY_TXS: WalletTx[] = [];
 type TabKey = 'pot' | 'wallet';
 
 const TABS: readonly SegmentedTab<TabKey>[] = [
-  { value: 'pot', label: 'Pot', icon: 'coins', tint: colors.gold },
+  { value: 'pot', label: 'Pot', icon: 'dollar', tint: colors.gold },
   { value: 'wallet', label: 'Wallet', icon: 'wallet' },
 ];
 
@@ -142,12 +142,10 @@ export default function WalletScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>Wallet</Text>
-          {potUnavailable ? null : (
-            <SegmentedTabs tabs={TABS} value={activeTab} onChange={setTab} />
-          )}
-        </View>
+        <Text style={styles.title}>Pot &amp; Wallet</Text>
+        {potUnavailable ? null : (
+          <SegmentedTabs tabs={TABS} value={activeTab} onChange={setTab} />
+        )}
         {/* Balances - wallet and pot alike - are per network, so the selector
             heads both tabs rather than living inside one of them. */}
         {wallet ? (
@@ -344,12 +342,6 @@ export default function WalletScreen() {
 const styles = StyleSheet.create({
   header: {
     gap: spacing.md,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
   },
   title: {
     ...type.title,

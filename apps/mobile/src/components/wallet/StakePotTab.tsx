@@ -96,7 +96,7 @@ export default function StakePotTab({
         <View style={styles.hero}>
           <View style={styles.heroLeft}>
             <View style={styles.heroLabelRow}>
-              <Icon type="coins" color={colors.gold} size={14} />
+              <Icon type="dollar" color={colors.gold} size={14} />
               <Text style={styles.heroLabel}>In the pot</Text>
             </View>
             <Text style={styles.heroValue}>
@@ -180,7 +180,7 @@ export default function StakePotTab({
           icon="plus"
           variant="gold"
           onPress={onAdd}
-          style={styles.addAction}
+          style={styles.action}
         />
         <Button
           label="Withdraw"
@@ -356,9 +356,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
     paddingTop: spacing.sm,
-  },
-  addAction: {
-    flex: 1.4,
   },
   action: {
     flex: 1,
