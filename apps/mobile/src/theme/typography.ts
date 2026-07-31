@@ -36,6 +36,11 @@ export const body = {
   extraBold: 'Sora-ExtraBold',
 } as const;
 
+/** The brand face - the wordmark only. See branding/HANDOFF.md. */
+export const brand = {
+  bold: 'SpaceGrotesk-Bold',
+} as const;
+
 export const mono = {
   regular: 'Sora-Regular',
   medium: 'Sora-Medium',

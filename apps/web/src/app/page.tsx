@@ -9,7 +9,7 @@ import {
   Trophy,
   CheckCircle,
 } from "@phosphor-icons/react/dist/ssr";
-import { LogoMark } from "@/components/Logo";
+import { LogoLockup } from "@/components/Logo";
 import { PhoneFrame } from "@/components/PhoneFrame";
 import { GamesCarousel } from "@/components/GamesCarousel";
 import { ApplyForm, HeroInviteForm } from "@/components/InviteForms";
@@ -21,8 +21,7 @@ export default function LandingPage() {
     <div className={styles.page}>
       <header className={styles.nav}>
         <div className={styles.brand}>
-          <LogoMark size={34} />
-          <span className={styles.brandName}>KOMBAT</span>
+          <LogoLockup size={30} />
         </div>
         <nav className={styles.navLinks}>
           <a href="#games" className={styles.navLink}>Games</a>
@@ -294,8 +293,7 @@ export default function LandingPage() {
 
       <footer className={styles.footer}>
         <div className={styles.brand}>
-          <LogoMark size={22} />
-          <span className={styles.footerBrandName}>KOMBAT</span>
+          <LogoLockup size={20} color="var(--text-55)" />
         </div>
         <div className={styles.footerLinks}>
           <a href="#" className={styles.footerLink}>Contract</a>

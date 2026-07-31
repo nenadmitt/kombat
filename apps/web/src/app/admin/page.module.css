@@ -27,11 +27,6 @@
   color: var(--text);
 }
 
-.brandName {
-  font: 600 13px/1 var(--font-heading);
-  letter-spacing: 0.3em;
-  padding-left: 0.3em;
-}
 
 .navActions {
   display: flex;

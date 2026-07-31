@@ -20,7 +20,7 @@ import Icon, { type IconName } from '../components/Icon';
 import LogoMark from '../components/LogoMark';
 import { Button, Chip } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
-import { display, mono, type } from '../theme/typography';
+import { brand, display, mono, type } from '../theme/typography';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
@@ -117,7 +117,7 @@ export default function LoginScreen(_props: Props) {
       <View style={styles.content}>
         <View style={styles.logoStack}>
           <LogoMark size={96} />
-          <Text style={styles.wordmark}>KOMBAT</Text>
+          <Text style={styles.wordmark}>kombat</Text>
         </View>
 
         {/* Headline + CTA pushed to the lower third. */}
@@ -344,11 +344,9 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   wordmark: {
-    fontFamily: mono.semiBold,
-    fontSize: 20,
-    letterSpacing: 8,
-    // Optical-centre the wide tracking (the trailing space pushes it right).
-    paddingLeft: spacing.xs,
+    fontFamily: brand.bold,
+    fontSize: 40,
+    letterSpacing: -1.8,
     color: colors.textPrimary,
   },
   footer: {

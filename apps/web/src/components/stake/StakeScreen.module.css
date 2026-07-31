@@ -40,11 +40,6 @@
   color: var(--text);
 }
 
-.brandName {
-  font: 600 17px/1 var(--font-heading);
-  letter-spacing: 0.34em;
-  padding-left: 0.34em;
-}
 
 .navChips {
   display: flex;

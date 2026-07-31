@@ -8,7 +8,7 @@ import {
   LockSimple,
   Wallet,
 } from "@phosphor-icons/react";
-import { LogoMark } from "@/components/Logo";
+import { LogoLockup } from "@/components/Logo";
 import { shortAddress } from "@/lib/chain";
 import { useWallet } from "@/lib/useWallet";
 import styles from "./StakeScreen.module.css";
@@ -20,8 +20,7 @@ export function StakeScreen() {
     <div className={styles.page}>
       <header className={styles.nav}>
         <Link href="/" className={styles.brand}>
-          <LogoMark size={34} />
-          <span className={styles.brandName}>KOMBAT</span>
+          <LogoLockup size={30} />
         </Link>
         <div className={styles.navChips}>
           <button
