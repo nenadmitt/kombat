@@ -22,7 +22,6 @@ type Props = {
   pot: StakePotBalances;
   /** Chainlink ETH/USD answer, used to price the pot's native balance. */
   ethUsdPrice: bigint | null;
-  loading: boolean;
   error: string | null;
   onAdd: () => void;
   onWithdraw: () => void;
@@ -40,7 +39,6 @@ export default function StakePotTab({
   chainId,
   pot,
   ethUsdPrice,
-  loading,
   error,
   onAdd,
   onWithdraw,
@@ -53,9 +51,6 @@ export default function StakePotTab({
     pending: BigInt(pot.pendingWithdrawals[asset]),
   })).filter(row => row.token !== undefined);
 
-  const anyFunds = rows.some(
-    row => row.available > 0n || row.locked > 0n || row.pending > 0n,
-  );
   const canWithdraw = rows.some(row => row.available > 0n);
 
   const lockedUsd = rows.reduce(
@@ -99,50 +94,51 @@ export default function StakePotTab({
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {!anyFunds && !loading ? (
-        <Text style={styles.empty}>
-          Add funds to play staked matches. Deposit once - after that, entering a
-          match costs no transaction at all.
+      <View style={styles.info}>
+        <Icon type="help" color={colors.gold} size={15} />
+        <Text style={styles.infoText}>
+          To play staked games you have to move funds into the pot. Deposit once
+          - after that, entering a match costs no transaction at all.
         </Text>
-      ) : (
-        <View>
-          {rows.map((row, index) => (
-            <View
-              key={row.asset}
-              style={[styles.row, index < rows.length - 1 && styles.rowRule]}
-            >
-              {row.token?.brand ? (
-                <View style={styles.rowIcon}>
-                  <BrandIcon type={row.token.brand} size={34} />
-                </View>
-              ) : (
-                <View style={styles.rowGlyphCircle}>
-                  <Text style={styles.rowGlyph}>{row.token?.glyph ?? '◆'}</Text>
-                </View>
-              )}
-              <View style={styles.rowMid}>
-                <Text style={styles.rowSymbol}>{row.token?.symbol}</Text>
-                <Text style={styles.rowName}>{row.token?.name}</Text>
+      </View>
+
+      <View>
+        {rows.map((row, index) => (
+          <View
+            key={row.asset}
+            style={[styles.row, index < rows.length - 1 && styles.rowRule]}
+          >
+            {row.token?.brand ? (
+              <View style={styles.rowIcon}>
+                <BrandIcon type={row.token.brand} size={34} />
               </View>
-              <View style={styles.rowRight}>
-                <Text style={styles.rowAmount}>
-                  {formatStakeAmount(row.available.toString(), row.asset)}
-                </Text>
-                {row.locked > 0n ? (
-                  <Text style={styles.rowNote}>
-                    {formatStakeAmount(row.locked.toString(), row.asset)} in play
-                  </Text>
-                ) : row.pending > 0n ? (
-                  <Text style={styles.rowNote}>
-                    {formatStakeAmount(row.pending.toString(), row.asset)}{' '}
-                    withdrawing
-                  </Text>
-                ) : null}
+            ) : (
+              <View style={styles.rowGlyphCircle}>
+                <Text style={styles.rowGlyph}>{row.token?.glyph ?? '◆'}</Text>
               </View>
+            )}
+            <View style={styles.rowMid}>
+              <Text style={styles.rowSymbol}>{row.token?.symbol}</Text>
+              <Text style={styles.rowName}>{row.token?.name}</Text>
             </View>
-          ))}
-        </View>
-      )}
+            <View style={styles.rowRight}>
+              <Text style={styles.rowAmount}>
+                {formatStakeAmount(row.available.toString(), row.asset)}
+              </Text>
+              {row.locked > 0n ? (
+                <Text style={styles.rowNote}>
+                  {formatStakeAmount(row.locked.toString(), row.asset)} in play
+                </Text>
+              ) : row.pending > 0n ? (
+                <Text style={styles.rowNote}>
+                  {formatStakeAmount(row.pending.toString(), row.asset)}{' '}
+                  withdrawing
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        ))}
+      </View>
 
       <View style={styles.actions}>
         <Button
@@ -225,6 +221,19 @@ const styles = StyleSheet.create({
     ...type.caption,
     color: colors.textMuted,
   },
+  info: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.xs,
+    padding: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.goldSoft,
+  },
+  infoText: {
+    ...type.caption,
+    flex: 1,
+    color: colors.textSecondary,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -280,10 +289,6 @@ const styles = StyleSheet.create({
   rowNote: {
     ...type.caption,
     fontSize: 11,
-    color: colors.textMuted,
-  },
-  empty: {
-    ...type.caption,
     color: colors.textMuted,
   },
   error: {

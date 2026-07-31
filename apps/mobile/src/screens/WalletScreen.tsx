@@ -80,7 +80,6 @@ export default function WalletScreen() {
   const track = useTransactionsStore(state => state.track);
 
   const pot = useStakePotStore(state => state.balances);
-  const potStatus = useStakePotStore(state => state.status);
   const potUnavailable = useStakePotStore(state => state.unavailable);
   const potError = useStakePotStore(state => state.error);
   const refreshPot = useStakePotStore(state => state.refresh);
@@ -160,7 +159,6 @@ export default function WalletScreen() {
               chainId={potChainId}
               pot={pot}
               ethUsdPrice={ethUsdPrice}
-              loading={potStatus === 'loading'}
               error={potError}
               onAdd={() => openPot('add')}
               onWithdraw={() => openPot('withdraw')}
@@ -345,6 +343,9 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: spacing.md,
     paddingTop: spacing.xs,
+    // The tab bar's raised LOBBY action overhangs the content by 42px, and the
+    // pot's CTAs sit on the bottom edge - without this they end up under it.
+    paddingBottom: 44,
   },
   unavailable: {
     ...type.caption,
