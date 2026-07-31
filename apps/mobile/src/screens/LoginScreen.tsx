@@ -116,8 +116,10 @@ export default function LoginScreen(_props: Props) {
     <SafeAreaView style={styles.screen}>
       <View style={styles.content}>
         <View style={styles.logoStack}>
-          <LogoMark size={96} />
-          <Text style={styles.wordmark}>kombat</Text>
+          <View style={styles.logoCard}>
+            <LogoMark size={44} color={colors.onAccent} />
+            <Text style={styles.wordmark}>kombat</Text>
+          </View>
         </View>
 
         {/* Headline + CTA pushed to the lower third. */}
@@ -341,13 +343,21 @@ const styles = StyleSheet.create({
   },
   logoStack: {
     alignItems: 'center',
-    gap: spacing.md,
+  },
+  // The on-lime lockup: mark and wordmark dark on one saturated field.
+  logoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.lg,
+    borderRadius: radius.xl,
+    backgroundColor: colors.accent,
   },
   wordmark: {
     fontFamily: brand.bold,
-    fontSize: 40,
-    letterSpacing: -1.8,
-    color: colors.textPrimary,
+    fontSize: 39,
+    letterSpacing: -1.75,
+    color: colors.onAccent,
   },
   footer: {
     width: '100%',
