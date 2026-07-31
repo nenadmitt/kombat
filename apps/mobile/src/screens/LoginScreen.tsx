@@ -10,7 +10,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Path } from 'react-native-svg';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ApiError } from '@gaming-platform/core';
 
@@ -19,6 +18,7 @@ import { useCurrentUserStore } from '../store/currentUser.store';
 import { apiClient } from '../api/client';
 import Glow from '../components/Glow';
 import Icon, { type IconName } from '../components/Icon';
+import LogoMark from '../components/LogoMark';
 import { Button, Chip } from '../components/ui';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
@@ -34,16 +34,6 @@ const SOON_METHODS: { icon: IconName; label: string }[] = [
   { icon: 'google', label: 'Continue with Google' },
   { icon: 'apple', label: 'Continue with Apple' },
 ];
-
-/** The two-tone split-K brand mark from the redesign's welcome screen. */
-function KombatMark({ size = 96 }: { size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 100 100">
-      <Path d="M28 27 L47 27 L40 48 L46 50 L42 75 L28 75 Z" fill={colors.textPrimary} />
-      <Path d="M54 27 L72 27 L72 75 L49 75 L53 50 L47 48 Z" fill={colors.accent} />
-    </Svg>
-  );
-}
 
 function SheetHeader({ title, onBack }: { title: string; onBack: () => void }) {
   return (
@@ -135,7 +125,7 @@ export default function LoginScreen(_props: Props) {
             edge={0.66}
             style={styles.logoGlow}
           />
-          <KombatMark size={96} />
+          <LogoMark size={96} />
           <Text style={styles.wordmark}>KOMBAT</Text>
         </View>
 
