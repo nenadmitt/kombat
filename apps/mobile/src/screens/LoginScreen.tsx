@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -30,8 +30,6 @@ type SheetStep = 'methods' | 'email' | 'code';
 const CODE_LENGTH = 8;
 const CODE_BOX_HEIGHT = 52;
 const BACK_BUTTON = 44;
-/** Mirrors TOKEN_TTL_MS in the server's authentication service. */
-const CODE_TTL_MS = 15 * 60 * 1000;
 
 const SOON_METHODS: { icon: IconName; label: string }[] = [
   { icon: 'google', label: 'Continue with Google' },
@@ -66,12 +64,6 @@ function SheetHeader({ title, onBack }: { title: string; onBack: () => void }) {
   );
 }
 
-function formatCountdown(ms: number): string {
-  const total = Math.max(0, Math.ceil(ms / 1000));
-  const minutes = Math.floor(total / 60);
-  return `${minutes}:${String(total % 60).padStart(2, '0')}`;
-}
-
 export default function LoginScreen(_props: Props) {
   const loginWithSession = useCurrentUserStore(
     state => state.loginWithSession,
@@ -84,20 +76,8 @@ export default function LoginScreen(_props: Props) {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [expiresAt, setExpiresAt] = useState(0);
-  const [now, setNow] = useState(0);
+  const emailInputRef = useRef<TextInput>(null);
   const codeInputRef = useRef<TextInput>(null);
-
-  // A deadline rather than a counter, so a backgrounded app resumes on the
-  // real remaining time instead of a stalled tick count.
-  useEffect(() => {
-    if (step !== 'code') {
-      return;
-    }
-    setNow(Date.now());
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [step]);
 
   const openSheet = () => {
     setStep('methods');
@@ -115,7 +95,6 @@ export default function LoginScreen(_props: Props) {
     try {
       await apiClient.requestLoginToken(email.trim());
       setCode('');
-      setExpiresAt(Date.now() + CODE_TTL_MS);
       setStep('code');
     } catch (err) {
       setErrorMessage(err instanceof ApiError ? err.message : 'Something went wrong');
@@ -143,8 +122,6 @@ export default function LoginScreen(_props: Props) {
 
   const canSendCode = /\S+@\S+\.\S+/.test(email.trim()) && !busy;
   const canVerify = code.trim().length === CODE_LENGTH && !busy;
-  const remainingMs = expiresAt - now;
-  const expired = remainingMs <= 0;
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -186,6 +163,7 @@ export default function LoginScreen(_props: Props) {
         <Pressable style={styles.backdrop} onPress={closeSheet} />
         <KeyboardAvoidingView
           style={styles.sheetWrapper}
+          pointerEvents="box-none"
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <SafeAreaView style={styles.sheet} edges={['bottom']}>
@@ -251,11 +229,12 @@ export default function LoginScreen(_props: Props) {
                   </Text>
                 </View>
 
-                <View
+                <Pressable
                   style={[
                     styles.inputRow,
                     emailFocused && styles.inputRowFocused,
                   ]}
+                  onPress={() => emailInputRef.current?.focus()}
                 >
                   <Icon
                     type="mail"
@@ -263,6 +242,7 @@ export default function LoginScreen(_props: Props) {
                     size={20}
                   />
                   <TextInput
+                    ref={emailInputRef}
                     style={styles.input}
                     value={email}
                     onChangeText={setEmail}
@@ -279,7 +259,7 @@ export default function LoginScreen(_props: Props) {
                     onSubmitEditing={() => canSendCode && void sendCode()}
                     returnKeyType="go"
                   />
-                </View>
+                </Pressable>
 
                 <Button
                   label={busy ? 'Sending code…' : 'Send code'}
@@ -351,24 +331,6 @@ export default function LoginScreen(_props: Props) {
                     autoFocus
                   />
                 </Pressable>
-
-                <View style={styles.codeMetaRow}>
-                  <Text style={styles.codeMeta}>
-                    {expired
-                      ? 'Code expired'
-                      : `Code expires in ${formatCountdown(remainingMs)}`}
-                  </Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={sendCode}
-                    disabled={busy}
-                    hitSlop={spacing.xs}
-                  >
-                    <Text style={[styles.resend, busy && styles.resendBusy]}>
-                      Resend
-                    </Text>
-                  </Pressable>
-                </View>
 
                 <Button
                   label={busy ? 'Verifying…' : 'Verify'}
@@ -446,10 +408,11 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   backdrop: {
-    flex: 1,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   sheetWrapper: {
+    flex: 1,
     justifyContent: 'flex-end',
   },
   sheet: {
@@ -569,7 +532,9 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    height: '100%',
+    // stretch, not height '100%': the row centres its children, which would
+    // otherwise leave the field only as tall as its text and hard to hit.
+    alignSelf: 'stretch',
     fontFamily: mono.medium,
     fontSize: 16,
     color: colors.textPrimary,
@@ -617,23 +582,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     opacity: 0,
-  },
-  codeMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  codeMeta: {
-    ...type.caption,
-    color: colors.textMuted,
-  },
-  resend: {
-    ...type.caption,
-    fontFamily: display.extraBold,
-    color: colors.accent,
-  },
-  resendBusy: {
-    color: colors.textFaint,
   },
   error: {
     ...type.caption,
