@@ -1,11 +1,7 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Keychain from 'react-native-keychain';
 import type { AuthSession } from '@gaming-platform/core';
 
-import {
-  LEGACY_ACCESS_TOKEN_STORAGE_KEY,
-  SESSION_KEYCHAIN_SERVICE,
-} from './storage-keys';
+import { SESSION_KEYCHAIN_SERVICE } from './storage-keys';
 
 /**
  * The auth session lives in the Keychain / Android Keystore, never
@@ -98,25 +94,4 @@ export async function clearSession(): Promise<void> {
   // Memory first, so nothing can read a session that is being torn down.
   cached = null;
   await Keychain.resetGenericPassword({ service: SESSION_KEYCHAIN_SERVICE });
-  await AsyncStorage.removeItem(LEGACY_ACCESS_TOKEN_STORAGE_KEY);
-}
-
-/**
- * Move a pre-refresh-token session out of AsyncStorage on first launch after
- * upgrading, so existing players aren't logged out by the change.
- *
- * The migrated session has no refresh token - one was never issued - so it
- * keeps working until its access token expires and then requires a normal
- * login. That is the intended end state: it retires every long-lived token that
- * was sitting in plaintext.
- */
-export async function migrateLegacySession(): Promise<AuthSession | null> {
-  const legacy = await AsyncStorage.getItem(LEGACY_ACCESS_TOKEN_STORAGE_KEY);
-  if (!legacy) {
-    return null;
-  }
-  const session: AuthSession = { accessToken: legacy, refreshToken: '' };
-  await saveSession(session);
-  await AsyncStorage.removeItem(LEGACY_ACCESS_TOKEN_STORAGE_KEY);
-  return session;
 }

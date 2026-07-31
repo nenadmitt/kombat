@@ -27,9 +27,10 @@ Positives worth stating up front:
 **Fixed.** The session (access **and** refresh token) now lives in the Keychain /
 Android Keystore via `src/storage/session-keychain.ts`, stored with
 `AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY` so it stays out of backups and off any
-restored device. AsyncStorage now holds only the non-sensitive boot snapshot.
-An existing plaintext token is migrated into the Keychain once on upgrade and
-the old key deleted, so nobody is logged out by the change.
+restored device. AsyncStorage now holds only the non-sensitive boot snapshot, and the session is
+cached in memory so the keystore is read once per launch rather than on every
+authenticated request. No migration path is provided for the old plaintext
+token: it is simply abandoned, so existing installs log in again once.
 
 Alongside it, access tokens dropped from **30d to 2d** and a rotating refresh
 token (30d, single-use, hashed at rest, with reuse detection) now carries

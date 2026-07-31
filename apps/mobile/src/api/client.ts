@@ -19,9 +19,7 @@ import {
 export const apiClient = new ApiClient({
   baseUrl: env.apiBaseUrl,
   getAccessToken: async () => (await getSession())?.accessToken ?? null,
-  // A migrated legacy session has an empty refresh token; `||` treats that as
-  // absent, so it expires into a normal login instead of a failed refresh.
-  getRefreshToken: async () => (await getSession())?.refreshToken || null,
+  getRefreshToken: async () => (await getSession())?.refreshToken ?? null,
 
   // A 401 rotated the session mid-request. Persist the new pair before the
   // retry goes out, and push the fresh access token into the store so the

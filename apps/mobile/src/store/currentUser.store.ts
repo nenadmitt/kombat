@@ -13,7 +13,6 @@ import { BOOT_SNAPSHOT_STORAGE_KEY } from '../storage/storage-keys';
 import {
   clearSession,
   getSession,
-  migrateLegacySession,
   saveSession,
 } from '../storage/session-keychain';
 import {
@@ -169,8 +168,7 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
     // Presence is all that is checked here: an access token now lives days
     // rather than a month, so the first 401 refreshes it transparently
     // (ApiClient drives that) and only a dead refresh token logs the user out.
-    const session =
-      (await getSession()) ?? (await migrateLegacySession());
+    const session = await getSession();
     set({
       accessToken: session?.accessToken ?? null,
       authStatus: session ? 'authenticated' : 'unauthenticated',
