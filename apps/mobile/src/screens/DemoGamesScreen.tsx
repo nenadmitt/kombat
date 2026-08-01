@@ -187,6 +187,8 @@ const styles = StyleSheet.create({
   hero: {
     height: HERO_HEIGHT,
     borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
     overflow: 'hidden',
   },
   heroArt: {
@@ -239,6 +241,8 @@ const styles = StyleSheet.create({
     flex: 1,
     height: PAIR_HEIGHT,
     borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
     overflow: 'hidden',
   },
   pairFill: {
@@ -267,6 +271,8 @@ const styles = StyleSheet.create({
   row: {
     height: ROW_HEIGHT,
     borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
     overflow: 'hidden',
   },
   rowFill: {

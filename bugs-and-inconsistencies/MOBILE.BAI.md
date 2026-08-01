@@ -32,20 +32,6 @@ fix. Remove an entry in the same change that fixes it.
   broadcast on. Also sanity-check REQUIRED_CONFIRMATIONS isn't higher than
   the RPC reports promptly.
 
-## 2026-07-29 - GAME_ICONS is dead code, but every new game must feed it
-
-- **Where:** `apps/mobile/src/games/game-icons.ts` (whole file).
-- **Why it's wrong:** `GAME_ICONS` is exported but imported nowhere - the
-  lobby, history and games rows all use `GAME_TYPE_ICONS` (the lucide glyph
-  map in `game-type-labels.ts`) instead. Because it is typed
-  `Record<GameType, ImageSourcePropType>`, it is still exhaustive: adding a
-  game type breaks the build until someone supplies a PNG that nothing will
-  ever render. Adding Salvo required generating
-  `assets/games/salvo-icon.png` purely to satisfy it.
-- **Suggested fix:** delete `game-icons.ts` and the four (now five) unused
-  `assets/games/*-icon.png` files, or wire the artwork into the Demo Games
-  cards, which currently draw a lucide glyph over a gradient instead.
-
 ## 2026-07-29 - Game containers call goBack() with nothing guaranteed under them
 
 - **Where:** `apps/mobile/src/games/battleship/BattleshipGame.tsx`,
@@ -79,4 +65,3 @@ fix. Remove an entry in the same change that fixes it.
 - **Suggested fix:** delete all three if the balance hero is not coming back;
   otherwise leave them and note the intent. Left in place because the call is
   the design's, not a code question.
-

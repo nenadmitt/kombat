@@ -28,22 +28,6 @@ fix. Remove an entry in the same change that fixes it.
   multi-instance deployment) that turns both fallbacks into hard boot
   failures instead of warnings.
 
-## 2026-07-30 - `docker compose up` in apps/server can recreate another project's database
-
-- **Where:** `apps/server/docker-compose.yaml` (no top-level `name:`).
-- **Why it's wrong:** with no project name, Compose derives one from the
-  directory, which is `server`. `/Users/arti/namespace-v2/arti-contracts/packages/server/docker-compose.yml`
-  resolves to the same project, so `docker compose up -d` here matched that
-  project's running `postgres` service and printed
-  `Container namespace-server-db  Recreate` — i.e. it was about to replace an
-  unrelated project's database container. It only aborted because the
-  `gaming-platform-redis` container name was already taken (that container
-  carries the label `com.docker.compose.project=kombat-server`, so a project
-  name used to be set and has since been lost).
-- **Suggested fix:** add `name: kombat-server` at the top of
-  `apps/server/docker-compose.yaml` so the project is explicit and can never
-  collide with another checkout's `server` directory.
-
 ## 2026-07-31 — Test module ships to production, gated only by an exact `NODE_ENV` string
 
 - **Where:** `apps/server/src/app.module.ts:25` (`TestModule` imported
