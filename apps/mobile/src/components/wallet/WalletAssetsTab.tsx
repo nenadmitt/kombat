@@ -101,7 +101,7 @@ export default function WalletAssetsTab({
           adjustsFontSizeToFit
           minimumFontScale={0.8}
         >
-          {truncateAddress(address, 10, 8)}
+          {truncateAddress(address, 6, 6)}
         </Text>
       </Card>
 
