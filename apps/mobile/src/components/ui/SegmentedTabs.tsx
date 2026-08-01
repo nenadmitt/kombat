@@ -52,7 +52,7 @@ export default function SegmentedTabs<T extends string>({
             {tab.icon ? (
               <Icon
                 type={tab.icon}
-                size={15}
+                size={19}
                 color={selected ? colors.onAccent : colors.textSecondary}
               />
             ) : null}

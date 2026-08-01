@@ -37,7 +37,7 @@ const EMPTY_TXS: WalletTx[] = [];
 type TabKey = 'pot' | 'wallet';
 
 const TABS: readonly SegmentedTab<TabKey>[] = [
-  { value: 'pot', label: 'Pot', icon: 'dollar', tint: colors.gold },
+  { value: 'pot', label: 'Stake Pot', icon: 'money-bag', tint: colors.gold },
   { value: 'wallet', label: 'Wallet', icon: 'wallet' },
 ];
 

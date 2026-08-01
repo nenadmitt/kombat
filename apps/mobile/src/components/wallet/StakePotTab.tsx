@@ -96,7 +96,7 @@ export default function StakePotTab({
         <View style={styles.hero}>
           <View style={styles.heroLeft}>
             <View style={styles.heroLabelRow}>
-              <Icon type="dollar" color={colors.gold} size={14} />
+              <Icon type="money-bag" color={colors.gold} size={16} />
               <Text style={styles.heroLabel}>In the pot</Text>
             </View>
             <Text style={styles.heroValue}>
