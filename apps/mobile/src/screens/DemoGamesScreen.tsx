@@ -29,17 +29,28 @@ const HERO: GameCard = {
 };
 
 const PAIR: GameCard[] = [
-  { name: 'Chroma Clash', tag: 'Cards', gameType: GameType.ChromaClash },
-  { name: 'Ludo Royale', tag: 'Board', gameType: GameType.Ludo },
+  { name: 'Salvo', tag: 'Artillery', length: '~5 min', gameType: GameType.Salvo, isNew: true },
+  { name: 'Ludo Royale', tag: 'Board', length: '~8 min', gameType: GameType.Ludo },
 ];
 
 const ROWS: GameCard[] = [
   { name: 'Triple Cut', tag: 'Duel', length: '~2 min', gameType: GameType.TripleCut },
-  { name: 'Salvo', tag: 'Artillery', length: '~5 min', gameType: GameType.Salvo, isNew: true },
+  { name: 'Chroma Clash', tag: 'Cards', length: '~4 min', gameType: GameType.ChromaClash },
 ];
+
+/** Every card carries the hero's tint, a step quieter. */
+const CARD_GRADIENT = [colors.accent900, colors.surfaceMuted] as const;
+const CARD_START = { x: 1, y: 0 };
+const CARD_END = { x: 0, y: 1 };
 
 const metaOf = (game: GameCard) =>
   game.length ? `${game.tag} · ${game.length}` : game.tag;
+
+const NewBadge = () => (
+  <View style={styles.newBadge}>
+    <Text style={styles.newBadgeText}>NEW</Text>
+  </View>
+);
 
 export default function DemoGamesScreen() {
   const navigation =
@@ -55,9 +66,7 @@ export default function DemoGamesScreen() {
     <Screen scroll>
       <View style={styles.header}>
         <Text style={styles.title}>Games</Text>
-        <Text style={styles.subtitle}>
-          Free practice against a bot. Nothing staked.
-        </Text>
+        <Text style={styles.subtitle}>Free practice against the bot</Text>
       </View>
 
       <Pressable
@@ -95,13 +104,28 @@ export default function DemoGamesScreen() {
             accessibilityLabel={`Play ${game.name} demo`}
             style={({ pressed }) => [styles.pairCard, pressed && styles.pressed]}
           >
-            <View style={styles.pairArt}>
-              <GameIcon type={game.gameType} size={76} />
-            </View>
-            <View style={styles.pairBody}>
-              <Text style={styles.pairName}>{game.name}</Text>
-              <Text style={styles.rowMeta}>{metaOf(game)}</Text>
-            </View>
+            <GradientView
+              colors={CARD_GRADIENT}
+              start={CARD_START}
+              end={CARD_END}
+              style={styles.pairFill}
+            >
+              <View style={styles.pairArt}>
+                <GameIcon type={game.gameType} size={76} />
+              </View>
+              <View style={styles.pairBody}>
+                <View style={styles.pairText}>
+                  <View style={styles.titleLine}>
+                    <Text style={styles.pairName}>{game.name}</Text>
+                    {game.isNew ? <NewBadge /> : null}
+                  </View>
+                  <Text style={styles.meta}>{metaOf(game)}</Text>
+                </View>
+                <View style={styles.playBtn}>
+                  <Icon type="play" color={colors.accent} size={13} />
+                </View>
+              </View>
+            </GradientView>
           </Pressable>
         ))}
       </View>
@@ -114,23 +138,26 @@ export default function DemoGamesScreen() {
           accessibilityLabel={`Play ${game.name} demo`}
           style={({ pressed }) => [styles.row, pressed && styles.pressed]}
         >
-          <View style={styles.rowArt}>
-            <GameIcon type={game.gameType} size={52} />
-          </View>
-          <View style={styles.rowBody}>
-            <View style={styles.rowTitleLine}>
-              <Text style={styles.rowName}>{game.name}</Text>
-              {game.isNew ? (
-                <View style={styles.newBadge}>
-                  <Text style={styles.newBadgeText}>NEW</Text>
-                </View>
-              ) : null}
+          <GradientView
+            colors={CARD_GRADIENT}
+            start={CARD_START}
+            end={CARD_END}
+            style={styles.rowFill}
+          >
+            <View style={styles.rowArt}>
+              <GameIcon type={game.gameType} size={52} />
             </View>
-            <Text style={styles.rowMeta}>{metaOf(game)}</Text>
-          </View>
-          <View style={styles.rowBtn}>
-            <Icon type="play" color={colors.accent} size={13} />
-          </View>
+            <View style={styles.rowBody}>
+              <View style={styles.titleLine}>
+                <Text style={styles.rowName}>{game.name}</Text>
+                {game.isNew ? <NewBadge /> : null}
+              </View>
+              <Text style={styles.meta}>{metaOf(game)}</Text>
+            </View>
+            <View style={styles.playBtn}>
+              <Icon type="play" color={colors.accent} size={13} />
+            </View>
+          </GradientView>
         </Pressable>
       ))}
     </Screen>
@@ -140,7 +167,7 @@ export default function DemoGamesScreen() {
 const HERO_HEIGHT = 170;
 const PAIR_HEIGHT = 142;
 const ROW_HEIGHT = 84;
-const ROW_BTN = 32;
+const PLAY_BTN = 32;
 
 const styles = StyleSheet.create({
   header: {
@@ -213,7 +240,9 @@ const styles = StyleSheet.create({
     height: PAIR_HEIGHT,
     borderRadius: radius.md,
     overflow: 'hidden',
-    backgroundColor: colors.surfaceMuted,
+  },
+  pairFill: {
+    flex: 1,
   },
   pairArt: {
     flex: 1,
@@ -221,7 +250,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pairBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
     padding: spacing.sm,
+  },
+  pairText: {
+    flex: 1,
     gap: spacing.xxs,
   },
   pairName: {
@@ -231,12 +266,15 @@ const styles = StyleSheet.create({
   },
   row: {
     height: ROW_HEIGHT,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+  },
+  rowFill: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceMuted,
   },
   rowArt: {
     width: 62,
@@ -246,7 +284,7 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: spacing.xxs,
   },
-  rowTitleLine: {
+  titleLine: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
@@ -256,7 +294,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.textPrimary,
   },
-  rowMeta: {
+  meta: {
     fontFamily: mono.regular,
     fontSize: 10,
     color: colors.textMuted,
@@ -273,12 +311,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     color: colors.accent100,
   },
-  rowBtn: {
-    width: ROW_BTN,
-    height: ROW_BTN,
+  playBtn: {
+    width: PLAY_BTN,
+    height: PLAY_BTN,
     borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.accent,
+    backgroundColor: colors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
