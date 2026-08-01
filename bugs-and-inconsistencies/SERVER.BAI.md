@@ -140,3 +140,25 @@ fix. Remove an entry in the same change that fixes it.
 - **Suggested fix:** when more than one player is capped in the same resolution,
   end with a null winner so `completeMatch(null)` releases every hold, matching
   the Battleship setup-timeout behaviour.
+
+## 2026-08-01 - `channel:join` refuses silently, so a client cannot tell it is unsubscribed
+
+- **Where:** `apps/server/src/websockets/websockets.gateway.ts:118-133`.
+  `handleJoinChannel` calls `mayJoin` (`:135-148`) and simply `return`s when it
+  is false. Nothing is emitted back, and the handler sends no ack on the
+  success path either.
+- **Why it's wrong:** a refused subscriber and a subscribed one are
+  indistinguishable from the client's side - both see silence. The same is true
+  of the gap before the `await` completes, since `mayJoin` hits
+  `findGameRoomById` for a game channel. `websocket.store.ts:83-86` fires
+  `channel:join` and returns immediately, so the mobile client treats the
+  channel as joined the moment it emits. Every other gateway in the app already
+  reports failure to the caller (`battleship.gateway.ts:emitError` ->
+  `battleship:error`), so this is the one client-facing handler that fails
+  invisibly. Impact is currently limited because game screens re-sync from
+  `GET /games/rooms/:id/state`, not because the subscription is reliable.
+- **Suggested fix:** emit a `channel:error` (or reuse the per-game error event)
+  when `mayJoin` is false, and return a value from the handler so socket.io
+  acks the client that asked for one. That also removes the need for
+  fixed sleeps after `channel:join` in the e2e suite
+  (`apps/server/test/room-lifecycle.e2e-spec.ts`).

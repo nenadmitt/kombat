@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:e2e": "jest --config jest.e2e.config.js",
     "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/configuration/datasource.ts",
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/configuration/datasource.ts",
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/configuration/datasource.ts"
@@ -46,6 +47,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^22.10.0",
     "jest": "^30.4.2",
+    "socket.io-client": "^4.8.3",
     "source-map-support": "^0.5.21",
     "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
