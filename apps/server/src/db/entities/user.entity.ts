@@ -7,6 +7,10 @@ import { BaseEntity } from './base.entity';
   unique: true,
   where: '"referral_code" IS NOT NULL',
 })
+@Index('UQ_users_ens_name', ['ensName'], {
+  unique: true,
+  where: '"ens_name" IS NOT NULL',
+})
 export class UserEntity extends BaseEntity {
   @Column({ name: 'email', type: 'varchar', unique: true, nullable: false })
   email: string;
@@ -17,6 +21,10 @@ export class UserEntity extends BaseEntity {
   /** This user's own shareable code. Assigned when they pick a username. */
   @Column({ name: 'referral_code', type: 'varchar', length: 8, nullable: true })
   referralCode: string | null;
+
+  /** Minted once from the first username; never renamed after that. */
+  @Column({ name: 'ens_name', type: 'varchar', nullable: true })
+  ensName: string | null;
 
   /** Who referred them, recorded once at sign-up and never reassigned. */
   @Column({ name: 'referred_by_user_id', type: 'uuid', nullable: true })

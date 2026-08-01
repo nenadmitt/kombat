@@ -70,6 +70,12 @@ export class ConfigurationService {
   /** KC granted to each new player, in human units. 0 disables the grant. */
   public readonly FAUCET_GRANT_KOMBAT: number;
 
+  // ---- ens subnames ------------------------------------------------------
+  /** Namespace API key. Unset means no subnames are minted. */
+  public readonly NAMESPACE_API_KEY: string | undefined;
+  /** The parent name every user subname hangs off. */
+  public readonly ENS_PARENT_NAME: string;
+
   constructor(private readonly configService: ConfigService) {
     this.PORT = parseInt(this.configService.get('PORT') ?? '3000', 10);
     this.POSTGRES_HOST = this.configService.getOrThrow('POSTGRES_HOST');
@@ -146,5 +152,8 @@ export class ConfigurationService {
       this.configService.get('FAUCET_GRANT_KOMBAT') ?? '0',
       10,
     );
+    this.NAMESPACE_API_KEY = this.configService.get('NAMESPACE_API_KEY');
+    this.ENS_PARENT_NAME =
+      this.configService.get('ENS_PARENT_NAME') ?? 'playkombat.xyz';
   }
 }

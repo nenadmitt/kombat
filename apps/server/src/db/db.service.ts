@@ -91,6 +91,29 @@ export class DbService {
     return this.userRepository.findOneBy({ referralCode });
   }
 
+  /**
+   * Take an ENS name for a user who has none. The partial unique index decides
+   * the winner of a race; the loser sees false and tries the next label.
+   */
+  async claimEnsName(userId: string, ensName: string): Promise<boolean> {
+    try {
+      const result = await this.userRepository.update(
+        { id: userId, ensName: IsNull() },
+        { ensName },
+      );
+      return result.affected === 1;
+    } catch (error) {
+      if ((error as { code?: string }).code === '23505') {
+        return false;
+      }
+      throw error;
+    }
+  }
+
+  async clearEnsName(userId: string): Promise<void> {
+    await this.userRepository.update({ id: userId }, { ensName: null });
+  }
+
   countReferralsFor(userId: string): Promise<number> {
     return this.userRepository.countBy({ referredByUserId: userId });
   }
