@@ -41,6 +41,7 @@ export default function RootNavigator() {
   const profileStatus = useCurrentUserStore(state => state.profileStatus);
   const profileError = useCurrentUserStore(state => state.profileError);
   const loadProfile = useCurrentUserStore(state => state.loadProfile);
+  const logout = useCurrentUserStore(state => state.logout);
   const username = useCurrentUserStore(state => state.username);
 
   const walletStatus = useCurrentUserStore(state => state.walletStatus);
@@ -124,6 +125,10 @@ export default function RootNavigator() {
             if (walletStatus === 'error') {
               ensureWallet();
             }
+          }}
+          onSignOut={() => {
+            setShowErrorScreen(false);
+            void logout();
           }}
         />
       );

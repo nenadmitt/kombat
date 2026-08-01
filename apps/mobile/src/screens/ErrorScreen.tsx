@@ -11,9 +11,16 @@ type Props = {
   /** Backend/network error code (ErrorCode enum) - shown as fine print for support reference. */
   code: string;
   onRetry: () => void;
+  /** Way off the screen when retrying keeps failing. */
+  onSignOut: () => void;
 };
 
-export default function ErrorScreen({ message, code, onRetry }: Props) {
+export default function ErrorScreen({
+  message,
+  code,
+  onRetry,
+  onSignOut,
+}: Props) {
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.content}>
@@ -38,6 +45,15 @@ export default function ErrorScreen({ message, code, onRetry }: Props) {
           >
             <Text style={styles.buttonText}>Try Again</Text>
           </GradientView>
+        </Pressable>
+
+        <Pressable
+          onPress={onSignOut}
+          accessibilityRole="button"
+          hitSlop={8}
+          style={({ pressed }) => [styles.signOut, pressed && styles.buttonPressed]}
+        >
+          <Text style={styles.signOutText}>Sign in again</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -96,5 +112,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontFamily: fonts.bold,
     color: colors.textPrimary,
+  },
+  signOut: {
+    marginTop: spacing.xs,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  signOutText: {
+    fontSize: 14,
+    fontFamily: fonts.bold,
+    color: colors.textMuted,
   },
 });

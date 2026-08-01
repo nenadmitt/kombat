@@ -197,7 +197,9 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
     // session rather than outliving it for a month.
     const session = await getSession();
     if (session?.refreshToken) {
-      await apiClient.logout(session.refreshToken);
+      // Best effort: a server that cannot revoke must not strand the user in
+      // a session they asked to leave.
+      await apiClient.logout(session.refreshToken).catch(() => undefined);
     }
     await clearSession();
     // The snapshot belongs to this login - a different account must not
@@ -248,29 +250,39 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
         wallet,
       });
     } catch (err) {
-      // Server unreachable but we have a last-good snapshot: boot into
-      // offline mode instead of the error screen. Games are gated by the
-      // server store; the wallet is fully local anyway.
-      if (err instanceof ApiError && err.isNetworkError) {
-        const snapshot = await readSnapshot();
-        if (snapshot?.userId) {
-          set({
-            userId: snapshot.userId,
-            email: snapshot.email,
-            username: snapshot.username,
-            ensName: snapshot.ensName ?? null,
-            referralCode: snapshot.referralCode ?? null,
-            profileStatus: 'ready',
-          });
-          useServerStore.getState().reportOffline();
-          return;
-        }
+      // Any failure, not just an unreachable server: with a last-good
+      // snapshot the app has everything it needs to run degraded, and the
+      // wallet is local anyway. Games stay gated by the server store.
+      const snapshot = await readSnapshot();
+      if (snapshot?.userId) {
+        set({
+          userId: snapshot.userId,
+          email: snapshot.email,
+          username: snapshot.username,
+          ensName: snapshot.ensName ?? null,
+          referralCode: snapshot.referralCode ?? null,
+          profileStatus: 'ready',
+        });
         useServerStore.getState().reportOffline();
+        return;
       }
-      set({
-        profileStatus: 'error',
-        profileError: toLoadError(err, 'Failed to load profile'),
-      });
+
+      const unreachable = err instanceof ApiError && err.isNetworkError;
+      if (unreachable) {
+        // Offline with nothing cached: retrying is the only thing that can
+        // help, so keep the session and let the error screen offer it.
+        useServerStore.getState().reportOffline();
+        set({
+          profileStatus: 'error',
+          profileError: toLoadError(err, 'Failed to load profile'),
+        });
+        return;
+      }
+
+      // The server answered and it cannot give us this profile, with no cache
+      // to fall back on. Retrying will keep failing; signing in again is the
+      // only way through. The wallet secret outlives logout.
+      await get().logout();
     }
   },
 
@@ -314,13 +326,13 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
       // Offline fallback: snapshot first, else recover the address straight
       // from the Keychain secret - creating a brand-new wallet is the only
       // path that truly needs the server.
+      const offlineWallet = await resolveOfflineWallet();
+      if (offlineWallet) {
+        set({ wallet: offlineWallet, walletStatus: 'ready' });
+        useServerStore.getState().reportOffline();
+        return;
+      }
       if (err instanceof ApiError && err.isNetworkError) {
-        const offlineWallet = await resolveOfflineWallet();
-        if (offlineWallet) {
-          set({ wallet: offlineWallet, walletStatus: 'ready' });
-          useServerStore.getState().reportOffline();
-          return;
-        }
         useServerStore.getState().reportOffline();
       }
       set({
