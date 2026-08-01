@@ -1,4 +1,5 @@
 import { io, type Socket } from 'socket.io-client';
+import type { JwtSignOptions } from '@nestjs/jwt';
 
 import { UserEntity } from '../../src/db/entities/user.entity';
 import type { TestApp } from './app';
@@ -21,6 +22,10 @@ let emailCounter = 0;
 /**
  * A signed-in player: user row, JWT, and a live socket.
  *
+ * Labels must be unique within a test -  is a unique column.
+ *
+ * Labels must be unique within a test - `username` is a unique column.
+ *
  * Every actor needs its own userId. The gateway disconnects an account's
  * existing sockets when a new one authenticates, so two actors sharing a user
  * would silently kill each other's connection and surface as an unrelated
@@ -29,6 +34,7 @@ let emailCounter = 0;
 export async function createActor(
   testApp: TestApp,
   label: string,
+  tokenOptions?: JwtSignOptions,
 ): Promise<Actor> {
   const repo = testApp.dataSource.getRepository(UserEntity);
   const user = await repo.save(
@@ -40,7 +46,7 @@ export async function createActor(
     }),
   );
 
-  const token = await testApp.jwt.signAsync({ sub: user.id });
+  const token = await testApp.jwt.signAsync({ sub: user.id }, tokenOptions);
   const socket = await connectSocket(testApp.url, token);
 
   const request = async (
