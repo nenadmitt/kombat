@@ -1,10 +1,19 @@
 import type { ReactNode } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, radius, spacing } from '../../theme/colors';
 import { display, type as typePresets } from '../../theme/typography';
 import Icon from '../Icon';
+import KeyboardDoneBar from './KeyboardDoneBar';
 
 type Props = {
   visible: boolean;
@@ -41,31 +50,46 @@ export default function BottomSheet({
       onDismiss={onDismissed}
     >
       <Pressable style={styles.overlay} onPress={onClose} />
-      <SafeAreaView style={styles.wrapper} pointerEvents="box-none" edges={['bottom']}>
-        <View style={[styles.sheet, gap != null && { gap }]}>
-          <View style={[styles.dragHandle, gap == null && styles.dragHandleSpaced]} />
-          {title || showClose ? (
-            <View style={[styles.header, gap == null && styles.headerSpaced]}>
-              <View style={styles.headerText}>
-                {title ? <Text style={styles.title}>{title}</Text> : null}
-                {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        pointerEvents="box-none"
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <SafeAreaView
+          style={styles.wrapper}
+          pointerEvents="box-none"
+          edges={['bottom']}
+        >
+          <View style={[styles.sheet, gap != null && { gap }]}>
+            <View
+              style={[styles.dragHandle, gap == null && styles.dragHandleSpaced]}
+            />
+            {title || showClose ? (
+              <View style={[styles.header, gap == null && styles.headerSpaced]}>
+                <View style={styles.headerText}>
+                  {title ? <Text style={styles.title}>{title}</Text> : null}
+                  {subtitle ? (
+                    <Text style={styles.subtitle}>{subtitle}</Text>
+                  ) : null}
+                </View>
+                {showClose ? (
+                  <Pressable
+                    onPress={onClose}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Close"
+                    style={styles.closeBtn}
+                  >
+                    <Icon type="close" color={colors.textSecondary} size={18} />
+                  </Pressable>
+                ) : null}
               </View>
-              {showClose ? (
-                <Pressable
-                  onPress={onClose}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel="Close"
-                  style={styles.closeBtn}
-                >
-                  <Icon type="close" color={colors.textSecondary} size={18} />
-                </Pressable>
-              ) : null}
-            </View>
-          ) : null}
-          {children}
-        </View>
-      </SafeAreaView>
+            ) : null}
+            {children}
+          </View>
+        </SafeAreaView>
+      </KeyboardAvoidingView>
+      <KeyboardDoneBar />
     </Modal>
   );
 }
@@ -74,6 +98,9 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(6,6,9,0.7)',
+  },
+  keyboardAvoid: {
+    flex: 1,
   },
   wrapper: {
     flex: 1,

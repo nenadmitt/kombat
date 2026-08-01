@@ -1,3 +1,3 @@
-export function truncateAddress(address: string): string {
-  return `${address.slice(0, 4)}...${address.slice(-4)}`;
+export function truncateAddress(address: string, lead = 4, tail = 4): string {
+  return `${address.slice(0, lead)}...${address.slice(-tail)}`;
 }

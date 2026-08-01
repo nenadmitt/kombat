@@ -279,7 +279,13 @@ export function useLocalSalvo(): SalvoEngine {
   const launch = useCallback(
     (shooter: SalvoSide, aim?: Aim) => {
       const s = stateRef.current;
-      if (s.winner !== null || s.flight !== null || s.driving || shellTimer.current) {
+      if (
+        s.winner !== null ||
+        s.turn !== shooter ||
+        s.flight !== null ||
+        s.driving ||
+        shellTimer.current
+      ) {
         return;
       }
       const target = shooter === ME ? BOT : ME;

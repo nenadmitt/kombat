@@ -14,7 +14,7 @@ import { CHAIN_TOKENS, type BalanceChainId, type TokenSymbol } from '../../walle
 import { sendTransfer } from '../../wallet/transfer';
 import BrandIcon from '../BrandIcon';
 import Icon from '../Icon';
-import { BottomSheet, Button, Card } from '../ui';
+import { BottomSheet, Button, Card, KEYBOARD_DONE_ID } from '../ui';
 
 export type SubmittedTx = {
   hash: Hex;
@@ -230,6 +230,7 @@ export default function WithdrawModal({
                 placeholder="0.00"
                 placeholderTextColor={colors.textFaint}
                 keyboardType="decimal-pad"
+                inputAccessoryViewID={KEYBOARD_DONE_ID}
                 selectionColor={colors.accent}
                 cursorColor={colors.accent}
                 style={styles.amountInput}

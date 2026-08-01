@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -23,7 +25,14 @@ import {
 import { apiClient } from '../api/client';
 import BrandIcon, { type BrandIconName } from '../components/BrandIcon';
 import Icon from '../components/Icon';
-import { Button, Card, MODAL_DISMISS_MS, Toggle } from '../components/ui';
+import {
+  Button,
+  Card,
+  KeyboardDoneBar,
+  KEYBOARD_DONE_ID,
+  MODAL_DISMISS_MS,
+  Toggle,
+} from '../components/ui';
 import { useGameStore } from '../store/game.store';
 import { useStakePotStore } from '../store/stakePot.store';
 import { colors, radius, spacing } from '../theme/colors';
@@ -181,8 +190,17 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
       onRequestClose={onClose}
     >
       <Pressable style={styles.overlay} onPress={onClose} />
-      <SafeAreaView style={styles.sheetWrapper} pointerEvents="box-none" edges={['bottom']}>
-        <View style={styles.sheet}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        pointerEvents="box-none"
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <SafeAreaView
+          style={styles.sheetWrapper}
+          pointerEvents="box-none"
+          edges={['bottom']}
+        >
+          <View style={styles.sheet}>
           <View style={styles.dragHandle} />
 
           <View style={styles.header}>
@@ -247,6 +265,7 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
                     value={feeInput}
                     onChangeText={setFeeInput}
                     keyboardType="decimal-pad"
+                    inputAccessoryViewID={KEYBOARD_DONE_ID}
                     placeholder="0"
                     placeholderTextColor={colors.textFaint}
                     selectionColor={colors.accent}
@@ -351,7 +370,9 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
             disabled={cannotCreate}
           />
         </View>
-      </SafeAreaView>
+        </SafeAreaView>
+      </KeyboardAvoidingView>
+      <KeyboardDoneBar />
 
       <GamePickerSheet
         visible={gamePickerVisible}
@@ -371,6 +392,9 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(6,6,9,0.7)',
+  },
+  keyboardAvoid: {
+    flex: 1,
   },
   sheetWrapper: {
     flex: 1,

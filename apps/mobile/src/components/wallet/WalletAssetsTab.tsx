@@ -95,7 +95,14 @@ export default function WalletAssetsTab({
             </Pressable>
           </View>
         </View>
-        <Text style={styles.address}>{truncateAddress(address)}</Text>
+        <Text
+          style={styles.address}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.8}
+        >
+          {truncateAddress(address, 6, 6)}
+        </Text>
       </Card>
 
       <View style={styles.actionRow}>
@@ -231,7 +238,7 @@ const styles = StyleSheet.create({
   },
   address: {
     fontFamily: mono.bold,
-    fontSize: 22,
+    fontSize: 26,
     letterSpacing: -0.3,
     color: colors.textPrimary,
   },

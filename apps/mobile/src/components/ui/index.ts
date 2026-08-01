@@ -6,6 +6,10 @@ export { default as Card } from './Card';
 export { MODAL_DISMISS_MS } from './modal-timing';
 export { default as Chip, type ChipTone } from './Chip';
 export {
+  default as KeyboardDoneBar,
+  KEYBOARD_DONE_ID,
+} from './KeyboardDoneBar';
+export {
   ConfirmProvider,
   useConfirm,
   type ConfirmOptions,

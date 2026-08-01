@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { KEYBOARD_DONE_ID } from './KeyboardDoneBar';
+
 import Icon from '../Icon';
 import { colors, radius, spacing } from '../../theme/colors';
 import { mono } from '../../theme/typography';
@@ -72,6 +74,7 @@ export default function Stepper({
           onFocus={() => setDraft(format(value))}
           onBlur={commit}
           keyboardType="decimal-pad"
+          inputAccessoryViewID={KEYBOARD_DONE_ID}
           inputMode="decimal"
           selectTextOnFocus
           returnKeyType="done"

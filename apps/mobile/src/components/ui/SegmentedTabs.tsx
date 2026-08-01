@@ -29,7 +29,7 @@ export default function SegmentedTabs<T extends string>({
   onChange,
 }: Props<T>) {
   return (
-    <View style={styles.track}>
+    <View style={styles.track} accessibilityRole="tablist">
       {tabs.map(tab => {
         const selected = tab.value === value;
         const tint = tab.tint ?? colors.accent;
@@ -42,21 +42,24 @@ export default function SegmentedTabs<T extends string>({
             accessibilityLabel={tab.label}
             style={({ pressed }) => [
               styles.tab,
-              selected && { backgroundColor: tint },
-              pressed && !selected && styles.pressed,
+              selected && [
+                styles.selected,
+                { backgroundColor: tint, shadowColor: tint },
+              ],
+              pressed && styles.pressed,
             ]}
           >
             {tab.icon ? (
               <Icon
                 type={tab.icon}
-                size={14}
-                color={selected ? colors.onAccent : colors.textMuted}
+                size={19}
+                color={selected ? colors.onAccent : colors.textSecondary}
               />
             ) : null}
             <Text
               style={[
                 styles.label,
-                { color: selected ? colors.onAccent : colors.textMuted },
+                { color: selected ? colors.onAccent : colors.textSecondary },
               ]}
             >
               {tab.label}
@@ -84,15 +87,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
     borderRadius: radius.sm,
   },
+  selected: {
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 3,
+  },
   pressed: {
-    opacity: 0.6,
+    opacity: 0.7,
   },
   label: {
     fontFamily: body.bold,
     fontSize: 13,
+    letterSpacing: 0.1,
   },
 });
