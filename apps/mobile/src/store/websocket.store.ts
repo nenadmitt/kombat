@@ -18,6 +18,8 @@ type WebsocketState = {
 
   connect: () => void;
   disconnect: () => void;
+  /** Re-open with the current token, keeping channel subscriptions. */
+  reconnect: () => void;
 
   /** Joins a channel (server-side room) to start receiving its broadcasts. */
   joinChannel: (channel: string) => void;
@@ -40,21 +42,22 @@ let socket: Socket | null = null;
 // replays these so broadcasts resume without each screen having to care.
 const joinedChannels = new Set<string>();
 
-export const useWebsocketStore = create<WebsocketState>(set => ({
+export const useWebsocketStore = create<WebsocketState>((set, get) => ({
   status: 'disconnected',
 
   connect: () => {
     if (socket) {
       return;
     }
-    const token = useCurrentUserStore.getState().accessToken;
-    if (!token) {
+    if (!useCurrentUserStore.getState().accessToken) {
       return;
     }
 
     set({ status: 'connecting' });
     const client = io(env.apiBaseUrl, {
-      auth: { token },
+      // Callback form: re-read on every attempt, so a reconnect after a
+      // refresh carries the new token instead of the one captured here.
+      auth: cb => cb({ token: useCurrentUserStore.getState().accessToken }),
       transports: ['websocket'],
     });
 
@@ -78,6 +81,26 @@ export const useWebsocketStore = create<WebsocketState>(set => ({
     socket = null;
     joinedChannels.clear();
     set({ status: 'disconnected' });
+  },
+
+  /**
+   * The server disconnects a socket whose token it rejects, and socket.io does
+   * not retry after a server-side disconnect - so a lapsed token strands the
+   * connection until something tears it down and opens a new one.
+   *
+   * Driven from the session-refresh callback rather than from the disconnect
+   * itself: being kicked for a bad token and being kicked by this account
+   * signing in elsewhere look identical to the client, and reconnecting on the
+   * latter would leave two devices kicking each other in a loop.
+   */
+  reconnect: () => {
+    if (!socket) {
+      return;
+    }
+    socket.disconnect();
+    socket = null;
+    set({ status: 'disconnected' });
+    get().connect();
   },
 
   joinChannel: channel => {

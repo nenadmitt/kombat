@@ -22,11 +22,12 @@ export const apiClient = new ApiClient({
   getRefreshToken: async () => (await getSession())?.refreshToken ?? null,
 
   // A 401 rotated the session mid-request. Persist the new pair before the
-  // retry goes out, and push the fresh access token into the store so the
-  // socket carries it on its next (re)connect.
+  // retry goes out, then re-open the socket: the server will have dropped it
+  // if the old token had already lapsed, and it cannot recover on its own.
   onSessionRefreshed: async session => {
     await saveSession(session);
     currentUserStore().setState({ accessToken: session.accessToken });
+    websocketStore().getState().reconnect();
   },
 
   // The refresh token is gone or was rejected: this session is over. The
@@ -50,4 +51,10 @@ function currentUserStore() {
   return (
     require('../store/currentUser.store') as typeof import('../store/currentUser.store')
   ).useCurrentUserStore;
+}
+
+function websocketStore() {
+  return (
+    require('../store/websocket.store') as typeof import('../store/websocket.store')
+  ).useWebsocketStore;
 }
