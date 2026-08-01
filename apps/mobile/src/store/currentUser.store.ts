@@ -19,12 +19,7 @@ import {
   deriveAddressFromPrivateKey,
   derivePrivateKeyFromMnemonic,
 } from '../wallet/derive-wallet';
-import {
-  clearLegacyWalletSecret,
-  getWalletSecret,
-  readLegacyWalletSecret,
-  saveWalletSecret,
-} from '../wallet/wallet-keychain';
+import { getWalletSecret, saveWalletSecret } from '../wallet/wallet-keychain';
 import { useGameStore } from './game.store';
 import { useServerStore } from './server.store';
 
@@ -96,35 +91,6 @@ function persistCurrentSnapshot(state: {
 
 /** Wallet for an offline boot: last-good snapshot, else the address derived
  *  from the Keychain secret (the key never leaves the device). */
-/**
- * Move a pre-per-user secret into this account's slot, once its address proves
- * it belongs to them. Wrong-owner secrets are left where they are rather than
- * deleted: on a shared device that slot is still somebody's only key.
- */
-async function adoptLegacySecret(
-  userId: string,
-  address: string,
-): Promise<void> {
-  try {
-    if (await getWalletSecret(userId)) {
-      return;
-    }
-    const legacy = await readLegacyWalletSecret();
-    if (!legacy) {
-      return;
-    }
-    const derived = deriveAddressFromPrivateKey(legacy.privateKey);
-    if (derived.toLowerCase() !== address.toLowerCase()) {
-      return;
-    }
-    await saveWalletSecret(userId, legacy);
-    await clearLegacyWalletSecret();
-  } catch {
-    // A failed migration only costs the next attempt: the legacy slot is
-    // untouched unless the keyed copy was written first.
-  }
-}
-
 async function resolveOfflineWallet(
   userId: string | null,
 ): Promise<WalletSummary | null> {
@@ -352,7 +318,9 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
     try {
       const wallets = await apiClient.listWallets();
       if (wallets.length > 0) {
-        await adoptLegacySecret(userId, wallets[0].address);
+        // Migrates a pre-per-user secret into this account's slot, but only
+        // when it derives to the address the server just returned.
+        await getWalletSecret(userId, wallets[0].address);
         set({ wallet: wallets[0], walletStatus: 'ready' });
         persistCurrentSnapshot(get());
         return;

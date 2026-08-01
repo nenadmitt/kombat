@@ -105,16 +105,25 @@ export class EnsSubnameService {
     }
   }
 
-  /** Repoint an existing name at a new wallet address. */
-  async setAddress(fullName: string, address: string): Promise<void> {
+  /**
+   * Point a user's existing subname at their wallet. Onboarding sets the
+   * username before the wallet exists, so the name is usually minted with no
+   * address and would otherwise resolve to nothing.
+   */
+  async attachWallet(userId: string, address: string): Promise<void> {
     if (!this.client) {
       return;
     }
     try {
-      await this.client.setDefaultEvmAddress(fullName, address);
+      const user = await this.dbService.findUserById(userId);
+      if (!user?.ensName) {
+        return;
+      }
+      await this.client.setDefaultEvmAddress(user.ensName, address);
+      this.logger.log(`${user.ensName} now resolves to ${address}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Could not repoint ${fullName}: ${message}`);
+      this.logger.error(`Could not point a subname at ${address}: ${message}`);
     }
   }
 }

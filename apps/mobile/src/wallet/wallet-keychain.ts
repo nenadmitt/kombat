@@ -1,6 +1,7 @@
 import * as Keychain from 'react-native-keychain';
 
 import { WALLET_KEYCHAIN_SERVICE } from '../storage/storage-keys';
+import { deriveAddressFromPrivateKey } from './derive-wallet';
 
 type StoredWalletSecret = {
   mnemonic: string;
@@ -24,10 +25,36 @@ export async function saveWalletSecret(
   });
 }
 
+/**
+ * This account's secret, falling back to the pre-per-user slot for installs
+ * that predate the split. A fallback is migrated on the spot, so the old slot
+ * empties the first time its owner signs in.
+ *
+ * `expectedAddress` is what keeps a shared device honest: without it any
+ * account would adopt whatever key the device happens to hold.
+ */
 export async function getWalletSecret(
   userId: string,
+  expectedAddress?: string,
 ): Promise<StoredWalletSecret | null> {
-  return read(serviceFor(userId));
+  const keyed = await read(serviceFor(userId));
+  if (keyed) {
+    return keyed;
+  }
+  const legacy = await read(WALLET_KEYCHAIN_SERVICE);
+  if (!legacy) {
+    return null;
+  }
+  if (
+    expectedAddress &&
+    deriveAddressFromPrivateKey(legacy.privateKey).toLowerCase() !==
+      expectedAddress.toLowerCase()
+  ) {
+    return null;
+  }
+  await saveWalletSecret(userId, legacy);
+  await clearLegacyWalletSecret();
+  return legacy;
 }
 
 export async function clearWalletSecret(userId: string): Promise<void> {

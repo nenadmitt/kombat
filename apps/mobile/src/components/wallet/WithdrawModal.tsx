@@ -5,7 +5,6 @@ import { formatUnits, parseUnits, type Address, type Hex } from 'viem';
 
 import { useCurrentUserStore } from '../../store/currentUser.store';
 import type { TokenBalance } from '../../store/walletBalances.store';
-import { NETWORK_FEE_USD } from '../../wallet/market-mock';
 import { colors, radius, spacing } from '../../theme/colors';
 import { mono, type } from '../../theme/typography';
 import type { Chain } from '../../wallet/chains';
@@ -299,7 +298,7 @@ export default function WithdrawModal({
               <TextInput
                 value={recipient}
                 onChangeText={setRecipient}
-                placeholder="Address or Kombat username"
+                placeholder="Address or ENS name"
                 placeholderTextColor={colors.textFaint}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -319,13 +318,6 @@ export default function WithdrawModal({
                 <Text style={styles.summaryKey}>Network</Text>
               </View>
               <Text style={styles.summaryVal}>{chain.network}</Text>
-            </View>
-            <View style={styles.summaryLine}>
-              <View style={styles.summaryKeyRow}>
-                <Icon type="timer" color={colors.textMuted} size={14} />
-                <Text style={styles.summaryKey}>Network fee</Text>
-              </View>
-              <Text style={styles.summaryVal}>{NETWORK_FEE_USD}</Text>
             </View>
             <View style={styles.summaryDivider} />
             <View style={styles.summaryLine}>
@@ -373,10 +365,6 @@ export default function WithdrawModal({
             <View style={styles.summaryLine}>
               <Text style={styles.summaryKey}>Network</Text>
               <Text style={styles.summaryVal}>{chain.network}</Text>
-            </View>
-            <View style={styles.summaryLine}>
-              <Text style={styles.summaryKey}>Network fee</Text>
-              <Text style={styles.summaryVal}>{NETWORK_FEE_USD}</Text>
             </View>
           </Card>
 

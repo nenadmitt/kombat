@@ -30,7 +30,10 @@ export async function resolveRecipient(
     return { address: getAddress(value) };
   }
 
-  if (!value.toLowerCase().endsWith('.eth')) {
+  // Any name with a dot: .eth, a DNS name imported into ENS, an offchain
+  // subname resolved through CCIP-read. Which of those resolve is the
+  // resolver's business, not a hardcoded suffix list.
+  if (!value.includes('.') || value.startsWith('.') || value.endsWith('.')) {
     throw new Error('Enter a valid address or ENS name');
   }
 

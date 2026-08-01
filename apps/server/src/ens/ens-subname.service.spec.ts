@@ -34,6 +34,7 @@ describe('EnsSubnameService', () => {
     } as ConfigurationService;
 
     const db = {
+      findUserById: async () => ({ id: USER, ensName: claims.get(USER) ?? null }),
       claimEnsName: async (userId: string, ensName: string) => {
         if (claimFails > 0) {
           claimFails -= 1;
@@ -136,6 +137,39 @@ describe('EnsSubnameService', () => {
       expect(name).toBe(`arti.${PARENT}`);
       expect(created[0].owner).toBeUndefined();
       expect(created[0].addresses).toEqual([]);
+    });
+  });
+
+  describe('attachWallet', () => {
+    it('points an existing name at the wallet once it exists', async () => {
+      let pointed: { name: string; address: string } | null = null;
+      (
+        service as unknown as {
+          client: { setDefaultEvmAddress: (n: string, a: string) => Promise<void> };
+        }
+      ).client.setDefaultEvmAddress = async (name, addr) => {
+        pointed = { name, address: addr };
+      };
+      // Onboarding mints before the wallet exists, so the name starts bare.
+      await service.mintForUsername(USER, 'arti', undefined);
+
+      await service.attachWallet(USER, ADDRESS);
+
+      expect(pointed).toEqual({ name: `arti.${PARENT}`, address: ADDRESS });
+    });
+
+    it('does nothing for a user with no name yet', async () => {
+      let called = false;
+      (
+        service as unknown as {
+          client: { setDefaultEvmAddress: () => Promise<void> };
+        }
+      ).client.setDefaultEvmAddress = async () => {
+        called = true;
+      };
+
+      await service.attachWallet(USER, ADDRESS);
+      expect(called).toBe(false);
     });
   });
 
