@@ -1,10 +1,11 @@
 import { formatStakeAmount, type StakePotBalances } from '@gaming-platform/core';
+import { useState } from 'react';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { TokenBalance } from '../../store/walletBalances.store';
 import { colors, radius, spacing } from '../../theme/colors';
-import { mono, type } from '../../theme/typography';
+import { display, mono, type } from '../../theme/typography';
 import type { ChainId } from '../../wallet/chains';
 import { truncateAddress } from '../../wallet/format-address';
 import { POT_ASSETS } from '../../wallet/stake-pot-assets';
@@ -28,6 +29,8 @@ export type WalletAction = (typeof ACTIONS)[number]['key'];
 
 type Props = {
   address: string;
+  /** The user's ENS subname; null until it has been minted. */
+  ensName: string | null;
   chainId: ChainId;
   balances: Partial<Record<TokenSymbol, TokenBalance>>;
   /** Pot balances, so a row can say how much of that token is already staked. */
@@ -47,6 +50,7 @@ type Props = {
  */
 export default function WalletAssetsTab({
   address,
+  ensName,
   chainId,
   balances,
   pot,
@@ -56,6 +60,7 @@ export default function WalletAssetsTab({
   onAction,
   onShowQr,
 }: Props) {
+  const [ensHintOpen, setEnsHintOpen] = useState(false);
   const tokens = supportsBalances(chainId) ? CHAIN_TOKENS[chainId] : [];
 
   return (
@@ -103,6 +108,37 @@ export default function WalletAssetsTab({
         >
           {truncateAddress(address, 6, 6)}
         </Text>
+        {ensName ? (
+          <View style={styles.ensRow}>
+            <BrandIcon type="ens" size={16} mono={colors.accent} />
+            <Text style={styles.ensName} numberOfLines={1}>
+              {ensName}
+            </Text>
+            <Pressable
+              onPress={() => setEnsHintOpen(open => !open)}
+              accessibilityRole="button"
+              accessibilityLabel="What is this name for?"
+              hitSlop={8}
+              style={({ pressed }) => pressed && styles.pressed}
+            >
+              <Icon type="help" color={colors.textMuted} size={16} />
+            </Pressable>
+            <Pressable
+              onPress={() => Clipboard.setString(ensName)}
+              accessibilityRole="button"
+              accessibilityLabel="Copy ENS name"
+              hitSlop={8}
+              style={({ pressed }) => pressed && styles.pressed}
+            >
+              <Icon type="copy" color={colors.textMuted} size={16} />
+            </Pressable>
+          </View>
+        ) : null}
+        {ensName && ensHintOpen ? (
+          <Text style={styles.ensHint}>
+            Anyone can send you funds using this name instead of your address.
+          </Text>
+        ) : null}
       </Card>
 
       <View style={styles.actionRow}>
@@ -241,6 +277,25 @@ const styles = StyleSheet.create({
     fontSize: 26,
     letterSpacing: -0.3,
     color: colors.textPrimary,
+  },
+  ensRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  ensName: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: display.bold,
+    fontSize: 14,
+    color: colors.accent200,
+  },
+  ensHint: {
+    ...type.caption,
+    color: colors.textSecondary,
   },
   pressed: {
     opacity: 0.7,

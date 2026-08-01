@@ -48,6 +48,7 @@ type BootSnapshot = {
   userId: string | null;
   email: string | null;
   username: string | null;
+  ensName: string | null;
   referralCode: string | null;
   wallet: WalletSummary | null;
 };
@@ -74,6 +75,7 @@ function persistCurrentSnapshot(state: {
   userId: string | null;
   email: string | null;
   username: string | null;
+  ensName: string | null;
   referralCode: string | null;
   wallet: WalletSummary | null;
 }): void {
@@ -81,6 +83,7 @@ function persistCurrentSnapshot(state: {
     userId: state.userId,
     email: state.email,
     username: state.username,
+    ensName: state.ensName,
     referralCode: state.referralCode,
     wallet: state.wallet,
   });
@@ -123,6 +126,8 @@ type CurrentUserState = {
   userId: string | null;
   email: string | null;
   username: string | null;
+  /** <label>.playkombat.xyz once minted; null until then. */
+  ensName: string | null;
   /** This user's own shareable referral code (null until onboarding). */
   referralCode: string | null;
   profileError: LoadError | null;
@@ -157,6 +162,7 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
   userId: null,
   email: null,
   username: null,
+  ensName: null,
   referralCode: null,
   profileError: null,
 
@@ -206,6 +212,7 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
       userId: null,
       email: null,
       username: null,
+      ensName: null,
       referralCode: null,
       profileStatus: 'idle',
       profileError: null,
@@ -221,11 +228,25 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
     }
     set({ profileStatus: 'loading', profileError: null });
     try {
-      const { id, email, username, referralCode } =
+      const { id, email, username, ensName, referralCode } =
         await apiClient.getCurrentUser();
-      set({ userId: id, email, username, referralCode, profileStatus: 'ready' });
+      set({
+        userId: id,
+        email,
+        username,
+        ensName,
+        referralCode,
+        profileStatus: 'ready',
+      });
       const { wallet } = get();
-      persistSnapshot({ userId: id, email, username, referralCode, wallet });
+      persistSnapshot({
+        userId: id,
+        email,
+        username,
+        ensName,
+        referralCode,
+        wallet,
+      });
     } catch (err) {
       // Server unreachable but we have a last-good snapshot: boot into
       // offline mode instead of the error screen. Games are gated by the
@@ -237,6 +258,7 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
             userId: snapshot.userId,
             email: snapshot.email,
             username: snapshot.username,
+            ensName: snapshot.ensName ?? null,
             referralCode: snapshot.referralCode ?? null,
             profileStatus: 'ready',
           });
@@ -256,7 +278,11 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
     // Let ApiError (e.g. 409 taken, 400 bad referral code) propagate - the
     // caller (OnboardingScreen) shows it inline.
     const updated = await apiClient.updateUsername(username, referredByCode);
-    set({ username: updated.username, referralCode: updated.referralCode });
+    set({
+      username: updated.username,
+      ensName: updated.ensName,
+      referralCode: updated.referralCode,
+    });
   },
 
   ensureWallet: async () => {

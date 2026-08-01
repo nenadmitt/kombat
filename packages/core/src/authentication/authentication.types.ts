@@ -16,6 +16,9 @@ export type UserProfile = {
   id: string;
   email: string;
   username: string | null;
+  /** <label>.playkombat.xyz, derived from the first username. Null until it
+   *  is minted, and null forever if the mint could not find a free label. */
+  ensName: string | null;
   /** This user's own shareable code; null until they pick a username. */
   referralCode: string | null;
   /** Username of whoever referred them, if anyone. */

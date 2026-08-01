@@ -58,6 +58,7 @@ const TX_STATUS_BADGE: Record<
  */
 export default function WalletScreen() {
   const wallet = useCurrentUserStore(state => state.wallet);
+  const ensName = useCurrentUserStore(state => state.ensName);
   const [tab, setTab] = useState<TabKey>('pot');
   const [chainId, setChainId] = useState<ChainId>(DEFAULT_CHAIN_ID);
   const [coolingDown, setCoolingDown] = useState(false);
@@ -190,6 +191,7 @@ export default function WalletScreen() {
           {wallet ? (
             <WalletAssetsTab
               address={wallet.address}
+              ensName={ensName}
               chainId={chainId}
               balances={balances}
               pot={pot}
