@@ -59,6 +59,8 @@ const STAKE_POT_ABI = [
 const PERMIT_TTL_SECONDS = 30 * 60;
 
 type DepositParams = {
+  /** Whose key signs this - the secret is stored per account. */
+  userId: string;
   chainId: BalanceChainId;
   /** The StakePot contract, from GET /stake-pot/deposit-target. */
   pot: Address;
@@ -76,12 +78,13 @@ type DepositParams = {
  * credit follows once the server's watcher sees enough confirmations.
  */
 export async function depositToStakePot({
+  userId,
   chainId,
   pot,
   token,
   amount,
 }: DepositParams): Promise<Hex> {
-  const secret = await getWalletSecret();
+  const secret = await getWalletSecret(userId);
   if (!secret) {
     throw new Error('Wallet key not found on this device');
   }

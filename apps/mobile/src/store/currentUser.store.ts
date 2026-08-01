@@ -19,7 +19,12 @@ import {
   deriveAddressFromPrivateKey,
   derivePrivateKeyFromMnemonic,
 } from '../wallet/derive-wallet';
-import { getWalletSecret, saveWalletSecret } from '../wallet/wallet-keychain';
+import {
+  clearLegacyWalletSecret,
+  getWalletSecret,
+  readLegacyWalletSecret,
+  saveWalletSecret,
+} from '../wallet/wallet-keychain';
 import { useGameStore } from './game.store';
 import { useServerStore } from './server.store';
 
@@ -91,13 +96,47 @@ function persistCurrentSnapshot(state: {
 
 /** Wallet for an offline boot: last-good snapshot, else the address derived
  *  from the Keychain secret (the key never leaves the device). */
-async function resolveOfflineWallet(): Promise<WalletSummary | null> {
+/**
+ * Move a pre-per-user secret into this account's slot, once its address proves
+ * it belongs to them. Wrong-owner secrets are left where they are rather than
+ * deleted: on a shared device that slot is still somebody's only key.
+ */
+async function adoptLegacySecret(
+  userId: string,
+  address: string,
+): Promise<void> {
+  try {
+    if (await getWalletSecret(userId)) {
+      return;
+    }
+    const legacy = await readLegacyWalletSecret();
+    if (!legacy) {
+      return;
+    }
+    const derived = deriveAddressFromPrivateKey(legacy.privateKey);
+    if (derived.toLowerCase() !== address.toLowerCase()) {
+      return;
+    }
+    await saveWalletSecret(userId, legacy);
+    await clearLegacyWalletSecret();
+  } catch {
+    // A failed migration only costs the next attempt: the legacy slot is
+    // untouched unless the keyed copy was written first.
+  }
+}
+
+async function resolveOfflineWallet(
+  userId: string | null,
+): Promise<WalletSummary | null> {
   const snapshot = await readSnapshot();
   if (snapshot?.wallet) {
     return snapshot.wallet;
   }
+  if (!userId) {
+    return null;
+  }
   try {
-    const secret = await getWalletSecret();
+    const secret = await getWalletSecret(userId);
     if (!secret) {
       return null;
     }
@@ -205,10 +244,14 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
     // The snapshot belongs to this login - a different account must not
     // boot offline into someone else's profile.
     await AsyncStorage.removeItem(BOOT_SNAPSHOT_STORAGE_KEY);
-    // Wallet state (and its Keychain-backed secret) is intentionally left
-    // alone - the wallet persists across logout so logging back in as the
-    // same user doesn't need to re-fetch/re-create it.
+    // The secret stays in the Keychain, keyed by user, so signing back in as
+    // the same account still finds it. The in-memory wallet does not: leaving
+    // walletStatus 'ready' meant the navigator never re-ran ensureWallet, and
+    // the next account inherited this one's address and key.
     set({
+      wallet: null,
+      walletStatus: 'idle',
+      walletError: null,
       accessToken: null,
       authStatus: 'unauthenticated',
       userId: null,
@@ -298,14 +341,18 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
   },
 
   ensureWallet: async () => {
-    const { walletStatus } = get();
+    const { walletStatus, userId } = get();
     if (walletStatus === 'checking' || walletStatus === 'creating') {
       return;
+    }
+    if (!userId) {
+      return; // The profile decides whose wallet this is.
     }
     set({ walletStatus: 'checking', walletError: null });
     try {
       const wallets = await apiClient.listWallets();
       if (wallets.length > 0) {
+        await adoptLegacySecret(userId, wallets[0].address);
         set({ wallet: wallets[0], walletStatus: 'ready' });
         persistCurrentSnapshot(get());
         return;
@@ -316,7 +363,7 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
         WalletNetwork.Ethereum,
       );
       const privateKey = derivePrivateKeyFromMnemonic(mnemonic);
-      await saveWalletSecret({ mnemonic, privateKey });
+      await saveWalletSecret(userId, { mnemonic, privateKey });
       set({
         wallet: { address, network: WalletNetwork.Ethereum },
         walletStatus: 'ready',
@@ -326,7 +373,7 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
       // Offline fallback: snapshot first, else recover the address straight
       // from the Keychain secret - creating a brand-new wallet is the only
       // path that truly needs the server.
-      const offlineWallet = await resolveOfflineWallet();
+      const offlineWallet = await resolveOfflineWallet(get().userId);
       if (offlineWallet) {
         set({ wallet: offlineWallet, walletStatus: 'ready' });
         useServerStore.getState().reportOffline();

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { formatUnits, parseUnits, type Address, type Hex } from 'viem';
 
+import { useCurrentUserStore } from '../../store/currentUser.store';
 import type { TokenBalance } from '../../store/walletBalances.store';
 import { NETWORK_FEE_USD } from '../../wallet/market-mock';
 import { colors, radius, spacing } from '../../theme/colors';
@@ -65,6 +66,7 @@ export default function WithdrawModal({
         tokens[0]
       ).symbol,
   );
+  const userId = useCurrentUserStore(state => state.userId);
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
   const [activeFraction, setActiveFraction] = useState<number | null>(null);
@@ -173,10 +175,15 @@ export default function WithdrawModal({
 
   const handleConfirm = async () => {
     if (!resolved) return;
+    if (!userId) {
+      setError('Your session is still loading. Try again in a moment.');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
       const hash = await sendTransfer({
+        userId,
         chainId: chain.id,
         token,
         to: resolved.address,
