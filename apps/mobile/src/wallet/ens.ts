@@ -9,6 +9,14 @@ function evmCoinType(chainId: BalanceChainId): bigint {
   return 0x80000000n + BigInt(VIEM_CHAIN[chainId].id);
 }
 
+/**
+ * A dotted name ending in a 2-3 character TLD: .eth, .xyz for playkombat.xyz
+ * and the other DNS names imported into ENS, .io, .gg. The labels stay
+ * permissive because normalize() is what actually validates them, and ENS
+ * names can carry unicode.
+ */
+const ENS_NAME_PATTERN = /^[^.\s]+(?:\.[^.\s]+)*\.[a-z]{2,3}$/i;
+
 export type ResolvedRecipient = {
   address: Address;
   /** Set when the input was an ENS name that we resolved. */
@@ -30,10 +38,7 @@ export async function resolveRecipient(
     return { address: getAddress(value) };
   }
 
-  // Any name with a dot: .eth, a DNS name imported into ENS, an offchain
-  // subname resolved through CCIP-read. Which of those resolve is the
-  // resolver's business, not a hardcoded suffix list.
-  if (!value.includes('.') || value.startsWith('.') || value.endsWith('.')) {
+  if (!ENS_NAME_PATTERN.test(value)) {
     throw new Error('Enter a valid address or ENS name');
   }
 
