@@ -19,6 +19,14 @@ import { SettlementStatus, GameRoomStatus, GameType, StakeAsset } from './types/
 import { WalletNetwork, WalletOrigin } from './types/wallet';
 
 /**
+ * "Rooms this user took part in", in the seat columns' own order. The array
+ * seat uses `@>` rather than `= ANY(...)`: only containment can use the GIN
+ * index on opponent_ids, and without it every stats query seq-scans the table.
+ */
+const PLAYED_IN_ROOM =
+  '(room.user_id = :userId OR room.opponent_id = :userId OR room.opponent_ids @> ARRAY[:userId]::uuid[])';
+
+/**
  * Sole point of contact with TypeORM repositories/DataSource. Other modules
  * call through here instead of injecting `Repository<T>` directly, so the
  * schema and ORM stay implementation details of the db module.
@@ -135,16 +143,66 @@ export class DbService {
       )
       .addSelect('COUNT(*) FILTER (WHERE room.winner_user_id IS NULL)', 'voids')
       .where('room.status = :status', { status: GameRoomStatus.Completed })
-      .andWhere(
-        '(room.user_id = :userId OR room.opponent_id = :userId OR :userId = ANY(room.opponent_ids))',
-        { userId },
-      )
+      .andWhere(PLAYED_IN_ROOM, { userId })
       .getRawOne<{ games: string; wins: string; voids: string }>();
     return {
       games: Number(row?.games ?? 0),
       wins: Number(row?.wins ?? 0),
       voids: Number(row?.voids ?? 0),
     };
+  }
+
+  /** Completed matches per game type, most-played first. */
+  async findGameTypeCountsForUser(
+    userId: string,
+  ): Promise<{ gameType: number; matches: number }[]> {
+    const rows = await this.gameRoomRepository
+      .createQueryBuilder('room')
+      .select('room.game_type', 'gameType')
+      .addSelect('COUNT(*)', 'matches')
+      .where('room.status = :status', { status: GameRoomStatus.Completed })
+      .andWhere(PLAYED_IN_ROOM, { userId })
+      .groupBy('room.game_type')
+      .orderBy('COUNT(*)', 'DESC')
+      .addOrderBy('room.game_type', 'ASC')
+      .getRawMany<{ gameType: number; matches: string }>();
+    return rows.map(row => ({
+      gameType: Number(row.gameType),
+      matches: Number(row.matches),
+    }));
+  }
+
+  /**
+   * Longest unbroken run of wins, in completion order. Gaps-and-islands: every
+   * row in one run shares (overall row number - row number within its
+   * won/not-won partition), so grouping on that difference sizes each run.
+   * Voids break a streak - they are not wins.
+   */
+  async findBestWinStreakForUser(userId: string): Promise<number> {
+    const row = await this.gameRoomRepository.manager.query<
+      { streak: string | null }[]
+    >(
+      `SELECT MAX(len) AS streak
+         FROM (
+           SELECT COUNT(*) AS len
+             FROM (
+               SELECT
+                 winner_user_id = $1 AS is_win,
+                 ROW_NUMBER() OVER (ORDER BY completed_at, id)
+                   - ROW_NUMBER() OVER (
+                       PARTITION BY winner_user_id = $1
+                       ORDER BY completed_at, id
+                     ) AS run
+                 FROM game_rooms
+                WHERE status = $2
+                  AND (user_id = $1 OR opponent_id = $1 OR opponent_ids @> ARRAY[$1]::uuid[])
+             ) marked
+            WHERE marked.is_win
+            GROUP BY marked.run
+         ) runs`,
+      [userId, GameRoomStatus.Completed],
+    );
+    return Number(row[0]?.streak ?? 0);
   }
 
   /**
@@ -171,10 +229,7 @@ export class DbService {
       .where('room.status = :status', { status: GameRoomStatus.Completed })
       .andWhere('room.stake_token IS NOT NULL')
       .andWhere('room.winner_user_id IS NOT NULL')
-      .andWhere(
-        '(room.user_id = :userId OR room.opponent_id = :userId OR :userId = ANY(room.opponent_ids))',
-        { userId },
-      )
+      .andWhere(PLAYED_IN_ROOM, { userId })
       .groupBy('room.stake_token')
       .getRawMany<{ stakeToken: number; net: string }>();
     return rows.map(r => ({
@@ -354,10 +409,7 @@ export class DbService {
       .where('room.status IN (:...statuses)', {
         statuses: [GameRoomStatus.Pending, GameRoomStatus.InProgress],
       })
-      .andWhere(
-        '(room.user_id = :userId OR room.opponent_id = :userId OR :userId = ANY(room.opponent_ids))',
-        { userId },
-      )
+      .andWhere(PLAYED_IN_ROOM, { userId })
       .getOne();
   }
 
@@ -532,10 +584,7 @@ export class DbService {
     return this.gameRoomRepository
       .createQueryBuilder('room')
       .where('room.status = :status', { status: GameRoomStatus.Completed })
-      .andWhere(
-        '(room.user_id = :userId OR room.opponent_id = :userId OR :userId = ANY(room.opponent_ids))',
-        { userId },
-      )
+      .andWhere(PLAYED_IN_ROOM, { userId })
       .orderBy('room.completed_at', 'DESC')
       .take(limit)
       .skip(offset)

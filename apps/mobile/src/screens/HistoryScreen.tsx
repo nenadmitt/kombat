@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -6,32 +6,58 @@ import {
   ApiError,
   STAKE_ASSET_SYMBOLS,
   formatStakeAmount,
+  winRate,
   type GameType,
   type MatchHistoryEntry,
 } from '@gaming-platform/core';
 
 import { apiClient } from '../api/client';
 import Icon from '../components/Icon';
+import { useCooldown } from '../hooks/useCooldown';
+import { usePlayerStatsStore } from '../store/playerStats.store';
 import { useServerStore } from '../store/server.store';
-import { Card, Chip, SectionLabel, StatTile, type ChipTone } from '../components/ui';
+import { SectionLabel, SegmentedTabs, type SegmentedTab } from '../components/ui';
 import GameIcon from '../games/GameIcon';
 import { GAME_TYPE_LABELS } from '../games/game-type-labels';
 import { colors, radius, spacing } from '../theme/colors';
-import { mono, type } from '../theme/typography';
+import { display, mono, type } from '../theme/typography';
 
 type Status = 'loading' | 'ready' | 'error';
+type Filter = 'all' | 'win' | 'loss';
 
 /** First page size, then how many more we pull on each scroll to the bottom. */
 const PAGE_SIZE = 10;
 const PAGE_SIZE_MORE = 8;
 
+const ICON_TILE = 40;
+/** Win/loss strip: a tall accent bar per win, a short muted one per loss. */
+const BAR_WIDTH = 8;
+const BAR_TALL = 28;
+const BAR_SHORT = 16;
+const BAR_COUNT = 6;
+
 const RESULT_META: Record<
   MatchHistoryEntry['result'],
-  { label: string; tone: ChipTone; prizeColor: string }
+  { label: string; color: string }
 > = {
-  win: { label: 'Win', tone: 'success', prizeColor: colors.success },
-  loss: { label: 'Loss', tone: 'danger', prizeColor: colors.danger },
-  void: { label: 'Voided', tone: 'neutral', prizeColor: colors.textMuted },
+  win: { label: 'WON', color: colors.success },
+  loss: { label: 'LOST', color: colors.danger },
+  void: { label: 'VOID', color: colors.textMuted },
+};
+
+const FILTER_TABS: readonly SegmentedTab<Filter>[] = [
+  { value: 'all', label: 'All games' },
+  { value: 'win', label: 'Wins' },
+  { value: 'loss', label: 'Losses' },
+];
+
+const EMPTY_COPY: Record<Filter, { title: string; body: string }> = {
+  all: {
+    title: 'No matches yet',
+    body: 'Your completed games - result, stake and winnings - land here.',
+  },
+  win: { title: 'No wins yet', body: 'Take a match and it shows up here.' },
+  loss: { title: 'No losses', body: 'Nothing lost so far. Keep it that way.' },
 };
 
 function formatWhen(iso: string): string {
@@ -45,23 +71,36 @@ function formatWhen(iso: string): string {
   return date.toLocaleDateString();
 }
 
-/** "+19 USDC" / "-10 USDC" / "FREE" for a history entry. */
+/** "120 USDC" / "Free" - the stake each player put up. */
+function stakeLabel(entry: MatchHistoryEntry): string {
+  if (entry.stakeToken === null || !entry.stakeAmount) {
+    return 'Free';
+  }
+  return `${formatStakeAmount(entry.stakeAmount, entry.stakeToken)} ${STAKE_ASSET_SYMBOLS[entry.stakeToken]}`;
+}
+
+/** Signed net for the row's right rail ("+228" / "-50"); the token lives in
+ *  the meta line, so this stays a bare number. */
 function prizeLabel(entry: MatchHistoryEntry): string | null {
   if (entry.stakeToken === null || entry.prizeDelta === null) {
     return null;
   }
   const formatted = formatStakeAmount(entry.prizeDelta, entry.stakeToken);
-  const signed = entry.prizeDelta.startsWith('-') || formatted === '0'
-    ? formatted
-    : `+${formatted}`;
-  return `${signed} ${STAKE_ASSET_SYMBOLS[entry.stakeToken]}`;
+  if (entry.prizeDelta.startsWith('-') || formatted === '0') {
+    return formatted;
+  }
+  return `+${formatted}`;
 }
 
 export default function HistoryScreen() {
   const [entries, setEntries] = useState<MatchHistoryEntry[]>([]);
+  const stats = usePlayerStatsStore(state => state.stats);
+  const statsLoaded = usePlayerStatsStore(state => state.fetchedAt !== null);
+  const loadStats = usePlayerStatsStore(state => state.load);
   const [status, setStatus] = useState<Status>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [filter, setFilter] = useState<Filter>('all');
   /** False once the server returns a short page - nothing more to fetch. */
   const [hasMore, setHasMore] = useState(true);
   /** Guards against overlapping loadMore calls (onEndReached can double-fire). */
@@ -111,140 +150,154 @@ export default function HistoryScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchFirstPage();
-    }, [fetchFirstPage]),
+      void fetchFirstPage();
+      // Cached and shared with Profile, so a tab bounce is not a second query.
+      void loadStats();
+    }, [fetchFirstPage, loadStats]),
   );
 
-  // Stats reflect the matches loaded so far (they grow as you scroll).
-  const played = entries.length;
-  const wins = entries.filter(e => e.result === 'win').length;
-  const losses = entries.filter(e => e.result === 'loss').length;
-  const decided = wins + losses;
-  const winRateFraction = decided > 0 ? wins / decided : 0;
-  const winRate = decided > 0 ? `${((wins / decided) * 100).toFixed(1)}%` : '-';
+  // The list and the counters both come back, so the button is rate-limited.
+  const refresh = useCooldown(() => {
+    void fetchFirstPage();
+    void loadStats({ force: true });
+  });
+
+  // The endpoint pages raw matches with no result filter, so Wins/Losses cut
+  // the loaded pages client-side.
+  const visible = useMemo(
+    () => (filter === 'all' ? entries : entries.filter(e => e.result === filter)),
+    [entries, filter],
+  );
+
+  // A filter can hide every loaded match while later pages still hold some;
+  // FlatList never fires onEndReached on an empty list, so pull the next page.
+  useEffect(() => {
+    if (status === 'ready' && hasMore && entries.length > 0 && visible.length === 0) {
+      void loadMore();
+    }
+  }, [status, hasMore, entries.length, visible.length, loadMore]);
+
+  const decided = stats.wins + stats.losses;
+  // Zeroes are the store's cold-start default, not a result - hold the dash
+  // until the aggregate has actually arrived.
+  const statValue = (value: number) => (statsLoaded ? `${value}` : '-');
+  const winRateLabel =
+    !statsLoaded || decided === 0 ? '-' : `${winRate(stats)}%`;
+
+  // Newest first from the server; the strip reads left to right in time.
+  const recentResults = entries
+    .slice(0, BAR_COUNT)
+    .map(e => e.result)
+    .reverse();
 
   const renderItem = useCallback(({ item: entry }: { item: MatchHistoryEntry }) => {
     const meta = RESULT_META[entry.result];
     const prize = prizeLabel(entry);
     return (
-      <Card style={styles.matchCard}>
-        <View style={styles.matchTop}>
-          <View style={styles.gameIcon}>
-            <GameIcon type={entry.gameType as GameType} size={34} />
-          </View>
-          <View style={styles.matchMid}>
-            <Text style={styles.matchGame}>
+      <View style={styles.row}>
+        <View style={styles.rowIcon}>
+          <GameIcon type={entry.gameType as GameType} size={26} />
+        </View>
+        <View style={styles.rowMid}>
+          <View style={styles.rowTitleLine}>
+            <Text style={styles.rowGame} numberOfLines={1}>
               {GAME_TYPE_LABELS[entry.gameType as keyof typeof GAME_TYPE_LABELS] ?? 'Match'}
             </Text>
-            <Text style={styles.matchMeta}>
-              vs {entry.opponentUsername ?? 'Unknown'} · {formatWhen(entry.completedAt)}
-            </Text>
+            <Text style={[styles.rowResult, { color: meta.color }]}>{meta.label}</Text>
           </View>
-          <Chip label={meta.label} tone={meta.tone} />
+          <Text style={styles.rowMeta} numberOfLines={1}>
+            vs {entry.opponentUsername ?? 'Unknown'} · {formatWhen(entry.completedAt)} ·{' '}
+            {stakeLabel(entry)}
+          </Text>
         </View>
-
-        <View style={styles.matchDivider} />
-
-        <View style={styles.matchBottom}>
-          <View style={styles.matchStat}>
-            <Text style={[type.label, styles.matchStatLabel]}>Stake</Text>
-            <Text style={styles.matchStatValue}>
-              {entry.stakeToken !== null && entry.stakeAmount
-                ? `${formatStakeAmount(entry.stakeAmount, entry.stakeToken)} ${STAKE_ASSET_SYMBOLS[entry.stakeToken]}`
-                : 'FREE'}
-            </Text>
-          </View>
-          <View style={styles.matchStatDivider} />
-          <View style={styles.matchStat}>
-            <Text style={[type.label, styles.matchStatLabel]}>Payout</Text>
-            <Text style={[styles.matchStatValue, prize ? { color: meta.prizeColor } : null]}>
-              {prize ?? '-'}
-            </Text>
-          </View>
-        </View>
-      </Card>
+        <Text style={[styles.rowPrize, prize ? { color: meta.color } : null]}>
+          {prize ?? '-'}
+        </Text>
+      </View>
     );
   }, []);
 
   const listHeader = (
     <View style={styles.headerBlock}>
-      <Text style={styles.title}>Match History</Text>
+      <Text style={styles.title}>History</Text>
 
-      {/* Stat grid (computed from loaded history) */}
-      <View style={styles.statGrid}>
-        <View style={styles.statRow}>
-          <StatTile
-            label="Games played"
-            value={`${played}`}
-            icon="games"
-            progress={played > 0 ? 1 : 0}
-          />
-          <StatTile
-            label="Wins"
-            value={`${wins}`}
-            valueColor={colors.success}
-            icon="trophy"
-            iconTone={colors.success}
-            progress={played > 0 ? wins / played : 0}
-          />
+      <View style={styles.heroRow}>
+        <View>
+          <Text style={[type.label, styles.heroLabel]}>GAMES PLAYED</Text>
+          <Text style={styles.heroValue}>{statValue(stats.games)}</Text>
         </View>
-        <View style={styles.statRow}>
-          <StatTile
-            label="Losses"
-            value={`${losses}`}
-            valueColor={colors.danger}
-            icon="close"
-            iconTone={colors.danger}
-            progress={played > 0 ? losses / played : 0}
-          />
-          <StatTile
-            label="Win rate"
-            value={winRate}
-            icon="trending-up"
-            accent
-            progress={winRateFraction}
-          />
+        <View style={styles.barStrip}>
+          {recentResults.map((result, index) => (
+            <View
+              key={`${result}-${index}`}
+              style={[
+                styles.bar,
+                result === 'win' ? styles.barWin : styles.barOther,
+              ]}
+            />
+          ))}
         </View>
       </View>
 
-      <SectionLabel action="Refresh" onActionPress={fetchFirstPage}>
+      <View style={styles.divider} />
+
+      <View style={styles.statRow}>
+        <View style={styles.statSlot}>
+          <Text style={[styles.statValue, { color: colors.success }]}>{statValue(stats.wins)}</Text>
+          <Text style={[type.label, styles.statLabel]}>WON</Text>
+        </View>
+        <View style={styles.statSlot}>
+          <Text style={[styles.statValue, { color: colors.danger }]}>{statValue(stats.losses)}</Text>
+          <Text style={[type.label, styles.statLabel]}>LOST</Text>
+        </View>
+        <View style={styles.statSlot}>
+          <Text style={[styles.statValue, { color: colors.accent }]}>{winRateLabel}</Text>
+          <Text style={[type.label, styles.statLabel]}>WIN RATE</Text>
+        </View>
+      </View>
+
+      <SegmentedTabs tabs={FILTER_TABS} value={filter} onChange={setFilter} />
+
+      <SectionLabel
+        action={refresh.ready ? 'Refresh' : `${refresh.secondsLeft}s`}
+        onActionPress={refresh.run}
+      >
         Recent matches
       </SectionLabel>
     </View>
   );
 
   const listEmpty =
-    status === 'loading' ? (
+    status === 'loading' || loadingMore ? (
       <ActivityIndicator color={colors.accent} style={styles.stateBlock} />
     ) : status === 'error' ? (
       <View style={styles.stateBlock}>
         <Icon type="warning" color={colors.textMuted} size={32} />
         <Text style={styles.emptyText}>{errorMessage}</Text>
-        <Pressable onPress={fetchFirstPage}>
+        <Pressable onPress={() => void fetchFirstPage()}>
           <Text style={styles.retryText}>Try again</Text>
         </Pressable>
       </View>
     ) : (
       <View style={styles.stateBlock}>
         <Icon type="history" color={colors.textMuted} size={32} />
-        <Text style={styles.emptyText}>No matches yet</Text>
-        <Text style={styles.emptySubtext}>
-          Your completed games - result, stake and winnings - land here.
-        </Text>
+        <Text style={styles.emptyText}>{EMPTY_COPY[filter].title}</Text>
+        <Text style={styles.emptySubtext}>{EMPTY_COPY[filter].body}</Text>
       </View>
     );
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <FlatList
-        data={entries}
+        data={visible}
         keyExtractor={item => item.roomId}
         renderItem={renderItem}
+        ItemSeparatorComponent={Separator}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={listEmpty}
-        onEndReached={loadMore}
+        onEndReached={() => void loadMore()}
         onEndReachedThreshold={0.5}
         ListFooterComponent={
           loadingMore ? (
@@ -256,6 +309,10 @@ export default function HistoryScreen() {
   );
 }
 
+function Separator() {
+  return <View style={styles.divider} />;
+}
+
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -265,7 +322,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: spacing.xxl * 2,
-    gap: spacing.sm,
   },
   headerBlock: {
     gap: spacing.md,
@@ -275,12 +331,59 @@ const styles = StyleSheet.create({
     ...type.title,
     color: colors.textPrimary,
   },
-  statGrid: {
+  heroRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
     gap: spacing.sm,
+  },
+  heroLabel: {
+    color: colors.textMuted,
+  },
+  heroValue: {
+    fontFamily: display.extraBold,
+    fontSize: 40,
+    lineHeight: 44,
+    letterSpacing: -1,
+    color: colors.textPrimary,
+    marginTop: spacing.xs,
+  },
+  barStrip: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: spacing.xxs,
+  },
+  bar: {
+    width: BAR_WIDTH,
+    borderRadius: radius.sm,
+  },
+  barWin: {
+    height: BAR_TALL,
+    backgroundColor: colors.accent,
+  },
+  barOther: {
+    height: BAR_SHORT,
+    backgroundColor: colors.borderStrong,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.cardBorder,
   },
   statRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
+  },
+  statSlot: {
+    // Even columns, so a wide value cannot shove its neighbour's label.
+    flex: 1,
+  },
+  statValue: {
+    fontFamily: display.extraBold,
+    fontSize: 22,
+    lineHeight: 26,
+  },
+  statLabel: {
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   stateBlock: {
     alignItems: 'center',
@@ -305,58 +408,47 @@ const styles = StyleSheet.create({
     fontFamily: type.button.fontFamily,
     color: colors.accentLight,
   },
-  matchCard: {
-    gap: spacing.sm,
-  },
-  matchTop: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    paddingVertical: spacing.sm,
   },
-  gameIcon: {
-    width: 44,
-    height: 44,
+  rowIcon: {
+    width: ICON_TILE,
+    height: ICON_TILE,
     borderRadius: radius.sm,
     backgroundColor: colors.accent900,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  matchMid: {
+  rowMid: {
     flex: 1,
+    gap: spacing.xxs,
   },
-  matchGame: {
+  rowTitleLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  rowGame: {
     ...type.subheading,
+    flexShrink: 1,
     color: colors.textPrimary,
   },
-  matchMeta: {
+  rowResult: {
+    fontFamily: mono.bold,
+    fontSize: 10,
+    letterSpacing: 0.8,
+  },
+  rowMeta: {
     fontFamily: mono.regular,
     fontSize: 11,
     color: colors.textMuted,
   },
-  matchDivider: {
-    height: 1,
-    backgroundColor: colors.cardBorder,
-  },
-  matchBottom: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  matchStat: {
-    flex: 1,
-    gap: spacing.xxs,
-  },
-  matchStatDivider: {
-    width: 1,
-    alignSelf: 'stretch',
-    backgroundColor: colors.cardBorder,
-    marginHorizontal: spacing.md,
-  },
-  matchStatLabel: {
-    color: colors.textMuted,
-  },
-  matchStatValue: {
-    fontFamily: mono.semiBold,
+  rowPrize: {
+    fontFamily: mono.bold,
     fontSize: 14,
-    color: colors.textPrimary,
+    color: colors.textMuted,
   },
 });

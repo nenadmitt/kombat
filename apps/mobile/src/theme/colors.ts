@@ -103,8 +103,9 @@ export const colors = {
   textPrimary: '#e9e9ed',
   /** Secondary / helper text. */
   textSecondary: '#9a9ba6',
-  /** Muted text (labels, subtitles). */
-  textMuted: '#71727e',
+  /** Muted text (labels, subtitles). Lightened off the design's own grey so
+   *  11px uppercase labels clear 4.5:1 on the background, cards and inputs. */
+  textMuted: '#8a8b9a',
   /** Faint text (placeholders, fine print, disabled). */
   textFaint: '#4a4b57',
 

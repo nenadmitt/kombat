@@ -21,6 +21,7 @@ import {
 } from '../wallet/derive-wallet';
 import { getWalletSecret, saveWalletSecret } from '../wallet/wallet-keychain';
 import { useGameStore } from './game.store';
+import { usePlayerStatsStore } from './playerStats.store';
 import { useServerStore } from './server.store';
 
 type AuthStatus = 'loading' | 'unauthenticated' | 'authenticated';
@@ -231,6 +232,8 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
     // A "waiting for players" popup shouldn't survive into a different
     // logged-in session.
     useGameStore.getState().clear();
+    // Same for the cached lifetime record - it is this account's.
+    usePlayerStatsStore.getState().clear();
   },
 
   loadProfile: async () => {

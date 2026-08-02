@@ -15,6 +15,8 @@ type Props = {
   /** Optional right-aligned action (e.g. "View all"). */
   action?: string;
   onActionPress?: () => void;
+  /** Right-aligned muted count ("3 OF 12"). Ignored when `action` is set. */
+  note?: string;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -23,6 +25,7 @@ export default function SectionLabel({
   children,
   action,
   onActionPress,
+  note,
   style,
 }: Props) {
   return (
@@ -32,6 +35,8 @@ export default function SectionLabel({
         <Pressable onPress={onActionPress} hitSlop={8}>
           <Text style={styles.action}>{action}</Text>
         </Pressable>
+      ) : note ? (
+        <Text style={[typePresets.label, styles.label]}>{note}</Text>
       ) : null}
     </View>
   );

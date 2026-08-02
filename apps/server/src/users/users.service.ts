@@ -7,6 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  GameType,
   PlayerStats,
   PublicUserProfile,
   StakeAsset,
@@ -134,16 +135,24 @@ export class UsersService {
 
   /** Lifetime record for the Profile screen. */
   async getStats(userId: string): Promise<PlayerStats> {
-    const [totals, netRows, referrals] = await Promise.all([
-      this.dbService.findMatchTotalsForUser(userId),
-      this.dbService.findStakeNetByTokenForUser(userId),
-      this.dbService.countReferralsFor(userId),
-    ]);
+    const [totals, netRows, referrals, byGameType, bestStreak, user] =
+      await Promise.all([
+        this.dbService.findMatchTotalsForUser(userId),
+        this.dbService.findStakeNetByTokenForUser(userId),
+        this.dbService.countReferralsFor(userId),
+        this.dbService.findGameTypeCountsForUser(userId),
+        this.dbService.findBestWinStreakForUser(userId),
+        this.dbService.findUserById(userId),
+      ]);
 
     const netByToken: PlayerStats['netByToken'] = {};
     for (const row of netRows) {
       netByToken[row.stakeToken as StakeAsset] = row.net;
     }
+
+    // Ordered most-played first, so the head is the headline and the length
+    // is how many different games the player has finished a match in.
+    const [top] = byGameType;
 
     return {
       ...emptyPlayerStats(),
@@ -153,6 +162,12 @@ export class UsersService {
       losses: Math.max(0, totals.games - totals.wins - totals.voids),
       netByToken,
       referrals,
+      bestStreak,
+      distinctGames: byGameType.length,
+      joinedAt: user?.createdAt.toISOString() ?? null,
+      mostPlayed: top
+        ? { gameType: top.gameType as GameType, matches: top.matches }
+        : null,
     };
   }
 

@@ -1,3 +1,4 @@
+import type { GameType } from '../games/game-room.types';
 import type { StakeAsset } from '../games/stake.types';
 
 /**
@@ -19,6 +20,14 @@ export type PlayerStats = {
   netByToken: Partial<Record<StakeAsset, string>>;
   /** How many players signed up with this player's referral code. */
   referrals: number;
+  /** Longest unbroken run of wins, in completion order. */
+  bestStreak: number;
+  /** How many different game types the player has completed a match in. */
+  distinctGames: number;
+  /** Signup time, for the "joined" stat. Null only if the row predates it. */
+  joinedAt: string | null;
+  /** The most-completed game type and its match count; null before the first. */
+  mostPlayed: { gameType: GameType; matches: number } | null;
 };
 
 export const emptyPlayerStats = (): PlayerStats => ({
@@ -28,6 +37,10 @@ export const emptyPlayerStats = (): PlayerStats => ({
   voids: 0,
   netByToken: {},
   referrals: 0,
+  bestStreak: 0,
+  distinctGames: 0,
+  joinedAt: null,
+  mostPlayed: null,
 });
 
 /** Wins as a percentage of decided (non-void) matches. 0 before the first. */

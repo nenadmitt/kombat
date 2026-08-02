@@ -1,28 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
-import { Canvas, Circle, SweepGradient, vec } from '@shopify/react-native-skia';
-import {
-  StakeAsset,
-  achievementsFor,
-  emptyPlayerStats,
-  formatStakeAmount,
-  levelForGames,
-  winRate,
-  type AchievementId,
-  type PlayerStats,
-} from '@gaming-platform/core';
+import { achievementsFor, type AchievementId } from '@gaming-platform/core';
 
-import { apiClient } from '../api/client';
 import Icon, { type IconName } from '../components/Icon';
-import {
-  Button,
-  Card,
-  Screen,
-  SectionLabel,
-  useConfirm,
-} from '../components/ui';
+import SettingsSheet from '../components/profile/SettingsSheet';
+import { Card, Screen, SectionLabel, StatTile } from '../components/ui';
+import GameIcon from '../games/GameIcon';
+import { GAME_TYPE_LABELS } from '../games/game-type-labels';
+import { useCooldown } from '../hooks/useCooldown';
 import { useCurrentUserStore } from '../store/currentUser.store';
+import { usePlayerStatsStore } from '../store/playerStats.store';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
 
@@ -34,114 +22,61 @@ const ACHIEVEMENT_ICONS: Record<AchievementId, IconName> = {
   whale: 'crown',
 };
 
-/**
- * Settings rows. Each is informational for now - none of these subsystems
- * exists yet, so rather than a dead tap they open a sheet that says what the
- * row will do. `useConfirm` is the app-wide single Modal, so this can never
- * stack a second one (see CLAUDE.md rule 5).
- */
-const SETTINGS_ROWS = [
-  {
-    key: 'notifications',
-    icon: 'bell' as IconName,
-    label: 'Notifications',
-    body: 'Push notifications are not configurable yet. Today you get alerts when an opponent joins your room and when a match you are in needs your turn.',
-  },
-  {
-    key: 'security',
-    icon: 'shield' as IconName,
-    label: 'Security & Wallet',
-    body: 'Your wallet key is generated on this device and stored in the iOS Keychain / Android Keystore. It never leaves the device and is never sent to our servers. Back up your recovery phrase from the Wallet tab.',
-  },
-  {
-    key: 'help',
-    icon: 'help' as IconName,
-    label: 'Help & Support',
-    body: 'Need a hand? Email support@playkombat.xyz with your username and, if it is about a specific match, the room code. We answer within a couple of days.',
-  },
-  {
-    key: 'terms',
-    icon: 'file-text' as IconName,
-    label: 'Terms of Service',
-    body: 'By playing you agree that staked matches are wagers of real assets, that results are final once settled on-chain, and that you are responsible for complying with the laws where you live. Full terms ship before public launch.',
-  },
-] as const;
+/** Referral payouts are not tracked yet, so the card reports nothing earned. */
+const REFERRAL_PLACEHOLDER = { invited: 0, matches: 0, earned: '$0.00' } as const;
 
-/** Shorten a display amount so the stat chip stays on one line ("4231.55"
- *  -> "4.2k"). Display only - never used for anything that must be exact. */
-function compactAmount(value: number): string {
-  const abs = Math.abs(value);
-  if (abs >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-  }
-  if (abs >= 1_000) {
-    return `${(value / 1_000).toFixed(1).replace(/\.0$/, '')}k`;
-  }
-  if (abs >= 100) {
-    return value.toFixed(0);
-  }
-  return value.toFixed(2).replace(/\.?0+$/, '');
-}
+/** Denominator for the "games tried" tile. */
+const GAME_COUNT = Object.keys(GAME_TYPE_LABELS).length;
 
-/**
- * Net winnings headline: the asset the player has swung most on. The label
- * stays a bare "Earned" (the design's own copy) - prefixing it with the token
- * wrapped onto a second line and knocked the stat row out of alignment.
- */
-function earnedStat(stats: PlayerStats): { value: string; label: string } {
-  const entries = Object.entries(stats.netByToken) as [string, string][];
-  if (entries.length === 0) {
-    return { value: '-', label: 'Earned' };
+const AVATAR = 76;
+/** iOS/Android minimum for anything tappable. */
+const TAP_TARGET = 44;
+const BADGE = 52;
+const ICON_TILE = 32;
+const REFERRAL_TILE = 40;
+
+/** "92d" under three months, then "1y 2m" - the stat slot fits ~4 glyphs. */
+function joinedLabel(joinedAt: string | null): string {
+  if (!joinedAt) {
+    return '-';
   }
-  // Biggest absolute swing wins the headline slot.
-  const [token, net] = entries.reduce((best, entry) => {
-    const a = BigInt(entry[1]) < 0n ? -BigInt(entry[1]) : BigInt(entry[1]);
-    const b = BigInt(best[1]) < 0n ? -BigInt(best[1]) : BigInt(best[1]);
-    return a > b ? entry : best;
-  });
-  const asset = Number(token) as StakeAsset;
-  const sign = BigInt(net) > 0n ? '+' : '';
-  const amount = compactAmount(Number(formatStakeAmount(net, asset)));
-  return {
-    value: `${sign}${amount}`,
-    label: 'Earned',
-  };
+  const days = Math.max(
+    0,
+    Math.floor((Date.now() - new Date(joinedAt).getTime()) / 86_400_000),
+  );
+  if (days < 90) {
+    return `${days}d`;
+  }
+  const years = Math.floor(days / 365);
+  const months = Math.floor((days % 365) / 30);
+  return years > 0 ? `${years}y ${months}m` : `${months}m`;
 }
 
 export default function ProfileScreen() {
   const username = useCurrentUserStore(state => state.username);
   const referralCode = useCurrentUserStore(state => state.referralCode);
   const logout = useCurrentUserStore(state => state.logout);
-  const confirm = useConfirm();
 
-  // Stats are a lifetime aggregate from the server - never derived from the
+  // Lifetime aggregate, served from the shared cache - never derived from the
   // paginated history feed, which only ever sees one page.
-  const [stats, setStats] = useState<PlayerStats>(emptyPlayerStats);
+  const stats = usePlayerStatsStore(state => state.stats);
+  const loaded = usePlayerStatsStore(state => state.fetchedAt !== null);
+  const load = usePlayerStatsStore(state => state.load);
   const [copied, setCopied] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
-    let alive = true;
-    apiClient
-      .getMyStats()
-      .then(s => {
-        if (alive) {
-          setStats(s);
-        }
-      })
-      // A stats failure leaves the zeroed defaults rather than blocking the
-      // whole profile; everything else here is local.
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, []);
+    void load();
+  }, [load]);
+
+  const refresh = useCooldown(() => void load({ force: true }));
 
   const initial = (username ?? '?').charAt(0).toUpperCase();
-  const level = levelForGames(stats.games);
   const achievements = achievementsFor(stats);
+  const unlocked = achievements.filter(a => a.unlocked).length;
   const shareable = referralCode ?? null;
 
-  const handleCopy = useCallback(() => {
+  const handleCopyCode = useCallback(() => {
     if (!shareable) {
       return;
     }
@@ -161,103 +96,135 @@ export default function ProfileScreen() {
     });
   }, [shareable]);
 
-  const statChips = [
-    { value: `${stats.games}`, label: 'Games' },
-    { value: stats.wins + stats.losses > 0 ? `${winRate(stats)}%` : '-', label: 'Win rate' },
-    earnedStat(stats),
-  ];
+  // Before the first fetch the store holds zeroes, and "0 matches" is a claim
+  // rather than a blank - hold the dash until the aggregate has actually come.
+  const stat = (value: number | string) => (loaded ? `${value}` : '-');
 
   return (
-    <Screen scroll contentStyle={styles.content}>
-      {/* Avatar + name + address (centered); everything below is full-width.
-          One uniform gap between every element (the design's flat rhythm). */}
-      <View style={styles.avatarRing}>
-        {/* Conic (sweep) accent ring behind the avatar disc. */}
-        <Canvas style={StyleSheet.absoluteFill}>
-          <Circle cx={52} cy={52} r={52}>
-            <SweepGradient
-              c={vec(52, 52)}
-              colors={[colors.accent, colors.accent400, colors.accent200, colors.accent]}
-            />
-          </Circle>
-        </Canvas>
+    <Screen scroll>
+      <View style={styles.identity}>
         <View style={styles.avatar}>
           <Text style={styles.avatarInitial}>{initial}</Text>
         </View>
-        <View style={styles.levelBadge}>
-          <Text style={styles.levelText}>LVL {level}</Text>
+        <View style={styles.identityText}>
+          <Text style={styles.username} numberOfLines={1}>
+            {username ?? 'Player'}
+          </Text>
+          <View style={styles.identityActions}>
+            <Pressable
+              style={styles.iconButton}
+              onPress={refresh.run}
+              disabled={!refresh.ready}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !refresh.ready }}
+              accessibilityLabel={
+                refresh.ready ? 'Refresh stats' : `Refresh again in ${refresh.secondsLeft}s`
+              }
+            >
+              {/* Toned, not dimmed: an opacity that reads as "off" on this
+                  ground drops the glyph under the 3:1 non-text floor. */}
+              <Icon
+                type="refresh"
+                color={refresh.ready ? colors.textSecondary : colors.textMuted}
+                size={18}
+              />
+            </Pressable>
+            <Pressable
+              style={styles.iconButton}
+              onPress={() => setSettingsOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Settings"
+            >
+              <Icon type="settings" color={colors.textSecondary} size={20} />
+            </Pressable>
+          </View>
         </View>
       </View>
-      <Text style={styles.username}>{username ?? 'Player'}</Text>
 
-      {/* Mini stats */}
-      <View style={[styles.statsRow, styles.block]}>
-        {statChips.map(stat => (
-          <View key={stat.label} style={styles.statChip}>
-            <Text style={styles.statValue}>{stat.value}</Text>
-            <Text style={[type.label, styles.statLabel]}>{stat.label}</Text>
-          </View>
-        ))}
+      <View style={styles.statGrid}>
+        <View style={styles.statGridRow}>
+          <StatTile label="Best streak" value={stat(stats.bestStreak)} accent />
+          <StatTile label="Matches" value={stat(stats.games)} />
+        </View>
+        <View style={styles.statGridRow}>
+          <StatTile
+            label="Games tried"
+            value={loaded ? `${stats.distinctGames}/${GAME_COUNT}` : '-'}
+            progress={loaded ? stats.distinctGames / GAME_COUNT : 0}
+          />
+          <StatTile
+            label="Joined"
+            value={loaded ? joinedLabel(stats.joinedAt) : '-'}
+          />
+        </View>
       </View>
 
-      {/* Achievements - derived from the lifetime record, locked ones dimmed. */}
-      <SectionLabel style={styles.block}>Achievements</SectionLabel>
-      <View style={[styles.achievementsRow, styles.block]}>
+      {stats.mostPlayed ? (
+        <View style={styles.mostPlayed}>
+          <View style={styles.iconTile}>
+            <GameIcon type={stats.mostPlayed.gameType} size={22} />
+          </View>
+          <Text style={styles.mostPlayedText} numberOfLines={1}>
+            Most played · <Text style={styles.mostPlayedGame}>
+              {GAME_TYPE_LABELS[stats.mostPlayed.gameType]}
+            </Text>
+          </Text>
+          <Text style={styles.mostPlayedCount}>{stats.mostPlayed.matches}</Text>
+        </View>
+      ) : null}
+
+      <View style={styles.divider} />
+
+      <SectionLabel note={`${unlocked} of ${achievements.length}`}>
+        Achievements
+      </SectionLabel>
+      <View style={styles.badgeRow}>
         {achievements.map(achievement => (
-          <Card
-            key={achievement.id}
-            style={[
-              styles.achievementCard,
-              !achievement.unlocked && styles.achievementLocked,
-            ]}
-            onPress={() =>
-              void confirm({
-                title: achievement.label,
-                message: achievement.unlocked
-                  ? 'Earned.'
-                  : achievement.requirement,
-                icon: ACHIEVEMENT_ICONS[achievement.id],
-                mode: 'info',
-              })
-            }
-          >
+          <View key={achievement.id} style={styles.badgeSlot}>
             <View
-              style={[
-                styles.achievementIcon,
-                !achievement.unlocked && styles.achievementIconLocked,
-              ]}
+              style={[styles.badge, !achievement.unlocked && styles.badgeLocked]}
             >
               <Icon
                 type={achievement.unlocked ? ACHIEVEMENT_ICONS[achievement.id] : 'lock'}
                 color={achievement.unlocked ? colors.onAccent : colors.textMuted}
-                size={20}
+                size={24}
               />
             </View>
-            <Text style={styles.achievementLabel}>{achievement.label}</Text>
-          </Card>
+            {/* Two lines: "First Blood" does not fit a quarter-width slot. */}
+            <Text style={styles.badgeLabel} numberOfLines={2}>
+              {achievement.unlocked ? achievement.label : 'Locked'}
+            </Text>
+          </View>
         ))}
       </View>
 
-      {/* Referral */}
-      <Card accent style={[styles.referralCard, styles.block]}>
-        <Text style={styles.referralTitle}>Invite &amp; Earn</Text>
-        <Text style={styles.referralSubtitle}>
-          {stats.referrals > 0
-            ? `${stats.referrals} ${stats.referrals === 1 ? 'player has' : 'players have'} joined with your code.`
-            : 'Get 5% of entry fees from referrals.'}
-        </Text>
-        <View style={styles.referralRow}>
+      <Card accent style={styles.referralCard}>
+        <View style={styles.referralHead}>
+          <View style={styles.referralIcon}>
+            <Icon type="users" color={colors.accent200} size={20} />
+          </View>
+          <View style={styles.referralHeadText}>
+            <Text style={styles.referralTitle}>Invite &amp; earn</Text>
+            <Text style={styles.referralSubtitle}>
+              Earn a share of the fee from every match your invites play.
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.referralCodeRow}>
           <Pressable
             style={styles.referralCodeBox}
-            onPress={handleCopy}
+            onPress={handleCopyCode}
             disabled={!shareable}
             accessibilityLabel="Copy referral code"
           >
-            <Text style={styles.referralCode}>{shareable ?? '-'}</Text>
+            <Text style={styles.referralCode} numberOfLines={1}>
+              {shareable ?? '-'}
+            </Text>
             <Icon
               type={copied ? 'check' : 'copy'}
               color={copied ? colors.accent : colors.textMuted}
-              size={14}
+              size={16}
             />
           </Pressable>
           <Pressable
@@ -269,175 +236,179 @@ export default function ProfileScreen() {
             <Icon type="share" color={colors.onAccent} size={18} />
           </Pressable>
         </View>
+
+        <View style={styles.referralStats}>
+          <View style={styles.statSlot}>
+            <Text style={styles.referralStatValue}>{REFERRAL_PLACEHOLDER.invited}</Text>
+            <Text style={[type.label, styles.statLabel]}>INVITED</Text>
+          </View>
+          <View style={styles.statSlot}>
+            <Text style={styles.referralStatValue}>{REFERRAL_PLACEHOLDER.matches}</Text>
+            <Text style={[type.label, styles.statLabel]}>PLAYED</Text>
+          </View>
+          <View style={styles.statSlot}>
+            <Text style={[styles.referralStatValue, styles.referralEarned]}>
+              {REFERRAL_PLACEHOLDER.earned}
+            </Text>
+            <Text style={[type.label, styles.statLabel]}>EARNED</Text>
+          </View>
+        </View>
       </Card>
 
-      {/* Settings */}
-      <View style={[styles.settingsList, styles.block]}>
-        {SETTINGS_ROWS.map(row => (
-          <Card
-            key={row.key}
-            onPress={() =>
-              void confirm({
-                title: row.label,
-                message: row.body,
-                icon: row.icon,
-                mode: 'info',
-              })
-            }
-            style={styles.settingsRow}
-          >
-            <View style={styles.settingsRowLeft}>
-              <Icon type={row.icon} color={colors.textSecondary} size={20} />
-              <Text style={styles.settingsLabel}>{row.label}</Text>
-            </View>
-            <Icon type="chevron-right" color={colors.textMuted} size={18} />
-          </Card>
-        ))}
-      </View>
-
-      <Button
-        label="Sign Out"
-        icon="log-out"
-        variant="danger"
-        onPress={() => {
-          void (async () => {
-            const ok = await confirm({
-              title: 'Sign out?',
-              message:
-                'Your wallet key stays on this device, so you can sign back in with the same account.',
-              confirmLabel: 'Sign out',
-              icon: 'log-out',
-              destructive: true,
-            });
-            if (ok) {
-              logout();
-            }
-          })();
-        }}
+      <SettingsSheet
+        visible={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        username={username}
+        onLogout={logout}
       />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    // Center the avatar/name/address; one uniform gap between every element.
+  identity: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
   },
-  // Full-width rows inside the centered stack.
-  block: {
-    alignSelf: 'stretch',
-  },
-  avatarRing: {
-    width: 104,
-    height: 104,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surfaceMuted,
+    width: AVATAR,
+    height: AVATAR,
+    borderRadius: radius.xl,
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitial: {
-    fontFamily: display.bold,
-    fontSize: 36,
-    color: colors.textPrimary,
-  },
-  levelBadge: {
-    position: 'absolute',
-    bottom: -8,
-    backgroundColor: colors.accent,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xxs,
-    borderWidth: 3,
-    borderColor: colors.background,
-  },
-  levelText: {
-    fontFamily: mono.bold,
-    fontSize: 10,
-    letterSpacing: 0.5,
+    fontFamily: display.extraBold,
+    fontSize: 32,
     color: colors.onAccent,
+  },
+  identityText: {
+    flex: 1,
+    gap: spacing.xs,
   },
   username: {
     ...type.title,
     color: colors.textPrimary,
-    marginTop: spacing.xs,
   },
-  statsRow: {
+  identityActions: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  iconButton: {
+    width: TAP_TARGET,
+    height: TAP_TARGET,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.cardBorder,
+  },
+  statGrid: {
+    gap: spacing.sm,
+  },
+  statGridRow: {
     flexDirection: 'row',
     gap: spacing.sm,
   },
-  statChip: {
+  statSlot: {
+    // Even columns, so a wide value cannot shove its neighbour's label.
     flex: 1,
-    alignItems: 'center',
-    gap: spacing.xxs,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radius.md,
-    padding: spacing.md,
-  },
-  statValue: {
-    fontFamily: mono.bold,
-    fontSize: 20,
-    color: colors.textPrimary,
   },
   statLabel: {
     color: colors.textMuted,
+    marginTop: spacing.xs,
   },
-  achievementsRow: {
+  mostPlayed: {
     flexDirection: 'row',
-    // Four badges: two per row rather than four squeezed across, which
-    // truncates the longer labels on a narrow screen.
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  achievementLocked: {
-    opacity: 0.45,
-  },
-  achievementIconLocked: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  achievementCard: {
-    flexBasis: '47%',
-    flexGrow: 1,
     alignItems: 'center',
     gap: spacing.sm,
-    paddingVertical: spacing.md,
   },
-  achievementIcon: {
-    width: 48,
-    height: 48,
+  iconTile: {
+    width: ICON_TILE,
+    height: ICON_TILE,
+    borderRadius: radius.sm,
+    backgroundColor: colors.accent900,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mostPlayedText: {
+    ...type.body,
+    flex: 1,
+    color: colors.textSecondary,
+  },
+  mostPlayedGame: {
+    fontFamily: type.button.fontFamily,
+    color: colors.textPrimary,
+  },
+  mostPlayedCount: {
+    fontFamily: mono.bold,
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  badgeSlot: {
+    flex: 1,
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  badge: {
+    width: BADGE,
+    height: BADGE,
     borderRadius: radius.pill,
     backgroundColor: colors.gold,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  achievementLabel: {
+  badgeLocked: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    opacity: 0.6,
+  },
+  badgeLabel: {
     ...type.caption,
     fontFamily: type.button.fontFamily,
     color: colors.textPrimary,
     textAlign: 'center',
   },
   referralCard: {
+    gap: spacing.md,
+  },
+  referralHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
   },
+  referralIcon: {
+    width: REFERRAL_TILE,
+    height: REFERRAL_TILE,
+    borderRadius: radius.sm,
+    backgroundColor: colors.canvas,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  referralHeadText: {
+    flex: 1,
+    gap: spacing.xxs,
+  },
   referralTitle: {
-    ...type.heading,
+    ...type.subheading,
     color: colors.textPrimary,
   },
   referralSubtitle: {
     ...type.caption,
     color: colors.textSecondary,
   },
-  referralRow: {
+  referralCodeRow: {
     flexDirection: 'row',
     gap: spacing.sm,
   },
@@ -447,41 +418,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: colors.canvas,
-    borderRadius: radius.md,
+    borderRadius: radius.sm,
     paddingHorizontal: spacing.md,
-    height: 48,
+    paddingVertical: spacing.sm,
   },
   referralCode: {
-    fontFamily: mono.semiBold,
+    fontFamily: mono.bold,
     fontSize: 14,
     letterSpacing: 1,
     color: colors.textPrimary,
   },
   shareButton: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.md,
+    width: TAP_TARGET,
+    height: TAP_TARGET,
+    borderRadius: radius.sm,
     backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  settingsList: {
-    gap: spacing.xs,
-  },
-  settingsRow: {
+  referralStats: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.md,
   },
-  settingsRowLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  settingsLabel: {
-    ...type.subheading,
-    fontSize: 15,
+  referralStatValue: {
+    fontFamily: display.extraBold,
+    fontSize: 18,
+    lineHeight: 22,
     color: colors.textPrimary,
+  },
+  referralEarned: {
+    color: colors.gold,
   },
 });
