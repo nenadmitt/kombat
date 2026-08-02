@@ -65,3 +65,25 @@ fix. Remove an entry in the same change that fixes it.
 - **Suggested fix:** delete all three if the balance hero is not coming back;
   otherwise leave them and note the intent. Left in place because the call is
   the design's, not a code question.
+
+## 2026-08-02 - Shared UI primitives use raw pixel spacing, not the scale
+
+- **Summary:** four `components/ui` primitives hardcode padding/gap/radius
+  values that are not tokens from `spacing`/`radius` in `theme/colors.ts`,
+  which every screen is required to use.
+- **Where:** `src/components/ui/Chip.tsx:75` (`gap: 5`) and `:79`
+  (`paddingVertical: 5`); `src/components/ui/AddressPill.tsx:39`
+  (`paddingVertical: 7`); `src/components/ui/BottomSheet.tsx:111-112`
+  (`borderTopLeftRadius: 30`, `borderTopRightRadius: 30`), `:123`
+  (`borderRadius: 3`), `:155` (`borderRadius: 16`);
+  `src/components/wallet/ChainSelector.tsx:14` (`const GAP = 13`).
+- **Why it's wrong:** `apps/mobile/CLAUDE.md` rule 0 makes the scale
+  non-negotiable and names 7, 9, 11, 13 as wrong even when a design says so.
+  Screens that follow the rule still inherit off-scale insets through these
+  primitives, so the grep the rule prescribes passes while the rendered
+  spacing is still off.
+- **Suggested fix:** `gap: 5` -> `spacing.xxs`, `paddingVertical: 5|7` ->
+  `spacing.xxs`, sheet corners 30 -> `radius.xl`, `borderRadius: 16` ->
+  `radius.md`, drag handle 3 -> `radius.sm`, `GAP = 13` -> `spacing.sm`.
+  Each shifts pixels, so it needs a screenshot pass rather than a blind
+  sweep.
