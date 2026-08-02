@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
   },
   build: {
     ...type.caption,
-    color: colors.textFaint,
+    color: colors.textMuted,
     textAlign: 'center',
   },
 });

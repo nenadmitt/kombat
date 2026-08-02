@@ -12,6 +12,12 @@ import { GameRoomStatus, GameType, StakeAsset } from '../types/game';
 })
 // Serves the 1-open-room-per-user checks (create/close) keyed on userId + status.
 @Index('IDX_game_rooms_user_status', ['userId', 'status'])
+// The second seat, so "rooms I played in" can bitmap-OR all three seat columns
+// instead of seq-scanning. The third seat's GIN index on opponent_ids has no
+// decorator form - it lives in GameRoomParticipantIndexes only.
+@Index('IDX_game_rooms_opponent_status', ['opponentId', 'status'], {
+  where: '"opponent_id" IS NOT NULL',
+})
 // Serves join-by-code lookups; unique so a code resolves to one room.
 @Index('UQ_game_rooms_code', ['code'], {
   unique: true,

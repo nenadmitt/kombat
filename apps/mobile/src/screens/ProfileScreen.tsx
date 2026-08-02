@@ -1,21 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
-import {
-  GameType,
-  achievementsFor,
-  emptyPlayerStats,
-  type AchievementId,
-  type PlayerStats,
-} from '@gaming-platform/core';
+import { achievementsFor, type AchievementId } from '@gaming-platform/core';
 
-import { apiClient } from '../api/client';
 import Icon, { type IconName } from '../components/Icon';
 import SettingsSheet from '../components/profile/SettingsSheet';
-import { AddressPill, Card, Screen, SectionLabel } from '../components/ui';
+import { Card, Screen, SectionLabel, StatTile } from '../components/ui';
 import GameIcon from '../games/GameIcon';
 import { GAME_TYPE_LABELS } from '../games/game-type-labels';
+import { useCooldown } from '../hooks/useCooldown';
 import { useCurrentUserStore } from '../store/currentUser.store';
+import { usePlayerStatsStore } from '../store/playerStats.store';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
 
@@ -27,53 +22,54 @@ const ACHIEVEMENT_ICONS: Record<AchievementId, IconName> = {
   whale: 'crown',
 };
 
-/**
- * Placeholders. `/users/me/stats` carries games/wins/losses/voids/net/referrals
- * and nothing else, so the rest of the design's numbers have no source yet.
- */
-const PLACEHOLDER = {
-  bestStreak: 12,
-  distinctGames: 5,
-  joinedDays: 92,
-  mostPlayed: GameType.NavalBattle,
-  mostPlayedCount: 64,
-  referralMatches: 386,
-  referralEarned: '$48.20',
-} as const;
+/** Referral payouts are not tracked yet, so the card reports nothing earned. */
+const REFERRAL_PLACEHOLDER = { invited: 0, matches: 0, earned: '$0.00' } as const;
+
+/** Denominator for the "games tried" tile. */
+const GAME_COUNT = Object.keys(GAME_TYPE_LABELS).length;
 
 const AVATAR = 76;
-const GEAR = 40;
+/** iOS/Android minimum for anything tappable. */
+const TAP_TARGET = 44;
 const BADGE = 52;
 const ICON_TILE = 32;
+const REFERRAL_TILE = 40;
+
+/** "92d" under three months, then "1y 2m" - the stat slot fits ~4 glyphs. */
+function joinedLabel(joinedAt: string | null): string {
+  if (!joinedAt) {
+    return '-';
+  }
+  const days = Math.max(
+    0,
+    Math.floor((Date.now() - new Date(joinedAt).getTime()) / 86_400_000),
+  );
+  if (days < 90) {
+    return `${days}d`;
+  }
+  const years = Math.floor(days / 365);
+  const months = Math.floor((days % 365) / 30);
+  return years > 0 ? `${years}y ${months}m` : `${months}m`;
+}
 
 export default function ProfileScreen() {
   const username = useCurrentUserStore(state => state.username);
   const referralCode = useCurrentUserStore(state => state.referralCode);
-  const wallet = useCurrentUserStore(state => state.wallet);
   const logout = useCurrentUserStore(state => state.logout);
 
-  // Stats are a lifetime aggregate from the server - never derived from the
+  // Lifetime aggregate, served from the shared cache - never derived from the
   // paginated history feed, which only ever sees one page.
-  const [stats, setStats] = useState<PlayerStats>(emptyPlayerStats);
+  const stats = usePlayerStatsStore(state => state.stats);
+  const loaded = usePlayerStatsStore(state => state.fetchedAt !== null);
+  const load = usePlayerStatsStore(state => state.load);
   const [copied, setCopied] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
-    let alive = true;
-    apiClient
-      .getMyStats()
-      .then(s => {
-        if (alive) {
-          setStats(s);
-        }
-      })
-      // A stats failure leaves the zeroed defaults rather than blocking the
-      // whole profile; everything else here is local.
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, []);
+    void load();
+  }, [load]);
+
+  const refresh = useCooldown(() => void load({ force: true }));
 
   const initial = (username ?? '?').charAt(0).toUpperCase();
   const achievements = achievementsFor(stats);
@@ -89,12 +85,6 @@ export default function ProfileScreen() {
     setTimeout(() => setCopied(false), 1500);
   }, [shareable]);
 
-  const handleCopyAddress = useCallback(() => {
-    if (wallet) {
-      Clipboard.setString(wallet.address);
-    }
-  }, [wallet]);
-
   const handleShare = useCallback(() => {
     if (!shareable) {
       return;
@@ -106,12 +96,9 @@ export default function ProfileScreen() {
     });
   }, [shareable]);
 
-  const headlineStats = [
-    { key: 'streak', value: `${PLACEHOLDER.bestStreak}`, label: 'BEST STREAK', accent: true },
-    { key: 'matches', value: `${stats.games}`, label: 'MATCHES', accent: false },
-    { key: 'games', value: `${PLACEHOLDER.distinctGames}`, label: 'GAMES', accent: false },
-    { key: 'joined', value: `${PLACEHOLDER.joinedDays}d`, label: 'JOINED', accent: false },
-  ];
+  // Before the first fetch the store holds zeroes, and "0 matches" is a claim
+  // rather than a blank - hold the dash until the aggregate has actually come.
+  const stat = (value: number | string) => (loaded ? `${value}` : '-');
 
   return (
     <Screen scroll>
@@ -123,46 +110,68 @@ export default function ProfileScreen() {
           <Text style={styles.username} numberOfLines={1}>
             {username ?? 'Player'}
           </Text>
-          {wallet ? (
-            <AddressPill address={wallet.address} onPress={handleCopyAddress} />
-          ) : null}
-        </View>
-        <Pressable
-          style={styles.gear}
-          onPress={() => setSettingsOpen(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Settings"
-        >
-          <Icon type="settings" color={colors.textSecondary} size={20} />
-        </Pressable>
-      </View>
-
-      <View style={styles.divider} />
-
-      <View style={styles.statRow}>
-        {headlineStats.map(stat => (
-          <View key={stat.key}>
-            <Text
-              style={[styles.statValue, stat.accent ? { color: colors.accent } : null]}
+          <View style={styles.identityActions}>
+            <Pressable
+              style={styles.iconButton}
+              onPress={refresh.run}
+              disabled={!refresh.ready}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !refresh.ready }}
+              accessibilityLabel={
+                refresh.ready ? 'Refresh stats' : `Refresh again in ${refresh.secondsLeft}s`
+              }
             >
-              {stat.value}
-            </Text>
-            <Text style={[type.label, styles.statLabel]}>{stat.label}</Text>
+              {/* Toned, not dimmed: an opacity that reads as "off" on this
+                  ground drops the glyph under the 3:1 non-text floor. */}
+              <Icon
+                type="refresh"
+                color={refresh.ready ? colors.textSecondary : colors.textMuted}
+                size={18}
+              />
+            </Pressable>
+            <Pressable
+              style={styles.iconButton}
+              onPress={() => setSettingsOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Settings"
+            >
+              <Icon type="settings" color={colors.textSecondary} size={20} />
+            </Pressable>
           </View>
-        ))}
+        </View>
       </View>
 
-      <View style={styles.mostPlayed}>
-        <View style={styles.iconTile}>
-          <GameIcon type={PLACEHOLDER.mostPlayed} size={22} />
+      <View style={styles.statGrid}>
+        <View style={styles.statGridRow}>
+          <StatTile label="Best streak" value={stat(stats.bestStreak)} accent />
+          <StatTile label="Matches" value={stat(stats.games)} />
         </View>
-        <Text style={styles.mostPlayedText} numberOfLines={1}>
-          Most played · <Text style={styles.mostPlayedGame}>
-            {GAME_TYPE_LABELS[PLACEHOLDER.mostPlayed]}
-          </Text>
-        </Text>
-        <Text style={styles.mostPlayedCount}>{PLACEHOLDER.mostPlayedCount}</Text>
+        <View style={styles.statGridRow}>
+          <StatTile
+            label="Games tried"
+            value={loaded ? `${stats.distinctGames}/${GAME_COUNT}` : '-'}
+            progress={loaded ? stats.distinctGames / GAME_COUNT : 0}
+          />
+          <StatTile
+            label="Joined"
+            value={loaded ? joinedLabel(stats.joinedAt) : '-'}
+          />
+        </View>
       </View>
+
+      {stats.mostPlayed ? (
+        <View style={styles.mostPlayed}>
+          <View style={styles.iconTile}>
+            <GameIcon type={stats.mostPlayed.gameType} size={22} />
+          </View>
+          <Text style={styles.mostPlayedText} numberOfLines={1}>
+            Most played · <Text style={styles.mostPlayedGame}>
+              {GAME_TYPE_LABELS[stats.mostPlayed.gameType]}
+            </Text>
+          </Text>
+          <Text style={styles.mostPlayedCount}>{stats.mostPlayed.matches}</Text>
+        </View>
+      ) : null}
 
       <View style={styles.divider} />
 
@@ -181,7 +190,8 @@ export default function ProfileScreen() {
                 size={24}
               />
             </View>
-            <Text style={styles.badgeLabel} numberOfLines={1}>
+            {/* Two lines: "First Blood" does not fit a quarter-width slot. */}
+            <Text style={styles.badgeLabel} numberOfLines={2}>
               {achievement.unlocked ? achievement.label : 'Locked'}
             </Text>
           </View>
@@ -228,17 +238,17 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.referralStats}>
-          <View>
-            <Text style={styles.referralStatValue}>{stats.referrals}</Text>
+          <View style={styles.statSlot}>
+            <Text style={styles.referralStatValue}>{REFERRAL_PLACEHOLDER.invited}</Text>
             <Text style={[type.label, styles.statLabel]}>INVITED</Text>
           </View>
-          <View>
-            <Text style={styles.referralStatValue}>{PLACEHOLDER.referralMatches}</Text>
-            <Text style={[type.label, styles.statLabel]}>THEIR MATCHES</Text>
+          <View style={styles.statSlot}>
+            <Text style={styles.referralStatValue}>{REFERRAL_PLACEHOLDER.matches}</Text>
+            <Text style={[type.label, styles.statLabel]}>PLAYED</Text>
           </View>
-          <View>
+          <View style={styles.statSlot}>
             <Text style={[styles.referralStatValue, styles.referralEarned]}>
-              {PLACEHOLDER.referralEarned}
+              {REFERRAL_PLACEHOLDER.earned}
             </Text>
             <Text style={[type.label, styles.statLabel]}>EARNED</Text>
           </View>
@@ -282,9 +292,13 @@ const styles = StyleSheet.create({
     ...type.title,
     color: colors.textPrimary,
   },
-  gear: {
-    width: GEAR,
-    height: GEAR,
+  identityActions: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  iconButton: {
+    width: TAP_TARGET,
+    height: TAP_TARGET,
     borderRadius: radius.sm,
     borderWidth: 1,
     borderColor: colors.cardBorder,
@@ -295,15 +309,16 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.cardBorder,
   },
-  statRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  statGrid: {
+    gap: spacing.sm,
   },
-  statValue: {
-    fontFamily: display.extraBold,
-    fontSize: 22,
-    lineHeight: 26,
-    color: colors.textPrimary,
+  statGridRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  statSlot: {
+    // Even columns, so a wide value cannot shove its neighbour's label.
+    flex: 1,
   },
   statLabel: {
     color: colors.textMuted,
@@ -374,8 +389,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   referralIcon: {
-    width: GEAR,
-    height: GEAR,
+    width: REFERRAL_TILE,
+    height: REFERRAL_TILE,
     borderRadius: radius.sm,
     backgroundColor: colors.canvas,
     alignItems: 'center',
@@ -414,8 +429,8 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   shareButton: {
-    width: GEAR,
-    height: GEAR,
+    width: TAP_TARGET,
+    height: TAP_TARGET,
     borderRadius: radius.sm,
     backgroundColor: colors.accent,
     alignItems: 'center',
@@ -423,7 +438,6 @@ const styles = StyleSheet.create({
   },
   referralStats: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
   },
   referralStatValue: {
     fontFamily: display.extraBold,

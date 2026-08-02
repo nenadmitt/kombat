@@ -5,16 +5,16 @@ import { useFocusEffect } from '@react-navigation/native';
 import {
   ApiError,
   STAKE_ASSET_SYMBOLS,
-  emptyPlayerStats,
   formatStakeAmount,
   winRate,
   type GameType,
   type MatchHistoryEntry,
-  type PlayerStats,
 } from '@gaming-platform/core';
 
 import { apiClient } from '../api/client';
 import Icon from '../components/Icon';
+import { useCooldown } from '../hooks/useCooldown';
+import { usePlayerStatsStore } from '../store/playerStats.store';
 import { useServerStore } from '../store/server.store';
 import { SectionLabel, SegmentedTabs, type SegmentedTab } from '../components/ui';
 import GameIcon from '../games/GameIcon';
@@ -94,7 +94,9 @@ function prizeLabel(entry: MatchHistoryEntry): string | null {
 
 export default function HistoryScreen() {
   const [entries, setEntries] = useState<MatchHistoryEntry[]>([]);
-  const [stats, setStats] = useState<PlayerStats>(emptyPlayerStats);
+  const stats = usePlayerStatsStore(state => state.stats);
+  const statsLoaded = usePlayerStatsStore(state => state.fetchedAt !== null);
+  const loadStats = usePlayerStatsStore(state => state.load);
   const [status, setStatus] = useState<Status>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -125,16 +127,6 @@ export default function HistoryScreen() {
     }
   }, []);
 
-  // The headline counters are the lifetime aggregate, never derived from the
-  // paginated feed - that would only ever count the pages scrolled so far.
-  const fetchStats = useCallback(async () => {
-    try {
-      setStats(await apiClient.getMyStats());
-    } catch {
-      // The list is the screen; a stats miss just leaves the zeroed defaults.
-    }
-  }, []);
-
   const loadMore = useCallback(async () => {
     if (loadingMoreRef.current || !hasMore || status !== 'ready') {
       return;
@@ -159,9 +151,16 @@ export default function HistoryScreen() {
   useFocusEffect(
     useCallback(() => {
       void fetchFirstPage();
-      void fetchStats();
-    }, [fetchFirstPage, fetchStats]),
+      // Cached and shared with Profile, so a tab bounce is not a second query.
+      void loadStats();
+    }, [fetchFirstPage, loadStats]),
   );
+
+  // The list and the counters both come back, so the button is rate-limited.
+  const refresh = useCooldown(() => {
+    void fetchFirstPage();
+    void loadStats({ force: true });
+  });
 
   // The endpoint pages raw matches with no result filter, so Wins/Losses cut
   // the loaded pages client-side.
@@ -179,7 +178,11 @@ export default function HistoryScreen() {
   }, [status, hasMore, entries.length, visible.length, loadMore]);
 
   const decided = stats.wins + stats.losses;
-  const winRateLabel = decided > 0 ? `${winRate(stats)}%` : '-';
+  // Zeroes are the store's cold-start default, not a result - hold the dash
+  // until the aggregate has actually arrived.
+  const statValue = (value: number) => (statsLoaded ? `${value}` : '-');
+  const winRateLabel =
+    !statsLoaded || decided === 0 ? '-' : `${winRate(stats)}%`;
 
   // Newest first from the server; the strip reads left to right in time.
   const recentResults = entries
@@ -221,7 +224,7 @@ export default function HistoryScreen() {
       <View style={styles.heroRow}>
         <View>
           <Text style={[type.label, styles.heroLabel]}>GAMES PLAYED</Text>
-          <Text style={styles.heroValue}>{stats.games}</Text>
+          <Text style={styles.heroValue}>{statValue(stats.games)}</Text>
         </View>
         <View style={styles.barStrip}>
           {recentResults.map((result, index) => (
@@ -239,15 +242,15 @@ export default function HistoryScreen() {
       <View style={styles.divider} />
 
       <View style={styles.statRow}>
-        <View>
-          <Text style={[styles.statValue, { color: colors.success }]}>{stats.wins}</Text>
+        <View style={styles.statSlot}>
+          <Text style={[styles.statValue, { color: colors.success }]}>{statValue(stats.wins)}</Text>
           <Text style={[type.label, styles.statLabel]}>WON</Text>
         </View>
-        <View>
-          <Text style={[styles.statValue, { color: colors.danger }]}>{stats.losses}</Text>
+        <View style={styles.statSlot}>
+          <Text style={[styles.statValue, { color: colors.danger }]}>{statValue(stats.losses)}</Text>
           <Text style={[type.label, styles.statLabel]}>LOST</Text>
         </View>
-        <View>
+        <View style={styles.statSlot}>
           <Text style={[styles.statValue, { color: colors.accent }]}>{winRateLabel}</Text>
           <Text style={[type.label, styles.statLabel]}>WIN RATE</Text>
         </View>
@@ -255,7 +258,10 @@ export default function HistoryScreen() {
 
       <SegmentedTabs tabs={FILTER_TABS} value={filter} onChange={setFilter} />
 
-      <SectionLabel action="Refresh" onActionPress={() => void fetchFirstPage()}>
+      <SectionLabel
+        action={refresh.ready ? 'Refresh' : `${refresh.secondsLeft}s`}
+        onActionPress={refresh.run}
+      >
         Recent matches
       </SectionLabel>
     </View>
@@ -365,7 +371,10 @@ const styles = StyleSheet.create({
   },
   statRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+  },
+  statSlot: {
+    // Even columns, so a wide value cannot shove its neighbour's label.
+    flex: 1,
   },
   statValue: {
     fontFamily: display.extraBold,

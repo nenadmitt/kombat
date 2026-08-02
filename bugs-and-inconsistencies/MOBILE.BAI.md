@@ -87,3 +87,19 @@ fix. Remove an entry in the same change that fixes it.
   `radius.md`, drag handle 3 -> `radius.sm`, `GAP = 13` -> `spacing.sm`.
   Each shifts pixels, so it needs a screenshot pass rather than a blind
   sweep.
+
+## 2026-08-02 - `textFaint` is invisible on every surface it is used on
+
+- **Summary:** `colors.textFaint` (`#4a4b57`) contrasts 2.04:1 against the app
+  background and 1.76:1 against `surface`. WCAG AA wants 4.5:1 for body text
+  and 3:1 for non-text; the token clears neither anywhere it is used.
+- **Where:** `src/theme/colors.ts:109` (the token). Its doc comment names
+  placeholders, fine print and disabled text as the intended uses.
+- **Why it's wrong:** placeholder text is the label for an empty input, so a
+  user who cannot read it cannot tell what the field wants. `textMuted` was
+  lightened to `#8a8b9a` for exactly this reason and `textFaint` was left
+  behind, so the two now sit far apart with nothing in between.
+- **Suggested fix:** lighten to roughly `#6c6d79` (4.5:1 on the background,
+  still a clear step below `textMuted`), then re-check the screens that use it
+  for placeholders. Not done here because it lands on inputs across the whole
+  app and wants a screenshot pass.
