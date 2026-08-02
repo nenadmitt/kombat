@@ -40,6 +40,7 @@ export const apiClient = new ApiClient({
       userId: null,
       email: null,
       username: null,
+      ensName: null,
       referralCode: null,
       profileStatus: 'idle',
       profileError: null,

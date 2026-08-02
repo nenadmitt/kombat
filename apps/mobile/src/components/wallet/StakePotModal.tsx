@@ -17,6 +17,7 @@ import {
 import { formatUnits, type Address, type Hex } from 'viem';
 
 import { apiClient } from '../../api/client';
+import { useCurrentUserStore } from '../../store/currentUser.store';
 import type { TokenBalance } from '../../store/walletBalances.store';
 import { colors, radius, spacing } from '../../theme/colors';
 import { mono, type } from '../../theme/typography';
@@ -67,6 +68,7 @@ export default function StakePotModal({
   onWithdrawRequested,
 }: Props) {
   const [asset, setAsset] = useState<StakeAsset>(StakeAsset.Usdc);
+  const userId = useCurrentUserStore(state => state.userId);
   const [amount, setAmount] = useState('');
   const [assetPickerOpen, setAssetPickerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -143,6 +145,10 @@ export default function StakePotModal({
 
     setBusy(true);
     try {
+      if (!userId) {
+        setError('Your session is still loading. Try again in a moment.');
+        return;
+      }
       if (adding) {
         if (!token) {
           setError(`${asset} isn't available on this network`);
@@ -152,6 +158,7 @@ export default function StakePotModal({
         // second copy of the deployment config.
         const target = await apiClient.getStakePotDepositTarget();
         const hash = await depositToStakePot({
+          userId,
           chainId,
           pot: target.contract as Address,
           token,

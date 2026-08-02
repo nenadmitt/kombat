@@ -14,6 +14,8 @@ import type { BalanceChainId, Token } from './tokens';
 import { getWalletSecret } from './wallet-keychain';
 
 type TransferParams = {
+  /** Whose key signs this - the secret is stored per account. */
+  userId: string;
   chainId: BalanceChainId;
   token: Token;
   to: Address;
@@ -23,12 +25,13 @@ type TransferParams = {
 
 /** Signs and broadcasts a native or ERC-20 transfer, returning the tx hash. */
 export async function sendTransfer({
+  userId,
   chainId,
   token,
   to,
   amount,
 }: TransferParams): Promise<Hex> {
-  const secret = await getWalletSecret();
+  const secret = await getWalletSecret(userId);
   if (!secret) {
     throw new Error('Wallet key not found on this device');
   }

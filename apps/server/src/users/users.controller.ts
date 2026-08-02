@@ -12,6 +12,7 @@ type UserProfileResponse = {
   id: string;
   email: string;
   username: string | null;
+  ensName: string | null;
   referralCode: string | null;
   referredByUsername: string | null;
 };
@@ -32,6 +33,7 @@ export class UsersController {
       id: user.id,
       email: user.email,
       username: user.username,
+      ensName: user.ensName,
       referralCode: user.referralCode,
       referredByUsername,
     };
@@ -71,6 +73,7 @@ export class UsersController {
       id: user.id,
       email: user.email,
       username: user.username,
+      ensName: user.ensName,
       referralCode: user.referralCode,
       referredByUsername,
     };

@@ -18,6 +18,7 @@ import {
 
 import { DbService } from '../db';
 import { UserEntity } from '../db/entities/user.entity';
+import { EnsSubnameService } from '../ens';
 
 /** Crypto-backed uniform in [0,1) for referral-code generation. */
 const cryptoRand = () => randomInt(0, 281474976710655) / 281474976710655;
@@ -27,7 +28,10 @@ const CODE_ATTEMPTS = 5;
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly dbService: DbService) {}
+  constructor(
+    private readonly dbService: DbService,
+    private readonly ensSubnameService: EnsSubnameService,
+  ) {}
 
   async getMe(userId: string): Promise<UserEntity> {
     const user = await this.dbService.findUserById(userId);
@@ -87,8 +91,9 @@ export class UsersService {
       user.referredByUserId = referrer.id;
     }
 
+    let saved: UserEntity;
     try {
-      return await this.dbService.saveUser(user);
+      saved = await this.dbService.saveUser(user);
     } catch (err) {
       // Postgres unique_violation — the app-level check above is just a
       // friendly pre-check; this is the real guard against a race.
@@ -97,6 +102,22 @@ export class UsersService {
       }
       throw err;
     }
+
+    if (!saved.ensName) {
+      // Detached like the signup grant: a Namespace outage must not fail the
+      // username, and the next username call retries.
+      void this.mintSubname(saved);
+    }
+    return saved;
+  }
+
+  private async mintSubname(user: UserEntity): Promise<void> {
+    const wallets = await this.dbService.findWalletsForUser(user.id);
+    await this.ensSubnameService.mintForUsername(
+      user.id,
+      user.username!,
+      wallets[0]?.address,
+    );
   }
 
   /** The profile payload, with the referrer resolved to a username. */

@@ -33,6 +33,7 @@ const AVATAR_COLORS = [colors.accent, colors.gold, colors.success, colors.info];
 
 export default function OnboardingScreen() {
   const updateUsername = useCurrentUserStore(state => state.updateUsername);
+  const userId = useCurrentUserStore(state => state.userId);
 
   const [username, setUsername] = useState('');
   const [referralCode, setReferralCode] = useState('');
@@ -77,7 +78,7 @@ export default function OnboardingScreen() {
       return;
     }
     try {
-      const secret = await getWalletSecret();
+      const secret = userId ? await getWalletSecret(userId) : null;
       if (!secret) {
         setMnemonicError('No wallet secret found on this device');
         return;
@@ -92,7 +93,7 @@ export default function OnboardingScreen() {
   const handleCopy = async () => {
     setMnemonicError(null);
     try {
-      const secret = await getWalletSecret();
+      const secret = userId ? await getWalletSecret(userId) : null;
       if (!secret) {
         setMnemonicError('No wallet secret found on this device');
         return;

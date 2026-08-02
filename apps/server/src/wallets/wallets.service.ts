@@ -11,6 +11,7 @@ import { ChainService } from '../chain';
 import { ConfigurationService } from '../configuration/configuration.service';
 import { DbService } from '../db';
 import { FaucetService } from '../stake-pot';
+import { EnsSubnameService } from '../ens';
 import { WalletNetwork, WalletOrigin } from '../db/types/wallet';
 import { generateEthereumWallet } from './ethereum-wallet.util';
 
@@ -25,6 +26,7 @@ export class WalletsService {
     private readonly chainService: ChainService,
     private readonly configurationService: ConfigurationService,
     private readonly faucetService: FaucetService,
+    private readonly ensSubnameService: EnsSubnameService,
   ) {}
 
   async createWallet(
@@ -71,6 +73,10 @@ export class WalletsService {
     // and internally guarded: a faucet problem must never fail wallet creation,
     // and the player can still deposit their own funds.
     void this.faucetService.grantSignupBonus(userId, address as Address);
+
+    // Onboarding sets the username before the wallet exists, so a subname
+    // minted then has no address to resolve to. This is where it gets one.
+    void this.ensSubnameService.attachWallet(userId, address);
 
     return { address, mnemonic };
   }

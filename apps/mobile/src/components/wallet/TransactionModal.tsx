@@ -1,7 +1,6 @@
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { WalletTx } from '../../store/transactions.store';
-import { NETWORK_FEE_USD } from '../../wallet/market-mock';
 import { colors, radius, spacing } from '../../theme/colors';
 import { mono, type } from '../../theme/typography';
 import { truncateAddress } from '../../wallet/format-address';
@@ -78,7 +77,6 @@ export default function TransactionModal({ visible, onClose, tx }: Props) {
         <Divider />
         <Row label="To" value={tx.toLabel ?? truncateAddress(tx.to)} />
         <Divider />
-        <Row label="Network fee" value={NETWORK_FEE_USD} />
         <Divider />
         <Row label="Tx hash" value={truncateAddress(tx.hash)} accent />
       </View>

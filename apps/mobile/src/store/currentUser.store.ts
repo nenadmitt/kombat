@@ -48,6 +48,7 @@ type BootSnapshot = {
   userId: string | null;
   email: string | null;
   username: string | null;
+  ensName: string | null;
   referralCode: string | null;
   wallet: WalletSummary | null;
 };
@@ -74,6 +75,7 @@ function persistCurrentSnapshot(state: {
   userId: string | null;
   email: string | null;
   username: string | null;
+  ensName: string | null;
   referralCode: string | null;
   wallet: WalletSummary | null;
 }): void {
@@ -81,6 +83,7 @@ function persistCurrentSnapshot(state: {
     userId: state.userId,
     email: state.email,
     username: state.username,
+    ensName: state.ensName,
     referralCode: state.referralCode,
     wallet: state.wallet,
   });
@@ -88,13 +91,18 @@ function persistCurrentSnapshot(state: {
 
 /** Wallet for an offline boot: last-good snapshot, else the address derived
  *  from the Keychain secret (the key never leaves the device). */
-async function resolveOfflineWallet(): Promise<WalletSummary | null> {
+async function resolveOfflineWallet(
+  userId: string | null,
+): Promise<WalletSummary | null> {
   const snapshot = await readSnapshot();
   if (snapshot?.wallet) {
     return snapshot.wallet;
   }
+  if (!userId) {
+    return null;
+  }
   try {
-    const secret = await getWalletSecret();
+    const secret = await getWalletSecret(userId);
     if (!secret) {
       return null;
     }
@@ -123,6 +131,8 @@ type CurrentUserState = {
   userId: string | null;
   email: string | null;
   username: string | null;
+  /** <label>.playkombat.xyz once minted; null until then. */
+  ensName: string | null;
   /** This user's own shareable referral code (null until onboarding). */
   referralCode: string | null;
   profileError: LoadError | null;
@@ -157,6 +167,7 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
   userId: null,
   email: null,
   username: null,
+  ensName: null,
   referralCode: null,
   profileError: null,
 
@@ -191,21 +202,28 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
     // session rather than outliving it for a month.
     const session = await getSession();
     if (session?.refreshToken) {
-      await apiClient.logout(session.refreshToken);
+      // Best effort: a server that cannot revoke must not strand the user in
+      // a session they asked to leave.
+      await apiClient.logout(session.refreshToken).catch(() => undefined);
     }
     await clearSession();
     // The snapshot belongs to this login - a different account must not
     // boot offline into someone else's profile.
     await AsyncStorage.removeItem(BOOT_SNAPSHOT_STORAGE_KEY);
-    // Wallet state (and its Keychain-backed secret) is intentionally left
-    // alone - the wallet persists across logout so logging back in as the
-    // same user doesn't need to re-fetch/re-create it.
+    // The secret stays in the Keychain, keyed by user, so signing back in as
+    // the same account still finds it. The in-memory wallet does not: leaving
+    // walletStatus 'ready' meant the navigator never re-ran ensureWallet, and
+    // the next account inherited this one's address and key.
     set({
+      wallet: null,
+      walletStatus: 'idle',
+      walletError: null,
       accessToken: null,
       authStatus: 'unauthenticated',
       userId: null,
       email: null,
       username: null,
+      ensName: null,
       referralCode: null,
       profileStatus: 'idle',
       profileError: null,
@@ -221,34 +239,59 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
     }
     set({ profileStatus: 'loading', profileError: null });
     try {
-      const { id, email, username, referralCode } =
+      const { id, email, username, ensName, referralCode } =
         await apiClient.getCurrentUser();
-      set({ userId: id, email, username, referralCode, profileStatus: 'ready' });
-      const { wallet } = get();
-      persistSnapshot({ userId: id, email, username, referralCode, wallet });
-    } catch (err) {
-      // Server unreachable but we have a last-good snapshot: boot into
-      // offline mode instead of the error screen. Games are gated by the
-      // server store; the wallet is fully local anyway.
-      if (err instanceof ApiError && err.isNetworkError) {
-        const snapshot = await readSnapshot();
-        if (snapshot?.userId) {
-          set({
-            userId: snapshot.userId,
-            email: snapshot.email,
-            username: snapshot.username,
-            referralCode: snapshot.referralCode ?? null,
-            profileStatus: 'ready',
-          });
-          useServerStore.getState().reportOffline();
-          return;
-        }
-        useServerStore.getState().reportOffline();
-      }
       set({
-        profileStatus: 'error',
-        profileError: toLoadError(err, 'Failed to load profile'),
+        userId: id,
+        email,
+        username,
+        ensName,
+        referralCode,
+        profileStatus: 'ready',
       });
+      const { wallet } = get();
+      persistSnapshot({
+        userId: id,
+        email,
+        username,
+        ensName,
+        referralCode,
+        wallet,
+      });
+    } catch (err) {
+      // Any failure, not just an unreachable server: with a last-good
+      // snapshot the app has everything it needs to run degraded, and the
+      // wallet is local anyway. Games stay gated by the server store.
+      const snapshot = await readSnapshot();
+      if (snapshot?.userId) {
+        set({
+          userId: snapshot.userId,
+          email: snapshot.email,
+          username: snapshot.username,
+          ensName: snapshot.ensName ?? null,
+          referralCode: snapshot.referralCode ?? null,
+          profileStatus: 'ready',
+        });
+        useServerStore.getState().reportOffline();
+        return;
+      }
+
+      const unreachable = err instanceof ApiError && err.isNetworkError;
+      if (unreachable) {
+        // Offline with nothing cached: retrying is the only thing that can
+        // help, so keep the session and let the error screen offer it.
+        useServerStore.getState().reportOffline();
+        set({
+          profileStatus: 'error',
+          profileError: toLoadError(err, 'Failed to load profile'),
+        });
+        return;
+      }
+
+      // The server answered and it cannot give us this profile, with no cache
+      // to fall back on. Retrying will keep failing; signing in again is the
+      // only way through. The wallet secret outlives logout.
+      await get().logout();
     }
   },
 
@@ -256,18 +299,28 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
     // Let ApiError (e.g. 409 taken, 400 bad referral code) propagate - the
     // caller (OnboardingScreen) shows it inline.
     const updated = await apiClient.updateUsername(username, referredByCode);
-    set({ username: updated.username, referralCode: updated.referralCode });
+    set({
+      username: updated.username,
+      ensName: updated.ensName,
+      referralCode: updated.referralCode,
+    });
   },
 
   ensureWallet: async () => {
-    const { walletStatus } = get();
+    const { walletStatus, userId } = get();
     if (walletStatus === 'checking' || walletStatus === 'creating') {
       return;
+    }
+    if (!userId) {
+      return; // The profile decides whose wallet this is.
     }
     set({ walletStatus: 'checking', walletError: null });
     try {
       const wallets = await apiClient.listWallets();
       if (wallets.length > 0) {
+        // Migrates a pre-per-user secret into this account's slot, but only
+        // when it derives to the address the server just returned.
+        await getWalletSecret(userId, wallets[0].address);
         set({ wallet: wallets[0], walletStatus: 'ready' });
         persistCurrentSnapshot(get());
         return;
@@ -278,7 +331,7 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
         WalletNetwork.Ethereum,
       );
       const privateKey = derivePrivateKeyFromMnemonic(mnemonic);
-      await saveWalletSecret({ mnemonic, privateKey });
+      await saveWalletSecret(userId, { mnemonic, privateKey });
       set({
         wallet: { address, network: WalletNetwork.Ethereum },
         walletStatus: 'ready',
@@ -288,13 +341,13 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
       // Offline fallback: snapshot first, else recover the address straight
       // from the Keychain secret - creating a brand-new wallet is the only
       // path that truly needs the server.
+      const offlineWallet = await resolveOfflineWallet(get().userId);
+      if (offlineWallet) {
+        set({ wallet: offlineWallet, walletStatus: 'ready' });
+        useServerStore.getState().reportOffline();
+        return;
+      }
       if (err instanceof ApiError && err.isNetworkError) {
-        const offlineWallet = await resolveOfflineWallet();
-        if (offlineWallet) {
-          set({ wallet: offlineWallet, walletStatus: 'ready' });
-          useServerStore.getState().reportOffline();
-          return;
-        }
         useServerStore.getState().reportOffline();
       }
       set({
