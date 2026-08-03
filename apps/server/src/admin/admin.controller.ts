@@ -17,6 +17,7 @@ import {
   type AdminUserView,
   type DeleteUserResult,
 } from './admin.service';
+import { SetAppVersionDto } from './dto/set-app-version.dto';
 import { SetMaintenanceDto } from './dto/set-maintenance.dto';
 
 /**
@@ -62,5 +63,21 @@ export class AdminController {
   @Post('maintenance')
   setMaintenance(@Body() dto: SetMaintenanceDto): Promise<PlatformStatus> {
     return this.maintenanceService.setMaintenance(dto.enabled, dto.message);
+  }
+
+  /** Set (or clear, by omitting minAppVersion) the client version floor. */
+  @Post('app-version')
+  setAppVersion(@Body() dto: SetAppVersionDto): Promise<PlatformStatus> {
+    return this.maintenanceService.setAppVersionPolicy({
+      minAppVersion: dto.minAppVersion ?? null,
+      latestAppVersion: dto.latestAppVersion ?? null,
+      updateMessage: dto.updateMessage ?? null,
+      updateNotes: dto.updateNotes ?? [],
+      updateSizeLabel: dto.updateSizeLabel ?? null,
+      updateUrls: {
+        ios: dto.updateUrls?.ios ?? null,
+        android: dto.updateUrls?.android ?? null,
+      },
+    });
   }
 }

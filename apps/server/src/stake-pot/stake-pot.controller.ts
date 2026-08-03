@@ -26,6 +26,7 @@ import { SecurityContext } from '../authentication/decorators/security-context.d
 import { JwtTokenGuard } from '../authentication/guards/jwt-token.guard';
 import { ConfigurationService } from '../configuration/configuration.service';
 import { DbService } from '../db';
+import { SupportedVersionGuard } from '../maintenance/supported-version.guard';
 import { ReconciliationJob, type ReconciliationSnapshot } from './reconciliation.job';
 import { StakePotHistoryQueryDto } from './dto/history-query.dto';
 import { WithdrawFromPotDto } from './dto/withdraw.dto';
@@ -74,6 +75,7 @@ export class StakePotController {
    * and its progress arrives over the balance socket event.
    */
   @Post('withdraw')
+  @UseGuards(SupportedVersionGuard)
   @UseGuards(JwtTokenGuard)
   async withdraw(
     @SecurityContext() securityContext: ISecurityContext,
@@ -136,6 +138,7 @@ export class StakePotController {
 
   /** Where deposits should be sent, and in which assets. */
   @Get('deposit-target')
+  @UseGuards(SupportedVersionGuard)
   @UseGuards(JwtTokenGuard)
   getDepositTarget(): {
     contract: string;

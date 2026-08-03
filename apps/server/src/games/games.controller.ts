@@ -23,6 +23,7 @@ import {
 import { ISecurityContext } from '../authentication/authentication.types';
 import { SecurityContext } from '../authentication/decorators/security-context.decorator';
 import { JwtTokenGuard } from '../authentication/guards/jwt-token.guard';
+import { SupportedVersionGuard } from '../maintenance/supported-version.guard';
 import { DbService } from '../db';
 import { GameType } from '../db/types/game';
 import { BattleshipMatchService } from './battleships/battleship-match.service';
@@ -52,6 +53,7 @@ export class GamesController {
   ) {}
 
   @Post()
+  @UseGuards(SupportedVersionGuard)
   async createRoom(
     @Body() dto: CreateGameRoomDto,
     @SecurityContext() securityContext: ISecurityContext,
@@ -88,6 +90,7 @@ export class GamesController {
   }
 
   @Post(':id/join')
+  @UseGuards(SupportedVersionGuard)
   async joinRoom(
     @Param('id') id: string,
     @SecurityContext() securityContext: ISecurityContext,
@@ -97,6 +100,7 @@ export class GamesController {
 
   /** Creator-only early start for a multi-player (Ludo) room. */
   @Post(':id/start')
+  @UseGuards(SupportedVersionGuard)
   async startRoom(
     @Param('id') id: string,
     @SecurityContext() securityContext: ISecurityContext,

@@ -11,4 +11,6 @@ export enum ErrorCode {
   NetworkFailed = '0001',
   /** Multiplayer is paused by the operators; wallet and demos stay available. */
   Maintenance = '0002',
+  /** The client build is below the platform's minimum supported version. */
+  UpdateRequired = '0003',
 }

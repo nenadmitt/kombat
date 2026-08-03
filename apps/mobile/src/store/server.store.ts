@@ -1,7 +1,12 @@
 import { create } from 'zustand';
-import { ApiError, type PlatformStatus } from '@gaming-platform/core';
+import {
+  ApiError,
+  isVersionBelow,
+  type PlatformStatus,
+} from '@gaming-platform/core';
 
 import { apiClient } from '../api/client';
+import { APP_VERSION } from '../config/app-version';
 import { useCurrentUserStore } from './currentUser.store';
 
 export type ServerStatus = 'online' | 'offline' | 'maintenance';
@@ -16,10 +21,21 @@ const RECOVERY_POLL_MS = 20_000;
  * (applyPlatformStatus). While offline it polls /status until the server
  * answers again, then triggers a profile/wallet re-sync.
  */
+export type UpdateInfo = {
+  latestVersion: string | null;
+  message: string | null;
+  notes: string[];
+  sizeLabel: string | null;
+  urls: { ios?: string | null; android?: string | null };
+};
+
 type ServerState = {
   status: ServerStatus;
   /** Operator-provided maintenance copy for the banner, when any. */
   message: string | null;
+  /** True when this build is below the server's version floor. */
+  updateRequired: boolean;
+  update: UpdateInfo | null;
 
   /** Any API call that never reached the server calls this. */
   reportOffline: () => void;
@@ -41,6 +57,8 @@ const stopRecoveryPolling = () => {
 export const useServerStore = create<ServerState>((set, get) => ({
   status: 'online',
   message: null,
+  updateRequired: false,
+  update: null,
 
   reportOffline: () => {
     if (get().status === 'offline') {
@@ -57,9 +75,21 @@ export const useServerStore = create<ServerState>((set, get) => ({
   applyPlatformStatus: platform => {
     stopRecoveryPolling();
     const wasOffline = get().status === 'offline';
+    const updateRequired = isVersionBelow(APP_VERSION, platform.minAppVersion);
     set({
       status: platform.maintenance ? 'maintenance' : 'online',
       message: platform.message,
+      updateRequired,
+      update: updateRequired
+        ? {
+            latestVersion:
+              platform.latestAppVersion ?? platform.minAppVersion ?? null,
+            message: platform.updateMessage ?? null,
+            notes: platform.updateNotes ?? [],
+            sizeLabel: platform.updateSizeLabel ?? null,
+            urls: platform.updateUrls ?? {},
+          }
+        : null,
     });
     if (wasOffline) {
       // The server came back: refresh whatever we booted from cache. The

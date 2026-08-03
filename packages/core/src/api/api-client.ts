@@ -45,6 +45,8 @@ export type ApiClientOptions = {
   onSessionExpired?: () => Promise<void>;
   /** Request timeout in ms before it's treated as a network failure. Defaults to 10000. */
   timeoutMs?: number;
+  /** Client build version, sent as X-App-Version so the server can gate old builds. */
+  appVersion?: string;
 };
 
 export class ApiError extends Error {
@@ -349,6 +351,9 @@ export class ApiClient {
     const headers: Record<string, string> = {};
     if (body !== undefined) {
       headers['Content-Type'] = 'application/json';
+    }
+    if (this.options.appVersion) {
+      headers['X-App-Version'] = this.options.appVersion;
     }
     if (authenticated) {
       const token = await this.options.getAccessToken?.();
