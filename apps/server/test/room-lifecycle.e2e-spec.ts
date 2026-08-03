@@ -102,9 +102,9 @@ describe('room lifecycle (e2e)', () => {
     it('announces the new room to the lobby', async () => {
       const host = await actor('host');
       const watcher = await actor('watcher');
-      watcher.socket.emit('channel:join', { channel: LOBBY_CHANNEL });
-      // channel:join has no ack; let the server process it before creating.
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await watcher.socket.emitWithAck('channel:join', {
+        channel: LOBBY_CHANNEL,
+      });
 
       const added = waitFor<{ id: string }>(
         watcher.socket,
@@ -178,8 +178,9 @@ describe('room lifecycle (e2e)', () => {
       const joiner = await actor('joiner');
       const watcher = await actor('watcher');
       const { body: room } = await createRoom(host);
-      watcher.socket.emit('channel:join', { channel: LOBBY_CHANNEL });
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await watcher.socket.emitWithAck('channel:join', {
+        channel: LOBBY_CHANNEL,
+      });
 
       const removed = waitFor<{ roomId: string }>(
         watcher.socket,
@@ -200,9 +201,12 @@ describe('room lifecycle (e2e)', () => {
       await joiner.post(`/games/rooms/${room.id}/join`);
 
       const channel = `game:${room.id}`;
-      joiner.socket.emit('channel:join', { channel });
-      outsider.socket.emit('channel:join', { channel });
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await expect(
+        joiner.socket.emitWithAck('channel:join', { channel }),
+      ).resolves.toEqual({ ok: true, channel });
+      await expect(
+        outsider.socket.emitWithAck('channel:join', { channel }),
+      ).resolves.toEqual({ ok: false, channel });
 
       const delivered = waitFor(joiner.socket, 'game:message');
       const withheld = expectNoEvent(outsider.socket, 'game:message', 1_000);

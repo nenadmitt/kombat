@@ -11,7 +11,7 @@ import BrandIcon from '../BrandIcon';
 import Icon from '../Icon';
 
 /** Matches the create-room sheet: one gap, a touch tighter than the app. */
-const GAP = 13;
+const GAP = spacing.sm;
 
 type Props = {
   evmAddress: string;

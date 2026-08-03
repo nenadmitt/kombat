@@ -72,6 +72,10 @@ export const useWebsocketStore = create<WebsocketState>((set, get) => ({
     });
     client.on('disconnect', () => set({ status: 'disconnected' }));
     client.on('connect_error', () => set({ status: 'disconnected' }));
+    client.on('channel:error', payload => {
+      const p = payload as { channel?: string; message?: string };
+      console.warn(`[ws] channel refused: ${p.channel}: ${p.message}`);
+    });
 
     socket = client;
   },

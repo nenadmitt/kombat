@@ -7,6 +7,7 @@ import {
 import type { StakeAsset } from '@gaming-platform/core';
 
 import { useConfirm } from '../../components/ui';
+import { useMatchExit } from '../use-match-exit';
 import BattleshipPlayScreen from './game/BattleshipPlayScreen';
 import WaitingForOpponent from './game/WaitingForOpponent';
 import type { BattleshipEngine } from './game/battleship-engine';
@@ -24,7 +25,6 @@ import BattleshipSetupScreen from './setup/BattleshipSetupScreen';
 export type MatchStakeInfo = { token: StakeAsset; amount: string };
 
 export default function BattleshipGame() {
-  const navigation = useNavigation();
   const route = useRoute();
   const params = route.params as
     | { roomId?: string; stakeToken?: StakeAsset | null; stakeAmount?: string | null }
@@ -36,7 +36,7 @@ export default function BattleshipGame() {
     params?.stakeAmount
       ? { token: params.stakeToken, amount: params.stakeAmount }
       : null;
-  const onExit = () => navigation.goBack();
+  const onExit = useMatchExit();
 
   if (!roomId) {
     return <DemoBattleshipGame onExit={onExit} />;

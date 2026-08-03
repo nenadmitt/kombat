@@ -160,7 +160,7 @@ export function useMultiplayerRps(roomId: string): RpsEngine {
     });
 
     const offEnded = on(RPS_EVENTS.ended, payload => {
-      const p = payload as { winnerUserId: string; reason: RpsEndReason };
+      const p = payload as { winnerUserId: string | null; reason: RpsEndReason };
       // Forfeit/timeout end with no reveal to show - jump straight to result.
       setWinnerUserId(p.winnerUserId);
       setEndReason(p.reason);
@@ -233,7 +233,10 @@ export function useMultiplayerRps(roomId: string): RpsEngine {
     ? winnerUserId === myUserId
       ? 'win'
       : 'lose'
-    : null;
+    : // A voided match (both players timed out) still ends as a loss for both.
+      endReason === 'timeout'
+      ? 'lose'
+      : null;
 
   const playProps: RpsPlayProps = {
     opponent: {

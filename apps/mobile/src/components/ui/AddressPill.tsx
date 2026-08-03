@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
     borderColor: colors.cardBorder,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 7,
+    paddingVertical: spacing.xs,
   },
   pressed: {
     opacity: 0.7,

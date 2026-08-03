@@ -106,8 +106,10 @@ export const colors = {
   /** Muted text (labels, subtitles). Lightened off the design's own grey so
    *  11px uppercase labels clear 4.5:1 on the background, cards and inputs. */
   textMuted: '#8a8b9a',
-  /** Faint text (placeholders, fine print, disabled). */
-  textFaint: '#4a4b57',
+  /** Faint text (placeholders, fine print, disabled). Lightened from the
+   *  design's #4a4b57 (2:1, unreadable); ~4.3:1 on the background while
+   *  keeping a visible step below `textMuted`. */
+  textFaint: '#7c7d8a',
 
   // ---- Legacy aliases (re-pointed; kept so game code compiles) -----------
   /** @deprecated use `accent`. */

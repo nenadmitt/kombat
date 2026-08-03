@@ -103,6 +103,9 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
       setTurnDeadline(state.turnDeadline);
       setWinnerUserId(state.winnerUserId);
       setEndReason(state.endReason);
+      if (myUserIdRef.current) {
+        setMyCaptures(state.captureCounts?.[myUserIdRef.current] ?? 0);
+      }
       setWaitingError(null);
       setLoaded(true);
     } catch (err) {
@@ -149,11 +152,11 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
             .map(c => LUDO_COLOR_NAMES[c.color])
             .join(' & ')}!`,
         );
-        if (p.byUserId === myUserIdRef.current) {
-          setMyCaptures(count => count + p.captures.length);
-        }
       } else {
         setNotice(null);
+      }
+      if (myUserIdRef.current) {
+        setMyCaptures(p.captureCounts?.[myUserIdRef.current] ?? 0);
       }
       if (p.winnerUserId) {
         setWinnerUserId(p.winnerUserId);

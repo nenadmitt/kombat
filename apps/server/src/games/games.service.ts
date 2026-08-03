@@ -421,12 +421,13 @@ export class GamesService {
     );
     const entries = await Promise.all(
       rooms.map(async room => {
-        // Multi-player rooms have several opponents; History names the first.
-        const opponentId =
-          participantsOf(room).find(id => id !== userId) ?? null;
-        const opponent = opponentId
-          ? await this.dbService.findUserById(opponentId)
-          : null;
+        const opponentIds = participantsOf(room).filter(id => id !== userId);
+        const opponents = await Promise.all(
+          opponentIds.map(id => this.dbService.findUserById(id)),
+        );
+        const opponentUsernames = opponents
+          .map(o => o?.username)
+          .filter((name): name is string => Boolean(name));
 
         const isWinner = room.winnerUserId === userId;
         const isVoid = room.winnerUserId === null;
@@ -451,7 +452,8 @@ export class GamesService {
         return {
           roomId: room.id,
           gameType: room.gameType,
-          opponentUsername: opponent?.username ?? null,
+          opponentUsername: opponentUsernames[0] ?? null,
+          opponentUsernames,
           result,
           stakeAmount: room.stakeAmount,
           stakeToken: room.stakeToken,

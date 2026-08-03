@@ -38,6 +38,13 @@ const STATUS_META: Record<
     title: 'Withdrawal Failed',
     subtitle: 'The transaction was reverted',
   },
+  timeout: {
+    icon: 'timer',
+    tint: colors.gold,
+    soft: colors.goldSoft,
+    title: 'Status Unknown',
+    subtitle: 'Could not confirm in time - check the explorer',
+  },
 };
 
 export default function TransactionModal({ visible, onClose, tx }: Props) {

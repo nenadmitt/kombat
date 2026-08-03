@@ -2,12 +2,12 @@ import Link from "next/link";
 import {
   Crosshair,
   Percent,
-  Copy,
   ShieldCheck,
   Trophy,
   CheckCircle,
 } from "@phosphor-icons/react/dist/ssr";
 import { LogoLockup } from "@/components/Logo";
+import { ReferralCodeRow } from "@/components/ReferralCodeRow";
 import { PhoneFrame } from "@/components/PhoneFrame";
 import { GamesCarousel } from "@/components/GamesCarousel";
 import { ApplyForm, HeroInviteForm } from "@/components/InviteForms";
@@ -96,7 +96,7 @@ export default function LandingPage() {
             </div>
             <div className={styles.howCardTitle}>Stake into your pot</div>
             <p className={styles.howCardBody}>
-              Send KOMBAT, USDC, USDT or ETH to the match contract once. Your
+              Send KOMBAT, USDC, USDT or DAI to the match contract once. Your
               balance becomes in-game credit - no signing per match.
             </p>
           </div>
@@ -142,7 +142,7 @@ export default function LandingPage() {
           <div className={styles.checkList}>
             <div className={styles.checkItem}>
               <CheckCircle size={18} weight="fill" className={styles.amber} />
-              Stake KOMBAT, USDC, USDT or ETH
+              Stake KOMBAT, USDC, USDT or DAI
             </div>
             <div className={styles.checkItem}>
               <CheckCircle size={18} weight="fill" className={styles.amber} />
@@ -166,21 +166,13 @@ export default function LandingPage() {
       <section id="invite" className={styles.invite}>
         <div className={styles.referralCard}>
           <div className={styles.referralHead}>
-            <div className={styles.panelKicker}>Your referral code</div>
+            <div className={styles.panelKicker}>Your referral code · Example</div>
             <span className={styles.feeBadge}>
               <Percent size={11} weight="fill" />
               0.1% OF FEES
             </span>
           </div>
-          <div className={styles.referralCodeRow}>
-            <div className={styles.referralCode}>
-              <span>ARTHY_REF</span>
-              <Copy size={19} className={styles.copyIcon} />
-            </div>
-            <button type="button" className={styles.shareBtn}>
-              Share
-            </button>
-          </div>
+          <ReferralCodeRow />
           <div className={styles.referralStats}>
             <div className={styles.referralStat}>
               <div className={styles.referralStatValue}>14</div>

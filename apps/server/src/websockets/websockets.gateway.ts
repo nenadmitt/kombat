@@ -114,16 +114,25 @@ export class WebsocketsGateway
     );
   }
 
+  /** Returns an ack so a caller can await the subscription; a refusal also
+   *  emits `channel:error` for clients that fire-and-forget. */
   @UsePipes(new ValidationPipe({ whitelist: true }))
   @SubscribeMessage('channel:join')
   async handleJoinChannel(
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() { channel }: ChannelDto,
-  ): Promise<void> {
+  ): Promise<{ ok: boolean; channel: string }> {
     if (!(await this.mayJoin(client, channel))) {
-      return;
+      if (client.data.userId) {
+        this.websocketsService.sendToUser(client.data.userId, 'channel:error', {
+          channel,
+          message: 'You are not allowed to join this channel.',
+        });
+      }
+      return { ok: false, channel };
     }
     await client.join(channelRoom(channel));
+    return { ok: true, channel };
   }
 
   /**

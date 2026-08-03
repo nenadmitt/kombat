@@ -8,6 +8,7 @@ import type { StakeAsset } from '@gaming-platform/core';
 
 import { useConfirm } from '../../components/ui';
 import MatchLoading from '../MatchLoading';
+import { useMatchExit } from '../use-match-exit';
 import { formatRoomCode } from '../room-code';
 import LudoPlayScreen from './LudoPlayScreen';
 import type { LudoEngine } from './ludo-engine';
@@ -20,7 +21,6 @@ import { useMultiplayerLudo } from './useMultiplayerLudo';
  * bots). There is no setup phase; both engines go straight to the board.
  */
 export default function LudoGame() {
-  const navigation = useNavigation();
   const route = useRoute();
   const params = route.params as
     | { roomId?: string; stakeToken?: StakeAsset | null; stakeAmount?: string | null }
@@ -32,7 +32,7 @@ export default function LudoGame() {
     params?.stakeAmount
       ? { token: params.stakeToken, amount: params.stakeAmount }
       : null;
-  const onExit = () => navigation.goBack();
+  const onExit = useMatchExit();
 
   if (!roomId) {
     return <DemoLudoGame onExit={onExit} />;

@@ -67,6 +67,8 @@ describe('WebsocketsGateway', () => {
       markConnected: (id: string) => connected.push(id),
       markDisconnected: (id: string) => disconnected.push(id),
       sendToChannel: () => undefined,
+      sendToUser: (id: string, event: string) =>
+        sequence.push([event, id]),
       setServer: () => undefined,
     } as unknown as WebsocketsService;
 

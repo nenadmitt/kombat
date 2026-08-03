@@ -108,8 +108,8 @@ const styles = StyleSheet.create({
   },
   sheet: {
     backgroundColor: colors.surface,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
     borderTopWidth: 1,
     borderColor: colors.cardBorder,
     paddingHorizontal: spacing.lg,
@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: 38,
     height: 4,
-    borderRadius: 3,
+    borderRadius: radius.pill,
     backgroundColor: colors.borderStrong,
   },
   dragHandleSpaced: {
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   closeBtn: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: radius.md,
     backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
