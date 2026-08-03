@@ -133,7 +133,7 @@ export class RpsMatchService {
   timeoutRound(
     roomId: string,
     seq: number,
-  ): Promise<RpsRevealPayload | null> {
+  ): Promise<{ reveal: RpsRevealPayload; over: boolean } | null> {
     return this.locked(roomId, async () => {
       const match = await this.load(roomId);
       if (!match || match.phase !== 'play' || match.roundSeq !== seq) {
@@ -146,11 +146,15 @@ export class RpsMatchService {
       }
       const reveal = this.resolveRound(match);
       // A player who hit the timeout cap loses outright, overriding score.
-      const capped = match.players.find(
+      // Both capped (a mutual no-show) voids: no seat may profit from it.
+      const capped = match.players.filter(
         p => match.timeouts[p]! >= MAX_TIMEOUTS,
       );
-      if (capped && match.phase === 'play') {
-        const winner = this.opponentOf(match, capped);
+      if (capped.length > 0 && match.phase === 'play') {
+        const winner =
+          capped.length === match.players.length
+            ? null
+            : this.opponentOf(match, capped[0]!);
         this.endMatch(match, winner, 'timeout');
         reveal.winnerUserId = winner;
         reveal.nextDeadline = null;
@@ -159,7 +163,7 @@ export class RpsMatchService {
       if (match.phase === 'play') {
         await this.scheduleRoundDeadline(match);
       }
-      return reveal;
+      return { reveal, over: match.phase !== 'play' };
     });
   }
 
@@ -272,7 +276,7 @@ export class RpsMatchService {
 
   private endMatch(
     match: RpsMatchState,
-    winnerUserId: string,
+    winnerUserId: string | null,
     reason: RpsEndReason,
   ): void {
     match.phase = 'over';

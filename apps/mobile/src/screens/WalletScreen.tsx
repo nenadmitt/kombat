@@ -48,6 +48,7 @@ const TX_STATUS_BADGE: Record<
   pending: { label: 'PENDING', tint: colors.accentLight, soft: colors.accentSoft },
   success: { label: 'DONE', tint: colors.success, soft: colors.successSoft },
   failed: { label: 'FAILED', tint: colors.danger, soft: colors.dangerSoft },
+  timeout: { label: 'UNKNOWN', tint: colors.gold, soft: colors.goldSoft },
 };
 
 /**
@@ -227,7 +228,9 @@ export default function WalletScreen() {
                     ? `Tap to track · ${tx.confirmations} of ${tx.requiredConfirmations} confirmations`
                     : tx.status === 'success'
                       ? 'Completed'
-                      : 'Failed';
+                      : tx.status === 'timeout'
+                        ? 'Not confirmed - check the explorer'
+                        : 'Failed';
                 return (
                   <Pressable
                     key={tx.hash}

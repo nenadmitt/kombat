@@ -26,8 +26,9 @@ const STAKE_OPTIONS: { key: LobbyStakeFilter; label: string }[] = [
 
 const TOKEN_OPTIONS: { key: StakeAsset; brand: BrandIconName }[] = [
   { key: StakeAsset.Usdc, brand: 'usdc' },
+  { key: StakeAsset.Usdt, brand: 'usdt' },
+  { key: StakeAsset.Dai, brand: 'dai' },
   { key: StakeAsset.Kombat, brand: 'kombat' },
-  { key: StakeAsset.Native, brand: 'eth' },
 ];
 
 type Props = {

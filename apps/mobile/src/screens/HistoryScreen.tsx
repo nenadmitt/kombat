@@ -206,7 +206,11 @@ export default function HistoryScreen() {
             <Text style={[styles.rowResult, { color: meta.color }]}>{meta.label}</Text>
           </View>
           <Text style={styles.rowMeta} numberOfLines={1}>
-            vs {entry.opponentUsername ?? 'Unknown'} · {formatWhen(entry.completedAt)} ·{' '}
+            vs{' '}
+            {entry.opponentUsernames?.length
+              ? entry.opponentUsernames.join(', ')
+              : (entry.opponentUsername ?? 'Unknown')}{' '}
+            · {formatWhen(entry.completedAt)} ·{' '}
             {stakeLabel(entry)}
           </Text>
         </View>

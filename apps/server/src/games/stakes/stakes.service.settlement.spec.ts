@@ -7,6 +7,7 @@ import {
 } from '@gaming-platform/core';
 import { DataSource } from 'typeorm';
 
+import { CacheService } from '../../cache';
 import { ConfigurationService } from '../../configuration/configuration.service';
 import { DbService } from '../../db';
 import { GameRoomEntity } from '../../db/entities/game-room.entity';
@@ -141,6 +142,7 @@ describe('StakesService (settlement recovery and edges)', () => {
 
     service = new StakesService(
       dbService,
+      { get: async () => null } as unknown as CacheService,
       config,
       websockets,
       stakePotService,
@@ -350,16 +352,20 @@ describe('StakesService (settlement recovery and edges)', () => {
       }
     });
 
-    it('validateStake enforces the per-asset minimum and env maximum', () => {
-      expect(() => service.validateStake(ASSET, '999999')).toThrow(
-        'Minimum stake not met',
-      );
+    it('validateStake allows only preset sizes in stakeable assets', () => {
+      // 1 and 500 USDC are presets; 0.999999 and 2 USDC are not.
       expect(() => service.validateStake(ASSET, '1000000')).not.toThrow();
-      // STAKE_MAX=1000 USDC at 6 decimals.
-      expect(() => service.validateStake(ASSET, '1000000000')).not.toThrow();
-      expect(() => service.validateStake(ASSET, '1000000001')).toThrow(
-        'maximum',
+      expect(() => service.validateStake(ASSET, '500000000')).not.toThrow();
+      expect(() => service.validateStake(ASSET, '999999')).toThrow(
+        'must be one of',
       );
+      expect(() => service.validateStake(ASSET, '2000000')).toThrow(
+        'must be one of',
+      );
+      // ETH is wallet-only.
+      expect(() =>
+        service.validateStake(StakeAsset.Native, '1000000000000000000'),
+      ).toThrow('cannot be staked');
     });
 
     it('assertRoomPlayable admits only held stakes', async () => {

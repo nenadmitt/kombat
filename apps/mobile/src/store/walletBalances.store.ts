@@ -4,7 +4,6 @@ import { create } from 'zustand';
 import { fetchBalances } from '../wallet/balance-client';
 import {
   CHAIN_TOKENS,
-  ETH_USD_FEED_DECIMALS,
   type BalanceChainId,
   type TokenSymbol,
 } from '../wallet/tokens';
@@ -125,30 +124,3 @@ export const useWalletBalancesStore = create<WalletBalancesState>((set, get) => 
   },
 }));
 
-/**
- * Total USD balance: stablecoins pegged at $1 plus ETH valued with the
- * Chainlink price. Other tokens (e.g. KOMBAT) are excluded - no price feed.
- */
-export function totalUsd(
-  chainId: BalanceChainId,
-  balances: Partial<Record<TokenSymbol, TokenBalance>>,
-  ethUsdPrice: bigint | null,
-): string {
-  let total = 0;
-  for (const token of CHAIN_TOKENS[chainId]) {
-    const raw = balances[token.symbol]?.raw;
-    if (raw == null) {
-      continue;
-    }
-    if (token.stable) {
-      total += Number(formatUnits(raw, token.decimals));
-    } else if (token.native && ethUsdPrice != null) {
-      total +=
-        Number(formatUnits(raw, token.decimals)) *
-        Number(formatUnits(ethUsdPrice, ETH_USD_FEED_DECIMALS));
-    }
-  }
-  const [intPart, fracPart = ''] = total.toFixed(2).split('.');
-  const withCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return `$${withCommas}.${fracPart}`;
-}

@@ -58,6 +58,8 @@ export type LudoMatchState = {
   eliminated: LudoColor[];
   timeouts: Record<string, number>;
   online: Record<string, boolean>;
+  /** Running capture totals per user (missing on pre-existing matches). */
+  captureCounts?: Record<string, number>;
   turnStartedAt: number | null;
   /** Bumped on every turn-clock restart; stale deadlines carry an old seq. */
   turnSeq: number;
@@ -107,6 +109,7 @@ export class LudoMatchService {
         eliminated: [],
         timeouts: Object.fromEntries(userIds.map(id => [id, 0])),
         online: Object.fromEntries(userIds.map(id => [id, false])),
+        captureCounts: Object.fromEntries(userIds.map(id => [id, 0])),
         turnStartedAt: Date.now(),
         turnSeq: 1,
         winnerUserId: null,
@@ -177,6 +180,11 @@ export class LudoMatchService {
       const die = match.die!;
       const result = applyMove(match.tokens, color, tokenIndex, die);
       match.tokens = result.tokens;
+      if (result.captures.length > 0) {
+        match.captureCounts = match.captureCounts ?? {};
+        match.captureCounts[userId] =
+          (match.captureCounts[userId] ?? 0) + result.captures.length;
+      }
       match.die = null;
       match.movable = [];
 
@@ -208,6 +216,7 @@ export class LudoMatchService {
         fromProgress: result.fromProgress,
         toProgress: result.toProgress,
         captures: result.captures,
+        captureCounts: { ...(match.captureCounts ?? {}) },
         tokens: match.tokens,
         extraRoll: extraRoll && !winnerUserId,
         stage: match.stage,
@@ -334,6 +343,7 @@ export class LudoMatchService {
       eliminated: match.eliminated,
       timeouts: { ...match.timeouts },
       online: { ...match.online },
+      captureCounts: { ...(match.captureCounts ?? {}) },
       winnerUserId: match.winnerUserId,
       endReason: match.endReason,
       turnDeadline: match.phase === 'play' ? this.deadline(match) : null,

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { STAKE_ASSET_SYMBOLS, StakeAsset } from '@gaming-platform/core';
 
-import { buildNumber, version } from '../../../package.json';
+import { APP_BUILD_NUMBER, APP_VERSION } from '../../config/app-version';
 import { colors, radius, spacing } from '../../theme/colors';
 import { mono, type } from '../../theme/typography';
 import { CHAINS } from '../../wallet/chains';
@@ -17,8 +17,6 @@ type Props = {
 };
 
 type PreferenceKey = 'notifications' | 'sound' | 'hideBalances';
-
-const BUILD_LABEL = `Kombat · ${version} (${buildNumber})`;
 
 /** Rows that only report state. None of these subsystems is settable yet, so
  *  they carry no chevron - a tap target that goes nowhere is worse than none. */
@@ -39,6 +37,12 @@ const WALLET_ROWS: readonly InfoRow[] = [
 const SUPPORT_ROWS: readonly InfoRow[] = [
   { key: 'discord', icon: 'discord', label: 'Discord', value: 'Coming soon' },
   { key: 'terms', icon: 'file-text', label: 'Terms & privacy', value: 'Coming soon' },
+  {
+    key: 'version',
+    icon: 'rotate-cw',
+    label: 'App version',
+    value: `${APP_VERSION} (${APP_BUILD_NUMBER})`,
+  },
 ];
 
 const PREFERENCE_ROWS: readonly { key: PreferenceKey; icon: IconName; label: string }[] = [
@@ -123,7 +127,6 @@ export default function SettingsSheet({ visible, onClose, username, onLogout }: 
 
       <View style={styles.footer}>
         <Button label="Log out" icon="log-out" variant="danger" onPress={handleLogoutPress} />
-        <Text style={styles.build}>{BUILD_LABEL}</Text>
       </View>
     </BottomSheet>
   );
@@ -182,12 +185,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   footer: {
-    gap: spacing.sm,
     paddingTop: spacing.md,
-  },
-  build: {
-    ...type.caption,
-    color: colors.textMuted,
-    textAlign: 'center',
   },
 });

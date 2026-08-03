@@ -45,6 +45,8 @@ export type ApiClientOptions = {
   onSessionExpired?: () => Promise<void>;
   /** Request timeout in ms before it's treated as a network failure. Defaults to 10000. */
   timeoutMs?: number;
+  /** Client build version, sent as X-App-Version so the server can gate old builds. */
+  appVersion?: string;
 };
 
 export class ApiError extends Error {
@@ -253,6 +255,15 @@ export class ApiClient {
     return this.request('GET', '/stake-pot/deposit-target', undefined, true);
   }
 
+  /** One-time welcome bonus into the caller's stake pot. 409 once claimed. */
+  claimWelcomeBonus(): Promise<{
+    txHash: string;
+    amount: string;
+    symbol: string;
+  }> {
+    return this.request('POST', '/stake-pot/claim', {}, true);
+  }
+
   listPendingGameRooms(options?: {
     /** Leave out rooms created by the requesting user. */
     excludeOwn?: boolean;
@@ -349,6 +360,9 @@ export class ApiClient {
     const headers: Record<string, string> = {};
     if (body !== undefined) {
       headers['Content-Type'] = 'application/json';
+    }
+    if (this.options.appVersion) {
+      headers['X-App-Version'] = this.options.appVersion;
     }
     if (authenticated) {
       const token = await this.options.getAccessToken?.();

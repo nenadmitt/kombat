@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import {
   STAKE_ASSET_SYMBOLS,
+  isStakeableAsset,
   type StakePotBalances,
   type StakePotFeeSummary,
   type StakePotHistoryEntry,
@@ -25,6 +26,8 @@ import { SecurityContext } from '../authentication/decorators/security-context.d
 import { JwtTokenGuard } from '../authentication/guards/jwt-token.guard';
 import { ConfigurationService } from '../configuration/configuration.service';
 import { DbService } from '../db';
+import { SupportedVersionGuard } from '../maintenance/supported-version.guard';
+import { FaucetService } from './faucet.service';
 import { ReconciliationJob, type ReconciliationSnapshot } from './reconciliation.job';
 import { StakePotHistoryQueryDto } from './dto/history-query.dto';
 import { WithdrawFromPotDto } from './dto/withdraw.dto';
@@ -42,6 +45,7 @@ export class StakePotController {
     private readonly reconciliationJob: ReconciliationJob,
     private readonly configurationService: ConfigurationService,
     private readonly dbService: DbService,
+    private readonly faucetService: FaucetService,
   ) {}
 
   /** The caller's pooled stake balance: spendable, in play, and withdrawing. */
@@ -73,6 +77,7 @@ export class StakePotController {
    * and its progress arrives over the balance socket event.
    */
   @Post('withdraw')
+  @UseGuards(SupportedVersionGuard)
   @UseGuards(JwtTokenGuard)
   async withdraw(
     @SecurityContext() securityContext: ISecurityContext,
@@ -133,8 +138,34 @@ export class StakePotController {
     return this.stakePotService.getFeeSummary();
   }
 
+  /** One-time welcome bonus into the caller's pot. Returns the grant tx. */
+  @Post('claim')
+  @UseGuards(SupportedVersionGuard)
+  @UseGuards(JwtTokenGuard)
+  async claim(
+    @SecurityContext() securityContext: ISecurityContext,
+  ): Promise<{ txHash: string; amount: string; symbol: string }> {
+    this.assertEnabled();
+    const [wallet] = await this.dbService.findWalletsForUser(
+      securityContext.userId,
+    );
+    if (!wallet) {
+      throw new NotFoundException('You have no wallet yet.');
+    }
+    const { txHash } = await this.faucetService.claim(
+      securityContext.userId,
+      wallet.address as `0x${string}`,
+    );
+    return {
+      txHash,
+      amount: String(this.faucetService.grantAmount),
+      symbol: 'KOMBAT',
+    };
+  }
+
   /** Where deposits should be sent, and in which assets. */
   @Get('deposit-target')
+  @UseGuards(SupportedVersionGuard)
   @UseGuards(JwtTokenGuard)
   getDepositTarget(): {
     contract: string;
@@ -145,11 +176,17 @@ export class StakePotController {
     return {
       contract: this.chainService.address,
       chainId: this.configurationService.CHAIN_ID,
-      tokens: this.stakePotService.assets.map(asset => ({
-        asset,
-        symbol: STAKE_ASSET_SYMBOLS[asset],
-        address: this.chainService.tokenAddress(asset),
-      })),
+      // Only what can actually be staked AND exists on this chain - ETH
+      // deposits are pointless now that only stablecoins/KOMBAT play.
+      tokens: this.stakePotService.assets
+        .filter(
+          asset => isStakeableAsset(asset) && this.chainService.hasToken(asset),
+        )
+        .map(asset => ({
+          asset,
+          symbol: STAKE_ASSET_SYMBOLS[asset],
+          address: this.chainService.tokenAddress(asset),
+        })),
     };
   }
 

@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { isProductionEnv } from './node-env';
+
 @Injectable()
 export class ConfigurationService {
   public readonly PORT: number;
@@ -101,8 +103,7 @@ export class ConfigurationService {
     this.ADMIN_TOKEN = this.configService.get('ADMIN_TOKEN');
     this.EMAIL_FROM =
       this.configService.get('EMAIL_FROM') ?? 'login@gaming-platform.local';
-    this.IS_PRODUCTION =
-      (this.configService.get('NODE_ENV') ?? 'development') === 'production';
+    this.IS_PRODUCTION = isProductionEnv(this.configService.get('NODE_ENV'));
 
     this.DEMO_LOGIN_EMAIL = (
       this.configService.get('DEMO_LOGIN_EMAIL') ?? 'demo@playkombat.xyz'

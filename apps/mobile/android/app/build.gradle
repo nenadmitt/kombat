@@ -102,6 +102,8 @@ android {
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
+            // Local dev talks http to the metro/API host.
+            manifestPlaceholders = [usesCleartextTraffic: "true"]
         }
         release {
             // Caution! In production, you need to generate your own keystore file.
@@ -109,6 +111,8 @@ android {
             signingConfig signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+            // JWT + wallet traffic must never ride plain http.
+            manifestPlaceholders = [usesCleartextTraffic: "false"]
         }
     }
 }

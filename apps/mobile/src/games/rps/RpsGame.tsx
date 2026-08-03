@@ -8,6 +8,7 @@ import type { StakeAsset } from '@gaming-platform/core';
 
 import { useConfirm } from '../../components/ui';
 import MatchLoading from '../MatchLoading';
+import { useMatchExit } from '../use-match-exit';
 import RpsPlayScreen from './RpsPlayScreen';
 import type { RpsEngine } from './rps-engine';
 import { useDemoRps } from './useDemoRps';
@@ -20,7 +21,6 @@ import { useMultiplayerRps } from './useMultiplayerRps';
  * match screen.
  */
 export default function RpsGame() {
-  const navigation = useNavigation();
   const route = useRoute();
   const params = route.params as
     | { roomId?: string; stakeToken?: StakeAsset | null; stakeAmount?: string | null }
@@ -32,7 +32,7 @@ export default function RpsGame() {
     params?.stakeAmount
       ? { token: params.stakeToken, amount: params.stakeAmount }
       : null;
-  const onExit = () => navigation.goBack();
+  const onExit = useMatchExit();
 
   if (!roomId) {
     return <DemoRpsGame onExit={onExit} />;

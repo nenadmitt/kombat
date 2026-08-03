@@ -1,5 +1,6 @@
 import { ApiClient } from '@gaming-platform/core';
 
+import { APP_VERSION } from '../config/app-version';
 import { env } from '../config/env';
 import {
   clearSession,
@@ -18,6 +19,7 @@ import {
  */
 export const apiClient = new ApiClient({
   baseUrl: env.apiBaseUrl,
+  appVersion: APP_VERSION,
   getAccessToken: async () => (await getSession())?.accessToken ?? null,
   getRefreshToken: async () => (await getSession())?.refreshToken ?? null,
 

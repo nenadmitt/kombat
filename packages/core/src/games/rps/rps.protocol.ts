@@ -74,7 +74,8 @@ export type RpsPresencePayload = {
 };
 
 export type RpsEndedPayload = {
-  winnerUserId: string;
+  /** Null when the match voided (both players timed out). */
+  winnerUserId: string | null;
   reason: RpsEndReason;
 };
 

@@ -8,8 +8,11 @@ import type { BalanceChainId, TokenSymbol } from '../wallet/tokens';
 
 export const REQUIRED_CONFIRMATIONS = 12;
 const POLL_MS = 3000;
+/** Give up polling this long after send; the tx may still land - the timeout
+ *  state points the user at the explorer instead of spinning forever. */
+const POLL_DEADLINE_MS = 30 * 60_000;
 
-export type TxStatus = 'pending' | 'success' | 'failed';
+export type TxStatus = 'pending' | 'success' | 'failed' | 'timeout';
 
 export type WalletTx = {
   hash: Hex;
@@ -81,12 +84,13 @@ export const useTransactionsStore = create<TransactionsState>()(
       name: 'wallet-transactions',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: state => ({ byChain: state.byChain }),
-      // On reload, re-check anything still pending from a previous session.
+      // On reload, re-check anything unresolved from a previous session. A
+      // timed-out tx gets one fresh look - it may have landed since.
       onRehydrateStorage: () => state => {
         if (!state) return;
         for (const [chainId, txs] of Object.entries(state.byChain)) {
           for (const tx of txs ?? []) {
-            if (tx.status === 'pending') {
+            if (tx.status === 'pending' || tx.status === 'timeout') {
               void poll(tx.hash, chainId as BalanceChainId);
             }
           }
@@ -116,18 +120,20 @@ async function poll(hash: Hex, chainId: BalanceChainId) {
 async function step(hash: Hex, chainId: BalanceChainId) {
   const client = getPublicClient(chainId);
   try {
-    const confirmations = Number(
-      await client.getTransactionConfirmations({ hash }),
-    );
-    if (confirmations >= 1) {
-      const receipt = await client
-        .getTransactionReceipt({ hash })
-        .catch(() => null);
-      if (receipt && receipt.status === 'reverted') {
-        patch(chainId, hash, { status: 'failed', confirmations });
+    // The receipt is the ground truth; getTransactionConfirmations returns 0
+    // for any tx the RPC hasn't indexed, which used to pin mined withdrawals
+    // on "pending" forever.
+    const receipt = await client
+      .getTransactionReceipt({ hash })
+      .catch(() => null);
+    if (receipt) {
+      if (receipt.status === 'reverted') {
+        patch(chainId, hash, { status: 'failed' });
         watching.delete(hash);
         return;
       }
+      const tip = await client.getBlockNumber();
+      const confirmations = Number(tip - receipt.blockNumber + 1n);
       if (confirmations >= REQUIRED_CONFIRMATIONS) {
         patch(chainId, hash, {
           status: 'success',
@@ -136,10 +142,18 @@ async function step(hash: Hex, chainId: BalanceChainId) {
         watching.delete(hash);
         return;
       }
+      patch(chainId, hash, { confirmations: Math.max(confirmations, 0) });
     }
-    patch(chainId, hash, { confirmations });
   } catch {
-    // tx not yet propagated / transient RPC error - keep polling.
+    // Transient RPC error - keep polling until the deadline below.
+  }
+  const tx = useTransactionsStore
+    .getState()
+    .byChain[chainId]?.find(t => t.hash === hash);
+  if (tx && Date.now() - tx.createdAt > POLL_DEADLINE_MS) {
+    patch(chainId, hash, { status: 'timeout' });
+    watching.delete(hash);
+    return;
   }
   setTimeout(() => void step(hash, chainId), POLL_MS);
 }

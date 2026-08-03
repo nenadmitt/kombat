@@ -11,11 +11,14 @@ import { StakesService } from './stakes.service';
 
 const SWEEP_INTERVAL_MS = 5_000;
 const SWEEP_BATCH_LIMIT = 10;
+/** Generous: a live match keeps its state in the cache, which excludes it. */
+const STRANDED_FUNDED_MIN_AGE_MINUTES = 15;
 
 /**
  * Recovers staked rooms orphaned mid-transition: Funding (the hold was never
- * taken) and SettlePending/VoidPending (the settlement was claimed but the money
- * never moved).
+ * taken), SettlePending/VoidPending (the settlement was claimed but the money
+ * never moved), and stale Funded rooms whose match never got a deadline armed
+ * because nobody entered.
  *
  * Both windows are microseconds wide - each is a database transaction that runs
  * inline - and both only open when the process dies inside one. Without
@@ -82,6 +85,20 @@ export class StakeSweeper implements OnModuleInit, OnModuleDestroy {
         } catch (error) {
           this.logger.error(
             `Stake recovery failed for room ${settlement.roomId}`,
+            error instanceof Error ? error.stack : String(error),
+          );
+        }
+      }
+
+      const stranded = await this.dbService.findStaleFundedSettlements(
+        STRANDED_FUNDED_MIN_AGE_MINUTES,
+      );
+      for (const settlement of stranded) {
+        try {
+          await this.stakesService.recoverStrandedFunded(settlement.roomId);
+        } catch (error) {
+          this.logger.error(
+            `Stranded-stake recovery failed for room ${settlement.roomId}`,
             error instanceof Error ? error.stack : String(error),
           );
         }

@@ -1,11 +1,10 @@
 import { useRef } from 'react';
 import { useNavigation, usePreventRemove, useRoute } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { StakeAsset } from '@gaming-platform/core';
 
 import { useConfirm } from '../../components/ui';
 import MatchLoading from '../MatchLoading';
-import type { RootStackParamList } from '../../navigation/types';
+import { useMatchExit } from '../use-match-exit';
 import SalvoPlayScreen from './SalvoPlayScreen';
 import type { SalvoEngine } from './salvo-engine';
 import { useLocalSalvo } from './useLocalSalvo';
@@ -17,8 +16,6 @@ import { useMultiplayerSalvo } from './useMultiplayerSalvo';
  * `SalvoSetup` route has none (local bot duel).
  */
 export default function SalvoGame() {
-  const navigation =
-    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute();
   const params = route.params as
     | { roomId?: string; stakeToken?: StakeAsset | null; stakeAmount?: string | null }
@@ -31,18 +28,7 @@ export default function SalvoGame() {
       ? { token: params.stakeToken, amount: params.stakeAmount }
       : null;
 
-  /**
-   * Leaving the duel. A plain goBack() is dropped with "GO_BACK was not
-   * handled by any navigator" whenever nothing sits under this route - a cold
-   * start or a deep link straight into a match - so fall back to the tabs.
-   */
-  const onExit = () => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-      return;
-    }
-    navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
-  };
+  const onExit = useMatchExit();
 
   if (!roomId) {
     return <DemoSalvoGame stake={stake} onExit={onExit} />;

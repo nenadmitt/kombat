@@ -196,7 +196,10 @@ describe('GameDeadlineSweeper', () => {
     });
 
     it('rps and salvo cap-outs settle with reason timeout', async () => {
-      rps.timeoutRound.mockResolvedValue({ winnerUserId: WINNER });
+      rps.timeoutRound.mockResolvedValue({
+        reveal: { winnerUserId: WINNER },
+        over: true,
+      });
       salvo.timeoutTurn.mockResolvedValue({ winnerUserId: WINNER });
       due = [
         deadlineMember(ROOM, 'rps-round', 1),
@@ -211,6 +214,23 @@ describe('GameDeadlineSweeper', () => {
         SALVO_EVENTS.ended,
       ]);
       expect(completions).toHaveLength(2);
+    });
+
+    it('a mutual rps cap-out voids: ended and settled with no winner', async () => {
+      rps.timeoutRound.mockResolvedValue({
+        reveal: { winnerUserId: null },
+        over: true,
+      });
+      due = [deadlineMember(ROOM, 'rps-round', 1)];
+      await sweep();
+
+      expect(channelEvents.map(e => e.event)).toEqual([
+        RPS_EVENTS.reveal,
+        RPS_EVENTS.ended,
+      ]);
+      expect(completions).toEqual([
+        { roomId: ROOM, winnerUserId: null, reason: 'timeout' },
+      ]);
     });
   });
 

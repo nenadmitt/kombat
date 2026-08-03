@@ -1,5 +1,5 @@
 import {
-  StakeAsset,
+  STAKE_ASSETS,
   emptyStakePotBalances,
   type StakePotBalances,
 } from '@gaming-platform/core';
@@ -68,7 +68,7 @@ export const useStakePotStore = create<StakePotState>((set, get) => ({
 
 /** True when the user has nothing in the pot at all, across every asset. */
 export function isStakePotEmpty(balances: StakePotBalances): boolean {
-  return [StakeAsset.Native, StakeAsset.Kombat, StakeAsset.Usdc].every(
+  return STAKE_ASSETS.every(
     asset =>
       balances.available[asset] === '0' &&
       balances.locked[asset] === '0' &&

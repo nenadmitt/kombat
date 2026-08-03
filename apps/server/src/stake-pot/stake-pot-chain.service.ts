@@ -15,7 +15,11 @@ import { privateKeyToAccount, type PrivateKeyAccount } from 'viem/accounts';
 import { StakeAsset } from '@gaming-platform/core';
 
 import { CacheService } from '../cache';
-import { OPERATOR_LOCK_KEY, OPERATOR_LOCK_TTL_MS } from '../chain/chain.service';
+import {
+  OPERATOR_LOCK_KEY,
+  OPERATOR_LOCK_TTL_MS,
+  OPERATOR_RECEIPT_TIMEOUT_MS,
+} from '../chain/chain.service';
 import { ERC20_ABI } from '../chain/erc20.abi';
 import { TOKEN_REGISTRY } from '../chain/token-registry';
 import { ConfigurationService } from '../configuration/configuration.service';
@@ -62,7 +66,7 @@ export class StakePotChainService {
   private operatorAccount!: PrivateKeyAccount;
   private pot!: Address;
   private chain!: Chain;
-  private tokens!: Record<StakeAsset, Address>;
+  private tokens!: Partial<Record<StakeAsset, Address>>;
   /** Reverse of `tokens`, lowercased - deposit events name a token address. */
   private assetByAddress!: Map<string, StakeAsset>;
   /** Signup-grant signer. Separate from the operator so its blast radius is a
@@ -103,8 +107,7 @@ export class StakePotChainService {
     this.pot = c.STAKE_POT_ADDRESS as Address;
     this.tokens = {
       [StakeAsset.Native]: NATIVE_TOKEN_ADDRESS,
-      [StakeAsset.Kombat]: registryTokens![StakeAsset.Kombat]!,
-      [StakeAsset.Usdc]: registryTokens![StakeAsset.Usdc]!,
+      ...registryTokens,
     };
     this.assetByAddress = new Map(
       Object.entries(this.tokens).map(([asset, address]) => [
@@ -125,8 +128,19 @@ export class StakePotChainService {
     return this.pot;
   }
 
+  /** Whether this asset has a token on the configured chain. */
+  hasToken(asset: StakeAsset): boolean {
+    return this.tokens[asset] !== undefined;
+  }
+
   tokenAddress(asset: StakeAsset): Address {
-    return this.tokens[asset];
+    const token = this.tokens[asset];
+    if (!token) {
+      throw new Error(
+        `No token for asset ${asset} on chain ${this.configurationService.CHAIN_ID}`,
+      );
+    }
+    return token;
   }
 
   /** The withdrawal row's uuid as the contract's bytes32 id. */
@@ -257,7 +271,7 @@ export class StakePotChainService {
       address: this.pot,
       abi: STAKE_POT_ABI,
       functionName: 'holdings',
-      args: [this.tokens[asset]],
+      args: [this.tokenAddress(asset)],
     });
   }
 
@@ -309,7 +323,7 @@ export class StakePotChainService {
           args: [
             this.withdrawalIdToBytes32(args.withdrawalId),
             args.to,
-            this.tokens[args.asset],
+            this.tokenAddress(args.asset),
             args.amount,
           ],
           chain: this.chain,
@@ -318,6 +332,7 @@ export class StakePotChainService {
         const receipt = await this.publicClient.waitForTransactionReceipt({
           hash,
           confirmations: this.configurationService.CHAIN_CONFIRMATIONS,
+          timeout: OPERATOR_RECEIPT_TIMEOUT_MS,
         });
         if (receipt.status !== 'success') {
           throw new Error(`Withdrawal transaction ${hash} reverted`);
@@ -356,7 +371,7 @@ export class StakePotChainService {
     if (!account) {
       throw new Error('Faucet is not configured (FAUCET_KEY unset)');
     }
-    const token = this.tokens[args.asset];
+    const token = this.tokenAddress(args.asset);
     if (token === NATIVE_TOKEN_ADDRESS) {
       throw new Error('Native grants are not supported');
     }
@@ -368,7 +383,9 @@ export class StakePotChainService {
 
     await this.ensureFaucetAllowance(client, account, token, args.amount);
 
-    const hash = await client.writeContract({
+    // No receipt wait: the claim endpoint returns the hash immediately and
+    // the deposit watcher credits the pot when the Staked event lands.
+    return client.writeContract({
       address: this.pot,
       abi: STAKE_POT_ABI,
       functionName: 'stake',
@@ -376,14 +393,6 @@ export class StakePotChainService {
       chain: this.chain,
       account,
     });
-    const receipt = await this.publicClient.waitForTransactionReceipt({
-      hash,
-      confirmations: this.configurationService.CHAIN_CONFIRMATIONS,
-    });
-    if (receipt.status !== 'success') {
-      throw new Error(`Grant transaction ${hash} reverted`);
-    }
-    return hash;
   }
 
   /** Faucet token float, so an empty faucet can be reported before it bites. */
@@ -393,7 +402,7 @@ export class StakePotChainService {
       return Promise.resolve(0n);
     }
     return this.publicClient.readContract({
-      address: this.tokens[asset],
+      address: this.tokenAddress(asset),
       abi: ERC20_ABI,
       functionName: 'balanceOf',
       args: [account.address],

@@ -357,6 +357,18 @@
   flex: none;
 }
 
+/* The code row is a real button (copies the code); reset button chrome. */
+button.referralCode {
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  transition: filter 140ms ease-out;
+}
+
+button.referralCode:hover {
+  filter: brightness(1.12);
+}
+
 .shareBtn {
   flex: none;
   box-sizing: border-box;

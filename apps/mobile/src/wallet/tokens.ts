@@ -3,7 +3,7 @@ import type { Address } from 'viem';
 import type { BrandIconName } from '../components/BrandIcon';
 import { colors } from '../theme/colors';
 
-export type TokenSymbol = 'ETH' | 'USDC' | 'USDT' | 'KOMBAT';
+export type TokenSymbol = 'ETH' | 'USDC' | 'USDT' | 'DAI' | 'KOMBAT';
 
 /** Chains we can read on-chain balances for. */
 export type BalanceChainId = 'base' | 'sepolia';
@@ -51,6 +51,16 @@ const USDT = (address?: Address): Token => ({
   address,
 });
 
+const DAI = (address?: Address): Token => ({
+  symbol: 'DAI',
+  name: 'Dai',
+  decimals: 18,
+  brand: 'dai',
+  tint: '#F5AC37',
+  stable: true,
+  address,
+});
+
 /** Shown on every chain; without an address it renders as no funds. */
 const KOMBAT = (address?: Address): Token => ({
   symbol: 'KOMBAT',
@@ -67,6 +77,7 @@ export const CHAIN_TOKENS: Record<BalanceChainId, Token[]> = {
     ETH,
     USDC('0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'),
     USDT('0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2'),
+    DAI('0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb'),
   ],
   sepolia: [
     // Must match the StakePot allowlist and the server's TOKEN_REGISTRY
@@ -75,6 +86,7 @@ export const CHAIN_TOKENS: Record<BalanceChainId, Token[]> = {
     ETH,
     USDC('0x277c9f3957633C99ef8F7421B980B50C41b31a7b'),
     USDT(),
+    DAI('0x776b6fC2eD15D6Bb5Fc32e0c89DE68683118c62A'),
   ],
 };
 

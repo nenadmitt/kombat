@@ -72,11 +72,11 @@ const styles = StyleSheet.create({
   base: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: spacing.xxs,
     alignSelf: 'flex-start',
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 5,
+    paddingVertical: spacing.xxs,
   },
   text: {
     fontFamily: mono.semiBold,

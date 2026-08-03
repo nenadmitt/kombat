@@ -76,6 +76,8 @@ export type LudoMovedPayload = {
   fromProgress: LudoProgress;
   toProgress: LudoProgress;
   captures: LudoCapture[];
+  /** Running capture totals per user - authoritative, survives reconnect. */
+  captureCounts: Record<string, number>;
   /** Authoritative token map after the move - clients replace, not replay. */
   tokens: LudoTokens;
   /** The roller earned another roll (rolled a six, chain below the cap). */
@@ -144,6 +146,8 @@ export type LudoRoomState = {
   eliminated: LudoColor[];
   timeouts: Record<string, number>;
   online: Record<string, boolean>;
+  /** Running capture totals per user. */
+  captureCounts: Record<string, number>;
   winnerUserId: string | null;
   endReason: LudoEndReason | null;
   /** Epoch ms when the current turn times out (null once over). */

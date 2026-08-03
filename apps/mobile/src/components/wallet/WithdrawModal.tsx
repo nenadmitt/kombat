@@ -14,7 +14,7 @@ import { CHAIN_TOKENS, type BalanceChainId, type TokenSymbol } from '../../walle
 import { sendTransfer } from '../../wallet/transfer';
 import BrandIcon from '../BrandIcon';
 import Icon from '../Icon';
-import { BottomSheet, Button, Card, KEYBOARD_DONE_ID } from '../ui';
+import { BottomSheet, Button, Card, useKeyboardDoneId } from '../ui';
 
 export type SubmittedTx = {
   hash: Hex;
@@ -51,6 +51,7 @@ export default function WithdrawModal({
   ethUsdPrice,
   onSubmitted,
 }: Props) {
+  const doneId = useKeyboardDoneId();
   const tokens = CHAIN_TOKENS[chain.id];
   const hasFunds = (sym: TokenSymbol) => {
     const raw = balances[sym]?.raw;
@@ -236,7 +237,7 @@ export default function WithdrawModal({
                 placeholder="0.00"
                 placeholderTextColor={colors.textFaint}
                 keyboardType="decimal-pad"
-                inputAccessoryViewID={KEYBOARD_DONE_ID}
+                inputAccessoryViewID={doneId}
                 selectionColor={colors.accent}
                 cursorColor={colors.accent}
                 style={styles.amountInput}

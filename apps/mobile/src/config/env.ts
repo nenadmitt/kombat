@@ -24,4 +24,7 @@ export const env = {
   alchemyToken: required('ALCHEMY_TOKEN'),
   /** Status/incident page linked from the maintenance banner. */
   maintenanceDetailsUrl: optional('MAINTENANCE_DETAILS_URL'),
+  /** Expected StakePot address. When set, a server-supplied deposit target
+   *  that differs is refused - a compromised API can't redirect deposits. */
+  stakePotAddressPin: optional('STAKE_POT_ADDRESS_PIN'),
 };

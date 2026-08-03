@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, IsNull, Repository } from 'typeorm';
+import { DataSource, In, IsNull, Not, Repository } from 'typeorm';
 import { LobbyStakeFilter } from '@gaming-platform/core';
 
 import {
@@ -557,13 +557,15 @@ export class DbService {
     return (result.affected ?? 0) > 0;
   }
 
-  /** Flip a room to Completed and persist its result (History reads these). */
+  /** Flip a room to Completed and persist its result (History reads these).
+   *  One-shot: a room already Completed keeps its winner - a late forfeit
+   *  must not rewrite a settled result. */
   async completeGameRoom(
     id: string,
     result?: { winnerUserId: string | null; endReason: string | null },
   ): Promise<void> {
     await this.gameRoomRepository.update(
-      { id },
+      { id, status: Not(GameRoomStatus.Completed) },
       {
         status: GameRoomStatus.Completed,
         completedAt: new Date(),
@@ -738,6 +740,23 @@ export class DbService {
       order: { updatedAt: 'ASC' },
       take: limit,
     });
+  }
+
+  /** Funded settlements untouched for at least `minAgeMinutes`. The cutoff is
+   *  evaluated in SQL so it cannot skew with the process clock. */
+  findStaleFundedSettlements(
+    minAgeMinutes: number,
+    limit = 50,
+  ): Promise<MatchSettlementEntity[]> {
+    return this.matchSettlementRepository
+      .createQueryBuilder('s')
+      .where('s.status = :status', { status: SettlementStatus.Funded })
+      .andWhere('s.updated_at < NOW() - make_interval(mins => :minAge)', {
+        minAge: minAgeMinutes,
+      })
+      .orderBy('s.updated_at', 'ASC')
+      .take(limit)
+      .getMany();
   }
 
   // --- admin / test ---

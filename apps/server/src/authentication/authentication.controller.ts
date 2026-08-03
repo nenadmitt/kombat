@@ -7,6 +7,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle, seconds } from '@nestjs/throttler';
 import type { AuthSession } from '@gaming-platform/core';
 
 import { AuthenticationService } from './authentication.service';
@@ -21,6 +22,8 @@ import { JwtTokenGuard } from './guards/jwt-token.guard';
 export class AuthenticationController {
   constructor(private readonly authenticationService: AuthenticationService) {}
 
+  // Sends an email per call - throttled well below the global default.
+  @Throttle({ default: { ttl: seconds(60), limit: 5 } })
   @Post('request-token')
   async requestToken(@Body() dto: RequestTokenDto): Promise<{ success: true }> {
     await this.authenticationService.requestToken(dto.email);
@@ -39,6 +42,8 @@ export class AuthenticationController {
     return { token };
   }
 
+  // The login-code brute-force surface.
+  @Throttle({ default: { ttl: seconds(60), limit: 10 } })
   @Post('exchange-token')
   async exchangeToken(@Body() dto: ExchangeTokenDto): Promise<AuthSession> {
     return this.authenticationService.exchangeToken(dto.email, dto.token);

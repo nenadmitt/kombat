@@ -17,6 +17,7 @@ import {
 import { formatUnits, type Address, type Hex } from 'viem';
 
 import { apiClient } from '../../api/client';
+import { env } from '../../config/env';
 import { useCurrentUserStore } from '../../store/currentUser.store';
 import type { TokenBalance } from '../../store/walletBalances.store';
 import { colors, radius, spacing } from '../../theme/colors';
@@ -26,7 +27,7 @@ import { depositToStakePot } from '../../wallet/stake-pot-deposit';
 import type { BalanceChainId, TokenSymbol } from '../../wallet/tokens';
 import BrandIcon from '../BrandIcon';
 import Icon from '../Icon';
-import { BottomSheet, Button, Card, KEYBOARD_DONE_ID } from '../ui';
+import { BottomSheet, Button, Card, useKeyboardDoneId } from '../ui';
 
 export type StakePotMode = 'add' | 'withdraw';
 
@@ -50,12 +51,6 @@ type Props = {
   onWithdrawRequested: () => void;
 };
 
-/**
- * ETH kept back so the wallet can still pay gas after a deposit. Depositing a
- * true "max" would leave the wallet unable to broadcast anything again.
- */
-const NATIVE_GAS_HEADROOM = 2_000_000_000_000_000n; // 0.002 ETH
-
 const QUICK_FRACTIONS = [0.25, 0.5, 1] as const;
 
 export default function StakePotModal({
@@ -67,7 +62,7 @@ export default function StakePotModal({
   onDeposited,
   onWithdrawRequested,
 }: Props) {
-  const [asset, setAsset] = useState<StakeAsset>(StakeAsset.Usdc);
+  const [asset, setAsset] = useState<StakeAsset>(POT_ASSETS[0].asset);
   const userId = useCurrentUserStore(state => state.userId);
   const [amount, setAmount] = useState('');
   const [assetPickerOpen, setAssetPickerOpen] = useState(false);
@@ -76,6 +71,7 @@ export default function StakePotModal({
 
   const adding = mode === 'add';
   const token = tokenForAsset(chainId, asset);
+  const doneId = useKeyboardDoneId();
 
   useEffect(() => {
     if (mode === null) {
@@ -87,7 +83,7 @@ export default function StakePotModal({
     }
     // The sheet is reused across openings, so reset the picker rather than
     // reopening on whatever was chosen last time.
-    setAsset(StakeAsset.Usdc);
+    setAsset(POT_ASSETS[0].asset);
   }, [mode]);
 
   /** The ceiling in base units: wallet balance when adding, pot when taking out. */
@@ -98,11 +94,7 @@ export default function StakePotModal({
     if (!token) {
       return 0n;
     }
-    const raw = walletBalances[token.symbol]?.raw ?? 0n;
-    if (asset !== StakeAsset.Native) {
-      return raw;
-    }
-    return raw > NATIVE_GAS_HEADROOM ? raw - NATIVE_GAS_HEADROOM : 0n;
+    return walletBalances[token.symbol]?.raw ?? 0n;
   })();
 
   const amountRaw = (() => {
@@ -157,6 +149,11 @@ export default function StakePotModal({
         // The pot address comes from the server so the app doesn't keep a
         // second copy of the deployment config.
         const target = await apiClient.getStakePotDepositTarget();
+        const pin = env.stakePotAddressPin;
+        if (pin && pin.toLowerCase() !== target.contract.toLowerCase()) {
+          setError('Deposit address mismatch. Update the app and try again.');
+          return;
+        }
         const hash = await depositToStakePot({
           userId,
           chainId,
@@ -237,7 +234,7 @@ export default function StakePotModal({
             placeholder="0.00"
             placeholderTextColor={colors.textFaint}
             keyboardType="decimal-pad"
-            inputAccessoryViewID={KEYBOARD_DONE_ID}
+            inputAccessoryViewID={doneId}
             selectionColor={colors.accent}
             cursorColor={colors.accent}
             style={styles.amountInput}

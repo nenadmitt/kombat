@@ -1,8 +1,13 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { STAKE_ASSET_DECIMALS, StakeAsset } from '@gaming-platform/core';
 import { Repository } from 'typeorm';
-import { parseUnits, type Address } from 'viem';
+import { parseUnits, type Address, type Hex } from 'viem';
 
 import { ConfigurationService } from '../configuration/configuration.service';
 import { StakePotGrantEntity } from './entities/stake-pot-grant.entity';
@@ -11,12 +16,13 @@ import { StakePotChainService } from './stake-pot-chain.service';
 const GRANT_ASSET = StakeAsset.Kombat;
 
 /**
- * Pays every new player FAUCET_GRANT_KOMBAT into their stake pot, so they can
- * enter a staked match without funding anything first.
+ * The welcome bonus: FAUCET_GRANT_KOMBAT into a player's stake pot, once,
+ * when they claim it (POST /stake-pot/claim - no longer automatic on signup).
  *
- * Into the pot, not the wallet, because the pot balance is what staking spends.
- * That also keeps the faucet out of the ledger entirely: the watcher credits it
- * off the `Staked` event, the same path a player's own deposit takes.
+ * Into the pot, not the wallet, because the pot balance is what staking
+ * spends. That also keeps the faucet out of the ledger entirely: the watcher
+ * credits it off the `Staked` event, the same path a player's own deposit
+ * takes.
  */
 @Injectable()
 export class FaucetService {
@@ -36,14 +42,17 @@ export class FaucetService {
     );
   }
 
-  /**
-   * Grant a new player their starting balance. Safe to call more than once for
-   * the same user; only the first call pays. Never throws - a failed grant must
-   * not fail the signup that triggered it.
-   */
-  async grantSignupBonus(userId: string, address: Address): Promise<void> {
+  get grantAmount(): number {
+    return this.configurationService.FAUCET_GRANT_KOMBAT;
+  }
+
+  /** Pays exactly once per user; the tx hash is returned for the client to
+   *  watch. The pot balance itself arrives via the deposit watcher. */
+  async claim(userId: string, address: Address): Promise<{ txHash: Hex }> {
     if (!this.enabled) {
-      return;
+      throw new ServiceUnavailableException(
+        'The welcome bonus is not available right now.',
+      );
     }
     const amount = parseUnits(
       String(this.configurationService.FAUCET_GRANT_KOMBAT),
@@ -60,7 +69,7 @@ export class FaucetService {
       .orIgnore()
       .execute();
     if ((claim.identifiers?.[0] ?? undefined) === undefined) {
-      return; // Already granted.
+      throw new ConflictException('The welcome bonus was already claimed.');
     }
 
     try {
@@ -71,15 +80,19 @@ export class FaucetService {
       });
       await this.grantRepository.update({ userId }, { txHash: hash, error: null });
       this.logger.log(
-        `Granted ${this.configurationService.FAUCET_GRANT_KOMBAT} KC to ${userId} (${address}) in ${hash}`,
+        `Claimed ${this.configurationService.FAUCET_GRANT_KOMBAT} KC for ${userId} (${address}) in ${hash}`,
       );
+      return { txHash: hash };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      // The claim stays: re-sending risks paying twice, and a missing grant is
-      // the cheaper failure. Loud enough to re-grant by hand.
+      // The claim row stays: re-sending risks paying twice, and a missing
+      // grant is the cheaper failure. Loud enough to re-grant by hand.
       await this.grantRepository.update({ userId }, { error: message });
-      this.logger.error(`Signup grant failed for ${userId}: ${message}`);
+      this.logger.error(`Welcome bonus claim failed for ${userId}: ${message}`);
       await this.warnIfFaucetEmpty(amount);
+      throw new ServiceUnavailableException(
+        'The bonus could not be sent right now. Please contact support.',
+      );
     }
   }
 

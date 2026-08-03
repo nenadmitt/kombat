@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminModule } from '../admin/admin.module';
 import { AuthenticationModule } from '../authentication/authentication.module';
 import { ConfigurationModule } from '../configuration/configuration.module';
+import { MaintenanceModule } from '../maintenance';
 import { WebsocketsModule } from '../websockets';
 import { PotEventWatcher } from './pot-event.watcher';
 import { FaucetService } from './faucet.service';
@@ -35,6 +36,7 @@ import { WithdrawalSweeper } from './withdrawal.sweeper';
     WebsocketsModule,
     AuthenticationModule,
     AdminModule,
+    MaintenanceModule,
     TypeOrmModule.forFeature([
       StakedBalanceEntity,
       StakeLedgerEntryEntity,

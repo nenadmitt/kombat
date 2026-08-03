@@ -8,6 +8,7 @@ import type { StakeAsset } from '@gaming-platform/core';
 
 import { useConfirm } from '../../components/ui';
 import MatchLoading from '../MatchLoading';
+import { useMatchExit } from '../use-match-exit';
 import ChromaPlayScreen from './ChromaPlayScreen';
 import type { ChromaEngine } from './chroma-engine';
 import { useDemoChroma } from './useDemoChroma';
@@ -20,7 +21,6 @@ import { useMultiplayerChroma } from './useMultiplayerChroma';
  * match screen.
  */
 export default function ChromaGame() {
-  const navigation = useNavigation();
   const route = useRoute();
   const params = route.params as
     | { roomId?: string; stakeToken?: StakeAsset | null; stakeAmount?: string | null }
@@ -32,7 +32,7 @@ export default function ChromaGame() {
     params?.stakeAmount
       ? { token: params.stakeToken, amount: params.stakeAmount }
       : null;
-  const onExit = () => navigation.goBack();
+  const onExit = useMatchExit();
 
   if (!roomId) {
     return <DemoChromaGame onExit={onExit} />;

@@ -6,22 +6,62 @@
 
 /** Which asset a match is staked in. Stored server-side as smallint. */
 export enum StakeAsset {
-  Native = 0, // ETH
+  Native = 0, // ETH - wallet/gas only, not stakeable
   Kombat = 1,
   Usdc = 2,
+  Usdt = 3,
+  Dai = 4,
 }
+
+/** Every asset, for iterating balance records. */
+export const STAKE_ASSETS: StakeAsset[] = [
+  StakeAsset.Native,
+  StakeAsset.Kombat,
+  StakeAsset.Usdc,
+  StakeAsset.Usdt,
+  StakeAsset.Dai,
+];
+
+/** Assets a match may be staked in: stablecoins + KOMBAT, never ETH. */
+export const STAKEABLE_ASSETS: StakeAsset[] = [
+  StakeAsset.Kombat,
+  StakeAsset.Usdc,
+  StakeAsset.Usdt,
+  StakeAsset.Dai,
+];
+
+export function isStakeableAsset(asset: StakeAsset): boolean {
+  return STAKEABLE_ASSETS.includes(asset);
+}
+
+/** The only stake sizes a room may be created with, in human units. */
+export const STAKE_PRESETS = [1, 5, 10, 25, 50, 100, 250, 500] as const;
 
 export const STAKE_ASSET_DECIMALS: Record<StakeAsset, number> = {
   [StakeAsset.Native]: 18,
   [StakeAsset.Kombat]: 18,
   [StakeAsset.Usdc]: 6,
+  [StakeAsset.Usdt]: 6,
+  [StakeAsset.Dai]: 18,
 };
 
 export const STAKE_ASSET_SYMBOLS: Record<StakeAsset, string> = {
   [StakeAsset.Native]: 'ETH',
   [StakeAsset.Kombat]: 'KOMBAT',
   [StakeAsset.Usdc]: 'USDC',
+  [StakeAsset.Usdt]: 'USDT',
+  [StakeAsset.Dai]: 'DAI',
 };
+
+/** Whether a base-unit amount is exactly one of STAKE_PRESETS. */
+export function isPresetStakeAmount(asset: StakeAsset, amount: string): boolean {
+  if (!/^\d+$/.test(amount)) {
+    return false;
+  }
+  const value = BigInt(amount);
+  const unit = 10n ** BigInt(STAKE_ASSET_DECIMALS[asset]);
+  return STAKE_PRESETS.some(preset => value === BigInt(preset) * unit);
+}
 
 /** Settlement lifecycle for a staked room. Free rooms have no row. */
 export enum SettlementStatus {
@@ -35,11 +75,13 @@ export enum SettlementStatus {
   Failed = 6,
 }
 
-/** Minimum stake per player, in base units (1 USDC / 0.001 ETH / 1 KOMBAT). */
+/** Minimum stake per player, in base units (1 unit of each asset). */
 export const STAKE_ASSET_MIN: Record<StakeAsset, string> = {
   [StakeAsset.Native]: '1000000000000000', // 0.001 ETH
   [StakeAsset.Kombat]: '1000000000000000000', // 1 KOMBAT
   [StakeAsset.Usdc]: '1000000', // 1 USDC
+  [StakeAsset.Usdt]: '1000000', // 1 USDT
+  [StakeAsset.Dai]: '1000000000000000000', // 1 DAI
 };
 
 /** Socket events broadcast to a room's game channel during staking. */
@@ -91,7 +133,10 @@ export type MatchHistoryResult = 'win' | 'loss' | 'void';
 export type MatchHistoryEntry = {
   roomId: string;
   gameType: number;
+  /** First opponent - kept for older clients; prefer `opponentUsernames`. */
   opponentUsername: string | null;
+  /** Every opponent in seat order (multi-seat games have up to three). */
+  opponentUsernames: string[];
   result: MatchHistoryResult;
   /** Base-unit stake per player; null for free games. */
   stakeAmount: string | null;

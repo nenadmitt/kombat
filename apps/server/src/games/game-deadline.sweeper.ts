@@ -196,16 +196,17 @@ export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
     roomId: string,
     seq: number,
   ): Promise<void> {
-    const reveal = await this.rpsMatchService.timeoutRound(roomId, seq);
-    if (!reveal) {
+    const result = await this.rpsMatchService.timeoutRound(roomId, seq);
+    if (!result) {
       return; // Stale — the round advanced or the match ended/expired.
     }
+    const { reveal, over } = result;
     this.websocketsService.sendToChannel(
       gameChannel(roomId),
       RPS_EVENTS.reveal,
       reveal,
     );
-    if (reveal.winnerUserId) {
+    if (over) {
       this.websocketsService.sendToChannel(
         gameChannel(roomId),
         RPS_EVENTS.ended,
