@@ -7,10 +7,10 @@ import { CHAIN_TOKENS, type BalanceChainId, type Token, type TokenSymbol } from 
  * wallet/gas only - it never appears in the pot.
  */
 export const POT_ASSETS: { asset: StakeAsset; symbol: TokenSymbol }[] = [
+  { asset: StakeAsset.Kombat, symbol: 'KOMBAT' },
   { asset: StakeAsset.Usdc, symbol: 'USDC' },
   { asset: StakeAsset.Usdt, symbol: 'USDT' },
   { asset: StakeAsset.Dai, symbol: 'DAI' },
-  { asset: StakeAsset.Kombat, symbol: 'KOMBAT' },
 ];
 
 export function symbolForAsset(asset: StakeAsset): TokenSymbol {

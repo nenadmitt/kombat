@@ -62,7 +62,7 @@ export default function StakePotModal({
   onDeposited,
   onWithdrawRequested,
 }: Props) {
-  const [asset, setAsset] = useState<StakeAsset>(StakeAsset.Usdc);
+  const [asset, setAsset] = useState<StakeAsset>(POT_ASSETS[0].asset);
   const userId = useCurrentUserStore(state => state.userId);
   const [amount, setAmount] = useState('');
   const [assetPickerOpen, setAssetPickerOpen] = useState(false);
@@ -82,7 +82,7 @@ export default function StakePotModal({
     }
     // The sheet is reused across openings, so reset the picker rather than
     // reopening on whatever was chosen last time.
-    setAsset(StakeAsset.Usdc);
+    setAsset(POT_ASSETS[0].asset);
   }, [mode]);
 
   /** The ceiling in base units: wallet balance when adding, pot when taking out. */
