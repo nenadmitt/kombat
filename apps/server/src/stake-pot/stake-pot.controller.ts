@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import {
   STAKE_ASSET_SYMBOLS,
+  isStakeableAsset,
   type StakePotBalances,
   type StakePotFeeSummary,
   type StakePotHistoryEntry,
@@ -145,11 +146,17 @@ export class StakePotController {
     return {
       contract: this.chainService.address,
       chainId: this.configurationService.CHAIN_ID,
-      tokens: this.stakePotService.assets.map(asset => ({
-        asset,
-        symbol: STAKE_ASSET_SYMBOLS[asset],
-        address: this.chainService.tokenAddress(asset),
-      })),
+      // Only what can actually be staked AND exists on this chain - ETH
+      // deposits are pointless now that only stablecoins/KOMBAT play.
+      tokens: this.stakePotService.assets
+        .filter(
+          asset => isStakeableAsset(asset) && this.chainService.hasToken(asset),
+        )
+        .map(asset => ({
+          asset,
+          symbol: STAKE_ASSET_SYMBOLS[asset],
+          address: this.chainService.tokenAddress(asset),
+        })),
     };
   }
 

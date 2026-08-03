@@ -3,12 +3,13 @@ import { StakeAsset } from '@gaming-platform/core';
 import { CHAIN_TOKENS, type BalanceChainId, type Token, type TokenSymbol } from './tokens';
 
 /**
- * The pot accounts in StakeAsset; the wallet UI works in TokenSymbol. USDT has
- * no StakeAsset, so it simply can't be staked.
+ * The pot accounts in StakeAsset; the wallet UI works in TokenSymbol. ETH is
+ * wallet/gas only - it never appears in the pot.
  */
 export const POT_ASSETS: { asset: StakeAsset; symbol: TokenSymbol }[] = [
-  { asset: StakeAsset.Native, symbol: 'ETH' },
   { asset: StakeAsset.Usdc, symbol: 'USDC' },
+  { asset: StakeAsset.Usdt, symbol: 'USDT' },
+  { asset: StakeAsset.Dai, symbol: 'DAI' },
   { asset: StakeAsset.Kombat, symbol: 'KOMBAT' },
 ];
 

@@ -80,6 +80,9 @@ export class ReconciliationJob implements OnModuleInit, OnModuleDestroy {
       const ledgerTotals = await this.stakePotService.getLedgerTotals();
       const lines: ReconciliationLine[] = [];
       for (const asset of this.stakePotService.assets) {
+        if (!this.chainService.hasToken(asset)) {
+          continue; // Not deployed on this chain - nothing to reconcile.
+        }
         const onChain = await this.chainService.getHoldings(asset);
         const ledger = ledgerTotals[asset];
         const drift = onChain - ledger;

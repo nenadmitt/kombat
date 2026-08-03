@@ -52,20 +52,24 @@ export default function StakePotTab({
 }: Props) {
   const network = CHAINS.find(c => c.id === chainId)?.network ?? chainId;
 
-  // Every token the wallet shows gets a row, so the two tabs list the same
-  // currencies. One the pot cannot hold on this network stays visible and
-  // says why, rather than silently going missing.
-  const rows = CHAIN_TOKENS[chainId].map(token => {
-    const asset = POT_ASSETS.find(a => a.symbol === token.symbol)?.asset;
-    const stakeable = asset !== undefined && (token.native || !!token.address);
-    return {
-      token,
-      asset,
-      stakeable,
-      available: asset !== undefined ? BigInt(pot.available[asset]) : 0n,
-      locked: asset !== undefined ? BigInt(pot.locked[asset]) : 0n,
-      pending: asset !== undefined ? BigInt(pot.pendingWithdrawals[asset]) : 0n,
-    };
+  // Only pot currencies get a row - ETH is wallet/gas only and never shows
+  // here. A pot currency missing on this network stays visible and says why,
+  // rather than silently going missing.
+  const rows = POT_ASSETS.flatMap(({ asset, symbol }) => {
+    const token = CHAIN_TOKENS[chainId].find(t => t.symbol === symbol);
+    if (!token) {
+      return [];
+    }
+    return [
+      {
+        token,
+        asset,
+        stakeable: !!token.address,
+        available: BigInt(pot.available[asset]),
+        locked: BigInt(pot.locked[asset]),
+        pending: BigInt(pot.pendingWithdrawals[asset]),
+      },
+    ];
   });
 
   const stakeable = rows.filter(row => row.stakeable);
@@ -75,12 +79,12 @@ export default function StakePotTab({
   ).length;
 
   const lockedUsd = stakeable.reduce(
-    (sum, row) => sum + usdValue(row.asset!, row.locked, ethUsdPrice),
+    (sum, row) => sum + usdValue(row.asset, row.locked, ethUsdPrice),
     0,
   );
   const [whole, cents] = splitUsd(
     stakeable.reduce(
-      (sum, row) => sum + usdValue(row.asset!, row.available, ethUsdPrice),
+      (sum, row) => sum + usdValue(row.asset, row.available, ethUsdPrice),
       0,
     ),
   );
@@ -148,7 +152,7 @@ export default function StakePotTab({
                       : `Disabled on ${network}`}
                   </Text>
                 </View>
-                {row.stakeable && asset !== undefined ? (
+                {row.stakeable ? (
                   <View style={styles.rowRight}>
                     <Text style={[styles.rowAmount, dimmed && styles.rowAmountEmpty]}>
                       {formatStakeAmount(row.available.toString(), asset)}
@@ -209,7 +213,11 @@ function usdValue(
   ethUsdPrice: bigint | null,
 ): number {
   const amount = Number(formatUnits(raw, STAKE_ASSET_DECIMALS[asset]));
-  if (asset === StakeAsset.Usdc) {
+  if (
+    asset === StakeAsset.Usdc ||
+    asset === StakeAsset.Usdt ||
+    asset === StakeAsset.Dai
+  ) {
     return amount;
   }
   if (asset === StakeAsset.Native && ethUsdPrice != null) {

@@ -7,7 +7,7 @@
  * `stake.types.ts` - format them with `formatStakeAmount`.
  */
 
-import { StakeAsset } from './stake.types';
+import { STAKE_ASSETS, StakeAsset } from './stake.types';
 
 /** Base-unit amounts keyed by asset, as decimal strings. */
 export type StakePotAmounts = Record<StakeAsset, string>;
@@ -108,11 +108,9 @@ export const STAKE_POT_EVENTS = {
 
 /** Zero for every asset - the starting point for a user with no pot yet. */
 export function emptyStakePotAmounts(): StakePotAmounts {
-  return {
-    [StakeAsset.Native]: '0',
-    [StakeAsset.Kombat]: '0',
-    [StakeAsset.Usdc]: '0',
-  };
+  return Object.fromEntries(
+    STAKE_ASSETS.map(asset => [asset, '0']),
+  ) as StakePotAmounts;
 }
 
 export function emptyStakePotBalances(): StakePotBalances {

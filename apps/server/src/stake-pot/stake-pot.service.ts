@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
+  STAKE_ASSETS,
   STAKE_ASSET_SYMBOLS,
   STAKE_POT_EVENTS,
   StakeAsset,
@@ -25,11 +26,7 @@ import { StakedBalanceEntity } from './entities/staked-balance.entity';
  *  with a real user. */
 export const PLATFORM_ACCOUNT_ID = '00000000-0000-0000-0000-00000000fee5';
 
-const ALL_ASSETS: StakeAsset[] = [
-  StakeAsset.Native,
-  StakeAsset.Kombat,
-  StakeAsset.Usdc,
-];
+const ALL_ASSETS: StakeAsset[] = STAKE_ASSETS;
 
 const BPS_DENOMINATOR = 10_000n;
 
@@ -138,11 +135,9 @@ export class StakePotService {
       .groupBy('withdrawal.asset')
       .getRawMany<{ asset: number; amount: string }>();
 
-    const totals = {
-      [StakeAsset.Native]: 0n,
-      [StakeAsset.Kombat]: 0n,
-      [StakeAsset.Usdc]: 0n,
-    };
+    const totals = Object.fromEntries(
+      STAKE_ASSETS.map(asset => [asset, 0n]),
+    ) as Record<StakeAsset, bigint>;
     for (const row of rows) {
       totals[Number(row.asset) as StakeAsset] +=
         this.toBigInt(row.available) + this.toBigInt(row.locked);

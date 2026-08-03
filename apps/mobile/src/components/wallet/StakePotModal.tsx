@@ -17,6 +17,7 @@ import {
 import { formatUnits, type Address, type Hex } from 'viem';
 
 import { apiClient } from '../../api/client';
+import { env } from '../../config/env';
 import { useCurrentUserStore } from '../../store/currentUser.store';
 import type { TokenBalance } from '../../store/walletBalances.store';
 import { colors, radius, spacing } from '../../theme/colors';
@@ -49,12 +50,6 @@ type Props = {
   /** Fired after a withdrawal is queued server-side. */
   onWithdrawRequested: () => void;
 };
-
-/**
- * ETH kept back so the wallet can still pay gas after a deposit. Depositing a
- * true "max" would leave the wallet unable to broadcast anything again.
- */
-const NATIVE_GAS_HEADROOM = 2_000_000_000_000_000n; // 0.002 ETH
 
 const QUICK_FRACTIONS = [0.25, 0.5, 1] as const;
 
@@ -98,11 +93,7 @@ export default function StakePotModal({
     if (!token) {
       return 0n;
     }
-    const raw = walletBalances[token.symbol]?.raw ?? 0n;
-    if (asset !== StakeAsset.Native) {
-      return raw;
-    }
-    return raw > NATIVE_GAS_HEADROOM ? raw - NATIVE_GAS_HEADROOM : 0n;
+    return walletBalances[token.symbol]?.raw ?? 0n;
   })();
 
   const amountRaw = (() => {
@@ -157,6 +148,11 @@ export default function StakePotModal({
         // The pot address comes from the server so the app doesn't keep a
         // second copy of the deployment config.
         const target = await apiClient.getStakePotDepositTarget();
+        const pin = env.stakePotAddressPin;
+        if (pin && pin.toLowerCase() !== target.contract.toLowerCase()) {
+          setError('Deposit address mismatch. Update the app and try again.');
+          return;
+        }
         const hash = await depositToStakePot({
           userId,
           chainId,

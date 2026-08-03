@@ -8,6 +8,7 @@ import {
 } from '@gaming-platform/core';
 import { DataSource } from 'typeorm';
 
+import { CacheService } from '../../cache';
 import { ConfigurationService } from '../../configuration/configuration.service';
 import { DbService } from '../../db';
 import { GameRoomEntity } from '../../db/entities/game-room.entity';
@@ -143,6 +144,7 @@ describe('StakesService (pot mode)', () => {
 
     service = new StakesService(
       dbService,
+      { get: async () => null } as unknown as CacheService,
       config,
       websockets,
       stakePotService,

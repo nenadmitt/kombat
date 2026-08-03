@@ -8,7 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Address } from 'viem';
-import { StakeAsset, WalletBalances } from '@gaming-platform/core';
+import { WalletBalances } from '@gaming-platform/core';
 
 import { ISecurityContext } from '../authentication/authentication.types';
 import { SecurityContext } from '../authentication/decorators/security-context.decorator';
@@ -45,11 +45,7 @@ export class WalletsController {
     );
     return {
       address: wallet.address,
-      balances: {
-        [StakeAsset.Native]: balances[StakeAsset.Native],
-        [StakeAsset.Kombat]: balances[StakeAsset.Kombat],
-        [StakeAsset.Usdc]: balances[StakeAsset.Usdc],
-      },
+      balances,
     };
   }
 

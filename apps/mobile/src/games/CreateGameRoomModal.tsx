@@ -6,7 +6,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,7 +15,9 @@ import {
   GameType,
   supportsMultiplayerRoom,
   isMultiSeatGame,
+  STAKEABLE_ASSETS,
   STAKE_ASSET_SYMBOLS,
+  STAKE_PRESETS,
   StakeAsset,
   formatStakeAmount,
   parseStakeAmount,
@@ -28,8 +29,6 @@ import Icon from '../components/Icon';
 import {
   Button,
   Card,
-  KeyboardDoneBar,
-  KEYBOARD_DONE_ID,
   MODAL_DISMISS_MS,
   Toggle,
 } from '../components/ui';
@@ -45,17 +44,17 @@ type Props = {
   onClose: () => void;
 };
 
-/** Per-asset display + quick-pick presets (human units). */
-const STAKE_CONFIG: Record<
-  StakeAsset,
-  { brand: BrandIconName; fmt: (v: number) => string; presets: number[] }
-> = {
-  [StakeAsset.Usdc]: { brand: 'usdc', fmt: v => v.toFixed(2), presets: [10, 50, 100, 500] },
-  [StakeAsset.Kombat]: { brand: 'kombat', fmt: v => v.toFixed(2), presets: [10, 50, 100, 500] },
-  [StakeAsset.Native]: { brand: 'eth', fmt: v => v.toFixed(3), presets: [0.01, 0.05, 0.1, 0.5] },
+/** Brand icon per stakeable asset. Amounts are the fixed STAKE_PRESETS. */
+const STAKE_BRANDS: Partial<Record<StakeAsset, BrandIconName>> = {
+  [StakeAsset.Usdc]: 'usdc',
+  [StakeAsset.Usdt]: 'usdt',
+  [StakeAsset.Dai]: 'dai',
+  [StakeAsset.Kombat]: 'kombat',
 };
 
-const STAKE_TOKENS: StakeAsset[] = [StakeAsset.Usdc, StakeAsset.Kombat, StakeAsset.Native];
+const STAKE_TOKENS: StakeAsset[] = STAKEABLE_ASSETS;
+
+const DEFAULT_STAKE = 10;
 
 /**
  * The catalog this modal offers, filtered by the shared allowlist so a game
@@ -85,7 +84,7 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
   const [gamePickerVisible, setGamePickerVisible] = useState(false);
   /** null = free play, otherwise the staked token. */
   const [stakeToken, setStakeToken] = useState<StakeAsset | null>(null);
-  const [feeInput, setFeeInput] = useState('10');
+  const [stakeAmount, setStakeAmount] = useState<number>(DEFAULT_STAKE);
   const [tokenPickerOpen, setTokenPickerOpen] = useState(false);
   const [isPrivate, setIsPrivate] = useState(false);
   const setWaitingRoom = useGameStore(state => state.setWaitingRoom);
@@ -101,7 +100,6 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
   }, [visible, refreshPot]);
 
   const staked = stakeToken !== null;
-  const feeNum = Number(feeInput) || 0;
   const selectedGame =
     GAME_CHOICES.find(g => g.gameType === gameType) ?? GAME_CHOICES[0];
 
@@ -117,27 +115,21 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
       STAKE_TOKENS.find(t => potOf(t) > 0n) ??
       StakeAsset.Usdc;
     setStakeToken(token);
-    setFeeInput(String(STAKE_CONFIG[token].presets[0]));
   };
 
   const pickToken = (token: StakeAsset) => {
     setStakeToken(token);
-    setFeeInput(String(STAKE_CONFIG[token].presets[0]));
     setTokenPickerOpen(false);
   };
 
   const players = isMultiSeatGame(gameType) ? 4 : 2;
-  const winnerTakes = feeNum * players * 0.95;
+  const winnerTakes = stakeAmount * players * 0.95;
 
   const stakeRaw = (() => {
     if (stakeToken === null) {
       return null;
     }
-    try {
-      return BigInt(parseStakeAmount(STAKE_CONFIG[stakeToken].fmt(feeNum), stakeToken));
-    } catch {
-      return null;
-    }
+    return BigInt(parseStakeAmount(String(stakeAmount), stakeToken));
   })();
   const potAvailable = stakeToken === null ? 0n : potOf(stakeToken);
   const exceedsPot = stakeRaw !== null && stakeRaw > potAvailable;
@@ -163,7 +155,7 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
           ? undefined
           : {
               token: stakeToken,
-              amount: parseStakeAmount(STAKE_CONFIG[stakeToken].fmt(feeNum), stakeToken),
+              amount: parseStakeAmount(String(stakeAmount), stakeToken),
             };
       const room = await apiClient.createGameRoom(gameType, stake, isPrivate);
       // Close this Modal first and only then hand the room to the waiting
@@ -179,7 +171,7 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
   };
 
   const createLabel = staked
-    ? `Create Room · ${feeInput || '0'} ${STAKE_ASSET_SYMBOLS[stakeToken!]}`
+    ? `Create Room · ${stakeAmount} ${STAKE_ASSET_SYMBOLS[stakeToken!]}`
     : 'Create Room';
 
   return (
@@ -261,22 +253,12 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
                   </Text>
                 </View>
                 <View style={styles.amountRow}>
-                  <TextInput
-                    value={feeInput}
-                    onChangeText={setFeeInput}
-                    keyboardType="decimal-pad"
-                    inputAccessoryViewID={KEYBOARD_DONE_ID}
-                    placeholder="0"
-                    placeholderTextColor={colors.textFaint}
-                    selectionColor={colors.accent}
-                    cursorColor={colors.accent}
-                    style={styles.amountInput}
-                  />
+                  <Text style={styles.amountValue}>{stakeAmount}</Text>
                   <Pressable
                     onPress={() => setTokenPickerOpen(o => !o)}
                     style={styles.tokenPill}
                   >
-                    <BrandIcon type={STAKE_CONFIG[stakeToken].brand} size={20} />
+                    <BrandIcon type={STAKE_BRANDS[stakeToken]!} size={20} />
                     <Text style={styles.tokenPillText}>
                       {STAKE_ASSET_SYMBOLS[stakeToken]}
                     </Text>
@@ -292,7 +274,7 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
                         onPress={() => pickToken(t)}
                         style={[styles.tokenListRow, t === stakeToken && styles.tokenListRowActive]}
                       >
-                        <BrandIcon type={STAKE_CONFIG[t].brand} size={20} />
+                        <BrandIcon type={STAKE_BRANDS[t]!} size={20} />
                         <Text style={styles.tokenListText}>{STAKE_ASSET_SYMBOLS[t]}</Text>
                         <Text style={styles.tokenListBal}>
                           {formatStakeAmount(pot.available[t], t)}
@@ -305,12 +287,12 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
                   </View>
                 ) : (
                   <View style={styles.presetRow}>
-                    {STAKE_CONFIG[stakeToken].presets.map(p => {
-                      const active = feeNum === p;
+                    {STAKE_PRESETS.map(p => {
+                      const active = stakeAmount === p;
                       return (
                         <Pressable
                           key={p}
-                          onPress={() => setFeeInput(String(p))}
+                          onPress={() => setStakeAmount(p)}
                           style={[styles.preset, active && styles.presetActive]}
                         >
                           <Text style={[styles.presetText, active && styles.presetTextActive]}>
@@ -372,7 +354,6 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
         </View>
         </SafeAreaView>
       </KeyboardAvoidingView>
-      <KeyboardDoneBar />
 
       <GamePickerSheet
         visible={gamePickerVisible}
@@ -416,7 +397,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: 38,
     height: 4,
-    borderRadius: 3,
+    borderRadius: radius.pill,
     backgroundColor: colors.borderStrong,
   },
   header: {
@@ -442,7 +423,7 @@ const styles = StyleSheet.create({
   closeBtn: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: radius.md,
     backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
@@ -491,8 +472,8 @@ const styles = StyleSheet.create({
   },
   segment: {
     flexDirection: 'row',
-    gap: 4,
-    padding: 3,
+    gap: spacing.xxs,
+    padding: spacing.xxs,
     borderRadius: radius.sm,
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
@@ -500,7 +481,7 @@ const styles = StyleSheet.create({
   },
   segOpt: {
     paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
+    paddingVertical: spacing.xxs,
     borderRadius: radius.sm - 2,
   },
   segOptActive: {
@@ -535,24 +516,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  amountInput: {
-    // Flex so the field width is stable and the number never truncates.
+  amountValue: {
+    // Flex so the number and pill keep stable positions across presets.
     flex: 1,
     fontFamily: mono.bold,
     fontSize: 40,
     letterSpacing: -1,
     color: colors.textPrimary,
-    padding: 0,
   },
   tokenPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.xxs,
     backgroundColor: 'rgba(0,0,0,0.28)',
     borderRadius: radius.pill,
     paddingLeft: spacing.sm,
     paddingRight: spacing.xs,
-    paddingVertical: 7,
+    paddingVertical: spacing.xs,
   },
   tokenPillText: {
     fontFamily: mono.bold,
@@ -587,12 +567,15 @@ const styles = StyleSheet.create({
   },
   presetRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.xs,
   },
   preset: {
-    flex: 1,
+    // Four per row; the 8 presets settle into a 4x2 grid.
+    flexBasis: '22%',
+    flexGrow: 1,
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: spacing.xs,
     borderRadius: radius.sm,
     backgroundColor: 'rgba(0,0,0,0.28)',
     borderWidth: 1,

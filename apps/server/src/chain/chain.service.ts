@@ -10,7 +10,7 @@ import {
   type Hex,
 } from 'viem';
 import { privateKeyToAccount, type PrivateKeyAccount } from 'viem/accounts';
-import { StakeAsset } from '@gaming-platform/core';
+import { STAKE_ASSETS, StakeAsset } from '@gaming-platform/core';
 
 import { CacheService } from '../cache';
 import { ConfigurationService } from '../configuration/configuration.service';
@@ -24,7 +24,10 @@ import { TOKEN_REGISTRY } from './token-registry';
  * lock, not just take a similar one.
  */
 export const OPERATOR_LOCK_KEY = 'chain:operator';
-export const OPERATOR_LOCK_TTL_MS = 120_000;
+/** Receipt waits under the lock must time out before the lock expires, or a
+ *  second operator tx can be sent on a colliding nonce. */
+export const OPERATOR_RECEIPT_TIMEOUT_MS = 180_000;
+export const OPERATOR_LOCK_TTL_MS = 240_000;
 
 /**
  * Wallet-facing chain reads and the operator's gas top-ups. Staking itself lives
@@ -74,11 +77,12 @@ export class ChainService {
     });
     this.publicClient = this.makePublicClient(this.chain);
     this.operatorAccount = privateKeyToAccount(c.OPERATOR_PRIVATE_KEY as Hex);
-    this.tokens = {
-      [StakeAsset.Native]: null,
-      [StakeAsset.Kombat]: registryTokens![StakeAsset.Kombat] ?? null,
-      [StakeAsset.Usdc]: registryTokens![StakeAsset.Usdc] ?? null,
-    };
+    this.tokens = Object.fromEntries(
+      STAKE_ASSETS.map(asset => [
+        asset,
+        asset === StakeAsset.Native ? null : (registryTokens![asset] ?? null),
+      ]),
+    ) as Record<StakeAsset, Address | null>;
     this.logger.log(
       `Chain access enabled: chain ${c.CHAIN_ID}, operator ${this.operatorAccount.address}`,
     );
@@ -87,16 +91,21 @@ export class ChainService {
   // ---- balances -----------------------------------------------------------
 
   async getBalances(address: Address): Promise<Record<StakeAsset, string>> {
-    const [native, kombat, usdc] = await Promise.all([
-      this.publicClient.getBalance({ address }),
-      this.readBalance(this.tokens[StakeAsset.Kombat]!, address),
-      this.readBalance(this.tokens[StakeAsset.Usdc]!, address),
-    ]);
-    return {
-      [StakeAsset.Native]: native.toString(),
-      [StakeAsset.Kombat]: kombat.toString(),
-      [StakeAsset.Usdc]: usdc.toString(),
-    };
+    const entries = await Promise.all(
+      STAKE_ASSETS.map(async asset => {
+        if (asset === StakeAsset.Native) {
+          const native = await this.publicClient.getBalance({ address });
+          return [asset, native.toString()] as const;
+        }
+        const token = this.tokens[asset];
+        if (!token) {
+          return [asset, '0'] as const; // Not deployed on this chain.
+        }
+        const balance = await this.readBalance(token, address);
+        return [asset, balance.toString()] as const;
+      }),
+    );
+    return Object.fromEntries(entries) as Record<StakeAsset, string>;
   }
 
   private readBalance(token: Address, owner: Address): Promise<bigint> {
@@ -156,6 +165,7 @@ export class ChainService {
         const receipt = await this.publicClient.waitForTransactionReceipt({
           hash,
           confirmations: this.configurationService.CHAIN_CONFIRMATIONS,
+          timeout: OPERATOR_RECEIPT_TIMEOUT_MS,
         });
         if (receipt.status !== 'success') {
           throw new Error(`Gas top-up ${hash} reverted`);

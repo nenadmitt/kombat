@@ -5,15 +5,20 @@ import {
   Logger,
 } from '@nestjs/common';
 import {
+  GameRoomStatus,
+  GameType,
   SettlementStatus,
   ROOM_EVENTS,
   STAKE_ASSET_DECIMALS,
-  STAKE_ASSET_MIN,
   STAKE_ASSET_SYMBOLS,
   STAKE_EVENTS,
+  STAKE_PRESETS,
   StakeAsset,
+  isPresetStakeAmount,
+  isStakeableAsset,
 } from '@gaming-platform/core';
 
+import { CacheKeys, CacheService } from '../../cache';
 import { ConfigurationService } from '../../configuration/configuration.service';
 import { DbService } from '../../db';
 import { GameRoomEntity } from '../../db/entities/game-room.entity';
@@ -21,6 +26,14 @@ import { StakePotChainService, StakePotService } from '../../stake-pot';
 import { WebsocketsService } from '../../websockets';
 import { isMultiSeatGame } from '../game-type.util';
 import { participantsOf } from '../room.util';
+
+const MATCH_KEY_BY_GAME: Record<GameType, (roomId: string) => string> = {
+  [GameType.NavalBattle]: CacheKeys.battleshipMatch,
+  [GameType.Ludo]: CacheKeys.ludoMatch,
+  [GameType.TripleCut]: CacheKeys.rpsMatch,
+  [GameType.ChromaClash]: CacheKeys.chromaMatch,
+  [GameType.Salvo]: CacheKeys.salvoMatch,
+};
 
 /**
  * Stake lifecycle: validates stakes, holds every player's stake from the pot
@@ -38,6 +51,7 @@ export class StakesService {
 
   constructor(
     private readonly dbService: DbService,
+    private readonly cacheService: CacheService,
     private readonly configurationService: ConfigurationService,
     private readonly websocketsService: WebsocketsService,
     private readonly stakePotService: StakePotService,
@@ -50,24 +64,24 @@ export class StakesService {
     return this.stakePotChainService.enabled;
   }
 
-  /** Bounds-check a stake (min per asset, env-configured max). */
+  /** Stakes are stablecoins/KOMBAT only, at fixed preset sizes. */
   validateStake(asset: StakeAsset, amount: string): void {
     if (!this.enabled) {
       throw new BadRequestException('Staked games are not available right now.');
     }
-    if (!/^\d+$/.test(amount)) {
-      throw new BadRequestException('Invalid stake amount.');
+    const symbol = STAKE_ASSET_SYMBOLS[asset];
+    if (!isStakeableAsset(asset)) {
+      throw new BadRequestException(`${symbol} cannot be staked.`);
     }
-    const value = BigInt(amount);
-    const min = BigInt(STAKE_ASSET_MIN[asset]);
+    if (!isPresetStakeAmount(asset, amount)) {
+      throw new BadRequestException(
+        `Stake must be one of ${STAKE_PRESETS.join(', ')} ${symbol}.`,
+      );
+    }
     const max =
       BigInt(this.configurationService.STAKE_MAX) *
       10n ** BigInt(STAKE_ASSET_DECIMALS[asset]);
-    const symbol = STAKE_ASSET_SYMBOLS[asset];
-    if (value < min) {
-      throw new BadRequestException(`Minimum stake not met for ${symbol}.`);
-    }
-    if (value > max) {
+    if (BigInt(amount) > max) {
       throw new BadRequestException(
         `Stake exceeds the ${this.configurationService.STAKE_MAX} ${symbol} maximum.`,
       );
@@ -150,6 +164,34 @@ export class StakesService {
     }
     this.logger.warn(`Recovering orphaned stake funding for room ${roomId}`);
     await this.holdFromPot(room);
+  }
+
+  /**
+   * A Funded settlement whose match never materialized: the first deadline is
+   * only armed on `enter`, so a room nobody entered has nothing else to end it.
+   * With no match in the cache, void and refund. A Completed room with a Funded
+   * settlement is the sibling crash window (died between the room write and the
+   * settlement claim) - finish it with the recorded result.
+   */
+  async recoverStrandedFunded(roomId: string): Promise<void> {
+    const room = await this.dbService.findGameRoomByIdFresh(roomId);
+    if (!room) {
+      return;
+    }
+    if (room.status === GameRoomStatus.Completed) {
+      await this.completeMatch(
+        roomId,
+        room.winnerUserId ?? null,
+        room.endReason ?? 'recovered',
+      );
+      return;
+    }
+    const matchKey = MATCH_KEY_BY_GAME[room.gameType];
+    if (await this.cacheService.get(matchKey(roomId))) {
+      return; // Someone entered - the turn clock owns it.
+    }
+    this.logger.warn(`Voiding never-entered staked room ${roomId}`);
+    await this.completeMatch(roomId, null, 'never-started');
   }
 
   /** Moves every participant's stake available -> locked, all of it or none. */
