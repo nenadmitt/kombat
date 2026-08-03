@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { KEYBOARD_DONE_ID } from './KeyboardDoneBar';
+import { useKeyboardDoneId } from './KeyboardDoneBar';
 
 import Icon from '../Icon';
 import { colors, radius, spacing } from '../../theme/colors';
@@ -29,6 +29,7 @@ export default function Stepper({
   format = v => v.toFixed(2),
   editable = false,
 }: Props) {
+  const doneId = useKeyboardDoneId();
   const clamp = (n: number) => Math.min(max, Math.max(min, n));
   // While the field is focused we hold the raw keystrokes so the user can type
   // freely (partial values like "0." or an empty box); null means "not editing,
@@ -74,7 +75,7 @@ export default function Stepper({
           onFocus={() => setDraft(format(value))}
           onBlur={commit}
           keyboardType="decimal-pad"
-          inputAccessoryViewID={KEYBOARD_DONE_ID}
+          inputAccessoryViewID={doneId}
           inputMode="decimal"
           selectTextOnFocus
           returnKeyType="done"

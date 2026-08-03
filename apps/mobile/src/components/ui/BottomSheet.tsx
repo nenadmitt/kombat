@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, radius, spacing } from '../../theme/colors';
 import { display, type as typePresets } from '../../theme/typography';
 import Icon from '../Icon';
-import KeyboardDoneBar from './KeyboardDoneBar';
+import KeyboardDoneBar, { KeyboardDoneIdContext } from './KeyboardDoneBar';
 
 type Props = {
   visible: boolean;
@@ -41,6 +41,9 @@ export default function BottomSheet({
   onDismissed,
   children,
 }: Props) {
+  // Per-sheet accessory id: a shared one lets a dismissing sheet steal the
+  // Done bar from the one being presented (iOS resolves the id globally).
+  const doneId = `keyboard-done-${useId()}`;
   return (
     <Modal
       visible={visible}
@@ -85,11 +88,13 @@ export default function BottomSheet({
                 ) : null}
               </View>
             ) : null}
-            {children}
+            <KeyboardDoneIdContext.Provider value={doneId}>
+              {children}
+            </KeyboardDoneIdContext.Provider>
           </View>
         </SafeAreaView>
       </KeyboardAvoidingView>
-      <KeyboardDoneBar />
+      <KeyboardDoneBar nativeID={doneId} />
     </Modal>
   );
 }

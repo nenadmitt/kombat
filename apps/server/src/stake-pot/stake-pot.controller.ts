@@ -27,6 +27,7 @@ import { JwtTokenGuard } from '../authentication/guards/jwt-token.guard';
 import { ConfigurationService } from '../configuration/configuration.service';
 import { DbService } from '../db';
 import { SupportedVersionGuard } from '../maintenance/supported-version.guard';
+import { FaucetService } from './faucet.service';
 import { ReconciliationJob, type ReconciliationSnapshot } from './reconciliation.job';
 import { StakePotHistoryQueryDto } from './dto/history-query.dto';
 import { WithdrawFromPotDto } from './dto/withdraw.dto';
@@ -44,6 +45,7 @@ export class StakePotController {
     private readonly reconciliationJob: ReconciliationJob,
     private readonly configurationService: ConfigurationService,
     private readonly dbService: DbService,
+    private readonly faucetService: FaucetService,
   ) {}
 
   /** The caller's pooled stake balance: spendable, in play, and withdrawing. */
@@ -134,6 +136,31 @@ export class StakePotController {
   async getFees(): Promise<StakePotFeeSummary[]> {
     this.assertEnabled();
     return this.stakePotService.getFeeSummary();
+  }
+
+  /** One-time welcome bonus into the caller's pot. Returns the grant tx. */
+  @Post('claim')
+  @UseGuards(SupportedVersionGuard)
+  @UseGuards(JwtTokenGuard)
+  async claim(
+    @SecurityContext() securityContext: ISecurityContext,
+  ): Promise<{ txHash: string; amount: string; symbol: string }> {
+    this.assertEnabled();
+    const [wallet] = await this.dbService.findWalletsForUser(
+      securityContext.userId,
+    );
+    if (!wallet) {
+      throw new NotFoundException('You have no wallet yet.');
+    }
+    const { txHash } = await this.faucetService.claim(
+      securityContext.userId,
+      wallet.address as `0x${string}`,
+    );
+    return {
+      txHash,
+      amount: String(this.faucetService.grantAmount),
+      symbol: 'KOMBAT',
+    };
   }
 
   /** Where deposits should be sent, and in which assets. */

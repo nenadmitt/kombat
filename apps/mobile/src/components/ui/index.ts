@@ -8,6 +8,7 @@ export { default as Chip, type ChipTone } from './Chip';
 export {
   default as KeyboardDoneBar,
   KEYBOARD_DONE_ID,
+  useKeyboardDoneId,
 } from './KeyboardDoneBar';
 export {
   ConfirmProvider,

@@ -383,7 +383,9 @@ export class StakePotChainService {
 
     await this.ensureFaucetAllowance(client, account, token, args.amount);
 
-    const hash = await client.writeContract({
+    // No receipt wait: the claim endpoint returns the hash immediately and
+    // the deposit watcher credits the pot when the Staked event lands.
+    return client.writeContract({
       address: this.pot,
       abi: STAKE_POT_ABI,
       functionName: 'stake',
@@ -391,14 +393,6 @@ export class StakePotChainService {
       chain: this.chain,
       account,
     });
-    const receipt = await this.publicClient.waitForTransactionReceipt({
-      hash,
-      confirmations: this.configurationService.CHAIN_CONFIRMATIONS,
-    });
-    if (receipt.status !== 'success') {
-      throw new Error(`Grant transaction ${hash} reverted`);
-    }
-    return hash;
   }
 
   /** Faucet token float, so an empty faucet can be reported before it bites. */

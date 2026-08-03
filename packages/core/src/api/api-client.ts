@@ -255,6 +255,15 @@ export class ApiClient {
     return this.request('GET', '/stake-pot/deposit-target', undefined, true);
   }
 
+  /** One-time welcome bonus into the caller's stake pot. 409 once claimed. */
+  claimWelcomeBonus(): Promise<{
+    txHash: string;
+    amount: string;
+    symbol: string;
+  }> {
+    return this.request('POST', '/stake-pot/claim', {}, true);
+  }
+
   listPendingGameRooms(options?: {
     /** Leave out rooms created by the requesting user. */
     excludeOwn?: boolean;

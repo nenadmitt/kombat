@@ -1,4 +1,5 @@
-import { useCallback, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -16,6 +17,7 @@ import {
 
 import { apiClient } from '../api/client';
 import ServerStatusBanner from '../components/ServerStatusBanner';
+import WelcomeBonusModal from '../components/WelcomeBonusModal';
 import { MODAL_DISMISS_MS, useConfirm } from '../components/ui';
 import { GAME_TYPE_SCREENS } from '../games/game-type-screens';
 import ResumeMatchModal from '../games/ResumeMatchModal';
@@ -52,6 +54,36 @@ export default function MainTabsWithGameOverlay() {
   const onSocketEvent = useWebsocketStore(state => state.on);
   const confirm = useConfirm();
   const serverStatus = useServerStore(state => state.status);
+  const waitingRoom = useGameStore(state => state.waitingRoom);
+  const resumableMatch = useGameStore(state => state.resumableMatch);
+  const userId = useCurrentUserStore(state => state.userId);
+
+  // The welcome bonus offer, shown until the user claims or forfeits it.
+  // Local persistence only: the server refuses a second claim regardless.
+  const [welcomeOffer, setWelcomeOffer] = useState(false);
+  useEffect(() => {
+    if (!userId) {
+      return;
+    }
+    let cancelled = false;
+    void AsyncStorage.getItem(`welcome-bonus:${userId}`).then(state => {
+      if (!cancelled && state === null) {
+        setWelcomeOffer(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  const settleWelcomeOffer = useCallback(
+    (outcome: 'claimed' | 'dismissed') => {
+      if (userId) {
+        void AsyncStorage.setItem(`welcome-bonus:${userId}`, outcome);
+      }
+    },
+    [userId],
+  );
 
   // Maintenance toggles arrive as a broadcast so every client flips its
   // banner immediately, without waiting for the next /status poll.
@@ -232,6 +264,16 @@ export default function MainTabsWithGameOverlay() {
           <WaitingForPlayersMinimizedBar />
           <WaitingForPlayersPopup />
           <ResumeMatchModal onRejoin={handleRejoin} />
+          {/* Never alongside another native Modal (CLAUDE.md rule 5). A fresh
+              account has neither overlay, so in practice this shows first. */}
+          {welcomeOffer && !waitingRoom && !resumableMatch ? (
+            <WelcomeBonusModal
+              visible
+              onClaimed={() => settleWelcomeOffer('claimed')}
+              onDismissed={() => settleWelcomeOffer('dismissed')}
+              onClose={() => setWelcomeOffer(false)}
+            />
+          ) : null}
         </>
       )}
     </View>

@@ -1,3 +1,4 @@
+import { createContext, useContext } from 'react';
 import {
   InputAccessoryView,
   Keyboard,
@@ -11,16 +12,33 @@ import {
 import { colors, spacing } from '../../theme/colors';
 import { type } from '../../theme/typography';
 
-/** Pair with `inputAccessoryViewID` on any numeric input. */
+/** Fallback for inputs outside any BottomSheet, paired with a screen-level
+ *  <KeyboardDoneBar />. */
 export const KEYBOARD_DONE_ID = 'keyboard-done-bar';
 
+/**
+ * iOS resolves `inputAccessoryViewID` globally, so two mounted bars sharing
+ * one id fight over it - and a sheet animating out can steal the binding from
+ * the sheet being presented. BottomSheet therefore provides a per-instance id
+ * through this context; inputs read it with `useKeyboardDoneId()`.
+ */
+export const KeyboardDoneIdContext = createContext(KEYBOARD_DONE_ID);
+
+export function useKeyboardDoneId(): string {
+  return useContext(KeyboardDoneIdContext);
+}
+
 /** iOS number pads ship no return key, so dismissing needs its own control. */
-export default function KeyboardDoneBar() {
+export default function KeyboardDoneBar({
+  nativeID = KEYBOARD_DONE_ID,
+}: {
+  nativeID?: string;
+}) {
   if (Platform.OS !== 'ios') {
     return null;
   }
   return (
-    <InputAccessoryView nativeID={KEYBOARD_DONE_ID}>
+    <InputAccessoryView nativeID={nativeID}>
       <View style={styles.bar}>
         <Pressable
           onPress={() => Keyboard.dismiss()}

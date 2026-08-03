@@ -27,7 +27,7 @@ import { depositToStakePot } from '../../wallet/stake-pot-deposit';
 import type { BalanceChainId, TokenSymbol } from '../../wallet/tokens';
 import BrandIcon from '../BrandIcon';
 import Icon from '../Icon';
-import { BottomSheet, Button, Card, KEYBOARD_DONE_ID } from '../ui';
+import { BottomSheet, Button, Card, useKeyboardDoneId } from '../ui';
 
 export type StakePotMode = 'add' | 'withdraw';
 
@@ -71,6 +71,7 @@ export default function StakePotModal({
 
   const adding = mode === 'add';
   const token = tokenForAsset(chainId, asset);
+  const doneId = useKeyboardDoneId();
 
   useEffect(() => {
     if (mode === null) {
@@ -233,7 +234,7 @@ export default function StakePotModal({
             placeholder="0.00"
             placeholderTextColor={colors.textFaint}
             keyboardType="decimal-pad"
-            inputAccessoryViewID={KEYBOARD_DONE_ID}
+            inputAccessoryViewID={doneId}
             selectionColor={colors.accent}
             cursorColor={colors.accent}
             style={styles.amountInput}
