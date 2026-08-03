@@ -1,6 +1,6 @@
 {
   "name": "@gaming-platform/mobile",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "scripts": {
     "android": "react-native run-android",
@@ -10,7 +10,8 @@
     "start": "react-native start",
     "typecheck": "tsc --noEmit",
     "pods": "bundle exec pod install --project-directory=ios",
-    "version:sync": "node scripts/sync-version.mjs"
+    "version:sync": "node scripts/sync-version.mjs",
+    "version:bump": "node scripts/bump-version.mjs"
   },
   "dependencies": {
     "@gaming-platform/core": "*",
@@ -54,5 +55,5 @@
   "engines": {
     "node": ">= 22.11.0"
   },
-  "buildNumber": 3
+  "buildNumber": 4
 }
