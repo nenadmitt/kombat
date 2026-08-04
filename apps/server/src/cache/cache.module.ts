@@ -31,7 +31,7 @@ import { RedisCacheStore } from './stores/redis.store';
           return new CacheService(new InMemoryCacheStore(), 'memory');
         }
         const client = new Redis(redisUrl, {
-          connectTimeout: 2000,
+          connectTimeout: 10000,
           maxRetriesPerRequest: 2,
           lazyConnect: true,
         });
