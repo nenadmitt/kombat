@@ -16,10 +16,9 @@ import { PhoneFrame } from "@/components/PhoneFrame";
 import { GamesCarousel } from "@/components/GamesCarousel";
 import { ApplyForm, HeroInviteForm } from "@/components/InviteForms";
 import { PotIllustration } from "@/components/PotIllustration";
+import { Footer } from "@/components/Footer";
+import { DISCORD_URL, TELEGRAM_URL } from "@/lib/links";
 import styles from "./page.module.css";
-
-const DISCORD_URL = "https://discord.gg/cDTY4heBe";
-const TELEGRAM_URL = "https://t.me/+m4GtOdG0B4JjZThk";
 
 export default function LandingPage() {
   return (
@@ -362,38 +361,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <footer className={styles.footer}>
-        <div className={styles.footerBrand}>
-          <LogoLockup size={20} color="var(--text-55)" />
-          <span className={styles.footerNetwork}>Test mode · Sepolia</span>
-        </div>
-
-        <div className={styles.footerSocials}>
-          <a
-            href={DISCORD_URL}
-            target="_blank"
-            rel="noreferrer"
-            className={styles.footerSocial}
-          >
-            <DiscordLogo size={18} weight="fill" />
-            Discord
-          </a>
-          <a
-            href={TELEGRAM_URL}
-            target="_blank"
-            rel="noreferrer"
-            className={styles.footerSocial}
-          >
-            <TelegramLogo size={18} weight="fill" />
-            Telegram
-          </a>
-        </div>
-
-        <div className={styles.footerLinks}>
-          <a href="#" className={styles.footerLink}>Contract</a>
-          <a href="#" className={styles.footerLink}>Terms</a>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

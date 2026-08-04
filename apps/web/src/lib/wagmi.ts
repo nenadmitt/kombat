@@ -2,12 +2,13 @@ import { getDefaultConfig } from "connectkit";
 import { createConfig, http } from "wagmi";
 import { defineChain } from "viem";
 
-import { CHAIN_ID, EXPLORER_URL } from "./chain";
+import { CHAIN_ID, CHAIN_NAME, EXPLORER_URL, IS_TESTNET } from "./chain";
 
 export const chain = defineChain({
   id: CHAIN_ID,
-  name: "Ethereum Sepolia",
-  nativeCurrency: { name: "Sepolia Ether", symbol: "ETH", decimals: 18 },
+  name: CHAIN_NAME,
+  testnet: IS_TESTNET,
+  nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
   rpcUrls: {
     default: { http: ["https://ethereum-sepolia-rpc.publicnode.com"] },
   },
