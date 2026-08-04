@@ -151,19 +151,23 @@
   animation: heroFrontIn 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.heroPhoneLeft,
-.heroPhoneRight {
+/* Scoped under .heroPhones to outrank PhoneFrame's own `.shell {position:
+   relative}`. A bare `.heroPhoneLeft` ties on specificity and then depends on
+   which stylesheet the bundler emits last, which is not something to bet the
+   layout on. */
+.heroPhones .heroPhoneLeft,
+.heroPhones .heroPhoneRight {
   position: absolute;
   top: 50%;
   left: 50%;
 }
 
-.heroPhoneLeft {
+.heroPhones .heroPhoneLeft {
   transform: translate(calc(-50% - var(--side-shift)), -50%) rotate(-7deg);
   animation: heroSideLeft 700ms 340ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.heroPhoneRight {
+.heroPhones .heroPhoneRight {
   transform: translate(calc(-50% + var(--side-shift)), -50%) rotate(7deg);
   animation: heroSideRight 700ms 440ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }

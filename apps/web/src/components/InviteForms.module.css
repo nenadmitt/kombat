@@ -147,10 +147,14 @@
   color: var(--green);
 }
 
+/* The card sits inside .applyCard, which paints its text the dark panel
+   colour for the lime background. Say green here or the heading inherits it
+   and lands near-black on the dark card. */
 .successTitle {
   margin-top: 20px;
   font: 600 21px/1.2 var(--font-heading);
   letter-spacing: -0.02em;
+  color: var(--green);
 }
 
 .successBody {
@@ -158,6 +162,14 @@
   font-size: 14px;
   line-height: 1.6;
   color: var(--text-62);
+}
+
+.successCard {
+  text-align: center;
+}
+
+.successCard .successIcon {
+  margin: 0 auto;
 }
 
 @media (max-width: 640px) {

@@ -109,50 +109,25 @@ export function StakeScreen() {
           Back to Kombat
         </Link>
 
-        {connected ? (
-          <div className={styles.grid}>
-            <WalletPanel account={account!} />
-            <StakeCard account={account!} />
-          </div>
-        ) : (
-          <div className={styles.connectCard}>
-            <span className={styles.connectPot}>
-              <PotIcon size={30} />
-            </span>
-            <h1 className={styles.title}>Top up a player&apos;s stake pot</h1>
-            <p className={styles.lead}>
-              Connect a wallet to see your coins and put them into any
-              player&apos;s pot. Once the coins are in the pot they can stake a
-              match with them straight away.
-            </p>
-            <ConnectKitButton.Custom>
-              {({ show }) => (
-                <button
-                  type="button"
-                  className={styles.primaryBtn}
-                  onClick={show}
-                >
-                  Connect wallet
-                </button>
-              )}
-            </ConnectKitButton.Custom>
-          </div>
-        )}
+        <div className={styles.grid}>
+          <WalletPanel account={connected ? account : undefined} />
+          <StakeCard account={connected ? account : undefined} />
+        </div>
       </div>
     </div>
   );
 }
 
-function WalletPanel({ account }: { account: Address }) {
+function WalletPanel({ account }: { account: Address | undefined }) {
   const erc20s = useMemo(() => TOKENS.filter(t => !t.native), []);
   const { data } = useReadContracts({
     contracts: erc20s.map(token => ({
       address: token.address as Address,
       abi: ERC20_ABI,
       functionName: "balanceOf" as const,
-      args: [account] as const,
+      args: [account ?? "0x"] as const,
     })),
-    query: { refetchInterval: 15_000 },
+    query: { enabled: account !== undefined, refetchInterval: 15_000 },
   });
 
   const missing = STAKE_SYMBOLS.filter(
@@ -168,9 +143,11 @@ function WalletPanel({ account }: { account: Address }) {
             <BrandIcon type={BRAND[token.symbol]} size={26} />
             <span className={styles.coinSymbol}>{token.symbol}</span>
             <span className={styles.coinBalance}>
-              {data?.[index]?.status === "success"
-                ? formatBalance(data[index].result as bigint, token.decimals)
-                : "0"}
+              {account === undefined
+                ? "~"
+                : data?.[index]?.status === "success"
+                  ? formatBalance(data[index].result as bigint, token.decimals)
+                  : "~"}
             </span>
           </div>
         ))}
@@ -183,16 +160,19 @@ function WalletPanel({ account }: { account: Address }) {
         ))}
       </div>
       <p className={styles.panelNote}>
-        In {shortAddress(account)}, the wallet you connected.
+        {account
+          ? `In ${shortAddress(account)}, the wallet you connected.`
+          : "Connect a wallet to see what you are holding."}
       </p>
     </aside>
   );
 }
 
-function StakeCard({ account }: { account: Address }) {
+function StakeCard({ account }: { account: Address | undefined }) {
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
-  const wrongChain = chainId !== CHAIN_ID;
+  const connected = account !== undefined;
+  const wrongChain = connected && chainId !== CHAIN_ID;
 
   const choices = useMemo(
     () =>
@@ -212,19 +192,20 @@ function StakeCard({ account }: { account: Address }) {
   const [amount, setAmount] = useState("");
 
   const { data: reads, refetch: refetchReads } = useReadContracts({
+    query: { enabled: connected },
     contracts: token
       ? [
           {
             address: token.address as Address,
             abi: ERC20_ABI,
             functionName: "balanceOf" as const,
-            args: [account] as const,
+            args: [account ?? "0x"] as const,
           },
           {
             address: token.address as Address,
             abi: ERC20_ABI,
             functionName: "allowance" as const,
-            args: [account, STAKE_POT_ADDRESS] as const,
+            args: [account ?? "0x", STAKE_POT_ADDRESS] as const,
           },
           {
             address: STAKE_POT_ADDRESS,
@@ -334,6 +315,7 @@ function StakeCard({ account }: { account: Address }) {
         : undefined;
 
   const canStake =
+    connected &&
     !wrongChain &&
     !busy &&
     !blocked &&
@@ -489,18 +471,28 @@ function StakeCard({ account }: { account: Address }) {
         <p className={styles.fieldError}>{writeError.message.split("\n")[0]}</p>
       )}
 
-      <button
-        type="button"
-        className={styles.primaryBtn}
-        disabled={!canStake}
-        onClick={submit}
-      >
-        <PotIcon size={17} />
-        {lookup.status === "found"
-          ? `Stake for ${playerName(lookup.user)}`
-          : "Stake"}
-      </button>
-      {needsApproval && lookup.status === "found" && !busy && (
+      {connected ? (
+        <button
+          type="button"
+          className={styles.primaryBtn}
+          disabled={!canStake}
+          onClick={submit}
+        >
+          <PotIcon size={17} />
+          {lookup.status === "found"
+            ? `Stake for ${playerName(lookup.user)}`
+            : "Stake"}
+        </button>
+      ) : (
+        <ConnectKitButton.Custom>
+          {({ show }) => (
+            <button type="button" className={styles.primaryBtn} onClick={show}>
+              Connect wallet
+            </button>
+          )}
+        </ConnectKitButton.Custom>
+      )}
+      {needsApproval && connected && lookup.status === "found" && !busy && (
         <p className={styles.stepNote}>
           Your wallet will ask twice: once to let the pot move your {symbol},
           then once to stake it.

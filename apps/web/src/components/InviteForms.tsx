@@ -27,6 +27,10 @@ export function HeroInviteForm() {
   );
 }
 
+/** Mirrors the server check in app/api/tester-signups/route.ts. */
+const EMAIL =
+  /^[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+
 type Status =
   | { kind: "idle" }
   | { kind: "submitting" }
@@ -50,13 +54,22 @@ export function ApplyForm() {
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (status.kind === "submitting") return;
+
+    const trimmed = email.trim();
+    if (!EMAIL.test(trimmed)) {
+      setStatus({
+        kind: "error",
+        message: "That does not look like an email address.",
+      });
+      return;
+    }
     setStatus({ kind: "submitting" });
 
     try {
       const response = await fetch("/api/tester-signups", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: trimmed }),
       });
       const body = (await response.json()) as {
         error?: string;
@@ -84,12 +97,14 @@ export function ApplyForm() {
 
   if (status.kind === "done") {
     return (
-      <div className={styles.card}>
+      <div className={`${styles.card} ${styles.successCard}`}>
         <div className={styles.successIcon}>
           <CheckCircle size={26} weight="fill" />
         </div>
         <div className={styles.successTitle}>
-          {status.alreadyRegistered ? "You're already on the list" : "You're on the list"}
+          {status.alreadyRegistered
+            ? "You're already on the list"
+            : "You're on the list"}
         </div>
         <p className={styles.successBody}>
           {status.alreadyRegistered
