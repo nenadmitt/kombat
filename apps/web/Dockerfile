@@ -6,9 +6,15 @@ FROM node:22-alpine AS manifests
 WORKDIR /app
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY apps/web/package.json apps/web/
+COPY packages/core/package.json packages/core/
 
 FROM manifests AS builder
 RUN npm ci -w @gaming-platform/web --include-workspace-root
+
+# core is consumed as dist/ and dist/ is not in the build context, so it has to
+# be compiled here - before apps/web, so a web-only edit reuses this layer.
+COPY packages/core packages/core
+RUN npm run build -w @gaming-platform/core
 COPY apps/web apps/web
 
 # NEXT_PUBLIC_* values are inlined into the client bundle by `next build`, so
