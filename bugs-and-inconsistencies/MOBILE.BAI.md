@@ -42,3 +42,29 @@ fix. Remove an entry in the same change that fixes it.
   the required grep while editing this file for the error row.
 - **Suggested fix:** map onto `spacing.xxs`/`spacing.xs` and `radius.sm`,
   then screenshot the sheet, since each change shifts rendered pixels.
+
+## 2026-08-04 - Withdraw presents TransactionModal in the same tick it dismisses WithdrawModal
+
+- **Where:** `src/screens/WalletScreen.tsx` onSubmitted (~line 297):
+  `setOpenModal(null)` then `setActiveTxHash(hash)` synchronously.
+- **Why it's wrong:** two native Modals overlap mid-animation, the exact iOS
+  presentation wedge rule 5 bans; DepositModal's QR handoff right above it
+  documents and uses the 350ms delay for this.
+- **Suggested fix:** defer `setActiveTxHash(submitted.hash)` by
+  `MODAL_DISMISS_MS` as the deposit path does.
+
+## 2026-08-04 - Keychain slots are keyed by a userId that is not stable
+
+- **Where:** `src/wallet/wallet-keychain.ts` (`serviceFor`), with
+  `apps/server/src/admin/admin.service.ts` hard-deleting users and wallets.
+- **Why it's wrong:** delete + re-register gives the same person a new UUID.
+  The key survives on the device under the old UUID's slot, but
+  `getWalletSecret` reads only the current UUID and `adoptLegacySecret`
+  checks only the pre-migration un-keyed slot, so the app reports "key not
+  found" on the very device that created the wallet and then mints a fresh
+  one, orphaning the funded address on both the device and the server.
+- **Suggested fix:** on the no-key path, enumerate
+  `getAllGenericPasswordServices()` for the wallet prefix, derive each key's
+  address, and surface orphaned wallets for sweeping or re-linking;
+  possession of the key is ownership, the server row no longer exists to
+  check against.

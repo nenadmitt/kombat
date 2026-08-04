@@ -1,11 +1,14 @@
-import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
+import { useEffect, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { STAKE_ASSET_SYMBOLS, StakeAsset } from '@gaming-platform/core';
 
 import { APP_BUILD_NUMBER, APP_VERSION } from '../../config/app-version';
+import { useCurrentUserStore } from '../../store/currentUser.store';
 import { colors, radius, spacing } from '../../theme/colors';
 import { mono, type } from '../../theme/typography';
 import { CHAINS } from '../../wallet/chains';
+import { getWalletSecret } from '../../wallet/wallet-keychain';
 import Icon, { type IconName } from '../Icon';
 import { BottomSheet, Button, MODAL_DISMISS_MS, Toggle, useConfirm } from '../ui';
 
@@ -53,6 +56,7 @@ const PREFERENCE_ROWS: readonly { key: PreferenceKey; icon: IconName; label: str
 
 export default function SettingsSheet({ visible, onClose, username, onLogout }: Props) {
   const confirm = useConfirm();
+  const userId = useCurrentUserStore(state => state.userId);
   // Placeholder state: nothing reads these yet, they persist for the session
   // only so the switches are not dead to the touch.
   const [preferences, setPreferences] = useState<Record<PreferenceKey, boolean>>({
@@ -60,6 +64,42 @@ export default function SettingsSheet({ visible, onClose, username, onLogout }: 
     sound: true,
     hideBalances: false,
   });
+
+  const [keyPanelOpen, setKeyPanelOpen] = useState(false);
+  const [privateKey, setPrivateKey] = useState<string | null>(null);
+  const [keyError, setKeyError] = useState<string | null>(null);
+  const [keyCopied, setKeyCopied] = useState(false);
+
+  // The sheet stays mounted while hidden - never leave the key sitting in
+  // state after it goes off screen.
+  useEffect(() => {
+    if (!visible) {
+      setKeyPanelOpen(false);
+      setPrivateKey(null);
+      setKeyError(null);
+      setKeyCopied(false);
+    }
+  }, [visible]);
+
+  const handleReveal = async () => {
+    if (!userId) return;
+    try {
+      const secret = await getWalletSecret(userId);
+      if (!secret) {
+        setKeyError('No wallet key on this device.');
+        return;
+      }
+      setPrivateKey(secret.privateKey);
+    } catch {
+      setKeyError('Could not read the key from secure storage.');
+    }
+  };
+
+  const handleCopyKey = () => {
+    if (!privateKey) return;
+    Clipboard.setString(privateKey);
+    setKeyCopied(true);
+  };
 
   const accountRows: readonly InfoRow[] = [
     { key: 'username', icon: 'user', label: 'Username', value: username ?? 'Player' },
@@ -101,6 +141,66 @@ export default function SettingsSheet({ visible, onClose, username, onLogout }: 
           {WALLET_ROWS.map(row => (
             <Row key={row.key} row={row} />
           ))}
+          <Pressable
+            style={styles.row}
+            onPress={() => setKeyPanelOpen(open => !open)}
+            accessibilityRole="button"
+            accessibilityLabel="Show private key"
+          >
+            <Icon type="key" color={colors.textSecondary} size={20} />
+            <Text style={styles.rowLabel}>Private key</Text>
+            <Icon
+              type={keyPanelOpen ? 'eye-off' : 'eye'}
+              color={colors.textMuted}
+              size={18}
+            />
+          </Pressable>
+          {keyPanelOpen ? (
+            <View style={styles.keyPanel}>
+              {privateKey ? (
+                <>
+                  <Text style={styles.keyValue} selectable>
+                    {privateKey}
+                  </Text>
+                  <Pressable
+                    style={styles.keyCopy}
+                    onPress={handleCopyKey}
+                    accessibilityRole="button"
+                    accessibilityLabel="Copy private key"
+                  >
+                    <Icon
+                      type={keyCopied ? 'check' : 'copy'}
+                      color={keyCopied ? colors.accent : colors.textMuted}
+                      size={16}
+                    />
+                    <Text style={styles.keyCopyLabel}>
+                      {keyCopied ? 'Copied' : 'Copy'}
+                    </Text>
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  <View style={styles.keyWarning}>
+                    <Icon type="warning" color={colors.gold} size={16} />
+                    <Text style={styles.keyWarningText}>
+                      Anyone with this key can take everything in your wallet.
+                      Never share it, and only reveal it somewhere private.
+                    </Text>
+                  </View>
+                  {keyError ? (
+                    <Text style={styles.keyError}>{keyError}</Text>
+                  ) : (
+                    <Button
+                      label="Reveal key"
+                      icon="eye"
+                      variant="secondary"
+                      onPress={() => void handleReveal()}
+                    />
+                  )}
+                </>
+              )}
+            </View>
+          ) : null}
         </SettingsGroup>
 
         <SettingsGroup label="Preferences">
@@ -186,5 +286,41 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingTop: spacing.md,
+  },
+  keyPanel: {
+    gap: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
+  keyWarning: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.xs,
+  },
+  keyWarningText: {
+    ...type.caption,
+    flex: 1,
+    color: colors.textSecondary,
+  },
+  keyValue: {
+    fontFamily: mono.regular,
+    fontSize: 13,
+    color: colors.textPrimary,
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+  },
+  keyCopy: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: spacing.xs,
+  },
+  keyCopyLabel: {
+    ...type.caption,
+    color: colors.textMuted,
+  },
+  keyError: {
+    ...type.caption,
+    color: colors.danger,
   },
 });
