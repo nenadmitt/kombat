@@ -28,6 +28,7 @@ describe('WebsocketsGateway', () => {
   let gateway: WebsocketsGateway;
   let sequence: [string, string][];
   let disconnectedRooms: string[];
+  let kickExcluded: string[];
   let connected: string[];
   let disconnected: string[];
   let roomLookups: number;
@@ -49,6 +50,7 @@ describe('WebsocketsGateway', () => {
   beforeEach(() => {
     sequence = [];
     disconnectedRooms = [];
+    kickExcluded = [];
     connected = [];
     disconnected = [];
     roomLookups = 0;
@@ -87,10 +89,13 @@ describe('WebsocketsGateway', () => {
     );
     (gateway as unknown as { server: Server }).server = {
       in: (room: string) => ({
-        disconnectSockets: () => {
-          sequence.push(['kick', room]);
-          disconnectedRooms.push(room);
-        },
+        except: (socketId: string) => ({
+          disconnectSockets: () => {
+            sequence.push(['kick', room]);
+            disconnectedRooms.push(room);
+            kickExcluded.push(socketId);
+          },
+        }),
       }),
     } as unknown as Server;
   });
@@ -122,16 +127,15 @@ describe('WebsocketsGateway', () => {
       expect(connected).toEqual([USER]);
     });
 
-    it('kicks the account predecessors before the new socket joins', async () => {
+    it('kicks the account predecessors but never the new socket', async () => {
       const client = makeClient('valid');
       await gateway.handleConnection(client as never);
 
-      // Kick-then-join is the whole guarantee: reversed, the new socket
-      // would be in the room it disconnects.
-      expect(sequence).toEqual([
-        ['kick', userRoom(USER)],
-        ['join', userRoom(USER)],
-      ]);
+      expect(disconnectedRooms).toEqual([userRoom(USER)]);
+      // Call order is not the guarantee - the Redis adapter applies the kick
+      // asynchronously, after the join. Excluding the new socket is.
+      expect(kickExcluded).toEqual([client.id]);
+      expect(sequence).toContainEqual(['join', userRoom(USER)]);
     });
   });
 

@@ -2,9 +2,25 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ConfigurationService } from './configuration/configuration.service';
-import { RedisIoAdapter } from './websockets/redis-io.adapter';
+import { INSTANCE_ID } from './instance-id';
+import { adapterState, RedisIoAdapter } from './websockets/redis-io.adapter';
 
 async function bootstrap() {
+  // Without these an adapter publish that rejects after its retries are spent
+  // terminates the process and drops every open socket.
+  process.on('unhandledRejection', (reason) => {
+    new Logger('Process').error(
+      `Unhandled rejection on instance ${INSTANCE_ID}: ${
+        reason instanceof Error ? reason.stack : String(reason)
+      }`,
+    );
+  });
+  process.on('uncaughtException', (error) => {
+    new Logger('Process').error(
+      `Uncaught exception on instance ${INSTANCE_ID}: ${error.stack}`,
+    );
+  });
+
   const app = await NestFactory.create(AppModule);
   app.enableCors();
   // `transform: true` so query-string DTOs (e.g. ?excludeOwn=true) get coerced
@@ -26,12 +42,17 @@ async function bootstrap() {
     } catch (error) {
       new Logger('Bootstrap').warn(
         `socket.io adapter: memory (Redis connection failed: ${
-          error instanceof Error ? error.message : String(error)
+          error instanceof Error ? error.stack : String(error)
         })`,
       );
     }
+  } else {
+    new Logger('Bootstrap').warn('socket.io adapter: memory (REDIS_URL unset)');
   }
 
   await app.listen(process.env.PORT ?? 3000);
+  new Logger('Bootstrap').log(
+    `Listening on ${process.env.PORT ?? 3000} | instance ${INSTANCE_ID} | adapter ${adapterState.mode}`,
+  );
 }
 bootstrap();

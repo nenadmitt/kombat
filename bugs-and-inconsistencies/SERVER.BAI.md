@@ -20,6 +20,10 @@ fix. Remove an entry in the same change that fixes it.
 - **2026-08-03:** decided to keep the fallback as-is - running without Redis
   is a supported deployment. Revisit before ever scaling past one instance.
   Note the rate limiter (`ThrottlerModule`) also counts per instance.
+- **2026-08-04:** the health probes no longer hide this - `/health` and
+  `/healthcheck` now report `instance` and `socketAdapter` alongside the
+  cache driver, so an adapter sitting on the memory fallback is visible
+  without reading boot logs.
 
 ## 2026-08-03 - No fee bump or cancel for a stuck operator transaction
 

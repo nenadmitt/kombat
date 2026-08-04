@@ -18,6 +18,8 @@ import {
   CHAT_TTL_SECONDS,
 } from '../cache';
 import { DbService } from '../db';
+import { INSTANCE_ID } from '../instance-id';
+import { adapterState } from './redis-io.adapter';
 import { participantsOf } from '../games/room.util';
 import { ChannelDto } from './dto/channel.dto';
 import { GameMessageDto } from './dto/game-message.dto';
@@ -72,6 +74,9 @@ export class WebsocketsGateway
 
   afterInit(server: Server): void {
     this.websocketsService.setServer(server);
+    this.logger.log(
+      `gateway ready on instance ${INSTANCE_ID} | adapter: ${adapterState.mode}`,
+    );
   }
 
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
@@ -87,13 +92,20 @@ export class WebsocketsGateway
         token,
       );
       client.data.userId = payload.sub;
-      // Kick predecessors before joining so the new socket never kicks
-      // itself. The kicked client sees 'io server disconnect', which
-      // socket.io does not auto-reconnect from.
-      this.server.in(userRoom(payload.sub)).disconnectSockets(true);
+      // `except` the new socket, not call order: under the Redis adapter
+      // disconnectSockets only publishes a REMOTE_DISCONNECT and applies it
+      // when the message loops back, by which point the new socket has
+      // joined and would kick itself. The kicked client sees
+      // 'io server disconnect', which socket.io does not auto-reconnect from.
+      this.server
+        .in(userRoom(payload.sub))
+        .except(client.id)
+        .disconnectSockets(true);
       await client.join(userRoom(payload.sub));
       this.websocketsService.markConnected(payload.sub);
-      this.logger.log(`User ${payload.sub} connected (socket ${client.id})`);
+      this.logger.log(
+        `User ${payload.sub} connected (socket ${client.id}) on instance ${INSTANCE_ID} | online here: ${this.websocketsService.getOnlineUserIds().length}`,
+      );
     } catch {
       this.logger.warn(
         `Rejected socket ${client.id}: invalid or expired token`,
