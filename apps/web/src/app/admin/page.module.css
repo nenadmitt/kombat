@@ -142,6 +142,128 @@
   white-space: nowrap;
 }
 
+/* ── selection and row actions ── */
+
+.checkCell {
+  width: 20px;
+  padding-right: 0;
+}
+
+.checkCell input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--green);
+}
+
+.rowSelected td {
+  background: rgba(142, 224, 90, 0.06);
+}
+
+.bulkBar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.bulkCount {
+  margin-right: 4px;
+  font: 700 13px/1 var(--font-heading);
+}
+
+.bulkBtn,
+.bulkDanger,
+.rowBtn,
+.rowDanger {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  cursor: pointer;
+  border-radius: 10px;
+  font: 700 12px/1 var(--font-heading);
+  transition: background-color 140ms ease-out, color 140ms ease-out;
+}
+
+.bulkBtn,
+.bulkDanger {
+  padding: 10px 14px;
+}
+
+.rowBtn,
+.rowDanger {
+  padding: 8px 12px;
+}
+
+.bulkBtn,
+.rowBtn {
+  background: rgba(142, 224, 90, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(142, 224, 90, 0.36);
+  color: var(--green);
+}
+
+.bulkBtn:hover:not(:disabled),
+.rowBtn:hover:not(:disabled) {
+  background: rgba(142, 224, 90, 0.24);
+}
+
+/* Red only on the destructive pair, so "delete" never reads as one more
+   neutral action in a row of them. */
+.bulkDanger,
+.rowDanger {
+  background: rgba(233, 84, 84, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(233, 84, 84, 0.36);
+  color: #f08a8a;
+}
+
+.bulkDanger:hover:not(:disabled),
+.rowDanger:hover:not(:disabled) {
+  background: rgba(233, 84, 84, 0.22);
+  color: #ffb3b3;
+}
+
+.bulkBtn:disabled,
+.bulkDanger:disabled,
+.rowBtn:disabled,
+.rowDanger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.rowActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+.invitedTag,
+.waitingTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 100px;
+  font: 700 11px/1 var(--font-heading);
+  white-space: nowrap;
+}
+
+.invitedTag {
+  background: rgba(142, 224, 90, 0.14);
+  color: var(--green);
+}
+
+.waitingTag {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-55);
+}
+
 @media (max-width: 1080px) {
   .nav {
     padding: 22px 28px;

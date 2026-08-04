@@ -19,7 +19,7 @@ export class RedisIoAdapter extends IoAdapter {
 
   async connect(redisUrl: string): Promise<void> {
     const pubClient = new Redis(redisUrl, {
-      connectTimeout: 2000,
+      connectTimeout: 10000,
       maxRetriesPerRequest: 2,
       lazyConnect: true,
     });

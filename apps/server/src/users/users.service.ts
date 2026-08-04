@@ -10,7 +10,9 @@ import {
   GameType,
   PlayerStats,
   PublicUserProfile,
+  RecipientLookup,
   StakeAsset,
+  WalletNetwork,
   emptyPlayerStats,
   generateReferralCode,
   isValidReferralCode,
@@ -168,6 +170,50 @@ export class UsersService {
       mostPlayed: top
         ? { gameType: top.gameType as GameType, matches: top.matches }
         : null,
+    };
+  }
+
+  /**
+   * Resolve a stake beneficiary. Accepts a wallet address, an ENS name (dots)
+   * or a bare username. Only platform wallets resolve: an address nobody plays
+   * under is "not found", which is what stops the web stake form firing at a
+   * pot credit that no player can ever spend.
+   */
+  async lookupRecipient(query: string): Promise<RecipientLookup> {
+    const q = query.trim();
+    let user: UserEntity | null = null;
+    let address: string | undefined;
+
+    if (/^0x[0-9a-fA-F]{40}$/.test(q)) {
+      const wallet = await this.dbService.findWalletByAddress(q);
+      if (!wallet) {
+        return { found: false };
+      }
+      user = await this.dbService.findUserById(wallet.userId);
+      address = wallet.address;
+    } else if (q.includes('.')) {
+      user = await this.dbService.findUserByEnsName(q);
+    } else {
+      user = await this.dbService.findUserByUsername(q);
+    }
+    if (!user) {
+      return { found: false };
+    }
+
+    if (!address) {
+      const wallets = await this.dbService.findWalletsForUser(user.id);
+      const ethWallet = wallets.find(w => w.network === WalletNetwork.Ethereum);
+      if (!ethWallet) {
+        return { found: false };
+      }
+      address = ethWallet.address;
+    }
+
+    return {
+      found: true,
+      username: user.username,
+      ensName: user.ensName,
+      address,
     };
   }
 

@@ -5,7 +5,11 @@ import {
   ShieldCheck,
   Trophy,
   CheckCircle,
+  DiscordLogo,
+  TelegramLogo,
+  ArrowUpRight,
 } from "@phosphor-icons/react/dist/ssr";
+import { PotIcon } from "@/components/BrandIcon";
 import { LogoLockup } from "@/components/Logo";
 import { ReferralCodeRow } from "@/components/ReferralCodeRow";
 import { PhoneFrame } from "@/components/PhoneFrame";
@@ -13,6 +17,9 @@ import { GamesCarousel } from "@/components/GamesCarousel";
 import { ApplyForm, HeroInviteForm } from "@/components/InviteForms";
 import { PotIllustration } from "@/components/PotIllustration";
 import styles from "./page.module.css";
+
+const DISCORD_URL = "https://discord.gg/cDTY4heBe";
+const TELEGRAM_URL = "https://t.me/+m4GtOdG0B4JjZThk";
 
 export default function LandingPage() {
   return (
@@ -26,6 +33,10 @@ export default function LandingPage() {
           <a href="#how" className={styles.navLink}>How it works</a>
           <a href="#pot" className={styles.navLink}>Stake pot</a>
           <a href="#invite" className={styles.navLink}>Invite &amp; earn</a>
+          <Link href="/stake" className={styles.navStake}>
+            <PotIcon size={17} />
+            Stake
+          </Link>
           <a href="#apply" className={styles.navCta}>
             Apply for access
           </a>
@@ -35,48 +46,58 @@ export default function LandingPage() {
       <section className={styles.hero}>
         <div className={styles.heroCopy}>
           <h1 className={styles.heroTitle}>
-            Play.
+            Play a real
             <br />
-            Compete.
+            opponent.
             <br />
-            <span className={styles.heroTitleAccent}>Win.</span>
+            <span className={styles.heroTitleAccent}>Free or staked.</span>
           </h1>
           <p className={styles.heroLead}>
-            Skill games for real stakes. Stake once into your pot, match
-            against a real opponent, and the winner takes it. No house, no
-            bots.
+            The quickest game is over in two minutes, a full game of
+            Battleships takes about six. Open a room for nothing, or put a
+            stake on it and the winner takes the pot.
           </p>
           <HeroInviteForm />
           <div className={styles.heroStats}>
-            <div>
-              <div className={styles.heroStatValue}>5</div>
-              <div className={styles.heroStatLabel}>Games live · more soon</div>
-            </div>
             <div>
               <div className={styles.heroStatValue}>50+</div>
               <div className={styles.heroStatLabel}>Testers already</div>
             </div>
             <div>
-              <div className={`${styles.heroStatValue} ${styles.amber}`}>4</div>
-              <div className={styles.heroStatLabel}>Stakeable tokens</div>
+              <div className={styles.heroStatValue}>2 min</div>
+              <div className={styles.heroStatLabel}>Shortest match</div>
+            </div>
+            <div>
+              <div className={`${styles.heroStatValue} ${styles.amber}`}>
+                Free
+              </div>
+              <div className={styles.heroStatLabel}>Or play for a stake</div>
             </div>
           </div>
         </div>
         <div className={styles.heroPhones}>
           <PhoneFrame
             variant="back"
-            width={236}
-            height={476}
-            src="/screenshots/ludo-2.png"
+            width={210}
+            height={422}
+            src="/screenshots/ludo-turn.png"
             alt="Ludo Royale board in the Kombat app"
-            className={styles.heroPhoneBack}
+            className={styles.heroPhoneLeft}
+          />
+          <PhoneFrame
+            variant="back"
+            width={210}
+            height={422}
+            src="/screenshots/salvo-hit.png"
+            alt="Salvo artillery duel in the Kombat app"
+            className={styles.heroPhoneRight}
           />
           <PhoneFrame
             variant="front"
             width={262}
             height={526}
-            src="/screenshots/salvo-2.png"
-            alt="Salvo artillery duel in the Kombat app"
+            src="/screenshots/naval-fleet.png"
+            alt="Battleships fleet grid in the Kombat app"
             className={styles.heroPhoneFront}
           />
         </div>
@@ -135,9 +156,9 @@ export default function LandingPage() {
         <div>
           <h2 className={styles.sectionTitle}>Sign once. Play all night.</h2>
           <p className={styles.sectionLead}>
-            Your pot is a balance held in the match contract. Fund it from any
-            wallet, and every match after that is instant - no transaction, no
-            gas, no waiting on a confirmation between rounds.
+            If you do want to play for something, your pot is a balance held in
+            the match contract. Fund it once from any wallet and staked matches
+            start straight away, with no transaction to sign between rounds.
           </p>
           <div className={styles.checkList}>
             <div className={styles.checkItem}>
@@ -229,14 +250,14 @@ export default function LandingPage() {
             Invite players, earn on every match
           </h2>
           <p className={styles.sectionLead}>
-            Share your code and 0.1% of the platform fee from every staked
-            match your invites play lands straight in your stake pot - for as
-            long as they keep playing.
+            Share your code. When someone you invited plays a staked match,
+            0.1% of the platform fee goes to your pot, for as long as they
+            keep playing.
           </p>
           <div className={styles.checkList}>
             <div className={styles.checkItem}>
               <CheckCircle size={18} weight="fill" className={styles.amber} />
-              Credited per settled match - no claim step
+              Credited automatically on every settled match
             </div>
             <div className={styles.checkItem}>
               <CheckCircle size={18} weight="fill" className={styles.amber} />
@@ -253,30 +274,124 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="apply" className={styles.apply}>
-        <div className={styles.applyGrid}>
-          <div>
-            <div className={styles.testBadge}>TEST MODE</div>
-            <h2 className={styles.applyTitle}>Kombat is in closed testing.</h2>
-            <p className={styles.sectionLead}>
-              We&apos;re onboarding testers in small batches on Ethereum
-              Sepolia. Leave your email and we&apos;ll send an invite with test
-              funds - nothing you stake during the test is real money.
+      <section id="community" className={styles.community}>
+        <h2 className={styles.sectionTitle}>Found a bug? Got an idea?</h2>
+        <p className={styles.sectionLead}>
+          Report a bug, suggest a feature, or get involved some other way. The
+          group chats are where the team actually is, and we read everything.
+        </p>
+        <div className={styles.communityGrid}>
+          <a
+            href={DISCORD_URL}
+            target="_blank"
+            rel="noreferrer"
+            className={styles.communityCard}
+          >
+            <span className={styles.communityIcon}>
+              <DiscordLogo size={24} weight="fill" />
+            </span>
+            <span className={styles.communityCardTitle}>Discord</span>
+            <p className={styles.communityCardBody}>
+              Bug reports, feature requests, and the build channel where new
+              games show up before they ship.
             </p>
+            <span className={styles.communityCardCta}>
+              Join the server
+              <ArrowUpRight size={15} weight="bold" />
+            </span>
+          </a>
+          <a
+            href={TELEGRAM_URL}
+            target="_blank"
+            rel="noreferrer"
+            className={styles.communityCard}
+          >
+            <span
+              className={`${styles.communityIcon} ${styles.communityIconAmber}`}
+            >
+              <TelegramLogo size={24} weight="fill" />
+            </span>
+            <span className={styles.communityCardTitle}>Telegram</span>
+            <p className={styles.communityCardBody}>
+              Quicker back and forth - match questions, tester invites, and
+              whatever is breaking right now.
+            </p>
+            <span className={styles.communityCardCta}>
+              Join the group
+              <ArrowUpRight size={15} weight="bold" />
+            </span>
+          </a>
+        </div>
+      </section>
+
+      <section id="apply" className={styles.apply}>
+        <div className={styles.applyCard}>
+          <div className={styles.applyGrid}>
+            <div>
+              <div className={styles.testBadge}>TEST MODE</div>
+              <h2 className={styles.applyTitle}>Kombat is in closed testing.</h2>
+              <p className={styles.sectionLead}>
+                We&apos;re adding testers in small batches on Ethereum Sepolia.
+                Leave your email and we&apos;ll send an invite with test funds.
+                Nothing you stake during the test is real money.
+              </p>
+              <p className={styles.applyContact}>
+                Stuck on something? Ask in the{" "}
+                <a
+                  href={DISCORD_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={styles.applyLink}
+                >
+                  Discord
+                </a>{" "}
+                or{" "}
+                <a
+                  href={TELEGRAM_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={styles.applyLink}
+                >
+                  Telegram group
+                </a>
+                .
+              </p>
+            </div>
+            <ApplyForm />
           </div>
-          <ApplyForm />
         </div>
       </section>
 
       <footer className={styles.footer}>
-        <div className={styles.brand}>
+        <div className={styles.footerBrand}>
           <LogoLockup size={20} color="var(--text-55)" />
+          <span className={styles.footerNetwork}>Test mode · Sepolia</span>
         </div>
+
+        <div className={styles.footerSocials}>
+          <a
+            href={DISCORD_URL}
+            target="_blank"
+            rel="noreferrer"
+            className={styles.footerSocial}
+          >
+            <DiscordLogo size={18} weight="fill" />
+            Discord
+          </a>
+          <a
+            href={TELEGRAM_URL}
+            target="_blank"
+            rel="noreferrer"
+            className={styles.footerSocial}
+          >
+            <TelegramLogo size={18} weight="fill" />
+            Telegram
+          </a>
+        </div>
+
         <div className={styles.footerLinks}>
           <a href="#" className={styles.footerLink}>Contract</a>
-          <a href="#" className={styles.footerLink}>Discord</a>
           <a href="#" className={styles.footerLink}>Terms</a>
-          <span>Test mode · Sepolia</span>
         </div>
       </footer>
     </div>

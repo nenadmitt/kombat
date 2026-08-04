@@ -23,3 +23,4 @@ export * from './games/stake-pot.types';
 export * from './platform/platform-status';
 export * from './players';
 export * from './wallets/wallet.types';
+export * from './wallets/token-registry';

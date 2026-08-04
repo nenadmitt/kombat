@@ -33,6 +33,8 @@ export type TesterSignup = {
   email: string;
   country: string | null;
   createdAt: string;
+  /** Null while the request is still waiting on an invite. */
+  invitedAt: string | null;
 };
 
 /** Postgres error code for a unique-constraint violation. */
@@ -66,7 +68,7 @@ export async function insertTesterSignup(input: {
 
 export async function listTesterSignups(): Promise<TesterSignup[]> {
   const { rows } = await getPool().query(
-    `SELECT "id", "username", "email", "country", "created_at"
+    `SELECT "id", "username", "email", "country", "created_at", "invited_at"
      FROM "tester_signups"
      ORDER BY "created_at" DESC
      LIMIT 1000`,
@@ -77,5 +79,30 @@ export async function listTesterSignups(): Promise<TesterSignup[]> {
     email: row.email,
     country: row.country,
     createdAt: new Date(row.created_at).toISOString(),
+    invitedAt: row.invited_at ? new Date(row.invited_at).toISOString() : null,
   }));
+}
+
+export async function deleteTesterSignups(ids: string[]): Promise<number> {
+  const { rowCount } = await getPool().query(
+    `DELETE FROM "tester_signups" WHERE "id" = ANY($1::uuid[])`,
+    [ids],
+  );
+  return rowCount ?? 0;
+}
+
+/** Idempotent: re-marking keeps the original timestamp, un-marking clears it. */
+export async function setTesterSignupsInvited(
+  ids: string[],
+  invited: boolean,
+): Promise<number> {
+  const { rowCount } = await getPool().query(
+    invited
+      ? `UPDATE "tester_signups" SET "invited_at" = now()
+         WHERE "id" = ANY($1::uuid[]) AND "invited_at" IS NULL`
+      : `UPDATE "tester_signups" SET "invited_at" = NULL
+         WHERE "id" = ANY($1::uuid[]) AND "invited_at" IS NOT NULL`,
+    [ids],
+  );
+  return rowCount ?? 0;
 }
