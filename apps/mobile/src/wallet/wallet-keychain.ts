@@ -26,35 +26,51 @@ export async function saveWalletSecret(
 }
 
 /**
- * This account's secret, falling back to the pre-per-user slot for installs
- * that predate the split. A fallback is migrated on the spot, so the old slot
- * empties the first time its owner signs in.
- *
- * `expectedAddress` is what keeps a shared device honest: without it any
- * account would adopt whatever key the device happens to hold.
+ * This account's secret. A plain read - adopting the legacy slot is
+ * `adoptLegacySecret`, which proves ownership first. Migrating from here would
+ * mean every caller silently claims whatever key the device holds, and the
+ * claim destroys the only copy.
  */
 export async function getWalletSecret(
   userId: string,
-  expectedAddress?: string,
 ): Promise<StoredWalletSecret | null> {
-  const keyed = await read(serviceFor(userId));
-  if (keyed) {
-    return keyed;
+  return read(serviceFor(userId));
+}
+
+/**
+ * Moves a pre-per-user secret into this account's slot, but only when it
+ * derives to `expectedAddress`. Wrong owner: leave it where it is, because the
+ * account it belongs to has no other copy.
+ */
+export async function adoptLegacySecret(
+  userId: string,
+  expectedAddress: string,
+): Promise<StoredWalletSecret | null> {
+  if (await read(serviceFor(userId))) {
+    return null;
   }
   const legacy = await read(WALLET_KEYCHAIN_SERVICE);
   if (!legacy) {
     return null;
   }
-  if (
-    expectedAddress &&
-    deriveAddressFromPrivateKey(legacy.privateKey).toLowerCase() !==
-      expectedAddress.toLowerCase()
-  ) {
+  if (!derivesTo(legacy.privateKey, expectedAddress)) {
     return null;
   }
   await saveWalletSecret(userId, legacy);
   await clearLegacyWalletSecret();
   return legacy;
+}
+
+/** Whether a stored key actually controls `address`. */
+export function derivesTo(privateKey: string, address: string): boolean {
+  try {
+    return (
+      deriveAddressFromPrivateKey(privateKey).toLowerCase() ===
+      address.toLowerCase()
+    );
+  } catch {
+    return false;
+  }
 }
 
 export async function clearWalletSecret(userId: string): Promise<void> {

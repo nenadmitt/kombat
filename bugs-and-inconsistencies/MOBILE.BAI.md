@@ -17,3 +17,28 @@ fix. Remove an entry in the same change that fixes it.
   at ~4.3:1 on the app background but ~3.7:1 on `surface` - pushing it to a
   strict 4.5:1 everywhere would make it nearly identical to `textMuted`,
   which is a design call.
+
+## 2026-08-04 - A wallet whose key is on another device cannot be recovered
+
+- **Where:** `src/screens/OnboardingScreen.tsx` (reveals a mnemonic, never
+  accepts one).
+- **Why it's wrong:** the server stores only the address, so the device that
+  created a wallet holds the only copy of its key. `ensureWallet` now detects
+  this and stops with an explanation instead of reporting `ready`, but the
+  user's only route back to their funds is to sign in on the original device.
+  A second device, an Android reinstall or an erased simulator leaves the
+  balance visible and permanently unspendable.
+- **Suggested fix:** an import flow that accepts a mnemonic, derives the key,
+  checks it against the address the server holds for the account, and writes
+  it to this device's slot.
+
+## 2026-08-04 - Raw pixel spacing left in WithdrawModal
+
+- **Where:** `src/components/wallet/WithdrawModal.tsx` lines 448, 453, 458,
+  479, 549 (`padding`/`gap`/`paddingVertical` of 0, 6, 7, 10) and 554
+  (`borderRadius: 8`).
+- **Why it's wrong:** the spacing scale is mandatory; 6, 7 and 10 are not
+  tokens and `borderRadius: 8` is below `radius.sm`. Pre-existing, found by
+  the required grep while editing this file for the error row.
+- **Suggested fix:** map onto `spacing.xxs`/`spacing.xs` and `radius.sm`,
+  then screenshot the sheet, since each change shifts rendered pixels.
