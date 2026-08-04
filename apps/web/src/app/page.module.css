@@ -49,6 +49,25 @@
   color: var(--text);
 }
 
+.navStake {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: var(--amber);
+  color: var(--panel);
+  font: 700 14px/1 var(--font-heading);
+  box-shadow: 0 4px 14px rgba(245, 184, 41, 0.32);
+  transition: filter 140ms ease-out, box-shadow 140ms ease-out;
+}
+
+.navStake:hover {
+  filter: brightness(1.07);
+  box-shadow: 0 6px 18px rgba(245, 184, 41, 0.42);
+  color: var(--panel);
+}
+
 .navCta {
   display: flex;
   align-items: center;
@@ -77,11 +96,10 @@
   grid-template-columns: minmax(0, 1fr) 500px;
   gap: 60px;
   align-items: center;
-  margin: 0 24px;
-  padding: 72px 36px 80px;
-  border-radius: 24px;
-  background: var(--panel-2);
-  overflow: hidden;
+  align-content: center;
+  min-height: 100vh;
+  min-height: 100svh;
+  padding: 72px 60px 80px;
 }
 
 .heroCopy {
@@ -126,20 +144,69 @@
   position: relative;
   display: flex;
   justify-content: center;
-  align-items: flex-end;
-}
-
-.heroPhoneBack {
-  transform: rotate(-5deg) translateX(30px);
+  --side-shift: 148px;
 }
 
 .heroPhoneFront {
-  margin-left: -34px;
+  animation: heroFrontIn 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.heroPhoneLeft,
+.heroPhoneRight {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+}
+
+.heroPhoneLeft {
+  transform: translate(calc(-50% - var(--side-shift)), -50%) rotate(-7deg);
+  animation: heroSideLeft 700ms 340ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.heroPhoneRight {
+  transform: translate(calc(-50% + var(--side-shift)), -50%) rotate(7deg);
+  animation: heroSideRight 700ms 440ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* `from` only: each phone animates to its class transform, so the resting
+   composition lives in one place. */
+@keyframes heroFrontIn {
+  from {
+    opacity: 0;
+    transform: translateY(26px) scale(0.97);
+  }
+}
+
+@keyframes heroSideLeft {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+}
+
+@keyframes heroSideRight {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heroPhoneFront,
+  .heroPhoneLeft,
+  .heroPhoneRight {
+    animation: none;
+  }
 }
 
 /* ── how it works ── */
 
 .how {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100svh;
   padding: 72px 60px;
 }
 
@@ -217,6 +284,9 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 72px;
   align-items: center;
+  align-content: center;
+  min-height: 100vh;
+  min-height: 100svh;
   padding: 80px 60px;
 }
 
@@ -292,6 +362,9 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 72px;
   align-items: center;
+  align-content: center;
+  min-height: 100vh;
+  min-height: 100svh;
   padding: 80px 60px;
 }
 
@@ -480,9 +553,92 @@ button.referralCode:hover {
 
 /* ── apply ── */
 
+/* ── community ── */
+
+.community {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100svh;
+  padding: 72px 60px;
+}
+
+.communityGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin-top: 40px;
+  max-width: 840px;
+}
+
+.communityCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 28px;
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px rgba(233, 233, 237, 0.16);
+  color: var(--text);
+  transition: box-shadow 140ms ease-out, transform 140ms ease-out;
+}
+
+.communityCard:hover {
+  box-shadow: inset 0 0 0 1px rgba(142, 224, 90, 0.45);
+  transform: translateY(-2px);
+}
+
+.communityIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(142, 224, 90, 0.15);
+  color: var(--green);
+}
+
+.communityIconAmber {
+  background: rgba(245, 184, 41, 0.15);
+  color: var(--amber);
+}
+
+.communityCardTitle {
+  font: 600 19px/1.2 var(--font-heading);
+  margin-top: 20px;
+}
+
+.communityCardBody {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-62);
+  margin: 12px 0 0;
+  text-wrap: pretty;
+}
+
+.communityCardCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 24px;
+  font: 600 14px/1 var(--font-body);
+  color: var(--green);
+}
+
+/* ── apply ── */
+
 .apply {
+  display: grid;
+  align-content: center;
+  min-height: 100vh;
+  min-height: 100svh;
+  padding: 0 24px 8px;
+}
+
+.applyCard {
   position: relative;
-  margin: 0 24px 8px;
   padding: 64px 36px;
   border-radius: 24px;
   background: var(--green);
@@ -523,15 +679,69 @@ button.referralCode:hover {
   letter-spacing: -0.025em;
 }
 
+/* On the lime panel the ink is the foreground, not a gray. */
+.applyContact {
+  margin: 20px 0 0;
+  max-width: 460px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: rgba(11, 12, 20, 0.72);
+}
+
+.applyLink {
+  color: var(--panel);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 /* ── footer ── */
 
 .footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 32px;
+  margin-top: 8px;
   padding: 32px 60px;
+  border-top: 1px solid rgba(233, 233, 237, 0.1);
 }
 
+.footerBrand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.footerNetwork {
+  font-size: 12px;
+  color: var(--text-55);
+}
+
+.footerSocials {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.footerSocial {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(233, 233, 237, 0.16);
+  font-size: 13px;
+  color: var(--text-62);
+  transition: color 140ms ease-out, background 140ms ease-out,
+    box-shadow 140ms ease-out;
+}
+
+.footerSocial:hover {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px rgba(233, 233, 237, 0.28);
+  color: var(--text);
+}
 
 .footerLinks {
   display: flex;
@@ -543,9 +753,6 @@ button.referralCode:hover {
 
 .footerLink {
   color: var(--text-55);
-}
-
-.footerLink {
   transition: color 140ms ease-out;
 }
 
@@ -571,18 +778,22 @@ button.referralCode:hover {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .hero,
   .how,
   .pot,
   .invite,
+  .community,
   .footer {
     padding-left: 28px;
     padding-right: 28px;
   }
 
-  .hero,
   .apply {
-    margin-left: 16px;
-    margin-right: 16px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .applyCard {
     padding-left: 12px;
     padding-right: 12px;
   }
@@ -625,26 +836,24 @@ button.referralCode:hover {
   .how,
   .pot,
   .invite,
+  .community,
   .footer {
     padding-left: 20px;
     padding-right: 20px;
   }
 
-  /* The inset card and its wash need width to read as anything but a seam;
-     on a phone the hero is simply the top of the page. */
   .hero {
-    margin-left: 0;
-    margin-right: 0;
     padding: 40px 20px 52px;
-    border-radius: 0;
-    background: transparent;
     gap: 40px;
     text-align: center;
   }
 
   .apply {
-    margin-left: 12px;
-    margin-right: 12px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .applyCard {
     padding-left: 20px;
     padding-right: 20px;
     border-radius: 18px;
@@ -653,6 +862,10 @@ button.referralCode:hover {
 
   .heroTitle {
     font-size: 52px;
+  }
+
+  .communityGrid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .heroLead {
@@ -666,23 +879,28 @@ button.referralCode:hover {
     margin-top: 32px;
   }
 
-  .heroPhoneBack {
-    --phone-w: 150px;
+  .heroPhones {
+    --side-shift: 92px;
   }
 
   .heroPhoneFront {
-    --phone-w: 168px;
-    margin-left: -22px;
+    --phone-w: 180px;
   }
 
-  .how {
+  .heroPhoneLeft,
+  .heroPhoneRight {
+    --phone-w: 132px;
+  }
+
+  .how,
+  .community {
     padding-top: 52px;
     padding-bottom: 56px;
   }
 
   .pot,
   .invite,
-  .apply {
+  .applyCard {
     padding-top: 48px;
     padding-bottom: 48px;
   }
@@ -703,8 +921,15 @@ button.referralCode:hover {
 
   .how,
   .pot,
-  .invite {
+  .invite,
+  .community {
     text-align: center;
+  }
+
+  /* The card is a flex column pinned left - centre its items too, or the icon
+     and CTA stay left while the copy centres. */
+  .communityCard {
+    align-items: center;
   }
 
   .sectionTitle,
@@ -773,7 +998,8 @@ button.referralCode:hover {
     gap: 18px;
   }
 
-  .footerLinks {
+  .footerLinks,
+  .footerSocials {
     flex-wrap: wrap;
     gap: 18px;
   }

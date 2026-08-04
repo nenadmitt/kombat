@@ -1,5 +1,12 @@
 .arena {
-  padding: 70px 0 74px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100svh;
+  /* Card art is a fixed 757px, so the padding is only a floor - keep it tight
+     or the section outgrows the viewport the other sections are pinned to. */
+  padding: 28px 0;
 }
 
 .head {

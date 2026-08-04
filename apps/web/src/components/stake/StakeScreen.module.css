@@ -26,37 +26,22 @@
   color: var(--text);
 }
 
-.navChips {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
 .walletChip {
   display: flex;
   align-items: center;
   gap: 9px;
   padding: 10px 14px;
+  border: 0;
+  cursor: pointer;
   border-radius: 12px;
   background: rgba(142, 224, 90, 0.14);
   box-shadow: inset 0 0 0 1px rgba(142, 224, 90, 0.4);
-}
-
-.disconnectBtn {
-  border: 0;
-  cursor: pointer;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: transparent;
-  box-shadow: inset 0 0 0 1px rgba(233, 233, 237, 0.18);
-  color: var(--text-55);
   font: 700 13px/1 var(--font-heading);
-  transition: color 140ms ease-out, box-shadow 140ms ease-out;
+  color: var(--green-light);
 }
 
-.disconnectBtn:hover {
-  color: var(--text);
-  box-shadow: inset 0 0 0 1px rgba(233, 233, 237, 0.34);
+.walletChip:hover {
+  background: rgba(142, 224, 90, 0.22);
 }
 
 .walletDot {
@@ -65,94 +50,6 @@
   border-radius: 50%;
   background: var(--green);
   box-shadow: 0 0 7px var(--green);
-}
-
-.walletAddress {
-  font: 700 13px/1 var(--font-heading);
-  color: var(--green-light);
-}
-
-.backLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font: 600 13px/1 var(--font-heading);
-  color: var(--text-55);
-  transition: color 140ms ease-out;
-}
-
-.backLink:hover {
-  color: var(--text);
-}
-
-.title {
-  margin: 20px 0 0;
-  font: 600 36px/1.1 var(--font-heading);
-  letter-spacing: -0.025em;
-}
-
-.lead {
-  font-size: 15px;
-  line-height: 1.6;
-  color: var(--text-62);
-  margin: 16px 0 0;
-  max-width: 560px;
-  text-wrap: pretty;
-}
-
-.panelKickerSm {
-  font: 500 13px/1.3 var(--font-body);
-  color: var(--text-55);
-}
-
-.primaryBtn {
-  box-sizing: border-box;
-  border: 0;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 17px 28px;
-  border-radius: 12px;
-  background: var(--amber);
-  color: var(--panel);
-  font: 700 16px/1 var(--font-heading);
-  box-shadow: 0 4px 14px rgba(245, 184, 41, 0.35);
-  transition: filter 140ms ease-out, box-shadow 140ms ease-out;
-}
-
-.primaryBtn:hover:not(:disabled) {
-  filter: brightness(1.07);
-  box-shadow: 0 6px 18px rgba(245, 184, 41, 0.45);
-}
-
-.primaryBtn:active:not(:disabled) {
-  filter: brightness(0.96);
-}
-
-.primaryBtn:disabled,
-.connectBtn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.formError,
-.formSuccess {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin-top: 16px;
-  padding: 13px 15px;
-  border-radius: 13px;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.formError {
-  background: rgba(245, 184, 41, 0.1);
-  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.3);
-  color: var(--amber);
 }
 
 .connectBtn {
@@ -173,6 +70,447 @@
   background: rgba(142, 224, 90, 0.24);
 }
 
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: 600 13px/1 var(--font-heading);
+  color: var(--text-55);
+  transition: color 140ms ease-out;
+}
+
+.backLink:hover {
+  color: var(--text);
+}
+
+/* ── layout ── */
+
+.content {
+  max-width: 1060px;
+  margin: 0 auto;
+  padding: 24px 60px 80px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+  margin-top: 24px;
+}
+
+.title {
+  margin: 20px 0 0;
+  font: 600 36px/1.1 var(--font-heading);
+  letter-spacing: -0.025em;
+}
+
+.lead {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-62);
+  margin: 16px 0 0;
+  max-width: 560px;
+  text-wrap: pretty;
+}
+
+.connectCard {
+  margin: 20vh auto 0;
+  max-width: 560px;
+  padding: 40px;
+  border-radius: 20px;
+  background: var(--surface);
+  text-align: center;
+}
+
+.connectCard .title {
+  margin-top: 0;
+}
+
+.connectCard .lead {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.connectCard .primaryBtn {
+  margin-top: 28px;
+}
+
+/* ── wallet panel ── */
+
+.walletPanel {
+  padding: 24px;
+  border-radius: 20px;
+  background: var(--surface);
+}
+
+.panelKicker {
+  font: 700 11px/1 var(--font-heading);
+  letter-spacing: 0.14em;
+  color: var(--text-55);
+}
+
+.coinList {
+  display: flex;
+  flex-direction: column;
+  margin-top: 16px;
+}
+
+.coinRow,
+.coinRowMuted {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 0;
+  border-top: 1px solid rgba(233, 233, 237, 0.08);
+}
+
+.coinRowMuted {
+  opacity: 0.45;
+}
+
+.coinSymbol {
+  font: 700 14px/1 var(--font-heading);
+}
+
+.coinNote {
+  font-size: 12px;
+  color: var(--text-55);
+  text-align: right;
+}
+
+.coinBalance {
+  font: 600 14px/1 var(--font-mono);
+  text-align: right;
+}
+
+.panelNote {
+  margin: 14px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-55);
+}
+
+/* ── send card ── */
+
+.stakeCard {
+  position: relative;
+  padding: 32px;
+  border-radius: 20px;
+  background: var(--surface);
+}
+
+.cardTitle {
+  margin: 0;
+  font: 600 24px/1.15 var(--font-heading);
+  letter-spacing: -0.02em;
+}
+
+.cardLead {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-62);
+  margin: 12px 0 0;
+  text-wrap: pretty;
+}
+
+.chainWarning {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  margin-top: 20px;
+  padding: 13px 15px;
+  border: 0;
+  border-radius: 13px;
+  cursor: pointer;
+  background: rgba(245, 184, 41, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.3);
+  color: var(--amber);
+  font: 600 13px/1 var(--font-heading);
+}
+
+.fieldLabel {
+  margin-top: 24px;
+  font: 700 11px/1 var(--font-heading);
+  letter-spacing: 0.14em;
+  color: var(--text-55);
+  text-transform: uppercase;
+}
+
+.tokenRow {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.tokenBtn,
+.tokenBtnActive {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 16px;
+  border: 0;
+  border-radius: 11px;
+  cursor: pointer;
+  font: 700 13px/1 var(--font-heading);
+  background: rgba(233, 233, 237, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(233, 233, 237, 0.14);
+  color: var(--text-62);
+  transition: box-shadow 140ms ease-out, color 140ms ease-out;
+}
+
+.tokenBtn:hover:not(:disabled) {
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px rgba(233, 233, 237, 0.3);
+}
+
+.tokenBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.tokenBtnActive {
+  background: rgba(142, 224, 90, 0.15);
+  box-shadow: inset 0 0 0 1px rgba(142, 224, 90, 0.5);
+  color: var(--green);
+}
+
+.inputWrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 0 16px;
+  border-radius: 13px;
+  background: rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 0 0 1px rgba(233, 233, 237, 0.12);
+}
+
+.inputWrap:focus-within {
+  box-shadow: inset 0 0 0 1px rgba(142, 224, 90, 0.5);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  padding: 15px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: 500 15px/1.2 var(--font-body);
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--text-55);
+}
+
+.maxBtn {
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 9px;
+  cursor: pointer;
+  background: rgba(142, 224, 90, 0.14);
+  color: var(--green);
+  font: 700 12px/1 var(--font-heading);
+}
+
+.maxBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.recipientChecking,
+.recipientFound,
+.recipientMissing {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.recipientChecking {
+  color: var(--text-55);
+}
+
+.recipientFound {
+  color: var(--green);
+}
+
+.recipientMissing {
+  color: var(--amber);
+}
+
+.fieldError {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--amber);
+}
+
+.stepNote {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-55);
+}
+
+.stepPill {
+  margin-top: 16px;
+  padding: 6px 12px;
+  border-radius: 18px;
+  background: rgba(245, 184, 41, 0.13);
+  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.4);
+  font: 700 11px/1 var(--font-heading);
+  letter-spacing: 0.1em;
+  color: var(--amber);
+}
+
+.connectPot {
+  display: inline-grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  margin-bottom: 22px;
+  border-radius: 20px;
+  background: rgba(245, 184, 41, 0.13);
+  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.34);
+  color: var(--amber);
+}
+
+.primaryBtn {
+  box-sizing: border-box;
+  border: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 28px;
+  padding: 17px 28px;
+  border-radius: 12px;
+  background: var(--amber);
+  color: var(--panel);
+  font: 700 16px/1 var(--font-heading);
+  box-shadow: 0 4px 14px rgba(245, 184, 41, 0.35);
+  transition: filter 140ms ease-out, box-shadow 140ms ease-out;
+}
+
+.primaryBtn:hover:not(:disabled) {
+  filter: brightness(1.07);
+  box-shadow: 0 6px 18px rgba(245, 184, 41, 0.45);
+}
+
+.primaryBtn:active:not(:disabled) {
+  filter: brightness(0.96);
+}
+
+.primaryBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.ghostBtn {
+  margin-top: 18px;
+  padding: 11px 18px;
+  border: 0;
+  border-radius: 11px;
+  cursor: pointer;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgba(233, 233, 237, 0.18);
+  color: var(--text-55);
+  font: 700 13px/1 var(--font-heading);
+}
+
+.ghostBtn:hover {
+  color: var(--text);
+}
+
+/* ── tx modal / success ── */
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(5, 5, 9, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.modalCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 420px;
+  width: 100%;
+  padding: 36px 32px;
+  border-radius: 20px;
+  background: var(--panel-2);
+  box-shadow: inset 0 0 0 1px rgba(233, 233, 237, 0.12);
+}
+
+.modalCard .cardTitle {
+  margin-top: 18px;
+}
+
+.modalCard .lead {
+  margin-top: 10px;
+}
+
+.spinner {
+  color: var(--green);
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.explorerLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 18px;
+  font: 600 13px/1 var(--font-mono);
+  color: var(--green);
+}
+
+.explorerLink:hover {
+  color: var(--green-light);
+}
+
+.successWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 24px 0;
+}
+
+.successIcon {
+  color: var(--green);
+}
+
+.successWrap .cardTitle {
+  margin-top: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
 /* ── responsive ── */
 
 @media (max-width: 1080px) {
@@ -180,9 +518,17 @@
     padding: 24px 28px;
   }
 
-  .soonWrap {
+  .content {
     padding-left: 28px;
     padding-right: 28px;
+  }
+
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .walletPanel {
+    order: 2;
   }
 }
 
@@ -193,89 +539,24 @@
     padding: 16px 20px;
   }
 
-  .navChips {
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .connectBtn,
-  .disconnectBtn {
-    flex: 1;
-    justify-content: center;
+  .content {
+    padding: 16px 20px 56px;
   }
 
   .title {
     font-size: 30px;
   }
 
+  .stakeCard {
+    padding: 22px;
+  }
+
+  .connectCard {
+    margin-top: 10vh;
+    padding: 28px 22px;
+  }
+
   .primaryBtn {
     width: 100%;
-  }
-}
-
-/* ── coming soon ── */
-
-.soonWrap {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-height: calc(100vh - 220px);
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 24px 60px 80px;
-}
-
-.soonCard {
-  margin-top: 20px;
-  padding: 32px;
-  border-radius: 20px;
-  background: var(--surface);
-}
-
-.soonBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 12px;
-  border-radius: 18px;
-  background: rgba(245, 184, 41, 0.13);
-  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.4);
-  font: 700 11px/1 var(--font-heading);
-  letter-spacing: 0.14em;
-  color: var(--amber);
-}
-
-.soonCard .primaryBtn {
-  margin-top: 28px;
-}
-
-.soonWallet {
-  margin-top: 26px;
-  padding: 18px 20px;
-  border-radius: 16px;
-  background: rgba(0, 0, 0, 0.3);
-}
-
-.soonWalletRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 12px;
-  min-width: 0;
-}
-
-.soonWalletAddress {
-  font: 500 13px/1.4 var(--font-mono);
-  overflow-wrap: anywhere;
-}
-
-@media (max-width: 640px) {
-  .soonWrap {
-    min-height: 0;
-    padding: 16px 20px 56px;
-  }
-
-  .soonCard {
-    padding: 22px;
   }
 }

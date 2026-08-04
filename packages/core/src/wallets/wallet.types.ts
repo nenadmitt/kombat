@@ -13,3 +13,14 @@ export type CreateWalletResponse = {
   address: string;
   mnemonic: string;
 };
+
+/** GET /users/lookup: resolve an address, ENS name, or username to a player. */
+export type RecipientLookup =
+  | { found: false }
+  | {
+      found: true;
+      username: string | null;
+      ensName: string | null;
+      /** The player's platform wallet, where staked funds are credited. */
+      address: string;
+    };

@@ -99,6 +99,14 @@ export class DbService {
     return this.userRepository.findOneBy({ referralCode });
   }
 
+  /** Case-insensitive: ENS names are minted lowercase but typed freely. */
+  findUserByEnsName(ensName: string): Promise<UserEntity | null> {
+    return this.userRepository
+      .createQueryBuilder('user')
+      .where('LOWER(user.ens_name) = LOWER(:ensName)', { ensName })
+      .getOne();
+  }
+
   /**
    * Take an ENS name for a user who has none. The partial unique index decides
    * the winner of a race; the loser sees false and tries the next label.

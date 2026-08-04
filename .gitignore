@@ -107,3 +107,4 @@ apps/evm-contracts/broadcast/*/31337-fork/
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+.claude/worktrees/

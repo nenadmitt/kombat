@@ -1,3 +1,5 @@
+import { NATIVE_TOKEN_ADDRESS, tokensForChain } from "@gaming-platform/core";
+import type { TokenInfo } from "@gaming-platform/core";
 import type { Address } from "viem";
 
 /** Sepolia during the closed test - the only chain the pot is deployed on. */
@@ -12,42 +14,11 @@ export const EXPLORER_URL =
   process.env.NEXT_PUBLIC_EXPLORER_URL ?? "https://sepolia.etherscan.io";
 
 /** The pot's own name for "no token" - what stakeNative deposits under. */
-export const NATIVE_TOKEN =
-  "0x0000000000000000000000000000000000000000" as Address;
+export const NATIVE_TOKEN = NATIVE_TOKEN_ADDRESS as Address;
 
-export type StakeToken = {
-  symbol: string;
-  name: string;
-  address: Address;
-  decimals: number;
-  native?: boolean;
-};
+export type StakeToken = TokenInfo;
 
-/**
- * Mirrors apps/server/src/chain/token-registry.ts, which is itself pinned to
- * the pot's on-chain allowlist. Adding a token means all three.
- */
-export const TOKENS: StakeToken[] = [
-  {
-    symbol: "USDC",
-    name: "USD Coin",
-    address: "0x277c9f3957633C99ef8F7421B980B50C41b31a7b",
-    decimals: 6,
-  },
-  {
-    symbol: "KOMBAT",
-    name: "Kombat Coin",
-    address: "0x01a659Df789D3E433D7cdFf4CAc70596C56B03c0",
-    decimals: 18,
-  },
-  {
-    symbol: "ETH",
-    name: "Sepolia Ether",
-    address: NATIVE_TOKEN,
-    decimals: 18,
-    native: true,
-  },
-];
+export const TOKENS: StakeToken[] = tokensForChain(CHAIN_ID);
 
 export const STAKE_POT_ABI = [
   {
@@ -108,6 +79,16 @@ export const ERC20_ABI = [
     stateMutability: "nonpayable",
     inputs: [
       { name: "spender", type: "address" },
+      { name: "value", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "transfer",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "to", type: "address" },
       { name: "value", type: "uint256" },
     ],
     outputs: [{ name: "", type: "bool" }],

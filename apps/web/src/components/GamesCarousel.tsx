@@ -15,6 +15,9 @@ type Game = {
   description: string;
   matchLength: string;
   screenshots?: [string, string];
+  /** Looping gameplay recordings; when set, play inside the frames with the
+   *  screenshots as posters. See public/recordings/README.md. */
+  videos?: [string | undefined, string | undefined];
 };
 
 const GAMES: Game[] = [
@@ -24,11 +27,11 @@ const GAMES: Game[] = [
     badge: { label: "NEW", tone: "green" },
     category: "ARTILLERY · 1V1",
     description:
-      "Turn-based tank duel across broken terrain. Set angle and power, read the wind, and land a shell before they range in on you.",
+      "Turn-based tank duel across broken terrain. Set your angle and power, allow for the wind, and try to land a shell before they range in on you.",
     matchLength: "~5 min",
     screenshots: [
-      "/screenshots/salvo-1.png",
-      "/screenshots/salvo-2.png",
+      "/screenshots/salvo-aim.png",
+      "/screenshots/salvo-hit.png",
     ],
   },
   {
@@ -37,23 +40,23 @@ const GAMES: Game[] = [
     badge: { label: "MOST PLAYED", tone: "amber" },
     category: "STRATEGY · 1V1",
     description:
-      "Place your fleet on a 10×10 grid, then hunt theirs one salvo at a time. Every shot you take is public information - reading their pattern matters more than luck.",
+      "Place your fleet and mines on a 10×10 grid, then hunt theirs one shot at a time. If they hit one of your mines, the blast takes out a 3×3 patch of their own fleet and ends their turn.",
     matchLength: "~6 min",
     screenshots: [
-      "/screenshots/battleship-game-ss1.png",
-      "/screenshots/battleship-game-ss.png",
+      "/screenshots/naval-deploy.png",
+      "/screenshots/naval-fleet.png",
     ],
   },
   {
     name: "Ludo Royale",
     icon: <GameIcon game="ludo" />,
-    category: "BOARD · 1V1",
+    category: "BOARD · UP TO 4",
     description:
-      "The board game you already know, played for a pot. Four tokens home wins it - knock a rival back to start and the whole race resets in your favour.",
+      "The board game you already know. Get all four pawns home to win, and land on a rival to knock them back to the start.",
     matchLength: "~9 min",
     screenshots: [
-      "/screenshots/ludo-1.png",
-      "/screenshots/ludo-2.png",
+      "/screenshots/ludo-race.png",
+      "/screenshots/ludo-turn.png",
     ],
   },
   {
@@ -61,23 +64,23 @@ const GAMES: Game[] = [
     icon: <GameIcon game="tripleCut" />,
     category: "DUEL · 1V1",
     description:
-      "Three rounds, one call each. Fastest game on Kombat and the cheapest way to learn how staking feels before you size up.",
+      "Best of five, one call each round. The quickest game on Kombat and the easiest one to start with.",
     matchLength: "~2 min",
     screenshots: [
-      "/screenshots/triplecut-1.png",
-      "/screenshots/triplecut-2.png",
+      "/screenshots/triplecut-pick.png",
+      "/screenshots/triplecut-reveal.png",
     ],
   },
   {
     name: "Chroma Clash",
     icon: <GameIcon game="chroma" />,
-    category: "CARDS · 1V1",
+    category: "CARDS · UP TO 4",
     description:
-      "A fast colour-chain duel. Play into your opponent's suit to steal the lead, hold a wildcard too long and it turns dead in your hand.",
+      "Match the colour or the number on the pile to shed a card. First player to empty their hand wins, so watch what everyone else is holding.",
     matchLength: "~4 min",
     screenshots: [
-      "/screenshots/chroma-1.png",
-      "/screenshots/chroma-2.png",
+      "/screenshots/chroma-hand.png",
+      "/screenshots/chroma-play.png",
     ],
   },
 ];
@@ -124,10 +127,10 @@ export function GamesCarousel() {
     <section id="games" className={styles.arena}>
       <div className={styles.head}>
         <div>
-          <h2 className={styles.title}>Five games today. More every month.</h2>
+          <h2 className={styles.title}>Pick your game.</h2>
           <p className={styles.lead}>
-            The roster keeps expanding - new arenas ship through the test and
-            testers pick the order.
+            New games ship during the closed test, and testers vote on what
+            gets built next.
           </p>
         </div>
         <div className={styles.headSide}>
@@ -197,6 +200,7 @@ export function GamesCarousel() {
                   width={212}
                   height={426}
                   src={game.screenshots?.[0]}
+                  video={game.videos?.[0]}
                   alt={`${game.name} screen`}
                   placeholder={`${game.name} screenshot soon`}
                   className={styles.phoneBack}
@@ -206,6 +210,7 @@ export function GamesCarousel() {
                   width={244}
                   height={492}
                   src={game.screenshots?.[1]}
+                  video={game.videos?.[1]}
                   alt={`${game.name} screen`}
                   placeholder={`${game.name} screenshot soon`}
                   className={styles.phoneFront}
@@ -219,13 +224,13 @@ export function GamesCarousel() {
               <Plus size={28} weight="bold" />
             </span>
             <div className={styles.moreTitle}>
-              More arenas
+              More games
               <br />
               in the works
             </div>
             <p className={styles.moreBody}>
-              We ship a new game every few weeks through the closed test, and
-              testers vote on what gets built next.
+              We add a new game every few weeks during the closed test. Testers
+              get a say in which one comes next.
             </p>
             <a href="#apply" className={styles.moreLink}>
               Join the test to vote

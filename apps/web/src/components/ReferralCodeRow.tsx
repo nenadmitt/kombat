@@ -5,7 +5,7 @@ import { Check, Copy } from "@phosphor-icons/react";
 
 import styles from "@/app/page.module.css";
 
-const EXAMPLE_CODE = "ARTHY_REF";
+const EXAMPLE_CODE = "KMBT-7F2A9C";
 
 export function ReferralCodeRow() {
   const [copied, setCopied] = useState(false);

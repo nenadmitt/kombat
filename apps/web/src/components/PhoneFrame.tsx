@@ -1,8 +1,10 @@
 import Image from "next/image";
+import { PhoneVideo } from "./PhoneVideo";
 import styles from "./PhoneFrame.module.css";
 
 type PhoneFrameProps = {
   src?: string;
+  video?: string;
   alt: string;
   width: number;
   height: number;
@@ -13,6 +15,7 @@ type PhoneFrameProps = {
 
 export function PhoneFrame({
   src,
+  video,
   alt,
   width,
   height,
@@ -45,7 +48,9 @@ export function PhoneFrame({
         className={styles.screen}
         style={{ borderRadius: outerRadius - 7 }}
       >
-        {src ? (
+        {video ? (
+          <PhoneVideo src={video} poster={src} />
+        ) : src ? (
           // 1.5x the slot and a high quality: a dense game UI at the default
           // 75 is visibly mushy on a retina screen.
           <Image
