@@ -3,6 +3,8 @@ import { Controller, Get, HttpException } from '@nestjs/common';
 import { CacheService } from './cache';
 import { ConfigurationService } from './configuration/configuration.service';
 import { DbService } from './db';
+import { INSTANCE_ID } from './instance-id';
+import { adapterState } from './websockets/redis-io.adapter';
 
 /** Cap a dependency probe so a hung connection can't stall the endpoint. */
 const PROBE_TIMEOUT_MS = 2_000;
@@ -29,7 +31,12 @@ export class AppController {
   /** Cheap liveness: the process is up and which cache backend it chose. */
   @Get('health')
   health() {
-    return { status: 'ok', cache: this.cacheService.driver };
+    return {
+      status: 'ok',
+      cache: this.cacheService.driver,
+      instance: INSTANCE_ID,
+      socketAdapter: adapterState.mode,
+    };
   }
 
   /**
@@ -68,6 +75,8 @@ export class AppController {
       postgres,
       redis,
       cache: this.cacheService.driver,
+      instance: INSTANCE_ID,
+      socketAdapter: adapterState,
     };
     if (!healthy) {
       throw new HttpException(body, 503);

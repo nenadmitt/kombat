@@ -1,7 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Server } from 'socket.io';
 
+import { INSTANCE_ID } from '../instance-id';
+import { adapterState } from './redis-io.adapter';
 import { channelRoom, userRoom } from './rooms.util';
+
+/** Per-emit logging; set WS_EMIT_LOGS=false to silence once diagnosed. */
+const EMIT_LOGS = process.env.WS_EMIT_LOGS !== 'false';
 
 /**
  * Sends data to connected sockets. The gateway hands over its `Server`
@@ -74,5 +79,13 @@ export class WebsocketsService {
       return;
     }
     this.server.to(room).emit(event, payload);
+    if (EMIT_LOGS) {
+      // Room membership in `adapter.rooms` is this instance's only. 0 local
+      // members means delivery depended entirely on the Redis adapter.
+      const local = this.server.sockets.adapter.rooms.get(room)?.size ?? 0;
+      this.logger.log(
+        `emit "${event}" -> ${room} | local sockets: ${local} | adapter: ${adapterState.mode} | instance: ${INSTANCE_ID}`,
+      );
+    }
   }
 }
