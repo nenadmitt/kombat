@@ -1,8 +1,10 @@
 import type { RecipientLookup } from "@gaming-platform/core";
 
 /** The NestJS platform API - a different service than this app's own /api. */
+// Inlined by `next build`, so an unset var ships in the bundle: the default has
+// to be the one that works in a browser, not the one that works on a dev box.
 const API_URL =
-  process.env.NEXT_PUBLIC_PLATFORM_API_URL ?? "http://localhost:3000/api/v1";
+  process.env.NEXT_PUBLIC_PLATFORM_API_URL ?? "https://api.playkombat.xyz/api/v1";
 
 export async function lookupRecipient(
   query: string,

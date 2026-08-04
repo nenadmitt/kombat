@@ -1,5 +1,6 @@
 import { useId, type ReactNode } from 'react';
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -63,7 +64,11 @@ export default function BottomSheet({
           pointerEvents="box-none"
           edges={['bottom']}
         >
-          <View style={[styles.sheet, gap != null && { gap }]}>
+          <Pressable
+            style={[styles.sheet, gap != null && { gap }]}
+            onPress={Keyboard.dismiss}
+            accessible={false}
+          >
             <View
               style={[styles.dragHandle, gap == null && styles.dragHandleSpaced]}
             />
@@ -91,7 +96,7 @@ export default function BottomSheet({
             <KeyboardDoneIdContext.Provider value={doneId}>
               {children}
             </KeyboardDoneIdContext.Provider>
-          </View>
+          </Pressable>
         </SafeAreaView>
       </KeyboardAvoidingView>
       <KeyboardDoneBar nativeID={doneId} />

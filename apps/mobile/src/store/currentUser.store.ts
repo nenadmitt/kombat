@@ -19,7 +19,12 @@ import {
   deriveAddressFromPrivateKey,
   derivePrivateKeyFromMnemonic,
 } from '../wallet/derive-wallet';
-import { getWalletSecret, saveWalletSecret } from '../wallet/wallet-keychain';
+import {
+  adoptLegacySecret,
+  derivesTo,
+  getWalletSecret,
+  saveWalletSecret,
+} from '../wallet/wallet-keychain';
 import { useGameStore } from './game.store';
 import { usePlayerStatsStore } from './playerStats.store';
 import { useServerStore } from './server.store';
@@ -90,30 +95,12 @@ function persistCurrentSnapshot(state: {
   });
 }
 
-/** Wallet for an offline boot: last-good snapshot, else the address derived
- *  from the Keychain secret (the key never leaves the device). */
-async function resolveOfflineWallet(
-  userId: string | null,
-): Promise<WalletSummary | null> {
-  const snapshot = await readSnapshot();
-  if (snapshot?.wallet) {
-    return snapshot.wallet;
-  }
-  if (!userId) {
-    return null;
-  }
-  try {
-    const secret = await getWalletSecret(userId);
-    if (!secret) {
-      return null;
-    }
-    return {
-      address: deriveAddressFromPrivateKey(secret.privateKey),
-      network: WalletNetwork.Ethereum,
-    };
-  } catch {
-    return null;
-  }
+/** The address is a property of the key, not something the server tells us. */
+function walletFromKey(privateKey: string): WalletSummary {
+  return {
+    address: deriveAddressFromPrivateKey(privateKey),
+    network: WalletNetwork.Ethereum,
+  };
 }
 
 /**
@@ -319,13 +306,45 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
     }
     set({ walletStatus: 'checking', walletError: null });
     try {
+      // Non-custodial: the key on this device is the wallet, and its address
+      // is derived from it. The server is a directory that maps an address
+      // back to a player, never an authority on what this wallet is - so once
+      // the key is here, everything below works with the server unreachable.
+      const existing = await getWalletSecret(userId);
+      if (existing) {
+        set({
+          wallet: walletFromKey(existing.privateKey),
+          walletStatus: 'ready',
+        });
+        persistCurrentSnapshot(get());
+        return;
+      }
+
       const wallets = await apiClient.listWallets();
       if (wallets.length > 0) {
-        // Migrates a pre-per-user secret into this account's slot, but only
-        // when it derives to the address the server just returned.
-        await getWalletSecret(userId, wallets[0].address);
-        set({ wallet: wallets[0], walletStatus: 'ready' });
-        persistCurrentSnapshot(get());
+        // No key here, so the only route to one is a slot from before secrets
+        // were keyed by user. Adopting proves ownership against the server's
+        // address first, which is what the server's row is for.
+        for (const candidate of wallets) {
+          const adopted = await adoptLegacySecret(userId, candidate.address);
+          if (adopted) {
+            set({
+              wallet: walletFromKey(adopted.privateKey),
+              walletStatus: 'ready',
+            });
+            persistCurrentSnapshot(get());
+            return;
+          }
+        }
+        set({
+          wallet: wallets[0],
+          walletStatus: 'error',
+          walletError: {
+            message:
+              'Your wallet was created on another device and its key never left it. Sign in there to move funds.',
+            code: ErrorCode.Unknown,
+          },
+        });
         return;
       }
 
@@ -334,22 +353,17 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
         WalletNetwork.Ethereum,
       );
       const privateKey = derivePrivateKeyFromMnemonic(mnemonic);
+      // Storing a key that does not control the registered address would strand
+      // the wallet on creation, and the mnemonic is returned exactly once.
+      if (!derivesTo(privateKey, address)) {
+        throw new Error('Wallet key does not match the address issued for it');
+      }
       await saveWalletSecret(userId, { mnemonic, privateKey });
-      set({
-        wallet: { address, network: WalletNetwork.Ethereum },
-        walletStatus: 'ready',
-      });
+      set({ wallet: walletFromKey(privateKey), walletStatus: 'ready' });
       persistCurrentSnapshot(get());
     } catch (err) {
-      // Offline fallback: snapshot first, else recover the address straight
-      // from the Keychain secret - creating a brand-new wallet is the only
-      // path that truly needs the server.
-      const offlineWallet = await resolveOfflineWallet(get().userId);
-      if (offlineWallet) {
-        set({ wallet: offlineWallet, walletStatus: 'ready' });
-        useServerStore.getState().reportOffline();
-        return;
-      }
+      // Reached only with no key on this device, so there is nothing to fall
+      // back to: minting the first one is the one thing that needs the server.
       if (err instanceof ApiError && err.isNetworkError) {
         useServerStore.getState().reportOffline();
       }

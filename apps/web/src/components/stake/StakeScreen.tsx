@@ -7,12 +7,13 @@ import {
   ArrowUpRight,
   CheckCircle,
   CircleNotch,
+  Flask,
   MagnifyingGlass,
   SealCheck,
   WarningCircle,
 } from "@phosphor-icons/react";
 import { ConnectKitButton } from "connectkit";
-import { formatUnits, parseUnits, type Address } from "viem";
+import { formatUnits, getAddress, isAddress, parseUnits, type Address } from "viem";
 import {
   useAccount,
   useChainId,
@@ -27,13 +28,16 @@ import { BrandIcon, PotIcon, type BrandIconName } from "@/components/BrandIcon";
 import { LogoLockup } from "@/components/Logo";
 import {
   CHAIN_ID,
+  CHAIN_NAME,
   ERC20_ABI,
   EXPLORER_URL,
+  IS_TESTNET,
   STAKE_POT_ABI,
   STAKE_POT_ADDRESS,
   TOKENS,
   shortAddress,
 } from "@/lib/chain";
+import { looksLikeEnsName, resolveEnsName } from "@/lib/ens";
 import { lookupRecipient } from "@/lib/platform-api";
 import styles from "./StakeScreen.module.css";
 
@@ -47,11 +51,18 @@ const BRAND: Record<TokenSymbol, BrandIconName> = {
   DAI: "dai",
 };
 
+type Player = Extract<RecipientLookup, { found: true }>;
+
 type LookupState =
   | { status: "idle" }
-  | { status: "checking" }
-  | { status: "found"; user: Extract<RecipientLookup, { found: true }> }
-  | { status: "missing" }
+  | { status: "typing" }
+  | { status: "malformed" }
+  | { status: "resolving"; name: string }
+  | { status: "unresolved"; name: string }
+  | { status: "ensError"; name: string }
+  | { status: "checking"; address: Address }
+  | { status: "found"; user: Player; name: string | undefined }
+  | { status: "missing"; address: Address }
   | { status: "error" };
 
 function formatBalance(value: bigint, decimals: number): string {
@@ -62,8 +73,9 @@ function formatBalance(value: bigint, decimals: number): string {
   return `${int}.${frac.slice(0, 4)}`.replace(/\.?0+$/, "") || "0";
 }
 
-function playerName(user: Extract<RecipientLookup, { found: true }>): string {
-  return user.username ?? user.ensName ?? shortAddress(user.address);
+function playerName(found: Extract<LookupState, { status: "found" }>): string {
+  const { user, name } = found;
+  return name ?? user.ensName ?? user.username ?? shortAddress(user.address);
 }
 
 export function StakeScreen() {
@@ -155,7 +167,7 @@ function WalletPanel({ account }: { account: Address | undefined }) {
           <div key={symbol} className={styles.coinRowMuted}>
             <BrandIcon type={BRAND[symbol]} size={26} />
             <span className={styles.coinSymbol}>{symbol}</span>
-            <span className={styles.coinNote}>Not on Sepolia</span>
+            <span className={styles.coinNote}>Not on {CHAIN_NAME}</span>
           </div>
         ))}
       </div>
@@ -228,23 +240,58 @@ function StakeCard({ account }: { account: Address | undefined }) {
   const tokenAllowed = value<boolean>(2);
   const potPaused = value<boolean>(3);
 
-  // Debounced recipient check. The stake button never enables on a recipient
-  // the platform has not confirmed.
+  // Debounced: an ENS name resolves on mainnet first, then the address is put
+  // to the platform. The stake button never enables on an address the platform
+  // has not confirmed belongs to a player.
   useEffect(() => {
     const query = recipient.trim();
     if (!query) {
       setLookup({ status: "idle" });
       return;
     }
-    setLookup({ status: "checking" });
+    setLookup({ status: "typing" });
     const controller = new AbortController();
     const timer = setTimeout(async () => {
+      const name = isAddress(query, { strict: false })
+        ? undefined
+        : looksLikeEnsName(query)
+          ? query
+          : null;
+      if (name === null) {
+        setLookup({ status: "malformed" });
+        return;
+      }
+
+      let address: Address;
+      if (name === undefined) {
+        address = getAddress(query);
+      } else {
+        setLookup({ status: "resolving", name });
+        try {
+          const resolved = await resolveEnsName(name);
+          if (controller.signal.aborted) {
+            return;
+          }
+          if (!resolved) {
+            setLookup({ status: "unresolved", name });
+            return;
+          }
+          address = resolved;
+        } catch {
+          if (!controller.signal.aborted) {
+            setLookup({ status: "ensError", name });
+          }
+          return;
+        }
+      }
+
+      setLookup({ status: "checking", address });
       try {
-        const result = await lookupRecipient(query, controller.signal);
+        const result = await lookupRecipient(address, controller.signal);
         setLookup(
           result.found
-            ? { status: "found", user: result }
-            : { status: "missing" },
+            ? { status: "found", user: result, name }
+            : { status: "missing", address },
         );
       } catch {
         if (!controller.signal.aborted) {
@@ -287,19 +334,29 @@ function StakeCard({ account }: { account: Address | undefined }) {
       approveReceipt.isSuccess &&
       !stake.data &&
       !stake.isPending &&
+      !wrongChain &&
       token &&
       parsed !== undefined &&
       lookup.status === "found"
     ) {
       void refetchReads();
       stake.writeContract({
+        chainId: CHAIN_ID,
         address: STAKE_POT_ADDRESS,
         abi: STAKE_POT_ABI,
         functionName: "stake",
         args: [lookup.user.address as Address, token.address as Address, parsed],
       });
     }
-  }, [approveReceipt.isSuccess, stake, token, parsed, lookup, refetchReads]);
+  }, [
+    approveReceipt.isSuccess,
+    stake,
+    token,
+    parsed,
+    lookup,
+    refetchReads,
+    wrongChain,
+  ]);
 
   const busy =
     approve.isPending ||
@@ -332,6 +389,7 @@ function StakeCard({ account }: { account: Address | undefined }) {
     }
     if (needsApproval) {
       approve.writeContract({
+        chainId: CHAIN_ID,
         address: token.address as Address,
         abi: ERC20_ABI,
         functionName: "approve",
@@ -340,6 +398,7 @@ function StakeCard({ account }: { account: Address | undefined }) {
       return;
     }
     stake.writeContract({
+      chainId: CHAIN_ID,
       address: STAKE_POT_ADDRESS,
       abi: STAKE_POT_ABI,
       functionName: "stake",
@@ -356,7 +415,7 @@ function StakeCard({ account }: { account: Address | undefined }) {
   };
 
   if (stakeReceipt.isSuccess && stake.data) {
-    const name = lookup.status === "found" ? playerName(lookup.user) : "them";
+    const name = lookup.status === "found" ? playerName(lookup) : "them";
     return (
       <section className={styles.stakeCard}>
         <div className={styles.successWrap}>
@@ -396,10 +455,21 @@ function StakeCard({ account }: { account: Address | undefined }) {
       <h1 className={styles.cardTitle}>Top up a player&apos;s stake pot</h1>
       <p className={styles.cardLead}>
         Your coins go into the StakePot contract and get credited to the player
-        you name. They can stake a match with them straight away, without
-        signing anything. The transaction is final once it confirms, so we check
-        the player exists before you sign.
+        at the address you give. They can stake a match with them straight away,
+        without signing anything. The transaction is final once it confirms, so
+        we check the address belongs to a player before you sign.
       </p>
+
+      {IS_TESTNET && (
+        <p className={styles.testnetNotice}>
+          <Flask size={16} weight="fill" className={styles.testnetIcon} />
+          <span>
+            <strong>{CHAIN_NAME} is a test network.</strong> These coins are
+            free to get and worth nothing, so a stake here costs you no real
+            money.
+          </span>
+        </p>
+      )}
 
       {wrongChain && (
         <button
@@ -408,7 +478,7 @@ function StakeCard({ account }: { account: Address | undefined }) {
           onClick={() => switchChain({ chainId: CHAIN_ID })}
         >
           <WarningCircle size={16} weight="fill" />
-          You are on the wrong network. Switch to Sepolia.
+          You are on the wrong network. Switch to {CHAIN_NAME}.
         </button>
       )}
 
@@ -422,7 +492,7 @@ function StakeCard({ account }: { account: Address | undefined }) {
               choice.symbol === symbol ? styles.tokenBtnActive : styles.tokenBtn
             }
             disabled={!choice.token}
-            title={choice.token ? undefined : "Not on Sepolia"}
+            title={choice.token ? undefined : `Not on ${CHAIN_NAME}`}
             onClick={() => setSymbol(choice.symbol)}
           >
             <BrandIcon type={BRAND[choice.symbol]} size={18} />
@@ -435,7 +505,7 @@ function StakeCard({ account }: { account: Address | undefined }) {
       <div className={styles.inputWrap}>
         <input
           className={styles.input}
-          placeholder="Username, ENS name, or wallet address"
+          placeholder="Wallet address or ENS name"
           value={recipient}
           onChange={event => setRecipient(event.target.value)}
           spellCheck={false}
@@ -480,7 +550,7 @@ function StakeCard({ account }: { account: Address | undefined }) {
         >
           <PotIcon size={17} />
           {lookup.status === "found"
-            ? `Stake for ${playerName(lookup.user)}`
+            ? `Stake for ${playerName(lookup)}`
             : "Stake"}
         </button>
       ) : (
@@ -566,38 +636,67 @@ function TxModal({
 }
 
 function RecipientStatus({ lookup }: { lookup: LookupState }) {
-  if (lookup.status === "idle") {
-    return null;
+  switch (lookup.status) {
+    case "idle":
+    case "typing":
+      return null;
+    case "resolving":
+      return (
+        <p className={styles.recipientChecking}>
+          <MagnifyingGlass size={14} />
+          Resolving {lookup.name}
+        </p>
+      );
+    case "checking":
+      return (
+        <p className={styles.recipientChecking}>
+          <MagnifyingGlass size={14} />
+          Checking {shortAddress(lookup.address)}
+        </p>
+      );
+    case "found":
+      return (
+        <p className={styles.recipientFound}>
+          <CheckCircle size={15} weight="fill" />
+          {playerName(lookup)} plays Kombat. Their pot is at{" "}
+          {shortAddress(lookup.user.address)}.
+        </p>
+      );
+    case "malformed":
+      return (
+        <p className={styles.recipientMissing}>
+          <WarningCircle size={15} weight="fill" />
+          Enter a wallet address (0x…) or an ENS name.
+        </p>
+      );
+    case "unresolved":
+      return (
+        <p className={styles.recipientMissing}>
+          <WarningCircle size={15} weight="fill" />
+          {lookup.name} does not resolve to an address.
+        </p>
+      );
+    case "ensError":
+      return (
+        <p className={styles.recipientMissing}>
+          <WarningCircle size={15} weight="fill" />
+          We could not reach ENS to resolve {lookup.name}. Try again in a
+          moment.
+        </p>
+      );
+    case "missing":
+      return (
+        <p className={styles.recipientMissing}>
+          <WarningCircle size={15} weight="fill" />
+          Nobody plays Kombat under {shortAddress(lookup.address)}.
+        </p>
+      );
+    case "error":
+      return (
+        <p className={styles.recipientMissing}>
+          <WarningCircle size={15} weight="fill" />
+          We cannot reach the player directory. Try again in a moment.
+        </p>
+      );
   }
-  if (lookup.status === "checking") {
-    return (
-      <p className={styles.recipientChecking}>
-        <MagnifyingGlass size={14} />
-        Looking them up
-      </p>
-    );
-  }
-  if (lookup.status === "found") {
-    return (
-      <p className={styles.recipientFound}>
-        <CheckCircle size={15} weight="fill" />
-        {playerName(lookup.user)} plays Kombat. Their pot is at{" "}
-        {shortAddress(lookup.user.address)}.
-      </p>
-    );
-  }
-  if (lookup.status === "missing") {
-    return (
-      <p className={styles.recipientMissing}>
-        <WarningCircle size={15} weight="fill" />
-        Nobody plays Kombat under that name or address.
-      </p>
-    );
-  }
-  return (
-    <p className={styles.recipientMissing}>
-      <WarningCircle size={15} weight="fill" />
-      We cannot reach the player directory. Try again in a moment.
-    </p>
-  );
 }

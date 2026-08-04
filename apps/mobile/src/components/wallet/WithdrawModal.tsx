@@ -12,6 +12,7 @@ import { resolveRecipient, type ResolvedRecipient } from '../../wallet/ens';
 import { truncateAddress } from '../../wallet/format-address';
 import { CHAIN_TOKENS, type BalanceChainId, type TokenSymbol } from '../../wallet/tokens';
 import { sendTransfer } from '../../wallet/transfer';
+import { describeTransferError } from '../../wallet/transfer-error';
 import BrandIcon from '../BrandIcon';
 import Icon from '../Icon';
 import { BottomSheet, Button, Card, useKeyboardDoneId } from '../ui';
@@ -88,7 +89,11 @@ export default function WithdrawModal({
       return null;
     }
   })();
+  // A failed balanceOf and a real zero both arrive as null. Signing against an
+  // unknown balance is what reverts on-chain, so unknown blocks too.
+  const balanceUnknown = maxRaw == null;
   const exceedsBalance = amountWei != null && maxRaw != null && amountWei > maxRaw;
+  const cannotSend = exceedsBalance || balanceUnknown;
 
   const usdApprox = (() => {
     const num = Number(amount);
@@ -198,7 +203,7 @@ export default function WithdrawModal({
       });
       reset();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Withdrawal failed');
+      setError(describeTransferError(err, token.symbol));
       setStep('form');
     } finally {
       setBusy(false);
@@ -222,11 +227,11 @@ export default function WithdrawModal({
     >
       {step === 'form' ? (
         <>
-          <Card accent style={[styles.amountCard, exceedsBalance && styles.amountCardError]}>
+          <Card accent style={[styles.amountCard, cannotSend && styles.amountCardError]}>
             <View style={styles.amountTop}>
               <Text style={[type.label, styles.amountLabel]}>Amount</Text>
               <Text style={styles.balText}>
-                Bal <Text style={styles.balValue}>{balances[token.symbol]?.formatted ?? '0.00'}</Text> {token.symbol}
+                Bal <Text style={styles.balValue}>{balances[token.symbol]?.formatted ?? 'unavailable'}</Text> {token.symbol}
               </Text>
             </View>
 
@@ -329,14 +334,31 @@ export default function WithdrawModal({
             </View>
           </View>
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {error ? (
+            <Pressable
+              style={styles.errorRow}
+              onPress={() => setError(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss error"
+            >
+              <Text style={styles.error}>{error}</Text>
+              <Icon type="close" color={colors.danger} size={16} />
+            </Pressable>
+          ) : null}
+
+          {balanceUnknown ? (
+            <Text style={styles.blockedNote}>
+              Could not read your {token.symbol} balance, so withdrawing is off
+              until it loads. Pull to refresh on the wallet tab.
+            </Text>
+          ) : null}
 
           <Button
             label="Review withdrawal"
             trailingIcon="arrow-right"
             onPress={handleReview}
             loading={busy}
-            disabled={busy || exceedsBalance}
+            disabled={busy || cannotSend}
           />
         </>
       ) : null}
@@ -369,7 +391,17 @@ export default function WithdrawModal({
             </View>
           </Card>
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {error ? (
+            <Pressable
+              style={styles.errorRow}
+              onPress={() => setError(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss error"
+            >
+              <Text style={styles.error}>{error}</Text>
+              <Icon type="close" color={colors.danger} size={16} />
+            </Pressable>
+          ) : null}
 
           <Button
             label="Confirm withdrawal"
@@ -575,8 +607,22 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.accentLight,
   },
+  blockedNote: {
+    ...type.caption,
+    color: colors.textSecondary,
+  },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceMuted,
+  },
   error: {
     ...type.caption,
+    flex: 1,
     color: colors.danger,
   },
   reviewCard: {
