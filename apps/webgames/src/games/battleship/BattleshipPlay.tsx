@@ -193,7 +193,7 @@ export function BattleshipPlay(props: BattleshipPlayProps) {
               <span
                 className="bs-charge-fill"
                 style={{
-                  width: `${Math.min(points / CHARGE_BAR_MAX, 1) * 100}%`,
+                  transform: `scaleX(${Math.min(points / CHARGE_BAR_MAX, 1)})`,
                 }}
               />
             </div>

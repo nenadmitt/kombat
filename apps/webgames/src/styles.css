@@ -1028,9 +1028,11 @@ a {
 
 .bs-progress-fill {
   display: block;
+  width: 100%;
   height: 100%;
+  transform-origin: left;
   background: var(--lime);
-  transition: width 160ms ease-out;
+  transition: transform 160ms ease-out;
 }
 
 /* Board plus its A-J / 1-10 gutters. */
@@ -1213,9 +1215,11 @@ a {
 
 .bs-charge-fill {
   display: block;
+  width: 100%;
   height: 100%;
+  transform-origin: left;
   background: linear-gradient(90deg, var(--lime), var(--gold));
-  transition: width 200ms ease-out;
+  transition: transform 200ms ease-out;
 }
 
 .bs-powerups {

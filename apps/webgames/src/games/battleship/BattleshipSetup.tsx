@@ -142,7 +142,7 @@ export function BattleshipSetup({ onReady, deadline }: Props) {
           <div className="bs-progress-track">
             <span
               className="bs-progress-fill"
-              style={{ width: `${(placedCount / TOTAL_PIECES) * 100}%` }}
+              style={{ transform: `scaleX(${placedCount / TOTAL_PIECES})` }}
             />
           </div>
           <span className="card-label">
