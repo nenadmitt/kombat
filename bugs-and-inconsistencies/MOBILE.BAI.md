@@ -68,3 +68,22 @@ fix. Remove an entry in the same change that fixes it.
   address, and surface orphaned wallets for sweeping or re-linking;
   possession of the key is ownership, the server row no longer exists to
   check against.
+
+## 2026-08-07 - Match socket handlers are lost after a forced reconnect
+
+- **Where:** `src/store/websocket.store.ts` (`reconnect`) with
+  `src/games/rps/useMultiplayerRps.ts:113-179` (and the same effect in
+  `useMultiplayerBattleship` / `useMultiplayerLudo` / `useMultiplayerChroma` /
+  `useMultiplayerSalvo`).
+- **Why it's wrong:** `reconnect()` throws the socket away and builds a new
+  one, but the engines' subscription effect does not depend on `status`, so it
+  never re-runs. Its `on()` handlers were bound to the dead instance, and the
+  cleanup's `socket?.off` runs against the *new* module-level socket, removing
+  nothing. The separate status effect then re-emits `enter` and re-syncs, so
+  the match looks healthy and connected while no `reveal` / `shot` / `moved`
+  push is ever handled again. `reconnect()` is driven from the session-refresh
+  callback, so this fires on ordinary token rotation, not just on an error.
+- **Suggested fix:** add `status` to the subscription effect's dependency
+  array in each multiplayer engine, as
+  `apps/webgames/src/games/rps/useMultiplayerRps.ts` now does. Re-emitting
+  `enter` is safe because the gateway's enter is idempotent by contract.
