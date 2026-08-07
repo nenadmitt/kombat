@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import {
   STAKE_ASSET_SYMBOLS,
+  StakeAsset,
   isStakeableAsset,
   type StakePotBalances,
   type StakePotFeeSummary,
@@ -136,6 +137,27 @@ export class StakePotController {
   async getFees(): Promise<StakePotFeeSummary[]> {
     this.assertEnabled();
     return this.stakePotService.getFeeSummary();
+  }
+
+  /**
+   * Whether the caller can still take the welcome bonus, and for how much.
+   * Deliberately does not 503 when staking is off - "not available" is the
+   * answer a client needs either way.
+   */
+  @Get('welcome-bonus')
+  @UseGuards(JwtTokenGuard)
+  async welcomeBonus(
+    @SecurityContext() securityContext: ISecurityContext,
+  ): Promise<{ available: boolean; amount: string; symbol: string }> {
+    const available =
+      this.chainService.enabled &&
+      this.faucetService.enabled &&
+      !(await this.faucetService.alreadyClaimed(securityContext.userId));
+    return {
+      available,
+      amount: this.faucetService.grantAmountBase,
+      symbol: STAKE_ASSET_SYMBOLS[StakeAsset.Kombat],
+    };
   }
 
   /** One-time welcome bonus into the caller's pot. Returns the grant tx. */

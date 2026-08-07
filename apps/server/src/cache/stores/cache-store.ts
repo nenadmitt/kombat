@@ -61,6 +61,8 @@ export const CacheKeys = {
   gameRoom: (id: string): string => `room:${id}`,
   /** Cached PlatformStatus JSON (maintenance flag; DB row is the truth). */
   platformStatus: (): string => 'platform:status',
+  /** An issued, not-yet-spent SIWE nonce. Deleting it is what makes it single-use. */
+  siweNonce: (nonce: string): string => `siwe:nonce:${nonce}`,
 } as const;
 
 /** Single ZSET holding every scheduled game deadline (all games share it so

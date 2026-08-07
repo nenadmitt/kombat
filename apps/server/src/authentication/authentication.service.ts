@@ -11,6 +11,7 @@ import type { AuthSession } from '@gaming-platform/core';
 import { ConfigurationService } from '../configuration/configuration.service';
 import { DbService } from '../db';
 import { EmailService } from '../emails/email.service';
+import { SiweService } from './siwe.service';
 import { generateLoginToken } from './token.util';
 
 const TOKEN_TTL_MS = 15 * 60 * 1000;
@@ -27,7 +28,27 @@ export class AuthenticationService {
     private readonly emailService: EmailService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigurationService,
+    private readonly siweService: SiweService,
   ) {}
+
+  requestSiweNonce(): Promise<string> {
+    return this.siweService.issueNonce();
+  }
+
+  /**
+   * Sign in with a wallet. The address itself is the identity: an existing
+   * wallet row resolves to its owner, an unknown one opens a new account.
+   */
+  async signInWithEthereum(
+    message: string,
+    signature: string,
+  ): Promise<AuthSession> {
+    const address = await this.siweService.verify(message, signature);
+    const wallet = await this.dbService.findWalletByAddress(address);
+    const userId =
+      wallet?.userId ?? (await this.dbService.createWalletUser(address)).id;
+    return this.issueSession(userId);
+  }
 
   async requestToken(email: string): Promise<void> {
     // Demo account: no inbox to mail, and the code is fixed. Just make sure

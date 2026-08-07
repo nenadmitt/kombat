@@ -14,7 +14,8 @@ export type ExchangeTokenResponse = AuthSession;
 
 export type UserProfile = {
   id: string;
-  email: string;
+  /** Null for wallet-only accounts, which sign in with SIWE instead. */
+  email: string | null;
   username: string | null;
   /** <label>.playkombat.xyz, derived from the first username. Null until it
    *  is minted, and null forever if the mint could not find a free label. */

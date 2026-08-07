@@ -16,6 +16,7 @@ import { SecurityContext } from './decorators/security-context.decorator';
 import { ExchangeTokenDto } from './dto/exchange-token.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RequestTokenDto } from './dto/request-token.dto';
+import { SiweVerifyDto } from './dto/siwe-verify.dto';
 import { JwtTokenGuard } from './guards/jwt-token.guard';
 
 @Controller('authentication')
@@ -47,6 +48,23 @@ export class AuthenticationController {
   @Post('exchange-token')
   async exchangeToken(@Body() dto: ExchangeTokenDto): Promise<AuthSession> {
     return this.authenticationService.exchangeToken(dto.email, dto.token);
+  }
+
+  @Throttle({ default: { ttl: seconds(60), limit: 20 } })
+  @Post('siwe/nonce')
+  @HttpCode(HttpStatus.OK)
+  async siweNonce(): Promise<{ nonce: string }> {
+    return { nonce: await this.authenticationService.requestSiweNonce() };
+  }
+
+  @Throttle({ default: { ttl: seconds(60), limit: 10 } })
+  @Post('siwe/verify')
+  @HttpCode(HttpStatus.OK)
+  async siweVerify(@Body() dto: SiweVerifyDto): Promise<AuthSession> {
+    return this.authenticationService.signInWithEthereum(
+      dto.message,
+      dto.signature,
+    );
   }
 
   /**
