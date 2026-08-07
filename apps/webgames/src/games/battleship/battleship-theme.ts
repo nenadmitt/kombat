@@ -45,3 +45,10 @@ export const CELL_GAP = 4;
 export const CELL_RADIUS = 6;
 export const HULL_PAD = 3;
 export const BOARD_SIZE = GRID * CELL;
+
+// Animation timings, mirrored from the mobile board so a volley reads at the
+// same pace on both clients.
+export const ENTRY_MS = 300;
+export const MINE_BLAST_MS = 900;
+export const TORPEDO_PER_CELL_MS = 90;
+export const SINK_PER_CELL_MS = 150;

@@ -1,4 +1,5 @@
 import type { Shot } from '@gaming-platform/core';
+import { useEffect, useRef } from 'react';
 
 import {
   CELL,
@@ -8,6 +9,7 @@ import {
   MINE_GLOW,
   MISS_DOT,
   MINE_COLOR,
+  TORPEDO_COLOR,
 } from './battleship-theme';
 
 export type MarkerKind = 'miss' | 'hit' | 'sunk' | 'mine';
@@ -74,26 +76,46 @@ export function MineMarker({
 export function ShotMarker({
   shot,
   sunk,
+  /** Position in the entrance sweep, or undefined for an already-settled shot. */
+  enterIndex,
+  stepMs = 0,
 }: {
   shot: Shot;
   sunk: boolean;
+  enterIndex?: number;
+  stepMs?: number;
 }) {
+  const fx =
+    enterIndex === undefined
+      ? undefined
+      : {
+          className: 'bs-fx bs-enter',
+          style: { animationDelay: `${enterIndex * stepMs}ms` },
+        };
   const x = shot.col * CELL;
   const y = shot.row * CELL;
   const cx = x + CELL / 2;
   const cy = y + CELL / 2;
 
   if (shot.result === 'mine') {
-    return <MineMarker row={shot.row} col={shot.col} exploded />;
+    return (
+      <g {...fx}>
+        <MineMarker row={shot.row} col={shot.col} exploded />
+      </g>
+    );
   }
 
   if (shot.result === 'miss') {
-    return <circle cx={cx} cy={cy} r={CELL * 0.18} fill={MISS_DOT} />;
+    return (
+      <g {...fx}>
+        <circle cx={cx} cy={cy} r={CELL * 0.18} fill={MISS_DOT} />
+      </g>
+    );
   }
 
   if (sunk) {
     return (
-      <g>
+      <g {...fx}>
         <rect
           x={x + 3}
           y={y + 3}
@@ -126,7 +148,7 @@ export function ShotMarker({
   }
 
   return (
-    <g>
+    <g {...fx}>
       <circle
         cx={cx}
         cy={cy}
@@ -135,6 +157,90 @@ export function ShotMarker({
         filter={GLOW_FILTER}
       />
       <circle cx={cx} cy={cy} r={CELL * 0.22} fill={HIT_FILL} />
+    </g>
+  );
+}
+
+/** The expanding ring a struck mine throws out, one per blast centre. */
+export function MineExplosion({ row, col }: { row: number; col: number }) {
+  const cx = col * CELL + CELL / 2;
+  const cy = row * CELL + CELL / 2;
+  return (
+    <g className="bs-fx bs-blast">
+      <circle cx={cx} cy={cy} r={CELL * 1.35} fill={MINE_GLOW} filter={GLOW_FILTER} />
+      <circle
+        cx={cx}
+        cy={cy}
+        r={CELL}
+        fill="none"
+        stroke={MINE_COLOR}
+        strokeWidth={CELL * 0.12}
+      />
+    </g>
+  );
+}
+
+/** A bomb's glow, collapsing onto the 3x3 it just flattened. */
+export function BombBlast({ row, col }: { row: number; col: number }) {
+  const cx = col * CELL + CELL / 2;
+  const cy = row * CELL + CELL / 2;
+  return (
+    <g className="bs-fx bs-bomb">
+      <circle cx={cx} cy={cy} r={CELL * 1.4} fill={MINE_GLOW} filter={GLOW_FILTER} />
+    </g>
+  );
+}
+
+/** The torpedo running its row: a trail that stretches out behind the head. */
+export function TorpedoProjectile({
+  row,
+  fromCol,
+  toCol,
+  sweepMs,
+}: {
+  row: number;
+  fromCol: number;
+  toCol: number;
+  sweepMs: number;
+}) {
+  const headRef = useRef<SVGGElement>(null);
+  const y = row * CELL + CELL / 2;
+  const startX = fromCol * CELL + CELL / 2;
+  const endX = toCol * CELL + CELL / 2;
+
+  // One moving element, so the Web Animations API is simpler than keyframes
+  // that would need the distance baked in.
+  useEffect(() => {
+    const head = headRef.current;
+    if (!head) return;
+    const animation = head.animate(
+      [
+        { transform: 'translateX(0px)' },
+        { transform: `translateX(${endX - startX}px)` },
+      ],
+      { duration: sweepMs, easing: 'linear', fill: 'forwards' },
+    );
+    return () => animation.cancel();
+  }, [startX, endX, sweepMs]);
+
+  return (
+    <g>
+      <line
+        className="bs-trail"
+        x1={startX}
+        y1={y}
+        x2={endX}
+        y2={y}
+        stroke={TORPEDO_COLOR}
+        strokeWidth={CELL * 0.12}
+        strokeLinecap="round"
+        opacity={0.7}
+        style={{ ['--bs-sweep' as string]: `${sweepMs}ms` }}
+      />
+      <g ref={headRef}>
+        <circle cx={startX} cy={y} r={CELL * 0.3} fill={MINE_GLOW} filter={GLOW_FILTER} />
+        <circle cx={startX} cy={y} r={CELL * 0.16} fill={TORPEDO_COLOR} />
+      </g>
     </g>
   );
 }

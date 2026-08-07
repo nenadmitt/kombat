@@ -193,6 +193,7 @@ export function BattleshipPlay(props: BattleshipPlayProps) {
               selected={selected}
               highlight={highlight}
               interactive={myTurn}
+              action={action}
               onCommit={(row, col) => {
                 if (!myTurn || firedAt.has(`${row},${col}`)) return;
                 setSelected({ row, col });
@@ -204,6 +205,7 @@ export function BattleshipPlay(props: BattleshipPlayProps) {
               mines={myMines}
               shots={opponentShots}
               sunkShipIds={sunkMine}
+              action={opponentAction}
             />
           )}
         </div>

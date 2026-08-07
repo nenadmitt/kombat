@@ -6,10 +6,17 @@ import {
   type Orientation,
   type Shot,
 } from '@gaming-platform/core';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { MarkerDefs, MineMarker, ShotMarker } from './BattleshipMarkers';
-import type { PlacedShip } from './battleship-engine';
+import {
+  BombBlast,
+  MarkerDefs,
+  MineExplosion,
+  MineMarker,
+  ShotMarker,
+  TorpedoProjectile,
+} from './BattleshipMarkers';
+import type { GridAction, PlacedShip } from './battleship-engine';
 import { ShipHull } from './ShipHull';
 import {
   ACTIVE_CELL_BORDER,
@@ -17,11 +24,36 @@ import {
   CELL,
   CELL_BORDER,
   CELL_RADIUS,
+  ENTRY_MS,
   HULL_PAD,
+  MINE_BLAST_MS,
+  TORPEDO_PER_CELL_MS,
 } from './battleship-theme';
 
 /** A drag that moves further than this is a placement, not a tap. */
 const TAP_SLOP = 8;
+
+/** The middle of a group of cells, which for a 3x3 blast is its true centre. */
+function midpointOf(cells: { row: number; col: number }[]) {
+  const rows = cells.map(cell => cell.row);
+  const cols = cells.map(cell => cell.col);
+  return {
+    row: Math.round((Math.min(...rows) + Math.max(...rows)) / 2),
+    col: Math.round((Math.min(...cols) + Math.max(...cols)) / 2),
+  };
+}
+
+/**
+ * Where to draw a mine's blast. On the board that struck it the mine cell is
+ * marked `mine`; on the victim's board the blast arrives as ordinary hits and
+ * misses, so the footprint's midpoint is the only thing that names the centre.
+ */
+function mineCenters(cells: Shot[]) {
+  const struck = cells.filter(cell => cell.result === 'mine');
+  return struck.length > 0
+    ? struck.map(cell => ({ row: cell.row, col: cell.col }))
+    : [midpointOf(cells)];
+}
 
 type PreviewShip = {
   size: number;
@@ -43,8 +75,18 @@ type Props = {
   /** Whether a preview at the hovered cell would be legal. */
   isPreviewValid?: (row: number, col: number) => boolean;
   interactive?: boolean;
+  /** The newest resolved volley, replayed as an entrance animation. */
+  action?: GridAction | null;
   /** `isTap` is false for a drag-release, which must never remove a piece. */
   onCommit?: (row: number, col: number, isTap: boolean) => void;
+};
+
+type Batch = {
+  /** Cell key to its slot in the sweep, so a torpedo reveals left to right. */
+  order: Map<string, number>;
+  kind: GridAction['kind'];
+  stepMs: number;
+  centers: { row: number; col: number }[];
 };
 
 export function BattleshipBoard({
@@ -57,12 +99,57 @@ export function BattleshipBoard({
   preview,
   isPreviewValid,
   interactive = false,
+  action,
   onCommit,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const movedRef = useRef(false);
   const [hover, setHover] = useState<{ row: number; col: number } | null>(null);
   const startRef = useRef<{ x: number; y: number } | null>(null);
+
+  // The newest volley animates once and is then just part of the board.
+  const [batch, setBatch] = useState<Batch | null>(null);
+  const actionId = action?.id;
+  useEffect(() => {
+    if (!action || action.cells.length === 0) return;
+
+    const sorted =
+      action.kind === 'torpedo'
+        ? [...action.cells].sort((a, b) => a.col - b.col)
+        : action.cells;
+    const stepMs = action.kind === 'torpedo' ? TORPEDO_PER_CELL_MS : 0;
+    const order = new Map(
+      sorted.map((cell, index) => [`${cell.row},${cell.col}`, index]),
+    );
+    const centers =
+      action.kind === 'mine'
+        ? mineCenters(action.cells)
+        : action.kind === 'bomb'
+          ? [midpointOf(action.cells)]
+          : [];
+
+    setBatch({ order, kind: action.kind, stepMs, centers });
+    const duration =
+      action.kind === 'mine'
+        ? MINE_BLAST_MS
+        : action.kind === 'torpedo'
+          ? sorted.length * TORPEDO_PER_CELL_MS + ENTRY_MS
+          : ENTRY_MS;
+    const timer = setTimeout(() => setBatch(null), duration + 40);
+    return () => clearTimeout(timer);
+    // Keyed by id so firing the same cells twice still replays.
+  }, [actionId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const torpedoRun = useMemo(() => {
+    if (!batch || batch.kind !== 'torpedo' || !action) return null;
+    const cols = action.cells.map(cell => cell.col);
+    return {
+      row: action.cells[0]!.row,
+      fromCol: Math.min(...cols),
+      toCol: Math.max(...cols),
+      sweepMs: action.cells.length * TORPEDO_PER_CELL_MS,
+    };
+  }, [batch, action]);
 
   const shipCells = useMemo(() => {
     const map = new Map<string, string>();
@@ -211,8 +298,22 @@ export function BattleshipBoard({
             (sunkShipIds?.has(shipCells.get(`${shot.row},${shot.col}`) ?? '') ??
               false)
           }
+          enterIndex={batch?.order.get(`${shot.row},${shot.col}`)}
+          stepMs={batch?.stepMs}
         />
       ))}
+
+      {batch?.kind === 'bomb' &&
+        batch.centers.map(center => (
+          <BombBlast key={`bomb-${center.row},${center.col}`} {...center} />
+        ))}
+
+      {batch?.kind === 'mine' &&
+        batch.centers.map(center => (
+          <MineExplosion key={`mine-${center.row},${center.col}`} {...center} />
+        ))}
+
+      {torpedoRun && <TorpedoProjectile {...torpedoRun} />}
 
     </svg>
   );
