@@ -2,19 +2,20 @@
 # Build from the REPO ROOT (the lockfile lives there - npm workspaces):
 #   docker build -f apps/webgames/Dockerfile .
 
-# Debian, not alpine: the MetaMask SDK depends on bufferutil, which ships no
-# musl prebuild and would have to be compiled from source on alpine.
-FROM node:22-slim AS manifests
+FROM node:22-alpine AS manifests
 WORKDIR /app
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY apps/webgames/package.json apps/webgames/
 COPY packages/core/package.json packages/core/
 
 FROM manifests AS builder
+# The MetaMask SDK depends on bufferutil, which ships no prebuilt binary and
+# compiles from source on install.
+RUN apk add --no-cache python3 make g++
 RUN npm ci -w @gaming-platform/webgames --include-workspace-root
 
 # core is consumed as dist/ and dist/ is not in the build context, so it has to
-# be compiled here - before apps/webgames, so a client-only edit reuses this layer.
+# be compiled here - before apps/webgames, so a client edit reuses this layer.
 COPY packages/core packages/core
 RUN npm run build -w @gaming-platform/core
 COPY apps/webgames apps/webgames

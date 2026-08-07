@@ -8,6 +8,22 @@ cp .env.example .env      # point VITE_API_URL at your server
 npm run webgames          # from the repo root, serves on :5173
 ```
 
+## Shipping it
+
+`Dockerfile` builds the bundle and serves `dist/` from nginx on **:8080**
+(`/healthz` for the load balancer, everything unknown falls back to
+`index.html` for react-router). Build from the repo root, not from here:
+
+```bash
+docker build -f apps/webgames/Dockerfile -t webgames .
+```
+
+`VITE_*` values are inlined into the bundle by `vite build`, so they are baked
+into the image rather than read at boot: the Dockerfile carries the Sepolia
+defaults and each is a `--build-arg`. Publishing is the
+`publish-webgames-image` workflow, run by hand from the Actions tab against
+whichever commit should ship; its dispatch inputs override the chain and API.
+
 ## What it is
 
 - **Auth is the wallet.** No email. `POST /authentication/siwe/nonce` then
