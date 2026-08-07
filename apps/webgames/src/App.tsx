@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import { AppShell } from './components/AppShell';
-import { SmallScreenNotice } from './components/SmallScreenNotice';
 import { DemoPage, MatchPage } from './pages/MatchPage';
 import { WelcomeBonusModal } from './components/WelcomeBonusModal';
 import { GamesPage } from './pages/GamesPage';
@@ -27,38 +26,35 @@ export function App() {
   }, [restore]);
 
   return (
-    <>
-      <SmallScreenNotice />
-      <Routes>
-        <Route path="/signin" element={<SignInPage />} />
-        <Route
-          path="/onboarding"
-          element={
-            <RequireSession skipOnboardingCheck>
-              <OnboardingPage />
-            </RequireSession>
-          }
-        />
-        <Route
-          element={
-            <RequireSession>
-              <LiveData />
-              <WelcomeBonusGate />
-              <AppShell />
-            </RequireSession>
-          }
-        >
-          <Route path="/lobby" element={<LobbyPage />} />
-          <Route path="/games" element={<GamesPage />} />
-          <Route path="/wallet" element={<WalletPage />} />
-          <Route path="/history" element={<HistoryPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/game/:gameType/:roomId" element={<MatchPage />} />
-          <Route path="/demo/:gameType" element={<DemoPage />} />
-        </Route>
-        <Route path="*" element={<Navigate to="/lobby" replace />} />
-      </Routes>
-    </>
+    <Routes>
+      <Route path="/signin" element={<SignInPage />} />
+      <Route
+        path="/onboarding"
+        element={
+          <RequireSession skipOnboardingCheck>
+            <OnboardingPage />
+          </RequireSession>
+        }
+      />
+      <Route
+        element={
+          <RequireSession>
+            <LiveData />
+            <WelcomeBonusGate />
+            <AppShell />
+          </RequireSession>
+        }
+      >
+        <Route path="/lobby" element={<LobbyPage />} />
+        <Route path="/games" element={<GamesPage />} />
+        <Route path="/wallet" element={<WalletPage />} />
+        <Route path="/history" element={<HistoryPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/game/:gameType/:roomId" element={<MatchPage />} />
+        <Route path="/demo/:gameType" element={<DemoPage />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/lobby" replace />} />
+    </Routes>
   );
 }
 

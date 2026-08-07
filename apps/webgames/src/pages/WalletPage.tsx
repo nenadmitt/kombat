@@ -229,8 +229,7 @@ export function WalletPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-5)' }}>
           <div className="rows">
             <div
-              className="row-head"
-              style={{ gridTemplateColumns: '1.5fr 1fr 1fr' }}
+              className="row-head wallet-grid"
             >
               <span>ASSET</span>
               <span>AVAILABLE</span>
@@ -239,8 +238,7 @@ export function WalletPage() {
             {STAKEABLE_ASSETS.map(option => (
               <div
                 key={option}
-                className="row"
-                style={{ gridTemplateColumns: '1.5fr 1fr 1fr' }}
+                className="row wallet-grid"
               >
                 <span className="row-name">{STAKE_ASSET_SYMBOLS[option]}</span>
                 <span className="mono">

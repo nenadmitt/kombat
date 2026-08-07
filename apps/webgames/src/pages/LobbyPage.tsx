@@ -23,8 +23,6 @@ import { useSessionStore } from '../store/session.store';
 import { useUsernames } from '../store/usernames';
 import { useWebsocketStore } from '../store/websocket.store';
 
-const ROOM_COLUMNS = '1.7fr 1fr 1fr 1fr 104px';
-
 const FILTERS: { label: string; value: GameType | null }[] = [
   { label: 'All games', value: null },
   { label: 'Triple Cut', value: GameType.TripleCut },
@@ -163,15 +161,8 @@ export function LobbyPage() {
             onJoin={join}
           />
 
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 'var(--s-4)',
-            }}
-          >
-            <div style={{ display: 'flex', gap: 'var(--s-2)' }}>
+          <div className="lobby-toolbar">
+            <div className="lobby-filters">
               {FILTERS.map(filter => (
                 <button
                   key={filter.label}
@@ -198,10 +189,7 @@ export function LobbyPage() {
           {joinError && <div className="banner">{joinError}</div>}
 
           <div className="rows">
-            <div
-              className="row-head"
-              style={{ gridTemplateColumns: ROOM_COLUMNS }}
-            >
+            <div className="row-head room-grid">
               <span>ROOM</span>
               <span>HOST</span>
               <span>ENTRY</span>
@@ -233,8 +221,7 @@ export function LobbyPage() {
               return (
                 <div
                   key={room.id}
-                  className="row row-hover"
-                  style={{ gridTemplateColumns: ROOM_COLUMNS }}
+                  className="row row-hover room-grid"
                 >
                   <span className="row-name">
                     <GameIcon gameType={room.gameType} />

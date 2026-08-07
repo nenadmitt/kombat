@@ -58,6 +58,11 @@ export function AppShell() {
 
       <div className="main">
         <header className="topbar">
+          {/* Only shown on mobile, where the rail's own brand is hidden. */}
+          <div className="topbar-brand">
+            <BrandMark />
+            <span className="rail-brand-word">KOMBAT</span>
+          </div>
           <div className="topbar-actions">
             <span className="chip">
               <span
@@ -76,7 +81,7 @@ export function AppShell() {
             </span>
 
             {handle ? (
-              <span className="chip chip-lime">
+              <span className="chip chip-lime topbar-handle">
                 <span className="dot" />
                 {handle}
               </span>
