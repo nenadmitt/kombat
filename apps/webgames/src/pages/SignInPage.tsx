@@ -3,7 +3,7 @@ import { ConnectKitButton } from 'connectkit';
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { createSiweMessage } from 'viem/siwe';
-import { useAccount, useSignMessage } from 'wagmi';
+import { useAccount, useSignMessage, useSwitchChain } from 'wagmi';
 
 import { CHAIN_ID, CHAIN_NAME } from '../lib/chain';
 import { BrandMark } from '../components/BrandMark';
@@ -13,8 +13,10 @@ import { useSessionStore } from '../store/session.store';
 export function SignInPage() {
   const { address, chainId } = useAccount();
   const { signMessageAsync } = useSignMessage();
+  const { switchChainAsync } = useSwitchChain();
   const { hasSession, user, signIn } = useSessionStore();
   const [busy, setBusy] = useState(false);
+  const [switching, setSwitching] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (hasSession && user) {
@@ -22,6 +24,22 @@ export function SignInPage() {
   }
 
   const wrongChain = Boolean(address) && chainId !== CHAIN_ID;
+
+  async function switchToChain() {
+    setSwitching(true);
+    setError(null);
+    try {
+      await switchChainAsync({ chainId: CHAIN_ID });
+    } catch (err) {
+      setError(
+        err instanceof Error && err.name === 'UserRejectedRequestError'
+          ? 'Network switch rejected.'
+          : `Could not switch automatically. Change to ${CHAIN_NAME} in your wallet.`,
+      );
+    } finally {
+      setSwitching(false);
+    }
+  }
 
   async function authenticate() {
     if (!address) return;
@@ -92,22 +110,38 @@ export function SignInPage() {
                 {isConnected ? truncatedAddress : 'Connect wallet'}
               </button>
 
-              {isConnected && (
-                <button
-                  type="button"
-                  className="btn btn-lime btn-block btn-lg"
-                  onClick={authenticate}
-                  disabled={busy || wrongChain}
-                >
-                  {busy ? <span className="spinner" /> : 'Sign in'}
-                </button>
-              )}
+              {isConnected &&
+                (wrongChain ? (
+                  <button
+                    type="button"
+                    className="btn btn-lime btn-block btn-lg"
+                    onClick={switchToChain}
+                    disabled={switching}
+                  >
+                    {switching ? (
+                      <span className="spinner" />
+                    ) : (
+                      `Switch to ${CHAIN_NAME}`
+                    )}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-lime btn-block btn-lg"
+                    onClick={authenticate}
+                    disabled={busy}
+                  >
+                    {busy ? <span className="spinner" /> : 'Sign in'}
+                  </button>
+                ))}
             </div>
           )}
         </ConnectKitButton.Custom>
 
         {wrongChain && (
-          <div className="banner">Switch your wallet to {CHAIN_NAME}.</div>
+          <div className="banner">
+            Kombat runs on {CHAIN_NAME}. Your wallet is on another network.
+          </div>
         )}
         {error && <div className="banner">{error}</div>}
       </div>
