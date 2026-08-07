@@ -74,7 +74,7 @@ export function GamesPage() {
                   <button
                     type="button"
                     className="btn btn-outline-lime btn-block"
-                    onClick={() => navigate('/demo')}
+                    onClick={() => navigate(`/demo/${gameType}`)}
                   >
                     Practice
                   </button>

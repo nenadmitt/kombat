@@ -3,14 +3,13 @@ import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import { AppShell } from './components/AppShell';
+import { DemoPage, MatchPage } from './pages/MatchPage';
 import { WelcomeBonusModal } from './components/WelcomeBonusModal';
-import { DemoRpsPage } from './pages/DemoRpsPage';
 import { GamesPage } from './pages/GamesPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { LobbyPage } from './pages/LobbyPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { ProfilePage } from './pages/ProfilePage';
-import { RpsMatchPage } from './pages/RpsMatchPage';
 import { SignInPage } from './pages/SignInPage';
 import { WalletPage } from './pages/WalletPage';
 import { apiClient } from './lib/api';
@@ -51,8 +50,8 @@ export function App() {
         <Route path="/wallet" element={<WalletPage />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/game/:roomId" element={<RpsMatchPage />} />
-        <Route path="/demo" element={<DemoRpsPage />} />
+        <Route path="/game/:gameType/:roomId" element={<MatchPage />} />
+        <Route path="/demo/:gameType" element={<DemoPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/lobby" replace />} />
     </Routes>

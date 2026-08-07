@@ -1,12 +1,11 @@
 import { ArrowLeft, Flag } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 import { RpsBoard } from '../games/rps/RpsBoard';
 import { useMultiplayerRps } from '../games/rps/useMultiplayerRps';
 
-export function RpsMatchPage() {
-  const { roomId = '' } = useParams();
+export function RpsMatchPage({ roomId }: { roomId: string }) {
   const navigate = useNavigate();
   const engine = useMultiplayerRps(roomId);
   const [confirmForfeit, setConfirmForfeit] = useState(false);

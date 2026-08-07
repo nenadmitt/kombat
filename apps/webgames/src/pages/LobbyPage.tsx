@@ -74,7 +74,7 @@ export function LobbyPage() {
     );
     // A 2-player room starts the instant someone joins mine.
     const offOpponent = on(ROOM_EVENTS.opponentJoined, payload =>
-      navigate(`/game/${(payload as { roomId: string }).roomId}`),
+      navigate(`/game/${GameType.TripleCut}/${(payload as { roomId: string }).roomId}`),
     );
 
     return () => {
@@ -91,7 +91,7 @@ export function LobbyPage() {
     setJoinError(null);
     try {
       await apiClient.joinGameRoom(room.id);
-      navigate(`/game/${room.id}`);
+      navigate(`/game/${room.gameType}/${room.id}`);
     } catch (err) {
       setJoinError(
         err instanceof ApiError ? err.message : 'Could not join that room.',
@@ -338,7 +338,7 @@ export function LobbyPage() {
                   <button
                     type="button"
                     className="btn btn-lime btn-block"
-                    onClick={() => navigate(`/game/${activeRoom.id}`)}
+                    onClick={() => navigate(`/game/${activeRoom.gameType}/${activeRoom.id}`)}
                   >
                     Resume
                   </button>
@@ -383,7 +383,7 @@ export function LobbyPage() {
               type="button"
               className="btn btn-surface btn-block"
               style={{ marginTop: 'var(--s-4)' }}
-              onClick={() => navigate('/demo')}
+              onClick={() => navigate(`/demo/${GameType.TripleCut}`)}
             >
               Practice now
             </button>
