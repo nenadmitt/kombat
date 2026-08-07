@@ -2309,10 +2309,16 @@ a {
     padding: var(--s-4) var(--s-2);
   }
 
-  .move-row,
-  .hand-row {
+  /* The move buttons stretch to fill the row; the hand slots stay centred,
+     which `width: 100%` alone would not do. */
+  .move-row {
     gap: var(--s-3);
     width: 100%;
+  }
+
+  .hand-row {
+    gap: var(--s-3);
+    justify-content: center;
   }
 
   .hand-slot,
@@ -2392,4 +2398,15 @@ a {
   .result-stats {
     gap: var(--s-3);
   }
+}
+
+.asset-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.asset-name {
+  font-size: 11px;
 }

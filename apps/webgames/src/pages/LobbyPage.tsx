@@ -25,9 +25,9 @@ import { useWebsocketStore } from '../store/websocket.store';
 
 const FILTERS: { label: string; value: GameType | null }[] = [
   { label: 'All games', value: null },
-  { label: 'Triple Cut', value: GameType.TripleCut },
   { label: 'Battleships', value: GameType.NavalBattle },
   { label: 'Salvo', value: GameType.Salvo },
+  { label: 'Triple Cut', value: GameType.TripleCut },
   { label: 'Ludo', value: GameType.Ludo },
 ];
 
@@ -408,14 +408,14 @@ export function LobbyPage() {
                 color: 'var(--text-2)',
               }}
             >
-              Play Triple Cut against a bot. No stake, no clock pressure, no
+              Play any arena against a bot. No stake, no clock pressure, no
               opponent to wait for.
             </p>
             <button
               type="button"
               className="btn btn-surface btn-block"
               style={{ marginTop: 'var(--s-4)' }}
-              onClick={() => navigate(`/demo/${GameType.TripleCut}`)}
+              onClick={() => navigate('/games')}
             >
               Practice now
             </button>

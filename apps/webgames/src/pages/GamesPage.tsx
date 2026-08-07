@@ -6,9 +6,9 @@ import { GameIcon } from '../components/GameIcon';
 import { GAME_LABELS, isWebPlayable } from '../lib/format';
 
 const ARENAS: { gameType: GameType; blurb: string }[] = [
-  { gameType: GameType.TripleCut, blurb: 'Duel - best of five, about 2 min' },
   { gameType: GameType.NavalBattle, blurb: 'Strategy - about 6 min' },
   { gameType: GameType.Salvo, blurb: 'Artillery - about 5 min' },
+  { gameType: GameType.TripleCut, blurb: 'Duel - best of five, about 2 min' },
   { gameType: GameType.ChromaClash, blurb: 'Cards - about 4 min' },
   { gameType: GameType.Ludo, blurb: 'Board - about 9 min' },
 ];
