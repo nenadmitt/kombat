@@ -90,7 +90,7 @@ export function ProfilePage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-5)' }}>
           <div className="card">
             <span className="card-label">LIFETIME RECORD</span>
-            <div className="profile-stats">
+            <div className="profile-stats stat-row">
               <Stat value={String(stats.games)} label="PLAYED" />
               <Stat value={String(stats.wins)} label="WON" color="var(--win)" />
               <Stat value={String(stats.losses)} label="LOST" color="var(--loss)" />

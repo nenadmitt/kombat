@@ -12,14 +12,7 @@ export function DemoRpsPage() {
 
   return (
     <div className="page">
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 'var(--s-4)',
-        }}
-      >
+      <div className="match-topline">
         <button
           type="button"
           className="btn btn-surface"

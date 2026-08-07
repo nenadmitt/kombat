@@ -8,6 +8,8 @@ import {
 } from '@phosphor-icons/react';
 import type { Icon } from '@phosphor-icons/react';
 import { NavLink, Outlet } from 'react-router-dom';
+
+import { BrandLockup } from './BrandMark';
 import { useAccount } from 'wagmi';
 
 import { CHAIN_NAME } from '../lib/chain';
@@ -32,8 +34,7 @@ export function AppShell() {
     <div className="shell">
       <nav className="rail">
         <div className="rail-brand">
-          <BrandMark />
-          <span className="rail-brand-word">KOMBAT</span>
+          <BrandLockup />
         </div>
 
         <div className="rail-nav">
@@ -58,6 +59,10 @@ export function AppShell() {
 
       <div className="main">
         <header className="topbar">
+          {/* Only shown on mobile, where the rail's own brand is hidden. */}
+          <div className="topbar-brand">
+            <BrandLockup size={24} />
+          </div>
           <div className="topbar-actions">
             <span className="chip">
               <span
@@ -76,7 +81,7 @@ export function AppShell() {
             </span>
 
             {handle ? (
-              <span className="chip chip-lime">
+              <span className="chip chip-lime topbar-handle">
                 <span className="dot" />
                 {handle}
               </span>
@@ -100,17 +105,5 @@ export function AppShell() {
         <Outlet />
       </div>
     </div>
-  );
-}
-
-function BrandMark() {
-  return (
-    <svg width="28" height="28" viewBox="0 0 100 100" aria-hidden>
-      <path d="M28 27 L46.5 27 L42 48 L47 48 L43 74 L28 74 Z" fill="#f3f5fe" />
-      <path
-        d="M53 27 L72 27 L72 74 L56 74 L51.5 48 L45.5 48 Z"
-        fill="var(--lime)"
-      />
-    </svg>
   );
 }

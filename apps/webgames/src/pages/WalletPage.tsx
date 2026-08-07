@@ -17,22 +17,70 @@ import {
   ShieldCheck,
 } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
-import { erc20Abi, type Address } from 'viem';
+import { erc20Abi, formatUnits, type Address } from 'viem';
 import {
   useAccount,
+  useBalance,
   usePublicClient,
+  useReadContracts,
   useWaitForTransactionReceipt,
   useWriteContract,
 } from 'wagmi';
 
+import { TokenIcon } from '../components/TokenIcon';
 import { Field, Segmented, Sheet } from '../components/ui';
 import { apiClient } from '../lib/api';
-import { CHAIN_ID, CHAIN_NAME, NATIVE_TOKEN, STAKE_POT_ABI } from '../lib/chain';
+import {
+  CHAIN_ID,
+  CHAIN_NAME,
+  NATIVE_TOKEN,
+  STAKE_POT_ABI,
+  TOKENS,
+} from '../lib/chain';
 import { shortAddress } from '../lib/format';
 import { usePotStore } from '../store/pot.store';
 import { useSessionStore } from '../store/session.store';
 
 type Mode = 'deposit' | 'withdraw';
+
+/** Trim a formatted amount to something readable without losing dust. */
+function trim(value: string): string {
+  if (!value.includes('.')) return value;
+  const [whole, fraction = ''] = value.split('.');
+  const short = fraction.slice(0, 4).replace(/0+$/, '');
+  return short ? `${whole}.${short}` : whole!;
+}
+
+/**
+ * What the connected wallet actually holds on-chain, as opposed to what has
+ * been deposited into the pot. Both matter, and conflating them is why this
+ * table used to show the pot twice.
+ */
+function useWalletBalances(address: Address | undefined) {
+  const erc20s = TOKENS.filter(token => !token.native);
+  const native = useBalance({ address, query: { enabled: Boolean(address) } });
+  const reads = useReadContracts({
+    contracts: erc20s.map(token => ({
+      address: token.address as Address,
+      abi: erc20Abi,
+      functionName: 'balanceOf' as const,
+      args: address ? [address] : undefined,
+    })),
+    query: { enabled: Boolean(address) },
+  });
+
+  return TOKENS.map(token => {
+    if (token.native) {
+      return { token, amount: native.data?.value };
+    }
+    const index = erc20s.indexOf(token);
+    const result = reads.data?.[index];
+    return {
+      token,
+      amount: result?.status === 'success' ? (result.result as bigint) : undefined,
+    };
+  });
+}
 
 export function WalletPage() {
   const user = useSessionStore(s => s.user);
@@ -50,6 +98,7 @@ export function WalletPage() {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  const walletBalances = useWalletBalances(address);
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
   const [pendingTx, setPendingTx] = useState<`0x${string}` | undefined>();
@@ -228,29 +277,41 @@ export function WalletPage() {
       <div className="page-split">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-5)' }}>
           <div className="rows">
-            <div
-              className="row-head"
-              style={{ gridTemplateColumns: '1.5fr 1fr 1fr' }}
-            >
+            <div className="row-head wallet-grid">
               <span>ASSET</span>
-              <span>AVAILABLE</span>
-              <span>{totalLocked ? 'IN PLAY' : 'LOCKED'}</span>
+              <span>IN WALLET</span>
+              <span>IN POT</span>
             </div>
-            {STAKEABLE_ASSETS.map(option => (
-              <div
-                key={option}
-                className="row"
-                style={{ gridTemplateColumns: '1.5fr 1fr 1fr' }}
-              >
-                <span className="row-name">{STAKE_ASSET_SYMBOLS[option]}</span>
-                <span className="mono">
-                  {formatStakeAmount(balances.available[option] ?? '0', option)}
-                </span>
-                <span className="mono" style={{ color: 'var(--text-3)' }}>
-                  {formatStakeAmount(balances.locked[option] ?? '0', option)}
-                </span>
-              </div>
-            ))}
+            {walletBalances.map(({ token, amount }) => {
+              const pot =
+                token.stakeAsset !== undefined && token.stakeAsset !== StakeAsset.Native
+                  ? formatStakeAmount(
+                      balances.available[token.stakeAsset] ?? '0',
+                      token.stakeAsset,
+                    )
+                  : null;
+              return (
+                <div key={token.symbol} className="row wallet-grid">
+                  <span className="row-name">
+                    <TokenIcon symbol={token.symbol} size={28} />
+                    <span className="asset-label">
+                      <span>{token.symbol}</span>
+                      <span className="muted asset-name">{token.name}</span>
+                    </span>
+                  </span>
+                  <span className="mono">
+                    {address
+                      ? amount === undefined
+                        ? '...'
+                        : trim(formatUnits(amount, token.decimals))
+                      : '-'}
+                  </span>
+                  <span className="mono" style={{ color: 'var(--gold)' }}>
+                    {pot ?? '-'}
+                  </span>
+                </div>
+              );
+            })}
           </div>
 
           <div className="wallet-actions">

@@ -20,7 +20,6 @@ import { apiClient } from '../lib/api';
 import { GAME_LABELS } from '../lib/format';
 import { useSessionStore } from '../store/session.store';
 
-const HISTORY_COLUMNS = '1.6fr 1fr 0.8fr 0.8fr 0.8fr';
 const PAGE_SIZE = 20;
 
 type Tab = 'all' | 'win' | 'loss';
@@ -68,13 +67,7 @@ export function HistoryPage() {
 
           <div style={{ height: 1, background: 'var(--hairline-strong)' }} />
 
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              maxWidth: 520,
-            }}
-          >
+          <div className="stat-row">
             <Stat value={String(stats.games)} label="PLAYED" />
             <Stat value={String(stats.wins)} label="WON" color="var(--win)" />
             <Stat value={String(stats.losses)} label="LOST" color="var(--loss)" />
@@ -85,15 +78,8 @@ export function HistoryPage() {
             />
           </div>
 
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 'var(--s-4)',
-            }}
-          >
-            <div style={{ display: 'flex', gap: 'var(--s-2)' }}>
+          <div className="toolbar">
+            <div className="filter-strip">
               {(
                 [
                   ['all', 'All games'],
@@ -123,10 +109,7 @@ export function HistoryPage() {
           </div>
 
           <div className="rows">
-            <div
-              className="row-head"
-              style={{ gridTemplateColumns: HISTORY_COLUMNS }}
-            >
+            <div className="row-head history-grid">
               <span>GAME</span>
               <span>OPPONENT</span>
               <span>STAKE</span>
@@ -180,7 +163,7 @@ function HistoryRow({ entry }: { entry: MatchHistoryEntry }) {
     : (entry.opponentUsername ?? 'Unknown');
 
   return (
-    <div className="row row-hover" style={{ gridTemplateColumns: HISTORY_COLUMNS }}>
+    <div className="row row-hover history-grid">
       <span className="row-name">
         <GameIcon gameType={entry.gameType} size={32} />
         {GAME_LABELS[entry.gameType as keyof typeof GAME_LABELS] ?? 'Match'}

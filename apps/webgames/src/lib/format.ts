@@ -18,9 +18,9 @@ export const GAME_LABELS: Record<GameType, string> = {
 
 /** The arenas that have a web board behind them. */
 export const WEB_PLAYABLE_GAMES: readonly GameType[] = [
-  GameType.TripleCut,
   GameType.NavalBattle,
   GameType.Salvo,
+  GameType.TripleCut,
 ];
 
 export function isWebPlayable(gameType: GameType): boolean {

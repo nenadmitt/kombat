@@ -13,6 +13,7 @@ import { CaretDown, Check, LockSimple } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 
 import { GameIcon } from './GameIcon';
+import { TokenIcon } from './TokenIcon';
 import { Field, Segmented, Sheet, Switch } from './ui';
 import { apiClient } from '../lib/api';
 import { GAME_LABELS, WEB_PLAYABLE_GAMES } from '../lib/format';
@@ -176,6 +177,7 @@ export function CreateRoomModal({ onClose, onCreated }: Props) {
                 className="token-pill"
                 onClick={() => setTokenPickerOpen(open => !open)}
               >
+                <TokenIcon symbol={STAKE_ASSET_SYMBOLS[stakeToken]} size={18} />
                 {STAKE_ASSET_SYMBOLS[stakeToken]}
                 <CaretDown size={14} color="var(--text-3)" />
               </button>
@@ -195,6 +197,7 @@ export function CreateRoomModal({ onClose, onCreated }: Props) {
                       setTokenPickerOpen(false);
                     }}
                   >
+                    <TokenIcon symbol={STAKE_ASSET_SYMBOLS[token]} size={20} />
                     <span className="picker-name">
                       {STAKE_ASSET_SYMBOLS[token]}
                     </span>

@@ -6,6 +6,7 @@ import { createSiweMessage } from 'viem/siwe';
 import { useAccount, useSignMessage } from 'wagmi';
 
 import { CHAIN_ID, CHAIN_NAME } from '../lib/chain';
+import { BrandMark } from '../components/BrandMark';
 import { apiClient } from '../lib/api';
 import { useSessionStore } from '../store/session.store';
 
@@ -56,16 +57,7 @@ export function SignInPage() {
     <div className="solo">
       <div className="solo-card">
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-3)' }}>
-          <svg width="32" height="32" viewBox="0 0 100 100" aria-hidden>
-            <path
-              d="M28 27 L46.5 27 L42 48 L47 48 L43 74 L28 74 Z"
-              fill="#f3f5fe"
-            />
-            <path
-              d="M53 27 L72 27 L72 74 L56 74 L51.5 48 L45.5 48 Z"
-              fill="var(--lime)"
-            />
-          </svg>
+          <BrandMark size={32} />
           <span className="rail-brand-word" style={{ fontSize: 16 }}>
             KOMBAT
           </span>
