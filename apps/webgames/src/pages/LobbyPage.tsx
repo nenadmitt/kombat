@@ -9,7 +9,7 @@ import {
   STAKE_ASSET_SYMBOLS,
   type GameRoomSummary,
 } from '@gaming-platform/core';
-import { Plus } from '@phosphor-icons/react';
+import { Copy, Plus, UsersThree } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -36,6 +36,7 @@ const FILTERS: { label: string; value: GameType | null }[] = [
 export function LobbyPage() {
   const navigate = useNavigate();
   const myUserId = useSessionStore(s => s.user?.id);
+  const referralCode = useSessionStore(s => s.user?.referralCode);
   const { rooms, status, error, filters, load, setGameTypeFilter, upsert, remove } =
     useLobbyStore();
   const { joinChannel, leaveChannel, on } = useWebsocketStore();
@@ -47,6 +48,7 @@ export function LobbyPage() {
   const [joinError, setJoinError] = useState<string | null>(null);
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [closingRoom, setClosingRoom] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
   // The waiting modal is the room card's expanded form; minimizing only hides it.
   const [waitingMinimized, setWaitingMinimized] = useState(false);
 
@@ -374,6 +376,41 @@ export function LobbyPage() {
               Join room
             </button>
           </form>
+
+          {referralCode && (
+            <div className="card-gold">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-3)' }}>
+                <UsersThree size={15} weight="fill" color="var(--gold)" />
+                <span className="card-label-gold">INVITE AND EARN</span>
+              </div>
+              <p
+                style={{
+                  margin: 'var(--s-3) 0 0',
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                  color: 'var(--text-2)',
+                }}
+              >
+                A slice of the fee from every match your invites play.
+              </p>
+              <button
+                type="button"
+                className="code-box"
+                style={{ marginTop: 'var(--s-4)', width: '100%' }}
+                onClick={() => {
+                  void navigator.clipboard.writeText(referralCode);
+                  setCopiedCode(true);
+                  setTimeout(() => setCopiedCode(false), 2000);
+                }}
+              >
+                <span className="code-value" style={{ color: 'var(--gold)' }}>
+                  {referralCode}
+                </span>
+                <Copy size={14} color="var(--text-3)" />
+              </button>
+              {copiedCode && <span className="card-label">COPIED</span>}
+            </div>
+          )}
 
           <div className="card">
             <span className="card-label">PRACTICE</span>

@@ -168,10 +168,13 @@ a {
 }
 
 .rail-nav {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: var(--s-1);
   margin-top: var(--s-8);
+  overflow-y: auto;
 }
 
 .rail-link {
@@ -197,7 +200,10 @@ a {
 }
 
 .rail-foot {
-  margin-top: auto;
+  /* Never squeezed: on a short viewport the nav list scrolls instead, so the
+     pot card cannot spill out of the rail. */
+  flex: none;
+  margin-top: var(--s-4);
 }
 
 .main {
@@ -1848,4 +1854,107 @@ a {
   flex-direction: column;
   gap: var(--s-3);
   width: 100%;
+}
+
+/* ── profile ──────────────────────────────────────────────────── */
+
+.profile-hero {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+}
+
+.profile-avatar {
+  width: 84px;
+  height: 84px;
+  border-radius: var(--r-xl);
+  font-size: 34px;
+}
+
+.profile-identity {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.profile-ens {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--lime-bright);
+}
+
+.profile-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: 12px;
+}
+
+.chip-level {
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-sm);
+  background: var(--lime-tint);
+  color: var(--lime-bright);
+  font-weight: 700;
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+}
+
+.profile-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--s-5);
+  margin-top: var(--s-4);
+}
+
+.profile-most-played {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+.badge-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s-3);
+  margin-top: var(--s-5);
+}
+
+.badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.badge-ring {
+  width: 46px;
+  height: 46px;
+  border-radius: var(--r-pill);
+  display: grid;
+  place-items: center;
+  background: var(--gold);
+}
+
+.badge.is-locked {
+  opacity: 0.32;
+}
+
+.badge.is-locked .badge-ring {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.badge-name {
+  font-weight: 700;
+  font-size: 9.5px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }

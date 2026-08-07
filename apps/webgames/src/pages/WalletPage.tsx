@@ -328,7 +328,10 @@ export function WalletPage() {
               <span className="card-label-gold">STAKE POT</span>
             </div>
             <CoinPile />
-            <p className="pot-caption">Staked and ready to play</p>
+            <p className="pot-caption">
+              Staked matches are paid from this pool, not from your wallet.
+              Deposit here first, and withdraw whenever you like.
+            </p>
             <div className="rows">
               {STAKEABLE_ASSETS.map(option => (
                 <div

@@ -222,6 +222,11 @@ export function CreateRoomModal({ onClose, onCreated }: Props) {
             )}
           </div>
 
+          <p className="bs-hint">
+            The entry comes out of your stake pool, not your wallet, and is
+            held until the match settles.
+          </p>
+
           <div className="winner-row">
             <span className="muted">Winner takes</span>
             <span>
