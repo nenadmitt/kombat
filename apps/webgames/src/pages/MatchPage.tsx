@@ -3,6 +3,7 @@ import { Navigate, useParams } from 'react-router-dom';
 
 import { BattleshipDemoPage, BattleshipMatchPage } from './BattleshipMatchPage';
 import { DemoRpsPage } from './DemoRpsPage';
+import { SalvoDemoPage, SalvoMatchPage } from './SalvoMatchPage';
 import { RpsMatchPage } from './RpsMatchPage';
 import { isWebPlayable } from '../lib/format';
 
@@ -25,6 +26,7 @@ export function MatchPage() {
   if (parsed === null || !roomId) return <Navigate to="/lobby" replace />;
   if (parsed === GameType.TripleCut) return <RpsMatchPage roomId={roomId} />;
   if (parsed === GameType.NavalBattle) return <BattleshipMatchPage roomId={roomId} />;
+  if (parsed === GameType.Salvo) return <SalvoMatchPage roomId={roomId} />;
   return <Navigate to="/lobby" replace />;
 }
 
@@ -33,5 +35,6 @@ export function DemoPage() {
 
   if (parsed === GameType.TripleCut) return <DemoRpsPage />;
   if (parsed === GameType.NavalBattle) return <BattleshipDemoPage />;
+  if (parsed === GameType.Salvo) return <SalvoDemoPage />;
   return <Navigate to="/games" replace />;
 }

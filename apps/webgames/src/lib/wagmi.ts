@@ -1,0 +1,26 @@
+import { getDefaultConfig } from 'connectkit';
+import { defineChain } from 'viem';
+import { createConfig, http } from 'wagmi';
+
+import { CHAIN_ID, CHAIN_NAME, EXPLORER_URL, IS_TESTNET, RPC_URL } from './chain';
+import { env } from './env';
+
+export const chain = defineChain({
+  id: CHAIN_ID,
+  name: CHAIN_NAME,
+  testnet: IS_TESTNET,
+  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+  rpcUrls: { default: { http: [RPC_URL] } },
+  blockExplorers: { default: { name: 'Explorer', url: EXPLORER_URL } },
+});
+
+export const wagmiConfig = createConfig(
+  getDefaultConfig({
+    appName: 'Kombat',
+    chains: [chain],
+    transports: { [chain.id]: http() },
+    // Without a project id the WalletConnect option is dead but injected
+    // wallets still work.
+    walletConnectProjectId: env.walletConnectProjectId,
+  }),
+);

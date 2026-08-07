@@ -87,3 +87,21 @@ fix. Remove an entry in the same change that fixes it.
   array in each multiplayer engine, as
   `apps/webgames/src/games/rps/useMultiplayerRps.ts` now does. Re-emitting
   `enter` is safe because the gateway's enter is idempotent by contract.
+
+## 2026-08-07 - Salvo's parallax ridges only cover the left 58% of the field
+
+- **Where:** `apps/mobile/src/games/salvo/SalvoBattlefield.tsx:68-74` (the
+  `BACK_RIDGES` / `FRONT_RIDGE` path data) with `:107` (`sx = width /
+  SALVO_FIELD_WIDTH`) and `:254, :271` (`Group transform={[{scaleX: sx},
+  {scaleY: sy}]}`).
+- **Why it's wrong:** the ridge paths are authored against the design's
+  328-wide box, but they are scaled by `width / 560` (the field width) rather
+  than `width / 328`. The curves therefore span only `328/560` of the
+  battlefield, and `closedRidge` runs a straight line from where the curve
+  stops out to the bottom-right corner. The result is a hard diagonal edge
+  across the right-hand third of the sky instead of a ridge line.
+- **Suggested fix:** scale the decorative group by `width / 328` (and
+  `height / 340`), or re-author the paths against the 560-wide field. Either
+  way `closedRidge` should close at the box the paths were drawn in.
+- **Note:** `apps/webgames/src/games/salvo/salvo-theme.ts` reproduces this
+  deliberately for visual parity; fix both together.
