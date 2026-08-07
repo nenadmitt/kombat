@@ -10,7 +10,7 @@ import {
   type GameRoomSummary,
 } from '@gaming-platform/core';
 import { Plus } from '@phosphor-icons/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { CreateRoomModal } from '../components/CreateRoomModal';
@@ -50,6 +50,11 @@ export function LobbyPage() {
   // The waiting modal is the room card's expanded form; minimizing only hides it.
   const [waitingMinimized, setWaitingMinimized] = useState(false);
 
+  // The opponent-joined payload carries only a room id, so the creator's own
+  // room is what tells us which board to open.
+  const activeRoomRef = useRef(activeRoom);
+  activeRoomRef.current = activeRoom;
+
   const hostIds = useMemo(() => rooms.map(room => room.creatorUserId), [rooms]);
   const usernames = useUsernames(hostIds);
 
@@ -73,9 +78,12 @@ export function LobbyPage() {
       remove((payload as { roomId: string }).roomId),
     );
     // A 2-player room starts the instant someone joins mine.
-    const offOpponent = on(ROOM_EVENTS.opponentJoined, payload =>
-      navigate(`/game/${GameType.TripleCut}/${(payload as { roomId: string }).roomId}`),
-    );
+    const offOpponent = on(ROOM_EVENTS.opponentJoined, payload => {
+      const { roomId } = payload as { roomId: string };
+      const mine = activeRoomRef.current;
+      if (!mine || mine.id !== roomId) return;
+      navigate(`/game/${mine.gameType}/${roomId}`);
+    });
 
     return () => {
       offAdded();
