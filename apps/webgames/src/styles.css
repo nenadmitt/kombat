@@ -1254,3 +1254,314 @@ a {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ── primitives ───────────────────────────────────────────────── */
+
+.switch {
+  width: 44px;
+  height: 26px;
+  flex: none;
+  padding: 3px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.12);
+  transition: background 140ms ease-out;
+}
+
+.switch[data-state='checked'] {
+  background: var(--lime);
+}
+
+.switch-thumb {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--text);
+  transition: transform 140ms ease-out;
+  will-change: transform;
+}
+
+.switch[data-state='checked'] .switch-thumb {
+  transform: translateX(18px);
+  background: var(--ink);
+}
+
+.sheet {
+  position: fixed;
+  /* Above .modal-backdrop, which is a portal sibling and would otherwise
+     paint over the content and swallow its clicks. */
+  z-index: 11;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-height: 88vh;
+  overflow-y: auto;
+  width: min(460px, calc(100vw - var(--s-8)));
+}
+
+.sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-4);
+}
+
+.sheet-sub {
+  margin: var(--s-2) 0 0;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: var(--r-md);
+  background: var(--rail);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.seg-opt {
+  padding: var(--s-2) var(--s-4);
+  border-radius: var(--r-sm);
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.seg-opt.is-active {
+  background: var(--lime-tint);
+  color: var(--lime-bright);
+}
+
+.picker-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--rail);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  text-align: left;
+}
+
+.picker-row:hover {
+  box-shadow: inset 0 0 0 1px var(--lime-edge);
+}
+
+.picker-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.picker-name {
+  font-weight: 700;
+  font-size: 13.5px;
+}
+
+.picker-blurb {
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+.picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-2);
+  border-radius: var(--r-md);
+  background: var(--rail);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.picker-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  text-align: left;
+}
+
+.picker-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.picker-item.is-active {
+  background: var(--lime-tint);
+}
+
+.stake-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+}
+
+.stake-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--lime-tint-soft);
+  box-shadow: inset 0 0 0 1px var(--lime-edge);
+}
+
+.stake-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.stake-amount-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.stake-amount {
+  font-weight: 800;
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.token-pill {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  font-weight: 700;
+  font-size: 12.5px;
+}
+
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.preset {
+  min-width: 44px;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  font-weight: 700;
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+
+.preset:hover {
+  color: var(--text);
+}
+
+.preset.is-active {
+  background: var(--lime);
+  color: var(--ink);
+}
+
+.winner-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  font-size: 13px;
+}
+
+.private-card {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--rail);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+/* ── wallet ───────────────────────────────────────────────────── */
+
+.wallet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-6);
+}
+
+.wallet-address {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+  font-weight: 700;
+  font-size: 21px;
+}
+
+.wallet-ens {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+  font-size: 14px;
+}
+
+.wallet-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+
+.pot-caption {
+  margin: var(--s-2) 0 var(--s-4);
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.claim-card {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  text-align: left;
+}
+
+.claim-card:hover {
+  background: var(--surface-hover);
+}
+
+.notice {
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--lime-tint-soft);
+  color: var(--lime-bright);
+  font-size: 12.5px;
+}
+
+.address-block {
+  display: block;
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--sunken);
+  font-family: var(--mono);
+  font-size: 12px;
+  word-break: break-all;
+}
