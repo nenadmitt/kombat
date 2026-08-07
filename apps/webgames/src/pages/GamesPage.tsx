@@ -28,8 +28,8 @@ export function GamesPage() {
             maxWidth: 520,
           }}
         >
-          Five arenas today. Triple Cut plays right here in the browser; the
-          rest are in the mobile app while their web clients are built.
+          Five arenas today. Four play right here in the browser; Chroma
+          Clash is in the mobile app while its web client is built.
         </p>
       </div>
 

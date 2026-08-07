@@ -21,6 +21,7 @@ export const WEB_PLAYABLE_GAMES: readonly GameType[] = [
   GameType.NavalBattle,
   GameType.Salvo,
   GameType.TripleCut,
+  GameType.Ludo,
 ];
 
 export function isWebPlayable(gameType: GameType): boolean {

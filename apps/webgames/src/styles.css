@@ -30,6 +30,12 @@
   --gold-tint-soft: rgba(245, 184, 41, 0.08);
   --gold-edge: rgba(245, 184, 41, 0.4);
 
+  /* Ludo seat colours, shared with the mobile board. */
+  --ludo-red: #ff5a6e;
+  --ludo-green: #3ee08f;
+  --ludo-yellow: #f5b829;
+  --ludo-blue: #5b8def;
+
   --win: #3ee08f;
   --loss: #ff8792;
   --chain: #8aa0f5;
@@ -903,6 +909,55 @@ a {
 }
 
 /* ── feedback ─────────────────────────────────────────────────── */
+
+.toolbar-actions {
+  display: flex;
+  gap: var(--s-3);
+  flex: none;
+}
+
+/* The empty lobby is an invitation, not a dead end. */
+.lobby-quiet {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-5);
+  padding: var(--s-6);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+
+.lobby-quiet-icon {
+  width: 56px;
+  height: 56px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-lg);
+  background: var(--lime-tint-soft);
+  box-shadow: inset 0 0 0 1px var(--lime-edge);
+  color: var(--lime);
+}
+
+.lobby-quiet-text {
+  flex: 1;
+  min-width: min(320px, 100%);
+}
+
+.lobby-quiet-title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+
+.lobby-quiet-blurb {
+  margin: var(--s-2) 0 0;
+  max-width: 56ch;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
 
 .empty {
   display: flex;
@@ -2932,12 +2987,233 @@ a {
   margin-top: 0;
 }
 
+/* ── ludo royale ──────────────────────────────────────────────── */
+
+.ludo-play {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: var(--s-6);
+  align-items: start;
+}
+
+.ludo-stage {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.ludo-board-panel {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: var(--s-5);
+  border-radius: var(--r-xl);
+  background: linear-gradient(180deg, #101528, #0a0d16);
+}
+
+/* The board is square and sized by the column, so a 2- and a 4-seat table
+   render identically. */
+.ludo-board {
+  width: min(560px, 100%);
+  height: auto;
+  aspect-ratio: 1;
+  display: block;
+}
+
+.ludo-pawn.is-movable {
+  cursor: pointer;
+}
+
+.ludo-pawn-glow {
+  animation: ludo-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes ludo-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+
+.ludo-turn-pill {
+  position: absolute;
+  top: var(--s-3);
+  right: var(--s-3);
+  z-index: 1;
+  display: none;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-pill);
+  background: rgba(11, 12, 20, 0.78);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+
+.ludo-turn-pill-name {
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  max-width: 12ch;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ludo-turn-pill .bs-clock-value {
+  font-size: 14px;
+}
+
+.ludo-turn-pill .bs-clock {
+  display: flex;
+}
+
+.ludo-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  position: sticky;
+  top: 0;
+}
+
+.ludo-seats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.ludo-seat {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+/* Whose turn it is reads from the seat's own colour, not a shared accent. */
+.ludo-seat.is-turn {
+  box-shadow: inset 0 0 0 1px var(--seat);
+}
+
+.ludo-seat.is-out {
+  opacity: 0.45;
+}
+
+.ludo-seat-avatar {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: var(--r-sm);
+  display: grid;
+  place-items: center;
+  background: var(--seat);
+  color: var(--ink);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.ludo-seat-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+  flex: 1;
+}
+
+.ludo-seat-name {
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ludo-seat-sub {
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text-3);
+}
+
+.ludo-seat-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--text-4);
+}
+
+.ludo-seat-dot.is-online {
+  background: var(--lime);
+  box-shadow: 0 0 7px var(--lime);
+}
+
+.ludo-roll {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--sunken);
+}
+
+.ludo-hint {
+  flex: 1;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-2);
+}
+
+.ludo-die {
+  width: 78px;
+  height: 78px;
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-1);
+  padding: var(--s-3);
+  border-radius: var(--r-lg);
+  background: #f4f5fa;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+}
+
+.ludo-die.is-rolling {
+  animation: ludo-tumble 0.18s ease-in-out infinite alternate;
+}
+
+@keyframes ludo-tumble {
+  from {
+    transform: rotate(-8deg);
+  }
+  to {
+    transform: rotate(8deg);
+  }
+}
+
+.ludo-pip {
+  border-radius: var(--r-pill);
+  background: transparent;
+}
+
+.ludo-pip.is-lit {
+  background: #20222e;
+}
+
 @media (max-width: 1100px) {
-  .salvo-play {
+  .salvo-play,
+  .ludo-play {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .salvo-side {
+  .salvo-side,
+  .ludo-side {
     position: static;
   }
 }
@@ -2951,6 +3227,9 @@ a {
  */
 @media (max-width: 900px) {
   .shell {
+    /* iOS resolves height:100% against the tall (URL-bar-hidden) viewport, so
+       a fixed bottom bar sits below the visible area until the page scrolls. */
+    height: 100dvh;
     flex-direction: column;
   }
 
@@ -3001,6 +3280,7 @@ a {
 
   .topbar {
     justify-content: space-between;
+    gap: var(--s-3);
     padding: var(--s-4) var(--s-4) var(--s-2);
   }
 
@@ -3008,6 +3288,18 @@ a {
     display: flex;
     align-items: center;
     gap: var(--s-2);
+    min-width: 0;
+  }
+
+  /* Nothing in the bar may widen the document: a few px of overflow scrolls
+     the whole page sideways and clips the brand and the avatar. */
+  .topbar-actions {
+    min-width: 0;
+  }
+
+  /* The chain is a status here, not a control - the coloured dot carries it. */
+  .topbar .chip-text {
+    display: none;
   }
 
   /* The ENS name is the longest thing in the bar and the least urgent. */
@@ -3029,13 +3321,39 @@ a {
   .page-split,
   .bs-setup,
   .bs-play,
-  .salvo-play {
+  .salvo-play,
+  .ludo-play {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .bs-side,
-  .salvo-side {
+  .salvo-side,
+  .ludo-side {
     position: static;
+  }
+
+  /* The name is the thing to read; its caption stacks underneath. */
+  .wallet-ens {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s-1);
+  }
+
+  /* The board's corner pill replaces the sidebar turn strip. The strip
+     stays mounted (its Countdown enforces the demo's timeouts) - hidden. */
+  .ludo-side .match-turn {
+    display: none;
+  }
+
+  .ludo-turn-pill {
+    display: flex;
+  }
+
+  .ludo-roll .ludo-die {
+    width: 56px;
+    height: 56px;
+    padding: var(--s-2);
+    border-radius: var(--r-md);
   }
 
   .wallet-head,
@@ -3052,7 +3370,8 @@ a {
     gap: var(--s-3);
   }
 
-  .match-topline .page-title {
+  .match-topline .page-title,
+  .match-topline-title {
     order: -1;
     flex-basis: 100%;
   }

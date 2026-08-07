@@ -1,75 +1,21 @@
-import { ApiError } from '@gaming-platform/core';
-import { ConnectKitButton } from 'connectkit';
-import { useState } from 'react';
+import { ConnectKitButton, useModal, useSIWE } from 'connectkit';
 import { Navigate } from 'react-router-dom';
-import { createSiweMessage } from 'viem/siwe';
-import { useAccount, useSignMessage, useSwitchChain } from 'wagmi';
 
-import { CHAIN_ID, CHAIN_NAME } from '../lib/chain';
 import { BrandMark } from '../components/BrandMark';
-import { apiClient } from '../lib/api';
 import { useSessionStore } from '../store/session.store';
 
 export function SignInPage() {
-  const { address, chainId } = useAccount();
-  const { signMessageAsync } = useSignMessage();
-  const { switchChainAsync } = useSwitchChain();
-  const { hasSession, user, signIn } = useSessionStore();
-  const [busy, setBusy] = useState(false);
-  const [switching, setSwitching] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { hasSession, user, loading } = useSessionStore();
+  const { isSignedIn, isLoading } = useSIWE();
+  const { openSIWE } = useModal();
 
   if (hasSession && user) {
     return <Navigate to={user.username ? '/lobby' : '/onboarding'} replace />;
   }
 
-  const wrongChain = Boolean(address) && chainId !== CHAIN_ID;
-
-  async function switchToChain() {
-    setSwitching(true);
-    setError(null);
-    try {
-      await switchChainAsync({ chainId: CHAIN_ID });
-    } catch (err) {
-      setError(
-        err instanceof Error && err.name === 'UserRejectedRequestError'
-          ? 'Network switch rejected.'
-          : `Could not switch automatically. Change to ${CHAIN_NAME} in your wallet.`,
-      );
-    } finally {
-      setSwitching(false);
-    }
-  }
-
-  async function authenticate() {
-    if (!address) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const { nonce } = await apiClient.requestSiweNonce();
-      const message = createSiweMessage({
-        address,
-        chainId: CHAIN_ID,
-        domain: window.location.host,
-        nonce,
-        uri: window.location.origin,
-        version: '1',
-        statement: 'Sign in to Kombat.',
-      });
-      const signature = await signMessageAsync({ message });
-      await signIn(await apiClient.verifySiwe(message, signature));
-    } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : err instanceof Error && err.name === 'UserRejectedRequestError'
-            ? 'Signature rejected.'
-            : 'Could not complete sign-in. Try again.',
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
+  // Signed the message, waiting on the server's session: neither "connect"
+  // nor "sign in" is true, and offering either would re-run a done step.
+  const settling = isLoading || isSignedIn || (hasSession && loading);
 
   return (
     <div className="solo">
@@ -89,61 +35,28 @@ export function SignInPage() {
           </p>
         </div>
 
+        {/* Connecting, the network check and the signature are all steps of
+            ConnectKit's own modal, so this page only opens it. */}
         <ConnectKitButton.Custom>
-          {({ isConnected, show, truncatedAddress }) => (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 'var(--s-3)',
-              }}
+          {({ isConnected, show }) => (
+            <button
+              type="button"
+              className="btn btn-lime btn-block btn-lg"
+              // An already-connected wallet lands on ConnectKit's profile
+              // screen, which only hints at signing; openSIWE asks outright.
+              onClick={() => (isConnected ? openSIWE(true) : show?.())}
+              disabled={settling}
             >
-              <button
-                type="button"
-                className={
-                  isConnected
-                    ? 'btn btn-surface btn-block btn-lg'
-                    : 'btn btn-lime btn-block btn-lg'
-                }
-                onClick={show}
-              >
-                {isConnected ? truncatedAddress : 'Connect wallet'}
-              </button>
-
-              {isConnected &&
-                (wrongChain ? (
-                  <button
-                    type="button"
-                    className="btn btn-lime btn-block btn-lg"
-                    onClick={switchToChain}
-                    disabled={switching}
-                  >
-                    {switching ? (
-                      <span className="spinner" />
-                    ) : (
-                      `Switch to ${CHAIN_NAME}`
-                    )}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="btn btn-lime btn-block btn-lg"
-                    onClick={authenticate}
-                    disabled={busy}
-                  >
-                    {busy ? <span className="spinner" /> : 'Sign in'}
-                  </button>
-                ))}
-            </div>
+              {settling ? (
+                <span className="spinner" />
+              ) : isConnected ? (
+                'Sign in'
+              ) : (
+                'Connect wallet'
+              )}
+            </button>
           )}
         </ConnectKitButton.Custom>
-
-        {wrongChain && (
-          <div className="banner">
-            Kombat runs on {CHAIN_NAME}. Your wallet is on another network.
-          </div>
-        )}
-        {error && <div className="banner">{error}</div>}
       </div>
     </div>
   );

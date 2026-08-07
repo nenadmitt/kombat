@@ -11,18 +11,26 @@ import {
 import { onInviteRequested, requestInvite } from "@/lib/invite-bus";
 import styles from "./InviteForms.module.css";
 
+const DEMO_APP_URL =
+  process.env.NEXT_PUBLIC_DEMO_APP_URL ?? "https://demo.playkombat.xyz";
+
 export function HeroInviteForm() {
   return (
     <div className={styles.heroForm}>
-      <button
-        type="button"
-        className={styles.heroSubmit}
-        onClick={() =>
-          document.getElementById("apply")?.scrollIntoView({ behavior: "smooth" })
-        }
-      >
-        Request an invite
-      </button>
+      <div className={styles.heroFormRow}>
+        <a href={DEMO_APP_URL} className={styles.heroSubmit}>
+          Demo app
+        </a>
+        <button
+          type="button"
+          className={styles.heroSecondary}
+          onClick={() =>
+            document.getElementById("apply")?.scrollIntoView({ behavior: "smooth" })
+          }
+        >
+          Request mobile invite
+        </button>
+      </div>
     </div>
   );
 }

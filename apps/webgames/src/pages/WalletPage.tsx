@@ -259,7 +259,7 @@ export function WalletPage() {
                 {user.ensName}
               </span>
               <span className="muted">
-                anyone can send you funds using this name
+                your personal ENS name, use it to send funds to your address
               </span>
             </div>
           )}

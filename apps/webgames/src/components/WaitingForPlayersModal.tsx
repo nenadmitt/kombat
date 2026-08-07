@@ -1,5 +1,6 @@
 import {
   formatStakeAmount,
+  LUDO_MIN_PLAYERS,
   STAKE_ASSET_SYMBOLS,
   type GameRoomSummary,
 } from '@gaming-platform/core';
@@ -13,6 +14,11 @@ type Props = {
   cancelling: boolean;
   onMinimize: () => void;
   onCancel: () => void;
+  /** Host-only, multi-seat rooms: start before every seat is taken. */
+  onStartNow?: () => void;
+  starting?: boolean;
+  /** A guest sees the table fill; they can leave, not cancel or start it. */
+  isGuest?: boolean;
 };
 
 /**
@@ -25,9 +31,16 @@ export function WaitingForPlayersModal({
   cancelling,
   onMinimize,
   onCancel,
+  onStartNow,
+  starting = false,
+  isGuest = false,
 }: Props) {
   const [copied, setCopied] = useState<'code' | 'link' | null>(null);
   const code = room.code ?? '';
+  const multiSeat = room.playerCount > 2;
+  const seatsLeft = room.playerCount - room.joinedCount;
+  const canStartNow =
+    multiSeat && !isGuest && room.joinedCount >= LUDO_MIN_PLAYERS && seatsLeft > 0;
 
   async function copy(what: 'code' | 'link') {
     const text =
@@ -75,7 +88,9 @@ export function WaitingForPlayersModal({
         </span>
 
         <h2 className="modal-title" style={{ textAlign: 'center' }}>
-          Waiting for an opponent
+          {multiSeat
+            ? `Waiting for players - ${room.joinedCount} of ${room.playerCount}`
+            : 'Waiting for an opponent'}
         </h2>
 
         <p
@@ -86,9 +101,11 @@ export function WaitingForPlayersModal({
             color: 'var(--text-2)',
           }}
         >
-          {room.isPrivate
-            ? 'Private room. Share the code so a friend can join.'
-            : 'Anyone can join from the lobby, or with your room code.'}
+          {multiSeat && canStartNow
+            ? `${seatsLeft} ${seatsLeft === 1 ? 'seat is' : 'seats are'} still open. Start now and play with who is here.`
+            : room.isPrivate
+              ? 'Private room. Share the code so a friend can join.'
+              : 'Anyone can join from the lobby, or with your room code.'}
           {room.stakeToken !== null && room.stakeAmount !== null && (
             <>
               {' '}
@@ -114,6 +131,21 @@ export function WaitingForPlayersModal({
           </button>
         )}
 
+        {canStartNow && (
+          <button
+            type="button"
+            className="btn btn-lime btn-block btn-lg"
+            onClick={onStartNow}
+            disabled={starting}
+          >
+            {starting ? (
+              <span className="spinner" />
+            ) : (
+              `Start with ${room.joinedCount} players`
+            )}
+          </button>
+        )}
+
         <div style={{ display: 'flex', gap: 'var(--s-3)' }}>
           <button
             type="button"
@@ -129,7 +161,13 @@ export function WaitingForPlayersModal({
             onClick={onCancel}
             disabled={cancelling}
           >
-            {cancelling ? <span className="spinner" /> : 'Cancel room'}
+            {cancelling ? (
+              <span className="spinner" />
+            ) : isGuest ? (
+              'Leave room'
+            ) : (
+              'Cancel room'
+            )}
           </button>
         </div>
       </div>
