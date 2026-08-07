@@ -1,9 +1,43 @@
 import { RPS_MOVES, WIN_TARGET, type RpsMove } from '@gaming-platform/core';
+import { HandFist, Trophy } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 
+import { GameResultScreen } from '../../components/GameResultScreen';
 import { initialOf } from '../../lib/format';
 import { RpsIcon } from './RpsIcon';
 import type { RpsPlayProps } from './rps-engine';
+
+/** Result copy per outcome and end reason. */
+const RESULT_COPY = {
+  win: {
+    complete: {
+      eyebrow: 'BEST OF FIVE',
+      message: (name: string) => `You out-read ${name} and took the match.`,
+    },
+    forfeit: {
+      eyebrow: 'OPPONENT FORFEITED',
+      message: (name: string) => `${name} walked away. The match is yours.`,
+    },
+    timeout: {
+      eyebrow: 'WON BY TIMEOUT',
+      message: (name: string) => `${name} let the clock run out once too often.`,
+    },
+  },
+  lose: {
+    complete: {
+      eyebrow: 'BEST OF FIVE',
+      message: (name: string) => `${name} read you better this time. Run it back.`,
+    },
+    forfeit: {
+      eyebrow: 'MATCH FORFEITED',
+      message: () => 'You forfeited the match and handed over the win.',
+    },
+    timeout: {
+      eyebrow: 'LOST BY TIMEOUT',
+      message: () => 'You let the clock run out once too often.',
+    },
+  },
+} as const;
 
 const MOVE_LABELS: Record<RpsMove, string> = {
   rock: 'Rock',
@@ -11,7 +45,9 @@ const MOVE_LABELS: Record<RpsMove, string> = {
   scissors: 'Scissors',
 };
 
-export function RpsBoard(props: RpsPlayProps) {
+export function RpsBoard(
+  props: RpsPlayProps & { onBack: () => void; onPlayAgain?: () => void },
+) {
   const {
     opponent,
     myOnline,
@@ -24,11 +60,41 @@ export function RpsBoard(props: RpsPlayProps) {
     reveal,
     roundDeadline,
     result,
+    resultReason,
     onLock,
     onNextRound,
   } = props;
 
   const secondsLeft = useCountdown(roundDeadline, props.onTimerExpire);
+
+  if (result) {
+    const won = result === 'win';
+    const copy = RESULT_COPY[won ? 'win' : 'lose'][resultReason ?? 'complete'];
+    return (
+      <GameResultScreen
+        variant={won ? 'win' : 'lose'}
+        icon={won ? Trophy : HandFist}
+        eyebrow={copy.eyebrow}
+        title={won ? 'VICTORY' : 'DEFEAT'}
+        message={copy.message(opponent.name)}
+        opponent={{
+          initial: opponent.initial,
+          label: won ? 'DEFEATED' : 'LOST TO',
+          name: opponent.name,
+        }}
+        stats={[
+          {
+            value: `${myScore} - ${opponentScore}`,
+            label: 'ROUNDS',
+            highlight: true,
+          },
+          { value: String(myScore + opponentScore), label: 'ROUNDS PLAYED' },
+        ]}
+        onBack={props.onBack}
+        onPlayAgain={props.onPlayAgain}
+      />
+    );
+  }
 
   return (
     <div className="arena">
@@ -52,9 +118,7 @@ export function RpsBoard(props: RpsPlayProps) {
         </div>
       </div>
 
-      {result ? (
-        <ResultBody {...props} />
-      ) : stage === 'revealing' && reveal ? (
+      {stage === 'revealing' && reveal ? (
         <div className="arena-body">
           <div className="hand-row">
             <HandSlot move={reveal.opponentMove} won={reveal.result === 'loss'} />
@@ -156,35 +220,6 @@ export function RpsBoard(props: RpsPlayProps) {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function ResultBody({ result, resultReason, myScore, opponentScore }: RpsPlayProps) {
-  const won = result === 'win';
-  return (
-    <div className="arena-body">
-      <div
-        style={{
-          fontWeight: 800,
-          fontSize: 52,
-          lineHeight: 1,
-          letterSpacing: '-0.035em',
-          color: won ? 'var(--win)' : 'var(--loss)',
-        }}
-      >
-        {won ? 'You win' : 'You lose'}
-      </div>
-      <div className="mono" style={{ fontSize: 20 }}>
-        {myScore} - {opponentScore}
-      </div>
-      <span className="card-label">
-        {resultReason === 'forfeit'
-          ? 'BY FORFEIT'
-          : resultReason === 'timeout'
-            ? 'BY TIMEOUT'
-            : 'BEST OF FIVE'}
-      </span>
     </div>
   );
 }

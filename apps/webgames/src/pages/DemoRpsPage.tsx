@@ -40,12 +40,19 @@ export function DemoRpsPage() {
         </button>
       </div>
 
-      <DemoBoard key={attempt} />
+      <DemoBoard key={attempt} onRestart={() => setAttempt(n => n + 1)} />
     </div>
   );
 }
 
-function DemoBoard() {
+function DemoBoard({ onRestart }: { onRestart: () => void }) {
+  const navigate = useNavigate();
   const engine = useDemoRps();
-  return <RpsBoard {...engine.playProps} />;
+  return (
+    <RpsBoard
+      {...engine.playProps}
+      onBack={() => navigate('/lobby')}
+      onPlayAgain={onRestart}
+    />
+  );
 }

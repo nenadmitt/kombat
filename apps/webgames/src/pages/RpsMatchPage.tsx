@@ -67,7 +67,7 @@ export function RpsMatchPage({ roomId }: { roomId: string }) {
           </div>
         </div>
       ) : (
-        <RpsBoard {...engine.playProps} />
+        <RpsBoard {...engine.playProps} onBack={() => navigate('/lobby')} />
       )}
 
       {confirmForfeit && (

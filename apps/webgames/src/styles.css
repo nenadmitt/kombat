@@ -1735,3 +1735,115 @@ a {
     animation-duration: 1ms;
   }
 }
+
+/* ── match result ─────────────────────────────────────────────── */
+
+.result {
+  position: relative;
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: var(--s-8) var(--s-4);
+}
+
+/* The variant's colour washes down from the top, as it does in the app. */
+.result-glow {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 420px;
+  pointer-events: none;
+}
+
+.result-win .result-glow {
+  background: radial-gradient(
+    circle at 50% 130px,
+    rgba(245, 184, 41, 0.28),
+    transparent 70%
+  );
+}
+
+.result-lose .result-glow {
+  background: radial-gradient(
+    circle at 50% 130px,
+    rgba(255, 135, 146, 0.22),
+    transparent 70%
+  );
+}
+
+.result-card {
+  position: relative;
+  width: min(520px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-8);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  text-align: center;
+}
+
+.result-ring {
+  width: 88px;
+  height: 88px;
+  border-radius: var(--r-pill);
+  border: 2px solid;
+  display: grid;
+  place-items: center;
+}
+
+.result-eyebrow {
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+}
+
+.result-title {
+  margin: 0;
+  font-weight: 800;
+  font-size: 52px;
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.result-message {
+  margin: 0;
+  max-width: 40ch;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+.result-opponent {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--rail);
+  text-align: left;
+}
+
+.result-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-4);
+  width: 100%;
+  padding: var(--s-4) 0;
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.result-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.result-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  width: 100%;
+}

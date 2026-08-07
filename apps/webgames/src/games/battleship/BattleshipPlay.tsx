@@ -13,11 +13,58 @@ import { Anchor, Target } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { BattleshipBoard } from './BattleshipBoard';
+import { GameResultScreen } from '../../components/GameResultScreen';
 import type { BattleshipPlayProps } from './battleship-engine';
 import { COLUMN_LABELS, ROW_LABELS } from './battleship-theme';
 import { Countdown } from './Countdown';
 
 type View = 'attack' | 'fleet';
+
+/** Result copy per outcome and end reason, matching the app. */
+const RESULT_COPY: Record<
+  'win' | 'lose',
+  Record<
+    NonNullable<BattleshipPlayProps['resultReason']>,
+    { eyebrow: string; message: (name: string) => string }
+  >
+> = {
+  win: {
+    complete: {
+      eyebrow: 'FLEET DESTROYED',
+      message: () => 'You sank every enemy ship and dominated the waters.',
+    },
+    forfeit: {
+      eyebrow: 'OPPONENT FORFEITED',
+      message: name => `${name} abandoned the battle. The seas are yours.`,
+    },
+    timeout: {
+      eyebrow: 'VICTORY BY TIMEOUT',
+      message: name => `${name} ran out of time once too often. The win is yours.`,
+    },
+    'setup-timeout': {
+      eyebrow: 'OPPONENT NEVER DEPLOYED',
+      message: name => `${name} failed to deploy their fleet in time. The win is yours.`,
+    },
+  },
+  lose: {
+    complete: {
+      eyebrow: 'FLEET LOST',
+      message: () => 'Your fleet was wiped out. Regroup and strike back.',
+    },
+    forfeit: {
+      eyebrow: 'MATCH FORFEITED',
+      message: () => 'You forfeited the match and handed over the win.',
+    },
+    timeout: {
+      eyebrow: 'LOST BY TIMEOUT',
+      message: () => 'You ran out of time once too often and forfeited the match.',
+    },
+    'setup-timeout': {
+      eyebrow: 'FLEET NEVER DEPLOYED',
+      message: () => "You didn't deploy your fleet in time, so the match was forfeited.",
+    },
+  },
+};
 
 /** Long enough that the shot which ended the turn is still on screen. */
 const VIEW_SWITCH_DELAY_MS = 1500;
@@ -27,8 +74,12 @@ const POWERUPS: { kind: PowerupKind; label: string; blurb: string }[] = [
   { kind: 'bomb', label: 'Bomb', blurb: 'Hits a 3x3 block' },
 ];
 
-export function BattleshipPlay(props: BattleshipPlayProps) {
+export function BattleshipPlay(
+  props: BattleshipPlayProps & { onBack: () => void; onPlayAgain?: () => void },
+) {
   const {
+    onBack,
+    onPlayAgain,
     myFleet,
     myMines,
     myShots,
@@ -126,7 +177,11 @@ export function BattleshipPlay(props: BattleshipPlayProps) {
     setArmed(null);
   }
 
-  if (result) return <BattleshipResult {...props} />;
+  if (result) {
+    return (
+      <BattleshipResult {...props} onBack={onBack} onPlayAgain={onPlayAgain} />
+    );
+  }
 
   const attacking = view === 'attack';
   const hint = !attacking
@@ -334,57 +389,44 @@ function BattleshipResult({
   resultReason,
   volleys,
   sunkByMe,
-}: BattleshipPlayProps) {
+  opponent,
+  onBack,
+  onPlayAgain,
+}: BattleshipPlayProps & {
+  onBack: () => void;
+  onPlayAgain?: () => void;
+}) {
   const won = result === 'win';
+  // Accuracy is per fire action: a volley counts as a hit when at least one of
+  // its cells struck a ship, so a bomb's splash misses don't drag it down.
   const accuracy = volleys.fired
     ? Math.round((volleys.hit / volleys.fired) * 100)
     : 0;
-
-  const reason =
-    resultReason === 'forfeit'
-      ? won
-        ? 'They forfeited'
-        : 'You forfeited'
-      : resultReason === 'timeout'
-        ? won
-          ? 'They ran out of time'
-          : 'You ran out of time'
-        : resultReason === 'setup-timeout'
-          ? 'A fleet was never deployed'
-          : won
-            ? 'Enemy fleet destroyed'
-            : 'Your fleet was destroyed';
+  const copy = RESULT_COPY[won ? 'win' : 'lose'][resultReason ?? 'complete'];
 
   return (
-    <div className="bs-result">
-      <div className="arena-body">
-        <div
-          style={{
-            fontWeight: 800,
-            fontSize: 52,
-            lineHeight: 1,
-            letterSpacing: '-0.035em',
-            color: won ? 'var(--win)' : 'var(--loss)',
-          }}
-        >
-          {won ? 'Victory' : 'Defeat'}
-        </div>
-        <span className="card-label">{reason.toUpperCase()}</span>
-        <div style={{ display: 'flex', gap: 'var(--s-8)', marginTop: 'var(--s-4)' }}>
-          <Stat value={`${sunkByMe}/${FLEET.length}`} label="SHIPS SUNK" />
-          <Stat value={String(volleys.fired)} label="VOLLEYS" />
-          <Stat value={`${accuracy}%`} label="ACCURACY" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Stat({ value, label }: { value: string; label: string }) {
-  return (
-    <div style={{ textAlign: 'center' }}>
-      <div className="stat-value">{value}</div>
-      <div className="stat-label">{label}</div>
-    </div>
+    <GameResultScreen
+      variant={won ? 'win' : 'lose'}
+      eyebrow={copy.eyebrow}
+      title={won ? 'VICTORY' : 'DEFEAT'}
+      message={copy.message(opponent.name)}
+      opponent={{
+        initial: opponent.initial,
+        label: won ? 'DEFEATED' : 'LOST TO',
+        name: opponent.name,
+      }}
+      stats={[
+        { value: String(volleys.fired), label: 'SHOTS FIRED' },
+        { value: String(volleys.hit), label: 'HITS LANDED', highlight: true },
+        { value: `${accuracy}%`, label: 'ACCURACY' },
+        {
+          value: `${sunkByMe} / ${FLEET.length}`,
+          label: 'SHIPS SUNK',
+          highlight: true,
+        },
+      ]}
+      onBack={onBack}
+      onPlayAgain={onPlayAgain}
+    />
   );
 }

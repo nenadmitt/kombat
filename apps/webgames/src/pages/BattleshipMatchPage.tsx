@@ -98,7 +98,13 @@ function BattleshipFlow({
         </div>
       )}
 
-      {engine.phase === 'play' && <BattleshipPlay {...engine.playProps} />}
+      {engine.phase === 'play' && (
+        <BattleshipPlay
+          {...engine.playProps}
+          onBack={() => navigate('/lobby')}
+          onPlayAgain={onRestart}
+        />
+      )}
 
       {confirmForfeit && (
         <div className="modal-backdrop" onClick={() => setConfirmForfeit(false)}>
