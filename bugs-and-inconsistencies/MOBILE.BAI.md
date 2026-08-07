@@ -123,3 +123,18 @@ fix. Remove an entry in the same change that fixes it.
   guards. `apps/webgames/src/games/salvo/useDemoSalvo.ts` now does exactly
   this and can be copied across.
 - Reported by the user against the web demo, which had inherited the code.
+
+## 2026-08-07 - Mobile keeps its own token address table
+
+- **Where:** `apps/mobile/src/wallet/tokens.ts` (the `sepolia` / `base` lists)
+  against `packages/core/src/wallets/token-registry.ts`.
+- **Why it's wrong:** core's registry is the shared source - the server derives
+  `TOKEN_REGISTRY` from it via `stakeAssetAddresses`, and apps/web and
+  apps/webgames read it through `tokensForChain`. Mobile hardcodes the same
+  addresses a second time and imports nothing from core, so the two can drift
+  silently. Its own comment says the list "must match the StakePot allowlist
+  and the server's TOKEN_REGISTRY", which is exactly the invariant a copy
+  cannot enforce. Changing the Sepolia USDC address today meant editing two
+  files that must agree.
+- **Suggested fix:** build the mobile list from `CHAIN_TOKENS` / `tokensForChain`
+  and keep only the mobile-specific presentation (ordering, icons) locally.

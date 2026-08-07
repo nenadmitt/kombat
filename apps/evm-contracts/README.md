@@ -22,13 +22,13 @@ payouts, platform fees), built with [Foundry](https://book.getfoundry.sh/).
 | KombatCoin | Sepolia | [`0x01a659Df789D3E433D7cdFf4CAc70596C56B03c0`](https://sepolia.etherscan.io/address/0x01a659Df789D3E433D7cdFf4CAc70596C56B03c0) |
 | KombatCoin (superseded) | Sepolia | [`0xFE25C2b2400144c6536b9F707F06b751D6eeF943`](https://sepolia.etherscan.io/address/0xFE25C2b2400144c6536b9F707F06b751D6eeF943) |
 | MatchEscrow v2 | Sepolia | [`0x2D3C6e3b41365B2b221982B5fAc5F496746160f2`](https://sepolia.etherscan.io/address/0x2D3C6e3b41365B2b221982B5fAc5F496746160f2) |
-| MockUSDC | Sepolia | [`0x277c9f3957633C99ef8F7421B980B50C41b31a7b`](https://sepolia.etherscan.io/address/0x277c9f3957633C99ef8F7421B980B50C41b31a7b) |
+| USDC (Circle) | Sepolia | [`0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`](https://sepolia.etherscan.io/address/0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238) |
 | StakePot | Sepolia | [`0xa3Ff9Ef44aeD74C773Cb69692f334dD3cB3AE529`](https://sepolia.etherscan.io/address/0xa3Ff9Ef44aeD74C773Cb69692f334dD3cB3AE529) |
 
 Roles: owner (admin + fee withdrawal) is the platform cold key
 `0x0aB34352B087a107302aFF5d155e23a11637Caa1`; operator (creates/funds/
 settles — the game server's hot signer) is `0x4b9801173b21cBb3f290eaDED98D8f5AdE8D90e5`.
-Allowlisted stake assets: native ETH, KombatCoin, MockUSDC.
+Allowlisted stake assets: native ETH, KombatCoin, USDC.
 
 KombatCoin was redeployed on 2026-07-30 (block 11378578) together with
 StakePot (block 11378580). KC has no mint function, so a fresh deployment was

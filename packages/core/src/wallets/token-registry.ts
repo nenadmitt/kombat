@@ -42,7 +42,7 @@ export const CHAIN_TOKENS: Record<number, TokenInfo[]> = {
     {
       symbol: 'USDC',
       name: 'USD Coin',
-      address: '0x277c9f3957633C99ef8F7421B980B50C41b31a7b',
+      address: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
       decimals: 6,
       stakeAsset: StakeAsset.Usdc,
     },

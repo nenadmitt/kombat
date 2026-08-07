@@ -84,7 +84,7 @@ export const CHAIN_TOKENS: Record<BalanceChainId, Token[]> = {
     // (apps/evm-contracts/README.md) - deposits pull these exact tokens.
     KOMBAT('0x01a659Df789D3E433D7cdFf4CAc70596C56B03c0'),
     ETH,
-    USDC('0x277c9f3957633C99ef8F7421B980B50C41b31a7b'),
+    USDC('0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'),
     USDT(),
     DAI('0x776b6fC2eD15D6Bb5Fc32e0c89DE68683118c62A'),
   ],
