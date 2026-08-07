@@ -32,7 +32,7 @@ contract DeployStakePot is Script {
     address internal constant DEFAULT_KOMBAT = 0xFE25C2b2400144c6536b9F707F06b751D6eeF943;
 
     /// @dev Existing Sepolia MockUSDC - reused so fauceted balances stay valid.
-    address internal constant DEFAULT_USDC = 0x277c9f3957633C99ef8F7421B980B50C41b31a7b;
+    address internal constant DEFAULT_USDC = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
 
     /// @dev Rolling 24h withdrawal caps per asset (testnet-generous).
     uint256 internal constant NATIVE_DAILY_LIMIT = 10 ether;

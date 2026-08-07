@@ -6,10 +6,11 @@ import { SalvoPlay } from '../games/salvo/SalvoPlay';
 import type { SalvoEngine } from '../games/salvo/salvo-engine';
 import { useDemoSalvo } from '../games/salvo/useDemoSalvo';
 import { useMultiplayerSalvo } from '../games/salvo/useMultiplayerSalvo';
+import { useResultExtras } from '../games/use-result-data';
 
 export function SalvoMatchPage({ roomId }: { roomId: string }) {
   const engine = useMultiplayerSalvo(roomId);
-  return <SalvoFlow engine={engine} multiplayer />;
+  return <SalvoFlow engine={engine} multiplayer roomId={roomId} />;
 }
 
 export function SalvoDemoPage() {
@@ -26,14 +27,20 @@ function SalvoFlow({
   engine,
   multiplayer,
   onRestart,
+  roomId = null,
 }: {
   engine: SalvoEngine;
   multiplayer: boolean;
   onRestart?: () => void;
+  roomId?: string | null;
 }) {
   const navigate = useNavigate();
   const [confirmForfeit, setConfirmForfeit] = useState(false);
   const over = engine.playProps.result !== null;
+  const foe = engine.playProps.seats.find(
+    seat => seat.side !== engine.playProps.me,
+  );
+  const extras = useResultExtras(roomId, over, foe?.name ?? 'Your opponent');
 
   return (
     <div className="page">
@@ -47,9 +54,12 @@ function SalvoFlow({
           {over || !multiplayer ? 'Back to lobby' : 'Leave board'}
         </button>
 
-        <h1 className="page-title" style={{ fontSize: 20 }}>
-          Salvo{multiplayer ? '' : ' - practice'}
-        </h1>
+        <div className="match-topline-title">
+          <h1 className="page-title" style={{ fontSize: 20 }}>
+            Salvo{multiplayer ? '' : ' - practice'}
+          </h1>
+          {over && <span className="match-topline-sub">Match complete</span>}
+        </div>
 
         {onRestart && over ? (
           <button type="button" className="btn btn-surface" onClick={onRestart}>
@@ -89,6 +99,7 @@ function SalvoFlow({
       ) : (
         <SalvoPlay
           {...engine.playProps}
+          {...extras}
           onBack={() => navigate('/lobby')}
           onPlayAgain={onRestart}
         />

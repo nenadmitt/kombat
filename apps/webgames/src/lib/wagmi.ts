@@ -19,8 +19,8 @@ export const wagmiConfig = createConfig(
     appName: 'Kombat',
     chains: [chain],
     transports: { [chain.id]: http() },
-    // Without a project id the WalletConnect option is dead but injected
-    // wallets still work.
+    // A mobile browser has no injected provider, so WalletConnect's deep link
+    // is the only connector that works there.
     walletConnectProjectId: env.walletConnectProjectId,
   }),
 );

@@ -10,8 +10,15 @@ import {
   type MinePlacement,
   type Orientation,
 } from '@gaming-platform/core';
-import { ArrowsClockwise, Shuffle } from '@phosphor-icons/react';
-import { useMemo, useState } from 'react';
+import {
+  ArrowCounterClockwise,
+  ArrowDown,
+  ArrowRight,
+  CheckCircle,
+  CursorClick,
+  Shuffle,
+} from '@phosphor-icons/react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { BattleshipBoard } from './BattleshipBoard';
 import { toPlacedShips } from './battleship-view';
@@ -21,7 +28,6 @@ import {
   ROW_LABELS,
   SHIPS,
 } from './battleship-theme';
-import { ShipHull } from './ShipHull';
 import { Countdown } from './Countdown';
 
 /** Pseudo tray id: mines share the placement flow but are not a ship. */
@@ -121,6 +127,24 @@ export function BattleshipSetup({ onReady, deadline }: Props) {
     setSelectedId(null);
   }
 
+  function clearAll() {
+    setPlacements({});
+    setMines([]);
+    setSelectedId(null);
+  }
+
+  // R rotates, as the hint under the orientation switch promises.
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      if (event.key !== 'r' && event.key !== 'R') return;
+      if (target?.closest('input, textarea')) return;
+      setOrientation(o => (o === 'h' ? 'v' : 'h'));
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   return (
     <div className="bs-setup">
       <div className="bs-setup-board">
@@ -135,19 +159,21 @@ export function BattleshipSetup({ onReady, deadline }: Props) {
                   : 'Fleet ready'}
             </h2>
           </div>
-          {deadline && <Countdown deadline={deadline} label="TO DEPLOY" />}
-        </div>
-
-        <div className="bs-progress">
-          <div className="bs-progress-track">
-            <span
-              className="bs-progress-fill"
-              style={{ transform: `scaleX(${placedCount / TOTAL_PIECES})` }}
-            />
+          <div className="bs-head-progress">
+            {deadline && <Countdown deadline={deadline} label="TO DEPLOY" />}
+            <span className="bs-placed-count">
+              {placedCount}
+              <span style={{ color: 'var(--text-4)' }}> / {TOTAL_PIECES}</span>
+            </span>
+            <span className="seg-pips">
+              {Array.from({ length: TOTAL_PIECES }, (_, i) => (
+                <span
+                  key={i}
+                  className={i < placedCount ? 'seg-pip is-on' : 'seg-pip'}
+                />
+              ))}
+            </span>
           </div>
-          <span className="card-label">
-            {placedCount}/{TOTAL_PIECES} PLACED
-          </span>
         </div>
 
         <div className="bs-grid-wrap">
@@ -180,104 +206,152 @@ export function BattleshipSetup({ onReady, deadline }: Props) {
             isPreviewValid={isValidPlacement}
           />
         </div>
+
+        <p className="bs-hint bs-legend-item">
+          <CursorClick size={14} color="var(--lime)" />
+          Click a cell to drop the piece · click a placed one to pick it back up
+        </p>
       </div>
 
       <aside className="bs-tray">
-        <button
-          type="button"
-          className="btn btn-surface btn-block"
-          onClick={() => setOrientation(o => (o === 'h' ? 'v' : 'h'))}
-          disabled={activeId === MINES_ID || !activeShip}
-        >
-          <ArrowsClockwise size={16} color="var(--lime)" />
-          {orientation === 'h' ? 'Horizontal' : 'Vertical'}
-        </button>
-
-        <div className="bs-tray-list">
-          {SHIPS.map(ship => {
-            const placed = Boolean(placements[ship.id]);
-            return (
-              <button
-                key={ship.id}
-                type="button"
-                className={
-                  activeId === ship.id
-                    ? 'bs-card is-active'
-                    : placed
-                      ? 'bs-card is-placed'
-                      : 'bs-card'
-                }
-                onClick={() => setSelectedId(ship.id)}
-              >
-                <span className="bs-card-head">
-                  <span className="bs-card-name">{ship.label}</span>
-                  <span className="card-label">{ship.size}</span>
-                </span>
-                <svg
-                  width="100%"
-                  height={14}
-                  viewBox={`0 0 ${ship.size * 14} 14`}
-                  aria-hidden
-                >
-                  <ShipHull
-                    length={ship.size * 14}
-                    thickness={14}
-                    cells={ship.size}
-                    color={placed ? 'var(--text-4)' : ship.color}
-                  />
-                </svg>
-              </button>
-            );
-          })}
-
+        <div className="match-actions is-top">
           <button
             type="button"
-            className={
-              activeId === MINES_ID
-                ? 'bs-card is-active'
-                : mines.length === MINES_PER_PLAYER
-                  ? 'bs-card is-placed'
-                  : 'bs-card'
-            }
-            onClick={() => setSelectedId(MINES_ID)}
+            className="fire-btn"
+            disabled={!ready}
+            onClick={() => onReady(placements, mines)}
           >
-            <span className="bs-card-head">
-              <span className="bs-card-name">Sea mines</span>
-              <span className="card-label">
-                {mines.length}/{MINES_PER_PLAYER}
-              </span>
-            </span>
-            <span className="bs-mine-row">
-              {Array.from({ length: MINES_PER_PLAYER }, (_, i) => (
-                <span
-                  key={i}
-                  className="bs-mine-dot"
-                  style={{
-                    background: i < mines.length ? 'var(--text-4)' : MINE_COLOR,
-                  }}
-                />
-              ))}
-            </span>
+            {ready ? 'Ready' : `Place ${TOTAL_PIECES - placedCount} more to start`}
           </button>
+          <div className="ghost-row">
+            <button
+              type="button"
+              className="ghost-btn is-lime"
+              onClick={autoPlace}
+            >
+              <Shuffle size={14} weight="bold" />
+              Auto-place
+            </button>
+            <button
+              type="button"
+              className="ghost-btn"
+              disabled={placedCount === 0}
+              onClick={clearAll}
+            >
+              <ArrowCounterClockwise size={14} />
+              Clear
+            </button>
+          </div>
         </div>
 
-        <p className="bs-hint">
-          Tap a placed ship to pick it back up. Mines damage whoever strikes
-          them, so keep them off your own hulls.
-        </p>
+        <div>
+          <span className="card-label">ORIENTATION</span>
+          <div className="segmented is-block" style={{ marginTop: 'var(--s-3)' }}>
+            <button
+              type="button"
+              className={orientation === 'h' ? 'seg-opt is-active' : 'seg-opt'}
+              onClick={() => setOrientation('h')}
+            >
+              <ArrowRight size={14} weight="bold" />
+              Horizontal
+            </button>
+            <button
+              type="button"
+              className={orientation === 'v' ? 'seg-opt is-active' : 'seg-opt'}
+              onClick={() => setOrientation('v')}
+            >
+              <ArrowDown size={14} weight="bold" />
+              Vertical
+            </button>
+          </div>
+          <p className="bs-hint" style={{ marginTop: 'var(--s-3)', textAlign: 'center' }}>
+            Press <span className="key-cap">R</span> to rotate
+          </p>
+        </div>
 
-        <button type="button" className="btn btn-surface btn-block" onClick={autoPlace}>
-          <Shuffle size={16} color="var(--lime)" />
-          Auto-place
-        </button>
-        <button
-          type="button"
-          className="btn btn-lime btn-block btn-lg"
-          disabled={!ready}
-          onClick={() => onReady(placements, mines)}
-        >
-          {ready ? 'Ready' : `${TOTAL_PIECES - placedCount} left to place`}
-        </button>
+        <div>
+          <span className="card-label">FLEET</span>
+          <div className="bs-tray-list" style={{ marginTop: 'var(--s-3)' }}>
+            {SHIPS.map(ship => {
+              const placed = Boolean(placements[ship.id]);
+              return (
+                <button
+                  key={ship.id}
+                  type="button"
+                  className={
+                    activeId === ship.id
+                      ? 'bs-card is-active'
+                      : placed
+                        ? 'bs-card is-placed'
+                        : 'bs-card'
+                  }
+                  onClick={() => setSelectedId(ship.id)}
+                >
+                  <span className="bs-card-body">
+                    <span className="bs-card-head">
+                      <span className="bs-card-name">{ship.label}</span>
+                      {placed && (
+                        <CheckCircle size={14} weight="fill" color="var(--lime)" />
+                      )}
+                    </span>
+                    <span className="bs-cells">
+                      {Array.from({ length: ship.size }, (_, i) => (
+                        <span
+                          key={i}
+                          className="bs-cell-dot"
+                          style={{
+                            background: placed ? 'var(--text-4)' : ship.color,
+                          }}
+                        />
+                      ))}
+                    </span>
+                  </span>
+                  <span className="bs-card-size">{ship.size}</span>
+                </button>
+              );
+            })}
+
+            <button
+              type="button"
+              className={
+                activeId === MINES_ID
+                  ? 'bs-card is-active'
+                  : mines.length === MINES_PER_PLAYER
+                    ? 'bs-card is-placed'
+                    : 'bs-card'
+              }
+              onClick={() => setSelectedId(MINES_ID)}
+            >
+              <span className="bs-card-body">
+                <span className="bs-card-head">
+                  <span className="bs-card-name">Mines</span>
+                  {mines.length === MINES_PER_PLAYER && (
+                    <CheckCircle size={14} weight="fill" color="var(--lime)" />
+                  )}
+                </span>
+                <span className="bs-mine-row">
+                  {Array.from({ length: MINES_PER_PLAYER }, (_, i) => (
+                    <span
+                      key={i}
+                      className="bs-mine-dot"
+                      style={{
+                        background:
+                          i < mines.length ? 'var(--text-4)' : MINE_COLOR,
+                      }}
+                    />
+                  ))}
+                </span>
+              </span>
+              <span className="bs-card-size">
+                {mines.length}/{MINES_PER_PLAYER}
+              </span>
+            </button>
+          </div>
+
+          <p className="bs-hint" style={{ marginTop: 'var(--s-3)' }}>
+            Mines damage whoever strikes them, so keep them off your own hulls.
+          </p>
+        </div>
       </aside>
     </div>
   );

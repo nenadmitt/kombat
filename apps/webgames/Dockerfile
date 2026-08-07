@@ -25,9 +25,9 @@ COPY apps/webgames apps/webgames
 # to publish an image pointed at a different chain or API.
 ARG VITE_API_URL=https://api.playkombat.xyz
 ARG VITE_CHAIN_ID=11155111
-ARG VITE_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
+ARG VITE_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/kSLvIkdb8hKaBbTvK_5txOVuSgawItyv
 ARG VITE_EXPLORER_URL=https://sepolia.etherscan.io
-ARG VITE_WALLETCONNECT_PROJECT_ID=
+ARG VITE_WALLETCONNECT_PROJECT_ID=33f99a6011096e6aeaff9e4cc066e83e
 ENV VITE_API_URL=$VITE_API_URL \
     VITE_CHAIN_ID=$VITE_CHAIN_ID \
     VITE_RPC_URL=$VITE_RPC_URL \

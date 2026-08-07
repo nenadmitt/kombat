@@ -19,7 +19,8 @@ export const CHAIN_NAME = CHAINS[CHAIN_ID]?.name ?? `chain ${CHAIN_ID}`;
 export const IS_TESTNET = CHAINS[CHAIN_ID]?.testnet ?? false;
 
 export const RPC_URL =
-  import.meta.env.VITE_RPC_URL ?? 'https://ethereum-sepolia-rpc.publicnode.com';
+  import.meta.env.VITE_RPC_URL ??
+  'https://eth-sepolia.g.alchemy.com/v2/kSLvIkdb8hKaBbTvK_5txOVuSgawItyv';
 
 export const EXPLORER_URL =
   import.meta.env.VITE_EXPLORER_URL ?? 'https://sepolia.etherscan.io';
