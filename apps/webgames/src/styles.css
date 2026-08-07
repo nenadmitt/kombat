@@ -55,6 +55,8 @@
   --rail-w: 232px;
 
   --font: 'Inter', system-ui, -apple-system, sans-serif;
+  /* The wordmark's own face, per branding/assets/kombat-lockup-on-dark.svg. */
+  --font-brand: 'Space Grotesk', 'Inter', system-ui, sans-serif;
   --mono: ui-monospace, Menlo, Consolas, monospace;
 }
 
@@ -161,10 +163,13 @@ a {
 }
 
 .rail-brand-word {
-  font-weight: 600;
-  font-size: 14px;
-  letter-spacing: 0.3em;
-  padding-left: 0.3em;
+  font-family: var(--font-brand);
+  font-weight: 700;
+  /* The lockup sets 44px type against a 56px mark, tracked -2. */
+  font-size: 0.78em;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  color: var(--text);
 }
 
 .rail-nav {

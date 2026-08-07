@@ -27,12 +27,17 @@ export function BrandMark({ size = 28, color = 'var(--lime)' }: Props) {
   );
 }
 
-/** The mark plus the wordmark, as the brand lockup pairs them. */
+/**
+ * The mark plus the wordmark, spaced as the lockup pairs them. The type is
+ * lowercase and tightly tracked; it is a wordmark, not a label.
+ */
 export function BrandLockup({ size = 28 }: { size?: number }) {
   return (
     <>
       <BrandMark size={size} />
-      <span className="rail-brand-word">KOMBAT</span>
+      <span className="rail-brand-word" style={{ fontSize: size }}>
+        kombat
+      </span>
     </>
   );
 }
