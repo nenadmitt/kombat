@@ -1,7 +1,7 @@
 # apps/webgames
 
 The browser client. Plain React + Vite, wallet sign-in (SIWE), and Triple Cut
-(rock paper scissors) against a person or a bot.
+and Battleships against a person or a bot.
 
 ```bash
 cp .env.example .env      # point VITE_API_URL at your server
@@ -31,8 +31,9 @@ whichever commit should ship; its dispatch inputs override the chain and API.
   registers the connected address as an **imported** wallet row and mints the
   same JWT the mobile app uses. There is no custodial wallet on web, so
   `POST /wallets` is never called from here.
-- **One game.** Triple Cut is the only arena with a web board. The lobby lists
-  every game's rooms but only offers Join on the ones this client can play.
+- **Two games.** Triple Cut and Battleships have web boards; the arenas listed
+  in `WEB_PLAYABLE_GAMES` are the ones with one. The lobby lists every game's
+  rooms but only offers Join on the ones this client can play.
 - **Domain logic comes from `@gaming-platform/core`** - rules, socket
   protocol, the turn clock, stake maths and the REST client. Nothing in here
   re-derives a game outcome.
