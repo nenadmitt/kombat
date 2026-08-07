@@ -105,3 +105,21 @@ fix. Remove an entry in the same change that fixes it.
   way `closedRidge` should close at the box the paths were drawn in.
 - **Note:** `apps/webgames/src/games/salvo/salvo-theme.ts` reproduces this
   deliberately for visual parity; fix both together.
+
+## 2026-08-07 - Salvo's local game lets the player fire twice per turn
+
+- **Where:** `apps/mobile/src/games/salvo/useLocalSalvo.ts` - `commit()` returns
+  `flight: null`, the shell timer then calls `later(nextTurn, IMPACT_HOLD_MS)`,
+  and `myTurn` is derived as `!over && turn === ME && flight === null`.
+- **Why it's wrong:** the shell is cleared the instant it lands, but the turn
+  only hands over 900ms later. For that whole window `flight` is null and
+  `turn` is still ME, so `myTurn` and `armed` are both true and the FIRE
+  button is live again: the player gets a second shot, and the shot counter
+  and wind rotation advance a step early. The bot's turn effect has the same
+  gap (`turn !== BOT || flight !== null`), so a slow enough impact hold could
+  let it queue a second shot too.
+- **Suggested fix:** carry a `resolving` flag - set it in `commit`, clear it in
+  `nextTurn`, and add it to `myTurn`, to `onFire`'s guard and to both bot-turn
+  guards. `apps/webgames/src/games/salvo/useDemoSalvo.ts` now does exactly
+  this and can be copied across.
+- Reported by the user against the web demo, which had inherited the code.

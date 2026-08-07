@@ -74,6 +74,12 @@ type LocalState = {
   damage: SalvoDamageEvent | null;
   /** A tank is mid-drive: dials and FIRE stay locked until it stops. */
   driving: boolean;
+  /**
+   * A shot has landed but the turn has not handed over yet. The shell is
+   * already gone, so without this the firer could squeeze in a second shot
+   * during the impact hold.
+   */
+  resolving: boolean;
   /** Hull destroyed this match, shown burning before the result resolves. */
   destroyed: SalvoSide | null;
   /** Flips once the wreck has burned long enough to show the result screen. */
@@ -106,6 +112,7 @@ const freshState = (): LocalState => ({
   trail: null,
   damage: null,
   driving: false,
+  resolving: false,
   destroyed: null,
   resultRevealed: false,
   botAiming: false,
@@ -239,6 +246,7 @@ export function useDemoSalvo(): SalvoEngine {
         hp,
         stats: { ...prev.stats, [shooter]: stats },
         flight: null,
+        resolving: true,
         trail: { shooter, path: shot.path, impact: shot.impact, id: shotId.current },
         damage: hits.length
           ? { id: shotId.current, hits }
@@ -265,6 +273,7 @@ export function useDemoSalvo(): SalvoEngine {
         shotNumber,
         movesLeft: SALVO_MOVE_RANGE,
         driving: false,
+        resolving: false,
         botAiming: false,
         wind: newRound ? rollWind() : prev.wind,
         turnStartedAt: Date.now(),
@@ -394,7 +403,12 @@ export function useDemoSalvo(): SalvoEngine {
 
   // The bot's turn: reposition, then range in visibly, then fire that aim.
   useEffect(() => {
-    if (state.winner !== null || state.turn !== BOT || state.flight !== null) {
+    if (
+      state.winner !== null ||
+      state.turn !== BOT ||
+      state.flight !== null ||
+      state.resolving
+    ) {
       return;
     }
     // The bot repositions first when it feels like it, then spends its aiming
@@ -420,7 +434,7 @@ export function useDemoSalvo(): SalvoEngine {
 
     const fireId = setTimeout(() => {
       const s = stateRef.current;
-      if (s.winner !== null || s.turn !== BOT || s.flight !== null) {
+      if (s.winner !== null || s.turn !== BOT || s.flight !== null || s.resolving) {
         return;
       }
       const aim = chooseBotAim(
@@ -443,7 +457,7 @@ export function useDemoSalvo(): SalvoEngine {
       clearTimeout(aimId);
       clearTimeout(fireId);
     };
-  }, [state.winner, state.turn, state.flight, launch, driveTank]);
+  }, [state.winner, state.turn, state.flight, state.resolving, launch, driveTank]);
 
   // A kill freezes the match on the burning wreck; the result screen only
   // takes over once it has had its moment.
@@ -488,7 +502,7 @@ export function useDemoSalvo(): SalvoEngine {
 
   const onFire = useCallback(() => {
     const s = stateRef.current;
-    if (s.winner === null && s.turn === ME && s.flight === null) {
+    if (s.winner === null && s.turn === ME && s.flight === null && !s.resolving) {
       launch(ME);
     }
   }, [launch]);
@@ -540,7 +554,8 @@ export function useDemoSalvo(): SalvoEngine {
     : state.winner === ME
       ? 'win'
       : 'lose';
-  const myTurn = !over && state.turn === ME && state.flight === null;
+  const myTurn =
+    !over && state.turn === ME && state.flight === null && !state.resolving;
   // Dials and FIRE stay locked while a hull is still rolling.
   const armed = myTurn && !state.driving;
 
