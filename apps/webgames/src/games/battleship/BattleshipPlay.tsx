@@ -9,12 +9,14 @@ import {
   type FireKind,
   type PowerupKind,
 } from '@gaming-platform/core';
-import { Anchor, Target } from '@phosphor-icons/react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import type { Icon } from '@phosphor-icons/react';
+import { Anchor, Bomb, Crosshair, RocketLaunch } from '@phosphor-icons/react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { BattleshipBoard } from './BattleshipBoard';
 import { GameResultScreen } from '../../components/GameResultScreen';
 import type { BattleshipPlayProps } from './battleship-engine';
+import type { ResultExtras } from '../use-result-data';
 import { COLUMN_LABELS, ROW_LABELS } from './battleship-theme';
 import { Countdown } from './Countdown';
 
@@ -69,14 +71,22 @@ const RESULT_COPY: Record<
 /** Long enough that the shot which ended the turn is still on screen. */
 const VIEW_SWITCH_DELAY_MS = 1500;
 
-const POWERUPS: { kind: PowerupKind; label: string; blurb: string }[] = [
-  { kind: 'torpedo', label: 'Torpedo', blurb: 'Runs a whole row until it strikes' },
-  { kind: 'bomb', label: 'Bomb', blurb: 'Hits a 3x3 block' },
+const POWERUPS: {
+  kind: PowerupKind;
+  label: string;
+  blurb: string;
+  icon: Icon;
+}[] = [
+  {
+    kind: 'torpedo',
+    label: 'Torpedo',
+    blurb: 'Runs a whole row until it strikes',
+    icon: RocketLaunch,
+  },
+  { kind: 'bomb', label: 'Bomb', blurb: 'Hits a 3x3 block', icon: Bomb },
 ];
 
-export function BattleshipPlay(
-  props: BattleshipPlayProps & { onBack: () => void; onPlayAgain?: () => void },
-) {
+export function BattleshipPlay(props: BattleshipPlayProps & ResultExtras) {
   const {
     onBack,
     onPlayAgain,
@@ -177,13 +187,32 @@ export function BattleshipPlay(
     setArmed(null);
   }
 
+  // Space fires, as the key hint on the button promises.
+  const canFire = Boolean(myTurn && selected);
+  useEffect(() => {
+    if (!canFire || !selected) return;
+    function onKey(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      if (event.code !== 'Space' || target?.closest('input, textarea, button')) {
+        return;
+      }
+      event.preventDefault();
+      onFire((armed ?? 'single') as FireKind, selected!.row, selected!.col);
+      setSelected(null);
+      setArmed(null);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [canFire, selected, armed, onFire]);
+
   if (result) {
-    return (
-      <BattleshipResult {...props} onBack={onBack} onPlayAgain={onPlayAgain} />
-    );
+    return <BattleshipResult {...props} />;
   }
 
   const attacking = view === 'attack';
+  const targetLabel = selected
+    ? `${COLUMN_LABELS[selected.col]}${selected.row + 1}`
+    : null;
   const hint = !attacking
     ? 'Incoming fire'
     : !myTurn
@@ -197,34 +226,29 @@ export function BattleshipPlay(
   return (
     <div className="bs-play">
       <div className="bs-board-col">
-        <div className="bs-toggle">
-          <button
-            type="button"
-            className={attacking ? 'bs-toggle-opt is-active' : 'bs-toggle-opt'}
-            onClick={() => setView('attack')}
-          >
-            <Target size={16} weight="bold" />
-            ATTACK
-          </button>
-          <button
-            type="button"
-            className={attacking ? 'bs-toggle-opt' : 'bs-toggle-opt is-active'}
-            onClick={() => setView('fleet')}
-          >
-            <Anchor size={16} weight="bold" />
-            FLEET
-          </button>
-        </div>
-
         <div className="bs-grid-heading">
-          <span className="bs-grid-title">
-            {attacking ? 'ENEMY WATERS' : 'YOUR FLEET'}
-          </span>
-          <span
-            className="bs-grid-hint"
-            style={armed && attacking ? { color: 'var(--lime)' } : undefined}
-          >
-            {hint}
+          <div className="bs-toggle">
+            <button
+              type="button"
+              className={attacking ? 'bs-toggle-opt is-active' : 'bs-toggle-opt'}
+              onClick={() => setView('attack')}
+            >
+              <Crosshair size={14} weight="fill" />
+              Enemy waters
+            </button>
+            <button
+              type="button"
+              className={attacking ? 'bs-toggle-opt' : 'bs-toggle-opt is-active'}
+              onClick={() => setView('fleet')}
+            >
+              <Anchor size={14} />
+              My fleet
+            </button>
+          </div>
+
+          <span className={selected ? 'bs-target' : 'bs-target is-idle'}>
+            <Crosshair size={13} weight="bold" />
+            {selected ? `Target ${targetLabel}` : hint}
           </span>
         </div>
 
@@ -264,11 +288,36 @@ export function BattleshipPlay(
             />
           )}
         </div>
+
+        <div className="bs-legend">
+          <span className="bs-legend-item">
+            <span
+              className="bs-legend-swatch"
+              style={{ background: 'rgba(255, 84, 104, 0.45)' }}
+            />
+            Hit
+          </span>
+          <span className="bs-legend-item">
+            <span
+              className="bs-legend-swatch"
+              style={{ boxShadow: 'inset 0 0 0 1px var(--text-4)' }}
+            />
+            Miss
+          </span>
+          <span className="bs-legend-item">
+            <span
+              className="bs-legend-swatch"
+              style={{ boxShadow: 'inset 0 0 0 2px var(--lime)' }}
+            />
+            Selected
+          </span>
+        </div>
       </div>
 
       <aside className="bs-side">
-        <div className="card bs-turn-card">
-          <span className="card-label">
+        <div className={myTurn ? 'match-turn' : 'match-turn is-theirs'}>
+          <span className="match-turn-label">
+            <span className="turn-dot" />
             {myTurn ? 'YOUR TURN' : 'THEIR TURN'}
           </span>
           {turnDeadline ? (
@@ -278,7 +327,7 @@ export function BattleshipPlay(
           )}
         </div>
 
-        <div className="card bs-scores">
+        <div className="sunken-card bs-scores">
           <Player
             name="You"
             initial="Y"
@@ -294,27 +343,29 @@ export function BattleshipPlay(
           />
         </div>
 
-        <div className="card">
+        <div className="sunken-card">
           <div className="bs-charge">
-            <span className="card-label">CHARGE</span>
-            <div className="bs-charge-track">
-              <span
-                className="bs-charge-fill"
-                style={{
-                  transform: `scaleX(${Math.min(points / CHARGE_BAR_MAX, 1)})`,
-                }}
-              />
-            </div>
-            <span className="mono" style={{ color: 'var(--lime)' }}>
-              {points}
+            <span className="card-label">SPECIAL CHARGE</span>
+            <span
+              className="mono"
+              style={{ fontWeight: 700, fontSize: 12, color: 'var(--lime)' }}
+            >
+              {points} / {CHARGE_BAR_MAX}
             </span>
+          </div>
+          <div className="bs-charge-track">
+            <span
+              className="bs-charge-fill"
+              style={{
+                transform: `scaleX(${Math.min(points / CHARGE_BAR_MAX, 1)})`,
+              }}
+            />
           </div>
 
           <div className="bs-powerups">
-            {POWERUPS.map(({ kind, label, blurb }) => {
-              const usable =
-                points >= POWERUP_COSTS[kind] &&
-                powerupsUsed[kind] < POWERUP_MAX_USES;
+            {POWERUPS.map(({ kind, label, blurb, icon: Glyph }) => {
+              const left = POWERUP_MAX_USES - powerupsUsed[kind];
+              const usable = points >= POWERUP_COSTS[kind] && left > 0;
               return (
                 <button
                   key={kind}
@@ -324,10 +375,20 @@ export function BattleshipPlay(
                   onClick={() => setArmed(current => (current === kind ? null : kind))}
                   title={blurb}
                 >
-                  <span className="bs-powerup-name">{label}</span>
-                  <span className="card-label">
-                    {POWERUP_COSTS[kind]} charge ·{' '}
-                    {POWERUP_MAX_USES - powerupsUsed[kind]} left
+                  <span className="bs-powerup-head">
+                    <Glyph
+                      size={16}
+                      weight="fill"
+                      color={usable ? 'var(--lime)' : 'var(--text-4)'}
+                    />
+                    <span className="bs-powerup-name">{label}</span>
+                  </span>
+                  <span className="bs-powerup-status">
+                    {usable
+                      ? `Ready · ${left} left`
+                      : left === 0
+                        ? 'Spent'
+                        : `${POWERUP_COSTS[kind]} charge · ${left} left`}
                   </span>
                 </button>
               );
@@ -335,18 +396,33 @@ export function BattleshipPlay(
           </div>
         </div>
 
-        <button
-          type="button"
-          className="btn btn-lime btn-block btn-lg bs-fire"
-          disabled={!myTurn || !selected}
-          onClick={fire}
-        >
-          {selected
-            ? `FIRE · ${COLUMN_LABELS[selected.col]}${selected.row + 1}`
-            : myTurn
-              ? 'PICK A TARGET'
-              : 'WAITING'}
-        </button>
+        <div className="match-actions">
+          <button
+            type="button"
+            className="fire-btn"
+            disabled={!myTurn || !selected}
+            onClick={fire}
+          >
+            <Crosshair size={19} weight="fill" />
+            {selected ? `Fire at ${targetLabel}` : myTurn ? 'Pick a target' : 'Waiting'}
+            <span className="fire-key">SPACE</span>
+          </button>
+
+          {selected && (
+            <div className="ghost-row">
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={() => {
+                  setSelected(null);
+                  setArmed(null);
+                }}
+              >
+                Clear target
+              </button>
+            </div>
+          )}
+        </div>
       </aside>
     </div>
   );
@@ -374,12 +450,19 @@ function Player({
           style={{ background: online ? 'var(--win)' : 'var(--loss)' }}
         />
       </span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="player-name">{name}</div>
-        <div className="stat-label">
-          {sunk}/{FLEET.length} SUNK
-        </div>
-      </div>
+      <span className="bs-player-name">{name}</span>
+      <span className="hull-pips">
+        {FLEET.map((ship, index) => (
+          <span
+            key={ship.id}
+            className="hull-pip"
+            style={index < sunk ? { background: 'var(--loss)' } : undefined}
+          />
+        ))}
+      </span>
+      <span className="bs-player-count">
+        {sunk}/{FLEET.length}
+      </span>
     </div>
   );
 }
@@ -392,10 +475,9 @@ function BattleshipResult({
   opponent,
   onBack,
   onPlayAgain,
-}: BattleshipPlayProps & {
-  onBack: () => void;
-  onPlayAgain?: () => void;
-}) {
+  settlement,
+  winRate,
+}: BattleshipPlayProps & ResultExtras) {
   const won = result === 'win';
   // Accuracy is per fire action: a volley counts as a hit when at least one of
   // its cells struck a ship, so a bomb's splash misses don't drag it down.
@@ -408,7 +490,7 @@ function BattleshipResult({
     <GameResultScreen
       variant={won ? 'win' : 'lose'}
       eyebrow={copy.eyebrow}
-      title={won ? 'VICTORY' : 'DEFEAT'}
+      title={won ? 'Victory' : 'Defeat'}
       message={copy.message(opponent.name)}
       opponent={{
         initial: opponent.initial,
@@ -418,13 +500,19 @@ function BattleshipResult({
       stats={[
         { value: String(volleys.fired), label: 'SHOTS FIRED' },
         { value: String(volleys.hit), label: 'HITS LANDED', highlight: true },
-        { value: `${accuracy}%`, label: 'ACCURACY' },
         {
           value: `${sunkByMe} / ${FLEET.length}`,
           label: 'SHIPS SUNK',
           highlight: true,
         },
       ]}
+      meters={[
+        { label: 'Accuracy this match', percent: accuracy, accent: true },
+        ...(winRate === null || winRate === undefined
+          ? []
+          : [{ label: 'Your win rate', percent: winRate }]),
+      ]}
+      settlement={settlement}
       onBack={onBack}
       onPlayAgain={onPlayAgain}
     />

@@ -7,12 +7,21 @@ import {
   SalvoSide,
   salvoAccuracy,
 } from '@gaming-platform/core';
-import { CaretLeft, CaretRight, Crosshair, Wind } from '@phosphor-icons/react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  CaretLeft,
+  CaretRight,
+  Crosshair,
+  Minus,
+  Plus,
+} from '@phosphor-icons/react';
 import { useEffect, useRef } from 'react';
 
 import { GameResultScreen } from '../../components/GameResultScreen';
 import { SalvoBattlefield } from './SalvoBattlefield';
 import type { SalvoPlayProps } from './salvo-engine';
+import type { ResultExtras } from '../use-result-data';
 import { Countdown } from '../battleship/Countdown';
 
 /** One press of a dial. Angle is finer than power, as on mobile. */
@@ -20,6 +29,9 @@ const STEP = { angle: 1, power: 2 };
 
 /** The battlefield renders at its native width and scales down to fit. */
 const FIELD_WIDTH = 560;
+
+/** Drive segments in the meter; the underlying range is continuous. */
+const DRIVE_PIPS = 5;
 
 const RESULT_COPY = {
   win: {
@@ -53,7 +65,7 @@ const RESULT_COPY = {
 } as const;
 
 export function SalvoPlay(
-  props: SalvoPlayProps & { onBack: () => void; onPlayAgain?: () => void },
+  props: SalvoPlayProps & ResultExtras,
 ) {
   const {
     terrain,
@@ -81,6 +93,8 @@ export function SalvoPlay(
     onTimerExpire,
     onBack,
     onPlayAgain,
+    settlement,
+    winRate,
   } = props;
 
   const mine = seats.find(seat => seat.side === me);
@@ -96,6 +110,21 @@ export function SalvoPlay(
     box.scrollLeft = Math.max(0, target);
   }, [flight, terrain.width]);
 
+  // Space fires, as the key hint on the button promises.
+  useEffect(() => {
+    if (!armed) return;
+    function onKey(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      if (event.code !== 'Space' || target?.closest('input, textarea, button')) {
+        return;
+      }
+      event.preventDefault();
+      onFire();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [armed, onFire]);
+
   if (result) {
     const record = stats[me];
     const copy = RESULT_COPY[result === 'win' ? 'win' : 'lose'][
@@ -105,7 +134,7 @@ export function SalvoPlay(
       <GameResultScreen
         variant={result === 'win' ? 'win' : 'lose'}
         eyebrow={copy.eyebrow}
-        title={result === 'win' ? 'VICTORY' : 'DEFEAT'}
+        title={result === 'win' ? 'Victory' : 'Defeat'}
         message={copy.message(foe?.name ?? 'Your opponent')}
         opponent={
           foe
@@ -118,14 +147,20 @@ export function SalvoPlay(
         }
         stats={[
           { value: String(record.shots), label: 'SHOTS' },
-          {
-            value: `${salvoAccuracy(record)}%`,
-            label: 'ACCURACY',
-            highlight: result === 'win',
-          },
-          { value: String(record.bestHit), label: 'BEST HIT' },
+          { value: String(record.bestHit), label: 'BEST HIT', highlight: true },
           { value: String(round), label: 'ROUNDS' },
         ]}
+        meters={[
+          {
+            label: 'Accuracy this match',
+            percent: salvoAccuracy(record),
+            accent: true,
+          },
+          ...(winRate === null || winRate === undefined
+            ? []
+            : [{ label: 'Your win rate', percent: winRate }]),
+        ]}
+        settlement={settlement}
         onBack={onBack}
         onPlayAgain={onPlayAgain}
       />
@@ -136,60 +171,78 @@ export function SalvoPlay(
     <div className="salvo-play">
       <div className="salvo-stage">
         <div className="salvo-hud">
-          <HullBar seat={mine} label="You" />
-          <div className="salvo-hud-mid">
-            <span className="card-label">
-              SHOT {shotNumber} · ROUND {round}
-            </span>
-            <span className="salvo-wind">
-              <Wind size={14} color="var(--lime)" />
-              <span className="mono">
-                {wind === 0 ? 'CALM' : `${Math.abs(wind)} ${wind > 0 ? '→' : '←'}`}
-              </span>
+          <HullBar seat={mine} label="You" mine />
+          <div className="salvo-wind">
+            <span className="card-label">WIND</span>
+            <span className="salvo-wind-value">
+              {wind === 0 ? (
+                'CALM'
+              ) : (
+                <>
+                  {wind > 0 ? (
+                    <ArrowRight size={13} weight="bold" />
+                  ) : (
+                    <ArrowLeft size={13} weight="bold" />
+                  )}
+                  {Math.abs(wind)}
+                </>
+              )}
             </span>
           </div>
           <HullBar seat={foe} label={foe?.name ?? 'Opponent'} align="right" />
         </div>
 
-        <div className="salvo-viewport" ref={scrollRef}>
-          <SalvoBattlefield
-            terrain={terrain}
-            seats={seats}
-            width={FIELD_WIDTH}
-            trajectory={trail?.path ?? null}
-            trajectorySide={trail?.shooter ?? null}
-            impact={trail?.impact ?? null}
-            impactId={trail?.id ?? null}
-            shell={flight?.shell ?? null}
-            aiming={aiming}
-            destroyed={destroyed}
-            draggableSide={armed ? me : null}
-            onAimAngle={angle => onAim({ angle })}
-          />
-        </div>
-
-        {(notice || damage) && (
-          <div className="salvo-notice">
-            {notice ?? ''}
-            {damage?.hits.map(hit => (
-              <span
-                key={`${hit.side}-${hit.amount}`}
-                className="salvo-damage"
-                style={{
-                  color: hit.side === me ? 'var(--loss)' : 'var(--win)',
-                }}
-              >
-                {' '}
-                -{hit.amount}
-              </span>
-            ))}
+        <div className="salvo-field-box">
+          <div className="salvo-viewport" ref={scrollRef}>
+            <SalvoBattlefield
+              terrain={terrain}
+              seats={seats}
+              width={FIELD_WIDTH}
+              trajectory={trail?.path ?? null}
+              trajectorySide={trail?.shooter ?? null}
+              impact={trail?.impact ?? null}
+              impactId={trail?.id ?? null}
+              shell={flight?.shell ?? null}
+              aiming={aiming}
+              destroyed={destroyed}
+              draggableSide={armed ? me : null}
+              onAimAngle={angle => onAim({ angle })}
+            />
           </div>
-        )}
+
+          <div className="salvo-overlay salvo-shot-count">
+            <span className="card-label">SHOT</span>
+            <span className="salvo-shot-value">
+              {shotNumber} · R{round}
+            </span>
+          </div>
+
+          {(notice || damage) && (
+            <div className="salvo-overlay salvo-notice">
+              <Crosshair size={14} weight="fill" color="var(--lime)" />
+              {notice ?? ''}
+              {damage?.hits.map(hit => (
+                <span
+                  key={`${hit.side}-${hit.amount}`}
+                  className="salvo-damage"
+                  style={{
+                    color: hit.side === me ? 'var(--loss)' : 'var(--win)',
+                  }}
+                >
+                  -{hit.amount}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <aside className="salvo-side">
-        <div className="card bs-turn-card">
-          <span className="card-label">{myTurn ? 'YOUR TURN' : 'THEIR TURN'}</span>
+        <div className={myTurn ? 'match-turn' : 'match-turn is-theirs'}>
+          <span className="match-turn-label">
+            <span className="turn-dot" />
+            {myTurn ? 'YOUR TURN' : 'THEIR TURN'}
+          </span>
           {turnDeadline ? (
             <Countdown deadline={turnDeadline} onExpire={onTimerExpire} />
           ) : (
@@ -197,73 +250,80 @@ export function SalvoPlay(
           )}
         </div>
 
-        <div className="card">
-          <Dial
-            label="ANGLE"
-            value={`${mine?.angle ?? 0}°`}
-            disabled={!armed}
-            onStep={delta => onAim({ angle: (mine?.angle ?? 0) + delta * STEP.angle })}
-            fill={
-              ((mine?.angle ?? 0) - SALVO_MIN_ANGLE) /
-              (SALVO_MAX_ANGLE - SALVO_MIN_ANGLE)
-            }
-          />
-          <Dial
-            label="POWER"
-            value={String(mine?.power ?? 0)}
-            disabled={!armed}
-            onStep={delta => onAim({ power: (mine?.power ?? 0) + delta * STEP.power })}
-            fill={
-              ((mine?.power ?? 0) - SALVO_MIN_POWER) /
-              (SALVO_MAX_POWER - SALVO_MIN_POWER)
-            }
-          />
-        </div>
+        <Dial
+          label="ANGLE"
+          value={mine?.angle ?? 0}
+          unit="°"
+          hint={`${SALVO_MIN_ANGLE}° to ${SALVO_MAX_ANGLE}°`}
+          min={SALVO_MIN_ANGLE}
+          max={SALVO_MAX_ANGLE}
+          disabled={!armed}
+          onStep={delta => onAim({ angle: (mine?.angle ?? 0) + delta * STEP.angle })}
+          onSet={angle => onAim({ angle })}
+        />
 
-        <div className="card">
+        <Dial
+          label="POWER"
+          value={mine?.power ?? 0}
+          hint={`${SALVO_MIN_POWER} to ${SALVO_MAX_POWER}`}
+          min={SALVO_MIN_POWER}
+          max={SALVO_MAX_POWER}
+          disabled={!armed}
+          onStep={delta => onAim({ power: (mine?.power ?? 0) + delta * STEP.power })}
+          onSet={power => onAim({ power })}
+        />
+
+        <div className="sunken-card">
           <div className="salvo-drive-head">
             <span className="card-label">DRIVE</span>
-            <span className="mono" style={{ color: 'var(--lime)' }}>
-              {Math.round(movesLeft)}
+            <span className="seg-pips">
+              {Array.from({ length: DRIVE_PIPS }, (_, i) => (
+                <span
+                  key={i}
+                  className={
+                    i < Math.round((movesLeft / SALVO_MOVE_RANGE) * DRIVE_PIPS)
+                      ? 'seg-pip is-on'
+                      : 'seg-pip'
+                  }
+                />
+              ))}
+              <span className="salvo-drive-left">{Math.round(movesLeft)} left</span>
             </span>
-          </div>
-          <div className="bs-charge-track" style={{ marginTop: 'var(--s-3)' }}>
-            <span
-              className="bs-charge-fill"
-              style={{ transform: `scaleX(${movesLeft / SALVO_MOVE_RANGE})` }}
-            />
           </div>
           <div className="salvo-drive-row">
             <button
               type="button"
-              className="btn btn-surface btn-block"
+              className="salvo-drive-btn"
               disabled={!armed || movesLeft <= 0}
               onClick={() => onMove(-1)}
-              aria-label="Drive left"
             >
-              <CaretLeft size={16} weight="bold" />
+              <CaretLeft size={14} weight="bold" />
+              Left
             </button>
             <button
               type="button"
-              className="btn btn-surface btn-block"
+              className="salvo-drive-btn"
               disabled={!armed || movesLeft <= 0}
               onClick={() => onMove(1)}
-              aria-label="Drive right"
             >
-              <CaretRight size={16} weight="bold" />
+              Right
+              <CaretRight size={14} weight="bold" />
             </button>
           </div>
         </div>
 
-        <button
-          type="button"
-          className="btn btn-lime btn-block btn-lg bs-fire"
-          disabled={!armed}
-          onClick={onFire}
-        >
-          <Crosshair size={18} weight="bold" />
-          {armed ? 'FIRE' : myTurn ? 'DRIVING' : 'WAITING'}
-        </button>
+        <div className="match-actions">
+          <button
+            type="button"
+            className="fire-btn"
+            disabled={!armed}
+            onClick={onFire}
+          >
+            <Crosshair size={19} weight="fill" />
+            {armed ? 'Fire' : myTurn ? 'Driving' : 'Waiting'}
+            <span className="fire-key">SPACE</span>
+          </button>
+        </div>
       </aside>
     </div>
   );
@@ -273,12 +333,19 @@ function HullBar({
   seat,
   label,
   align = 'left',
+  mine = false,
 }: {
   seat: { hp: number; initial: string; side: SalvoSide } | undefined;
   label: string;
   align?: 'left' | 'right';
+  mine?: boolean;
 }) {
   const hp = Math.max(0, seat?.hp ?? 0);
+  const name = <span className="salvo-hull-name player-name">{label}</span>;
+  const value = (
+    <span className={mine ? 'salvo-hp-value is-me' : 'salvo-hp-value'}>{hp}</span>
+  );
+
   return (
     <div className={align === 'right' ? 'salvo-hull is-right' : 'salvo-hull'}>
       <span
@@ -288,19 +355,21 @@ function HullBar({
       >
         {seat?.initial ?? '?'}
       </span>
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div className="player-name">{label}</div>
+      <div className="salvo-hull-body">
+        <div className="salvo-hull-head">
+          {name}
+          {value}
+        </div>
         <div className="salvo-hp-track">
           <span
             className="salvo-hp-fill"
             style={{
               transform: `scaleX(${hp / 100})`,
-              background: hp > 40 ? 'var(--win)' : 'var(--loss)',
+              background: mine ? 'var(--lime)' : 'var(--text-3)',
             }}
           />
         </div>
       </div>
-      <span className="mono salvo-hp-value">{hp}</span>
     </div>
   );
 }
@@ -308,46 +377,94 @@ function HullBar({
 function Dial({
   label,
   value,
-  fill,
+  unit,
+  hint,
+  min,
+  max,
   disabled,
   onStep,
+  onSet,
 }: {
   label: string;
-  value: string;
-  fill: number;
+  value: number;
+  unit?: string;
+  hint: string;
+  min: number;
+  max: number;
   disabled: boolean;
   onStep: (delta: -1 | 1) => void;
+  onSet: (value: number) => void;
 }) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const pct = `${Math.min(1, Math.max(0, (value - min) / (max - min))) * 100}%`;
+
+  function scrub(clientX: number) {
+    const box = trackRef.current?.getBoundingClientRect();
+    if (!box || box.width === 0) return;
+    const t = Math.min(1, Math.max(0, (clientX - box.left) / box.width));
+    onSet(Math.round(min + t * (max - min)));
+  }
+
   return (
-    <div className="salvo-dial">
-      <div className="salvo-dial-head">
+    <div className="sunken-card">
+      <div className="dial-head">
         <span className="card-label">{label}</span>
-        <span className="mono salvo-dial-value">{value}</span>
+        <span className="dial-value">
+          {value}
+          {unit && <span className="dial-unit">{unit}</span>}
+        </span>
       </div>
-      <div className="bs-charge-track">
-        <span
-          className="bs-charge-fill"
-          style={{ transform: `scaleX(${Math.min(1, Math.max(0, fill))})` }}
-        />
+      <div
+        className="dial-slider"
+        role="slider"
+        tabIndex={disabled ? -1 : 0}
+        aria-label={label.toLowerCase()}
+        aria-valuenow={value}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        onPointerDown={event => {
+          if (disabled) return;
+          event.currentTarget.setPointerCapture(event.pointerId);
+          scrub(event.clientX);
+        }}
+        onPointerMove={event => {
+          if (disabled || !event.currentTarget.hasPointerCapture(event.pointerId)) {
+            return;
+          }
+          scrub(event.clientX);
+        }}
+        onKeyDown={event => {
+          if (disabled) return;
+          if (event.key === 'ArrowLeft') onStep(-1);
+          else if (event.key === 'ArrowRight') onStep(1);
+          else return;
+          event.preventDefault();
+        }}
+      >
+        <div className="dial-track" ref={trackRef}>
+          <span className="dial-fill" style={{ width: pct }} />
+          <span className="dial-knob" style={{ left: pct }} />
+        </div>
       </div>
-      <div className="salvo-drive-row">
+      <div className="stepper-row">
         <button
           type="button"
-          className="btn btn-surface btn-block"
+          className="stepper-btn"
           disabled={disabled}
           onClick={() => onStep(-1)}
           aria-label={`Decrease ${label.toLowerCase()}`}
         >
-          −
+          <Minus size={15} weight="bold" />
         </button>
+        <span className="stepper-hint">{hint}</span>
         <button
           type="button"
-          className="btn btn-surface btn-block"
+          className="stepper-btn"
           disabled={disabled}
           onClick={() => onStep(1)}
           aria-label={`Increase ${label.toLowerCase()}`}
         >
-          +
+          <Plus size={15} weight="bold" />
         </button>
       </div>
     </div>

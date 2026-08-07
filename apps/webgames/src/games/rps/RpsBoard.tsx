@@ -6,6 +6,7 @@ import { GameResultScreen } from '../../components/GameResultScreen';
 import { initialOf } from '../../lib/format';
 import { RpsIcon } from './RpsIcon';
 import type { RpsPlayProps } from './rps-engine';
+import type { ResultExtras } from '../use-result-data';
 
 /** Result copy per outcome and end reason. */
 const RESULT_COPY = {
@@ -46,7 +47,7 @@ const MOVE_LABELS: Record<RpsMove, string> = {
 };
 
 export function RpsBoard(
-  props: RpsPlayProps & { onBack: () => void; onPlayAgain?: () => void },
+  props: RpsPlayProps & ResultExtras,
 ) {
   const {
     opponent,
@@ -75,7 +76,7 @@ export function RpsBoard(
         variant={won ? 'win' : 'lose'}
         icon={won ? Trophy : HandFist}
         eyebrow={copy.eyebrow}
-        title={won ? 'VICTORY' : 'DEFEAT'}
+        title={won ? 'Victory' : 'Defeat'}
         message={copy.message(opponent.name)}
         opponent={{
           initial: opponent.initial,
@@ -90,6 +91,12 @@ export function RpsBoard(
           },
           { value: String(myScore + opponentScore), label: 'ROUNDS PLAYED' },
         ]}
+        meters={
+          props.winRate === null || props.winRate === undefined
+            ? undefined
+            : [{ label: 'Your win rate', percent: props.winRate }]
+        }
+        settlement={props.settlement}
         onBack={props.onBack}
         onPlayAgain={props.onPlayAgain}
       />

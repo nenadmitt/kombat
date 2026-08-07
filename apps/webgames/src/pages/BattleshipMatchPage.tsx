@@ -8,10 +8,11 @@ import { Countdown } from '../games/battleship/Countdown';
 import type { BattleshipEngine } from '../games/battleship/battleship-engine';
 import { useDemoBattleship } from '../games/battleship/useDemoBattleship';
 import { useMultiplayerBattleship } from '../games/battleship/useMultiplayerBattleship';
+import { useResultExtras } from '../games/use-result-data';
 
 export function BattleshipMatchPage({ roomId }: { roomId: string }) {
   const engine = useMultiplayerBattleship(roomId);
-  return <BattleshipFlow engine={engine} multiplayer />;
+  return <BattleshipFlow engine={engine} multiplayer roomId={roomId} />;
 }
 
 export function BattleshipDemoPage() {
@@ -28,14 +29,17 @@ function BattleshipFlow({
   engine,
   multiplayer,
   onRestart,
+  roomId = null,
 }: {
   engine: BattleshipEngine;
   multiplayer: boolean;
   onRestart?: () => void;
+  roomId?: string | null;
 }) {
   const navigate = useNavigate();
   const [confirmForfeit, setConfirmForfeit] = useState(false);
   const over = engine.playProps.result !== null;
+  const extras = useResultExtras(roomId, over, engine.playProps.opponent.name);
 
   return (
     <div className="page">
@@ -49,9 +53,12 @@ function BattleshipFlow({
           {over || !multiplayer ? 'Back to lobby' : 'Leave board'}
         </button>
 
-        <h1 className="page-title" style={{ fontSize: 20 }}>
-          Battleships{multiplayer ? '' : ' - practice'}
-        </h1>
+        <div className="match-topline-title">
+          <h1 className="page-title" style={{ fontSize: 20 }}>
+            Battleships{multiplayer ? '' : ' - practice'}
+          </h1>
+          {over && <span className="match-topline-sub">Match complete</span>}
+        </div>
 
         {onRestart && over ? (
           <button type="button" className="btn btn-surface" onClick={onRestart}>
@@ -101,6 +108,7 @@ function BattleshipFlow({
       {engine.phase === 'play' && (
         <BattleshipPlay
           {...engine.playProps}
+          {...extras}
           onBack={() => navigate('/lobby')}
           onPlayAgain={onRestart}
         />

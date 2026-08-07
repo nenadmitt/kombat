@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { RpsBoard } from '../games/rps/RpsBoard';
 import { useMultiplayerRps } from '../games/rps/useMultiplayerRps';
+import { useResultExtras } from '../games/use-result-data';
 
 export function RpsMatchPage({ roomId }: { roomId: string }) {
   const navigate = useNavigate();
@@ -11,6 +12,7 @@ export function RpsMatchPage({ roomId }: { roomId: string }) {
   const [confirmForfeit, setConfirmForfeit] = useState(false);
 
   const over = engine.playProps.result !== null;
+  const extras = useResultExtras(roomId, over, engine.playProps.opponent.name);
 
   return (
     <div className="page">
@@ -24,9 +26,12 @@ export function RpsMatchPage({ roomId }: { roomId: string }) {
           {over ? 'Back to lobby' : 'Leave board'}
         </button>
 
-        <h1 className="page-title" style={{ fontSize: 20 }}>
-          Triple Cut
-        </h1>
+        <div className="match-topline-title">
+          <h1 className="page-title" style={{ fontSize: 20 }}>
+            Triple Cut
+          </h1>
+          {over && <span className="match-topline-sub">Match complete</span>}
+        </div>
 
         {!over && engine.phase === 'play' ? (
           <button
@@ -60,7 +65,11 @@ export function RpsMatchPage({ roomId }: { roomId: string }) {
           </div>
         </div>
       ) : (
-        <RpsBoard {...engine.playProps} onBack={() => navigate('/lobby')} />
+        <RpsBoard
+          {...engine.playProps}
+          {...extras}
+          onBack={() => navigate('/lobby')}
+        />
       )}
 
       {confirmForfeit && (
