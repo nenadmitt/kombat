@@ -47,6 +47,8 @@ export type ApiClientOptions = {
   timeoutMs?: number;
   /** Client build version, sent as X-App-Version so the server can gate old builds. */
   appVersion?: string;
+  /** Sent as X-App-Platform. `web` is exempt from the store-build version floor. */
+  appPlatform?: 'web';
 };
 
 export class ApiError extends Error {
@@ -94,6 +96,19 @@ export class ApiClient {
     return this.request('POST', '/authentication/exchange-token', {
       email,
       token,
+    });
+  }
+
+  /** Nonce to embed in the SIWE message. Single-use, expires in minutes. */
+  requestSiweNonce(): Promise<{ nonce: string }> {
+    return this.request('POST', '/authentication/siwe/nonce', {});
+  }
+
+  /** Exchange a signed EIP-4361 message for a session. */
+  verifySiwe(message: string, signature: string): Promise<AuthSession> {
+    return this.request('POST', '/authentication/siwe/verify', {
+      message,
+      signature,
     });
   }
 
@@ -255,6 +270,18 @@ export class ApiClient {
     return this.request('GET', '/stake-pot/deposit-target', undefined, true);
   }
 
+  /**
+   * Whether the welcome bonus is still on the table for this user, and how
+   * much it is worth. `amount` is base units, unlike the claim response.
+   */
+  getWelcomeBonus(): Promise<{
+    available: boolean;
+    amount: string;
+    symbol: string;
+  }> {
+    return this.request('GET', '/stake-pot/welcome-bonus', undefined, true);
+  }
+
   /** One-time welcome bonus into the caller's stake pot. 409 once claimed. */
   claimWelcomeBonus(): Promise<{
     txHash: string;
@@ -363,6 +390,9 @@ export class ApiClient {
     }
     if (this.options.appVersion) {
       headers['X-App-Version'] = this.options.appVersion;
+    }
+    if (this.options.appPlatform) {
+      headers['X-App-Platform'] = this.options.appPlatform;
     }
     if (authenticated) {
       const token = await this.options.getAccessToken?.();

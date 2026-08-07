@@ -9,7 +9,7 @@ import { WebsocketsService } from '../websockets';
 
 export interface AdminUserView {
   id: string;
-  email: string;
+  email: string | null;
   username: string | null;
   createdAt: string;
   /** Has at least one open socket on this instance right now. */

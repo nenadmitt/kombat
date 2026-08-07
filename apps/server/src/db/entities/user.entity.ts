@@ -12,8 +12,9 @@ import { BaseEntity } from './base.entity';
   where: '"ens_name" IS NOT NULL',
 })
 export class UserEntity extends BaseEntity {
-  @Column({ name: 'email', type: 'varchar', unique: true, nullable: false })
-  email: string;
+  /** Null for wallet-only (SIWE) accounts, which never see an email OTP. */
+  @Column({ name: 'email', type: 'varchar', unique: true, nullable: true })
+  email: string | null;
 
   @Column({ name: 'username', type: 'varchar', unique: true, nullable: true })
   username: string | null;

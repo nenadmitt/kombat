@@ -46,6 +46,18 @@ export class FaucetService {
     return this.configurationService.FAUCET_GRANT_KOMBAT;
   }
 
+  /** The grant in base units, the form every other amount crosses the wire in. */
+  get grantAmountBase(): string {
+    return parseUnits(
+      String(this.configurationService.FAUCET_GRANT_KOMBAT),
+      STAKE_ASSET_DECIMALS[GRANT_ASSET],
+    ).toString();
+  }
+
+  async alreadyClaimed(userId: string): Promise<boolean> {
+    return (await this.grantRepository.countBy({ userId })) > 0;
+  }
+
   /** Pays exactly once per user; the tx hash is returned for the client to
    *  watch. The pot balance itself arrives via the deposit watcher. */
   async claim(userId: string, address: Address): Promise<{ txHash: Hex }> {

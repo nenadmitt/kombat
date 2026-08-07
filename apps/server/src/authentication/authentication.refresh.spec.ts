@@ -7,6 +7,7 @@ import { DbService } from '../db';
 import { RefreshTokenEntity } from '../db/entities/refresh-token.entity';
 import { UserEntity } from '../db/entities/user.entity';
 import { EmailService } from '../emails/email.service';
+import { SiweService } from './siwe.service';
 import { createTestDataSource } from '../stake-pot/test/db-harness';
 import { AuthenticationService } from './authentication.service';
 
@@ -56,6 +57,7 @@ describe('AuthenticationService (refresh rotation)', () => {
       undefined as unknown as EmailService,
       jwtService,
       config,
+      undefined as unknown as SiweService,
     );
   });
 

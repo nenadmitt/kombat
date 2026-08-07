@@ -7,6 +7,7 @@ import { EmailModule } from '../emails';
 import { AuthenticationController } from './authentication.controller';
 import { AuthenticationService } from './authentication.service';
 import { JwtTokenGuard } from './guards/jwt-token.guard';
+import { SiweService } from './siwe.service';
 
 const jwtModule = JwtModule.registerAsync({
   imports: [ConfigurationModule],
@@ -24,7 +25,7 @@ const jwtModule = JwtModule.registerAsync({
 @Module({
   imports: [EmailModule, jwtModule],
   controllers: [AuthenticationController],
-  providers: [AuthenticationService, JwtTokenGuard],
+  providers: [AuthenticationService, JwtTokenGuard, SiweService],
   // Re-export JwtModule too — JwtTokenGuard depends on JwtService, and other
   // modules that import AuthenticationModule just to use the guard need that
   // dependency resolvable in their own scope as well.

@@ -10,10 +10,18 @@ export class SupportedVersionGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
+    // The web client always runs the deploy it was served, so the store-build
+    // version floor is meaningless there.
+    if (headerValue(request, 'x-app-platform') === 'web') return true;
     const header = request.headers['x-app-version'];
     await this.maintenanceService.assertSupportedVersion(
       Array.isArray(header) ? header[0] : header,
     );
     return true;
   }
+}
+
+function headerValue(request: Request, name: string): string | undefined {
+  const raw = request.headers[name];
+  return Array.isArray(raw) ? raw[0] : raw;
 }

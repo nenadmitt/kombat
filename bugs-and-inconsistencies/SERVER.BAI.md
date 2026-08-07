@@ -36,3 +36,21 @@ fix. Remove an entry in the same change that fixes it.
   still no replacement/cancel path and no alert on a stuck tx.
 - **Suggested fix:** track the operator nonce, rebroadcast with a higher fee
   after a timeout, and surface a stuck-tx alert through the admin surface.
+
+## 2026-08-07 - POST /stake-pot/claim reports `amount` in whole tokens, not base units
+
+- **Where:** `apps/server/src/stake-pot/stake-pot.controller.ts` (the `claim`
+  handler's `amount: String(this.faucetService.grantAmount)`).
+- **Why it's wrong:** every other amount in the API crosses the wire as a
+  base-unit decimal string, which is what `formatStakeAmount` expects. This one
+  returns the whole-token count (`"500"`), so a client that formats it like any
+  other amount divides by 1e18 and renders `0`. Mobile only escapes this by
+  discarding the field entirely (`WelcomeBonusModal.tsx` hardcodes the label),
+  which is why the inconsistency has gone unnoticed. `symbol` is likewise a
+  hardcoded `'KOMBAT'` literal rather than `STAKE_ASSET_SYMBOLS[StakeAsset.Kombat]`.
+- **Suggested fix:** return `this.faucetService.grantAmountBase` (added for
+  `GET /stake-pot/welcome-bonus`, which does use base units) and
+  `STAKE_ASSET_SYMBOLS[StakeAsset.Kombat]`. Both current consumers would be
+  safe to change: mobile ignores the fields, and
+  `apps/webgames/src/pages/WalletPage.tsx` prints `amount` verbatim with a
+  comment pointing here.

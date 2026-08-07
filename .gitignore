@@ -90,6 +90,9 @@ yarn-error.log
 # apps/web/src/lib is source, not build output.
 !apps/web/src/lib/
 !apps/web/src/lib/**
+# ...and so is apps/webgames/src/lib.
+!apps/webgames/src/lib/
+!apps/webgames/src/lib/**
 # React Native New Architecture codegen output
 **/android/build/generated/
 **/build/generated/

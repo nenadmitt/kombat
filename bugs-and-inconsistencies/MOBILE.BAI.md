@@ -68,3 +68,58 @@ fix. Remove an entry in the same change that fixes it.
   address, and surface orphaned wallets for sweeping or re-linking;
   possession of the key is ownership, the server row no longer exists to
   check against.
+
+## 2026-08-07 - Match socket handlers are lost after a forced reconnect
+
+- **Where:** `src/store/websocket.store.ts` (`reconnect`) with
+  `src/games/rps/useMultiplayerRps.ts:113-179` (and the same effect in
+  `useMultiplayerBattleship` / `useMultiplayerLudo` / `useMultiplayerChroma` /
+  `useMultiplayerSalvo`).
+- **Why it's wrong:** `reconnect()` throws the socket away and builds a new
+  one, but the engines' subscription effect does not depend on `status`, so it
+  never re-runs. Its `on()` handlers were bound to the dead instance, and the
+  cleanup's `socket?.off` runs against the *new* module-level socket, removing
+  nothing. The separate status effect then re-emits `enter` and re-syncs, so
+  the match looks healthy and connected while no `reveal` / `shot` / `moved`
+  push is ever handled again. `reconnect()` is driven from the session-refresh
+  callback, so this fires on ordinary token rotation, not just on an error.
+- **Suggested fix:** add `status` to the subscription effect's dependency
+  array in each multiplayer engine, as
+  `apps/webgames/src/games/rps/useMultiplayerRps.ts` now does. Re-emitting
+  `enter` is safe because the gateway's enter is idempotent by contract.
+
+## 2026-08-07 - Salvo's parallax ridges only cover the left 58% of the field
+
+- **Where:** `apps/mobile/src/games/salvo/SalvoBattlefield.tsx:68-74` (the
+  `BACK_RIDGES` / `FRONT_RIDGE` path data) with `:107` (`sx = width /
+  SALVO_FIELD_WIDTH`) and `:254, :271` (`Group transform={[{scaleX: sx},
+  {scaleY: sy}]}`).
+- **Why it's wrong:** the ridge paths are authored against the design's
+  328-wide box, but they are scaled by `width / 560` (the field width) rather
+  than `width / 328`. The curves therefore span only `328/560` of the
+  battlefield, and `closedRidge` runs a straight line from where the curve
+  stops out to the bottom-right corner. The result is a hard diagonal edge
+  across the right-hand third of the sky instead of a ridge line.
+- **Suggested fix:** scale the decorative group by `width / 328` (and
+  `height / 340`), or re-author the paths against the 560-wide field. Either
+  way `closedRidge` should close at the box the paths were drawn in.
+- **Note:** `apps/webgames/src/games/salvo/salvo-theme.ts` reproduces this
+  deliberately for visual parity; fix both together.
+
+## 2026-08-07 - Salvo's local game lets the player fire twice per turn
+
+- **Where:** `apps/mobile/src/games/salvo/useLocalSalvo.ts` - `commit()` returns
+  `flight: null`, the shell timer then calls `later(nextTurn, IMPACT_HOLD_MS)`,
+  and `myTurn` is derived as `!over && turn === ME && flight === null`.
+- **Why it's wrong:** the shell is cleared the instant it lands, but the turn
+  only hands over 900ms later. For that whole window `flight` is null and
+  `turn` is still ME, so `myTurn` and `armed` are both true and the FIRE
+  button is live again: the player gets a second shot, and the shot counter
+  and wind rotation advance a step early. The bot's turn effect has the same
+  gap (`turn !== BOT || flight !== null`), so a slow enough impact hold could
+  let it queue a second shot too.
+- **Suggested fix:** carry a `resolving` flag - set it in `commit`, clear it in
+  `nextTurn`, and add it to `myTurn`, to `onFire`'s guard and to both bot-turn
+  guards. `apps/webgames/src/games/salvo/useDemoSalvo.ts` now does exactly
+  this and can be copied across.
+- Reported by the user against the web demo, which had inherited the code.

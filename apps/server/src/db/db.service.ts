@@ -254,6 +254,29 @@ export class DbService {
     );
   }
 
+  /**
+   * A wallet-only account: no email, and the address the user signed in with
+   * registered as an imported wallet. That wallet row is what lets pot
+   * deposits, withdrawals and recipient lookup find the user, so the two
+   * writes have to land together.
+   */
+  async createWalletUser(address: string): Promise<UserEntity> {
+    return this.dataSource.transaction(async manager => {
+      const user = await manager.save(
+        manager.create(UserEntity, { email: null, username: null }),
+      );
+      await manager.save(
+        manager.create(WalletEntity, {
+          userId: user.id,
+          address,
+          type: WalletOrigin.Imported,
+          network: WalletNetwork.Ethereum,
+        }),
+      );
+      return user;
+    });
+  }
+
   saveUser(user: UserEntity): Promise<UserEntity> {
     return this.userRepository.save(user);
   }

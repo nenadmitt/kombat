@@ -38,6 +38,14 @@ export class ConfigurationService {
    */
   public readonly DEMO_LOGIN_CODE: string | undefined;
 
+  // ---- Sign-In With Ethereum (web client) --------------------------------
+  /**
+   * RFC 3986 authority the SIWE message must name, e.g. `play.playkombat.xyz`
+   * or `localhost:5173`. Comma-separated to allow more than one origin.
+   * Unset ⇒ the SIWE endpoints 503.
+   */
+  public readonly SIWE_DOMAINS: string[];
+
   // ---- staking / chain (optional as a group: unset ⇒ staking disabled,
   // free games unaffected) -------------------------------------------------
   public readonly CHAIN_RPC_URL: string | undefined;
@@ -111,6 +119,11 @@ export class ConfigurationService {
       .trim()
       .toLowerCase();
     this.DEMO_LOGIN_CODE = this.configService.get('DEMO_LOGIN_CODE');
+
+    this.SIWE_DOMAINS = (this.configService.get('SIWE_DOMAINS') ?? '')
+      .split(',')
+      .map((d: string) => d.trim().toLowerCase())
+      .filter(Boolean);
 
     this.CHAIN_RPC_URL = this.configService.get('CHAIN_RPC_URL');
     this.CHAIN_ID = parseInt(

@@ -10,7 +10,7 @@ import { UsersService } from './users.service';
 
 type UserProfileResponse = {
   id: string;
-  email: string;
+  email: string | null;
   username: string | null;
   ensName: string | null;
   referralCode: string | null;
