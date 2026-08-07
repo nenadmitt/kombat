@@ -77,7 +77,7 @@ export function AppShell() {
               >
                 <DiamondsFour size={10} weight="fill" color="var(--chain)" />
               </span>
-              {CHAIN_NAME}
+              <span className="chip-text">{CHAIN_NAME}</span>
             </span>
 
             {handle ? (

@@ -33,6 +33,7 @@ const BLURBS: Partial<Record<GameType, string>> = {
   [GameType.NavalBattle]: '1v1 naval strategy - about 6 min',
   [GameType.TripleCut]: '1v1 - best of five',
   [GameType.Salvo]: '1v1 artillery duel - wind and terrain',
+  [GameType.Ludo]: '2-4 players - race four pawns home',
 };
 
 /** Only the arenas with a web board: the rest have nothing to play them in. */

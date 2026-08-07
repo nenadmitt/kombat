@@ -8,8 +8,10 @@ import {
   ROOM_EVENTS,
   STAKE_ASSET_SYMBOLS,
   type GameRoomSummary,
+  type RoomPlayerJoinedPayload,
+  type RoomStartedPayload,
 } from '@gaming-platform/core';
-import { Copy, Plus, UsersThree } from '@phosphor-icons/react';
+import { Copy, PaperPlaneTilt, Plus, SignIn, UsersThree } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -43,17 +45,24 @@ export function LobbyPage() {
   const [activeRoom, setActiveRoom] = useState<GameRoomSummary | null>(null);
   const [creating, setCreating] = useState(false);
   const [code, setCode] = useState('');
+  const [joinCodeOpen, setJoinCodeOpen] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [closingRoom, setClosingRoom] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   // The waiting modal is the room card's expanded form; minimizing only hides it.
   const [waitingMinimized, setWaitingMinimized] = useState(false);
+  // A multi-seat room I joined but do not own: I wait for it to start too.
+  const [joinedRoom, setJoinedRoom] = useState<GameRoomSummary | null>(null);
+  const [starting, setStarting] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   // The opponent-joined payload carries only a room id, so the creator's own
   // room is what tells us which board to open.
   const activeRoomRef = useRef(activeRoom);
   activeRoomRef.current = activeRoom;
+  const joinedRoomRef = useRef(joinedRoom);
+  joinedRoomRef.current = joinedRoom;
 
   const hostIds = useMemo(() => rooms.map(room => room.creatorUserId), [rooms]);
   const usernames = useUsernames(hostIds);
@@ -85,11 +94,40 @@ export function LobbyPage() {
       navigate(`/game/${mine.gameType}/${roomId}`);
     });
 
+    // A 3-4 seat room fills a seat at a time; both the host and everyone
+    // already sitting need the count to move.
+    const applySeatCount = (payload: unknown) => {
+      const p = payload as RoomPlayerJoinedPayload;
+      const patch = (room: GameRoomSummary | null) =>
+        room && room.id === p.roomId
+          ? { ...room, joinedCount: p.joinedCount }
+          : room;
+      setActiveRoom(patch);
+      setJoinedRoom(patch);
+    };
+    const offPlayerJoined = on(ROOM_EVENTS.playerJoined, applySeatCount);
+    const offPlayerLeft = on(ROOM_EVENTS.playerLeft, applySeatCount);
+
+    // Whoever is sitting at a multi-seat room enters when it starts - full
+    // table or the host starting early.
+    const offStarted = on(ROOM_EVENTS.started, payload => {
+      const { roomId } = payload as RoomStartedPayload;
+      const room =
+        [activeRoomRef.current, joinedRoomRef.current].find(
+          candidate => candidate?.id === roomId,
+        ) ?? null;
+      if (!room) return;
+      navigate(`/game/${room.gameType}/${roomId}`);
+    });
+
     return () => {
       offAdded();
       offUpdated();
       offRemoved();
       offOpponent();
+      offPlayerJoined();
+      offPlayerLeft();
+      offStarted();
       leaveChannel(LOBBY_CHANNEL);
     };
   }, [joinChannel, leaveChannel, on, upsert, remove, navigate, socketStatus]);
@@ -98,13 +136,54 @@ export function LobbyPage() {
     setJoiningId(room.id);
     setJoinError(null);
     try {
-      await apiClient.joinGameRoom(room.id);
-      navigate(`/game/${room.gameType}/${room.id}`);
+      const joined = await apiClient.joinGameRoom(room.id);
+      // Joining the last free seat starts the match; any earlier seat leaves
+      // the table still filling, and the board does not exist yet.
+      if (joined.status === GameRoomStatus.Pending) {
+        setJoinedRoom(joined);
+        setWaitingMinimized(false);
+        setJoiningId(null);
+        return;
+      }
+      navigate(`/game/${joined.gameType}/${joined.id}`);
     } catch (err) {
       setJoinError(
         err instanceof ApiError ? err.message : 'Could not join that room.',
       );
       setJoiningId(null);
+    }
+  }
+
+  /** Host-only: start a multi-seat room before every seat is taken. */
+  async function startNow(room: GameRoomSummary) {
+    setStarting(true);
+    setJoinError(null);
+    try {
+      await apiClient.startGameRoom(room.id);
+      navigate(`/game/${room.gameType}/${room.id}`);
+    } catch (err) {
+      setJoinError(
+        err instanceof ApiError ? err.message : 'Could not start that room.',
+      );
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  /** Give up a seat in a room that has not started yet. */
+  async function leaveRoom(room: GameRoomSummary) {
+    setLeaving(true);
+    setJoinError(null);
+    try {
+      await apiClient.leaveGameRoom(room.id);
+      setJoinedRoom(null);
+      await load();
+    } catch (err) {
+      setJoinError(
+        err instanceof ApiError ? err.message : 'Could not leave that room.',
+      );
+    } finally {
+      setLeaving(false);
     }
   }
 
@@ -134,6 +213,7 @@ export function LobbyPage() {
         return;
       }
       await join(room);
+      setJoinCodeOpen(false);
     } catch (err) {
       setJoinError(
         err instanceof ApiError ? err.message : 'No open room with that code.',
@@ -176,14 +256,27 @@ export function LobbyPage() {
                 </button>
               ))}
             </div>
-            <button
-              type="button"
-              className="btn btn-surface"
-              onClick={() => setCreating(true)}
-            >
-              <Plus size={14} weight="bold" color="var(--lime)" />
-              Create room
-            </button>
+            <div className="toolbar-actions">
+              <button
+                type="button"
+                className="btn btn-lime"
+                onClick={() => setCreating(true)}
+              >
+                <Plus size={14} weight="bold" />
+                Create room
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline-lime"
+                onClick={() => {
+                  setJoinError(null);
+                  setJoinCodeOpen(true);
+                }}
+              >
+                <SignIn size={14} weight="bold" />
+                Join with code
+              </button>
+            </div>
           </div>
 
           {joinError && <div className="banner">{joinError}</div>}
@@ -204,14 +297,26 @@ export function LobbyPage() {
             )}
             {status === 'error' && <div className="banner">{error}</div>}
             {status === 'ready' && openRooms.length === 0 && (
-              <div className="empty">
-                <span>No open rooms right now.</span>
+              <div className="lobby-quiet">
+                <span className="lobby-quiet-icon">
+                  <PaperPlaneTilt size={22} />
+                </span>
+                <div className="lobby-quiet-text">
+                  <h2 className="lobby-quiet-title">
+                    The lobby is quiet - open the first room
+                  </h2>
+                  <p className="lobby-quiet-blurb">
+                    Rooms you open are listed instantly and usually fill within
+                    a minute. Your stake only locks once an opponent joins.
+                  </p>
+                </div>
                 <button
                   type="button"
-                  className="btn btn-outline-lime"
+                  className="btn btn-lime"
                   onClick={() => setCreating(true)}
                 >
-                  Open the first one
+                  <Plus size={14} weight="bold" />
+                  Create room
                 </button>
               </div>
             )}
@@ -344,25 +449,72 @@ export function LobbyPage() {
             </div>
           )}
 
-          <form className="card" onSubmit={joinByCode}>
-            <span className="card-label">JOIN BY CODE</span>
-            <input
-              className="input"
-              style={{ marginTop: 'var(--s-3)' }}
-              value={code}
-              onChange={event => setCode(event.target.value.toUpperCase())}
-              placeholder="K7P2QX"
-              maxLength={6}
-            />
-            <button
-              type="submit"
-              className="btn btn-outline-lime btn-block"
-              style={{ marginTop: 'var(--s-3)' }}
-              disabled={code.trim().length < 6}
-            >
-              Join room
-            </button>
-          </form>
+          {joinedRoom && (
+            <div className="card">
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <span className="card-label">YOUR SEAT</span>
+                <span
+                  style={{
+                    fontWeight: 700,
+                    fontSize: 10,
+                    letterSpacing: '0.09em',
+                    color: 'var(--lime)',
+                  }}
+                >
+                  {joinedRoom.joinedCount} / {joinedRoom.playerCount}
+                </span>
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--s-3)',
+                  marginTop: 'var(--s-4)',
+                }}
+              >
+                <GameIcon gameType={joinedRoom.gameType} size={38} />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13.5 }}>
+                    {GAME_LABELS[joinedRoom.gameType]}
+                  </div>
+                  <div
+                    style={{
+                      marginTop: 'var(--s-2)',
+                      fontSize: 11,
+                      color: 'var(--text-3)',
+                    }}
+                  >
+                    Waiting for the host
+                  </div>
+                </div>
+              </div>
+              <div
+                style={{ display: 'flex', gap: 'var(--s-3)', marginTop: 'var(--s-4)' }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-surface btn-block"
+                  onClick={() => void leaveRoom(joinedRoom)}
+                  disabled={leaving}
+                >
+                  {leaving ? <span className="spinner" /> : 'Leave'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-lime btn-block"
+                  onClick={() => setWaitingMinimized(false)}
+                >
+                  Show
+                </button>
+              </div>
+            </div>
+          )}
 
           {referralCode && (
             <div className="card-gold">
@@ -442,10 +594,62 @@ export function LobbyPage() {
           <WaitingForPlayersModal
             room={activeRoom}
             cancelling={closingRoom}
+            starting={starting}
             onMinimize={() => setWaitingMinimized(true)}
             onCancel={() => void closeRoom(activeRoom)}
+            onStartNow={() => void startNow(activeRoom)}
           />
         )}
+
+      {joinCodeOpen && (
+        <div className="modal-backdrop" onClick={() => setJoinCodeOpen(false)}>
+          <form
+            className="modal"
+            onClick={event => event.stopPropagation()}
+            onSubmit={joinByCode}
+          >
+            <h2 className="modal-title">Join with code</h2>
+            <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 13 }}>
+              Enter the six-character room code your host shared.
+            </p>
+            <input
+              className="input"
+              value={code}
+              onChange={event => setCode(event.target.value.toUpperCase())}
+              placeholder="K7P2QX"
+              maxLength={6}
+              autoFocus
+            />
+            {joinError && <div className="banner">{joinError}</div>}
+            <div style={{ display: 'flex', gap: 'var(--s-3)' }}>
+              <button
+                type="button"
+                className="btn btn-surface btn-block"
+                onClick={() => setJoinCodeOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn btn-lime btn-block"
+                disabled={code.trim().length < 6 || joiningId !== null}
+              >
+                {joiningId ? <span className="spinner" /> : 'Join room'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {joinedRoom && !waitingMinimized && (
+        <WaitingForPlayersModal
+          isGuest
+          room={joinedRoom}
+          cancelling={leaving}
+          onMinimize={() => setWaitingMinimized(true)}
+          onCancel={() => void leaveRoom(joinedRoom)}
+        />
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import type { AuthSession } from '@gaming-platform/core';
 
 const ACCESS_KEY = 'kombat.accessToken';
 const REFRESH_KEY = 'kombat.refreshToken';
+const ADDRESS_KEY = 'kombat.siweAddress';
 const COLOR_KEY = 'kombat.avatarColor';
 const WELCOME_KEY = 'kombat.welcomeBonus';
 
@@ -25,6 +26,17 @@ export const sessionStorage = {
   clear(): void {
     localStorage.removeItem(ACCESS_KEY);
     localStorage.removeItem(REFRESH_KEY);
+    localStorage.removeItem(ADDRESS_KEY);
+  },
+
+  /** The wallet that signed for the stored session, so a different (or newly
+   *  connected) wallet is never handed someone else's session. */
+  readAddress(): string | null {
+    return localStorage.getItem(ADDRESS_KEY);
+  },
+
+  writeAddress(address: string): void {
+    localStorage.setItem(ADDRESS_KEY, address.toLowerCase());
   },
 
   readColor(): string | null {
