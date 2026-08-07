@@ -46,7 +46,16 @@ export function PotCard() {
           {STAKE_ASSET_SYMBOLS[headline]}
         </span>
       </div>
-      <div style={{ display: 'flex', gap: 'var(--s-2)', marginTop: 'var(--s-4)' }}>
+      {/* Stacked: side by side, "Withdraw" cannot shrink below its label and
+          spills out of the rail. */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--s-2)',
+          marginTop: 'var(--s-4)',
+        }}
+      >
         <button
           type="button"
           className="btn btn-gold btn-block"
