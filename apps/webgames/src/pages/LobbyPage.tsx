@@ -161,8 +161,8 @@ export function LobbyPage() {
             onJoin={join}
           />
 
-          <div className="lobby-toolbar">
-            <div className="lobby-filters">
+          <div className="toolbar">
+            <div className="filter-strip">
               {FILTERS.map(filter => (
                 <button
                   key={filter.label}

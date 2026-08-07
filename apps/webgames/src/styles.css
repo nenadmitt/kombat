@@ -854,6 +854,15 @@ a {
   letter-spacing: -0.02em;
 }
 
+/* A row of headline numbers, which wraps rather than crushing on a phone. */
+.stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--s-4);
+  max-width: 520px;
+}
+
 /* Table shapes live here, not inline, so a narrow screen can restate them. */
 .room-grid {
   grid-template-columns: 1.7fr 1fr 1fr 1fr 104px;
@@ -867,14 +876,14 @@ a {
   grid-template-columns: 1.5fr 1fr 1fr;
 }
 
-.lobby-toolbar {
+.toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--s-4);
 }
 
-.lobby-filters {
+.filter-strip {
   display: flex;
   gap: var(--s-2);
 }
@@ -1028,7 +1037,7 @@ a {
 
 /* ── battleship ───────────────────────────────────────────────── */
 
-.bs-topline {
+.match-topline {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2240,12 +2249,12 @@ a {
 
   /* The match title gets its own line rather than being wrung out between
      the two buttons. */
-  .bs-topline {
+  .match-topline {
     flex-wrap: wrap;
     gap: var(--s-3);
   }
 
-  .bs-topline .page-title {
+  .match-topline .page-title {
     order: -1;
     flex-basis: 100%;
   }
@@ -2340,22 +2349,22 @@ a {
     grid-template-columns: minmax(0, 1fr) auto auto;
   }
 
-  .lobby-toolbar {
+  .toolbar {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .lobby-filters {
+  .filter-strip {
     overflow-x: auto;
     padding-bottom: var(--s-1);
     scrollbar-width: none;
   }
 
-  .lobby-filters::-webkit-scrollbar {
+  .filter-strip::-webkit-scrollbar {
     display: none;
   }
 
-  .lobby-filters .pill {
+  .filter-strip .pill {
     flex: none;
   }
 

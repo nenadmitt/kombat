@@ -39,7 +39,7 @@ function BattleshipFlow({
 
   return (
     <div className="page">
-      <div className="bs-topline">
+      <div className="match-topline">
         <button
           type="button"
           className="btn btn-surface"

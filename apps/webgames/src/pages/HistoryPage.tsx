@@ -67,13 +67,7 @@ export function HistoryPage() {
 
           <div style={{ height: 1, background: 'var(--hairline-strong)' }} />
 
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              maxWidth: 520,
-            }}
-          >
+          <div className="stat-row">
             <Stat value={String(stats.games)} label="PLAYED" />
             <Stat value={String(stats.wins)} label="WON" color="var(--win)" />
             <Stat value={String(stats.losses)} label="LOST" color="var(--loss)" />
@@ -84,15 +78,8 @@ export function HistoryPage() {
             />
           </div>
 
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 'var(--s-4)',
-            }}
-          >
-            <div style={{ display: 'flex', gap: 'var(--s-2)' }}>
+          <div className="toolbar">
+            <div className="filter-strip">
               {(
                 [
                   ['all', 'All games'],
