@@ -39,7 +39,7 @@ export function GamesPage() {
           return (
             <div key={gameType} className={playable ? 'game-card' : 'game-card is-locked'}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-3)' }}>
-                <GameIcon gameType={gameType} size={44} />
+                <GameIcon gameType={gameType} size={64} />
                 {playable ? (
                   <span
                     className="tag-lime"
