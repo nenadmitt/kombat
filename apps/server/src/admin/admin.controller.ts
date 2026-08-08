@@ -14,6 +14,9 @@ import { AdminTokenGuard } from './admin-token.guard';
 import {
   AdminService,
   type AdminGameRoomView,
+  type AdminStatsOverview,
+  type AdminUserStats,
+  type AdminUserStatsRow,
   type AdminUserView,
   type DeleteUserResult,
 } from './admin.service';
@@ -33,6 +36,21 @@ export class AdminController {
     private readonly adminService: AdminService,
     private readonly maintenanceService: MaintenanceService,
   ) {}
+
+  @Get('stats')
+  getStats(): Promise<AdminStatsOverview> {
+    return this.adminService.getStatsOverview();
+  }
+
+  @Get('stats/users')
+  listUserStats(): Promise<AdminUserStatsRow[]> {
+    return this.adminService.listUserStats();
+  }
+
+  @Get('stats/users/:id')
+  getUserStats(@Param('id') id: string): Promise<AdminUserStats> {
+    return this.adminService.getUserStats(id);
+  }
 
   @Get('users')
   listUsers(): Promise<AdminUserView[]> {

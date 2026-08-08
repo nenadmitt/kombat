@@ -1,5 +1,9 @@
 export const ADMIN_TOKEN_STORAGE_KEY = "kombat_admin_token";
 
+/** Marks the 404 that means "bad token" apart from one that means "no such
+ *  row", which the admin routes also answer with 404. */
+export const ADMIN_DENIED_HEADER = "x-admin-denied";
+
 /**
  * Lets an operator hand themselves the token via `/admin?token=…` instead of
  * reaching for devtools. Stripped from the URL immediately so it does not sit
