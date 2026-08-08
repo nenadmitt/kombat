@@ -50,7 +50,7 @@ export class AuthenticationService {
     if (wallet) {
       const user = await this.dbService.findUserById(wallet.userId);
       if (user) {
-        this.assertPlatform(user.platform, platform);
+        this.assertPlatform(user.platform, platform, user.email);
       }
       return this.issueSession(wallet.userId);
     }
@@ -64,7 +64,14 @@ export class AuthenticationService {
    * platform), so signing in from the other app would hand someone a session
    * whose wallet their client cannot operate.
    */
-  private assertPlatform(account: UserPlatform, caller: UserPlatform): void {
+  private assertPlatform(
+    account: UserPlatform,
+    caller: UserPlatform,
+    email?: string | null,
+  ): void {
+    // The demo identity is a shared login handed out for reviews and demos,
+    // not somebody's account. It is reachable from both apps by design.
+    if (email && this.isDemoLogin(email)) return;
     if (account === caller) return;
     throw new ForbiddenException(
       account === UserPlatform.Mobile
@@ -98,7 +105,7 @@ export class AuthenticationService {
   private async ensureUser(email: string, platform: UserPlatform) {
     const existing = await this.dbService.findUserByEmail(email);
     if (existing) {
-      this.assertPlatform(existing.platform, platform);
+      this.assertPlatform(existing.platform, platform, existing.email);
       return existing;
     }
     return this.dbService.createUser(email, platform);
@@ -124,7 +131,7 @@ export class AuthenticationService {
   ): Promise<string> {
     let user = await this.dbService.findUserByEmail(email);
     if (user) {
-      this.assertPlatform(user.platform, platform);
+      this.assertPlatform(user.platform, platform, user.email);
     } else {
       user = await this.dbService.createUser(email, platform);
     }
@@ -160,7 +167,7 @@ export class AuthenticationService {
     if (!user) {
       throw new UnauthorizedException('Invalid or expired token');
     }
-    this.assertPlatform(user.platform, platform);
+    this.assertPlatform(user.platform, platform, user.email);
 
     const tokenEntity = await this.dbService.findLoginToken(user.id, token);
     if (!tokenEntity || tokenEntity.expiresAt < new Date()) {
@@ -212,7 +219,7 @@ export class AuthenticationService {
     // around it from the other app.
     const owner = await this.dbService.findUserById(row.userId);
     if (owner) {
-      this.assertPlatform(owner.platform, platform);
+      this.assertPlatform(owner.platform, platform, owner.email);
     }
 
     // Conditional revoke, so two concurrent refreshes with the same token can't

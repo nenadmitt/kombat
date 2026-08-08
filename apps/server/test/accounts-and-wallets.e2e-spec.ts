@@ -249,6 +249,29 @@ describe('accounts and wallets (e2e)', () => {
       expect(crossed.body.message).toMatch(/mobile app/i);
     });
 
+    it('lets the shared demo account in from either app', async () => {
+      // A demo identity handed out for reviews is not somebody's account:
+      // pinning it to one app would lock the web demo out of itself.
+      const email = process.env.DEMO_LOGIN_EMAIL ?? 'demo@playkombat.xyz';
+      const code = process.env.DEMO_LOGIN_CODE;
+      if (!code) {
+        // Configured per environment; nothing to assert without it.
+        return;
+      }
+
+      const asMobile = await call('POST', '/authentication/exchange-token', {
+        body: { email, token: code },
+        platform: 'mobile',
+      });
+      expect([200, 201]).toContain(asMobile.status);
+
+      const asWeb = await call('POST', '/authentication/exchange-token', {
+        body: { email, token: code },
+        platform: 'web',
+      });
+      expect([200, 201]).toContain(asWeb.status);
+    });
+
     it('refuses a refresh token presented from the other app', async () => {
       const email = 'refresh-split@e2e.local';
       const { session } = await signIn(email, 'web');

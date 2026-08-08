@@ -22,7 +22,11 @@ Shipped so far:
 - Custody is chosen from `user.platform` inside `createWallet`, never from a
   caller flag.
 - Web sign-in: method picker and OTP screens (`AuthShell`, `OtpInput`).
-- Tests: 9 unit (cipher) + 13 integration (`test/accounts-and-wallets.e2e-spec.ts`).
+- The shared demo identity (`DEMO_LOGIN_EMAIL`) is exempt from the split: it
+  is classified mobile by the backfill because it has an email, but it is the
+  account the *web* demo hands out, so pinning it to one app would have locked
+  demo.playkombat.xyz out of itself.
+- Tests: 9 unit (cipher) + 14 integration (`test/accounts-and-wallets.e2e-spec.ts`).
 
 ## Where the code stands today
 
