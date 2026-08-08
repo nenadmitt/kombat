@@ -114,12 +114,20 @@ export class UsersService {
     return saved;
   }
 
+  /**
+   * A name with no address resolves to nothing, so the mint waits for the
+   * wallet. Whichever of the two lands second is what triggers it.
+   */
   private async mintSubname(user: UserEntity): Promise<void> {
     const wallets = await this.dbService.findWalletsForUser(user.id);
+    const address = wallets[0]?.address;
+    if (!address) {
+      return;
+    }
     await this.ensSubnameService.mintForUsername(
       user.id,
       user.username!,
-      wallets[0]?.address,
+      address,
     );
   }
 

@@ -85,9 +85,15 @@ export class WalletsService {
       );
     });
 
-    // Onboarding sets the username before the wallet exists, so a subname
-    // minted then has no address to resolve to. This is where it gets one.
-    void this.ensSubnameService.attachWallet(userId, address);
+    // The other half of the pair: a username set before the wallet had none
+    // to mint against, so the name is claimed here instead.
+    if (user.username && !user.ensName) {
+      void this.ensSubnameService.mintForUsername(
+        userId,
+        user.username,
+        address,
+      );
+    }
 
     return { address, mnemonic };
   }
