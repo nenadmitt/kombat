@@ -1,9 +1,11 @@
 import { ApiError, WalletNetwork } from '@gaming-platform/core';
 import {
   ArrowClockwise,
-  Copy,
   Check,
+  Copy,
   Eye,
+  EyeSlash,
+  Lock,
   ShieldCheck,
   Vault,
   Warning,
@@ -12,23 +14,30 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { AuthShell } from '../components/AuthShell';
 import { apiClient } from '../lib/api';
+import { shortAddress } from '../lib/format';
+import { useSessionStore } from '../store/session.store';
 
 type Props = {
   /** Called once the player has a wallet and has acknowledged the phrase. */
   onDone: () => void;
 };
 
+/** Masked lengths for the grid before the words are revealed. */
+const MASK = [6, 5, 8, 6, 7, 4, 5, 9, 6, 5, 7, 6];
+
 /**
- * The wallet step for a web account. The key itself is held by the platform,
- * encrypted, so nothing is stored in this browser: the phrase is shown once as
- * the player's own backup, and the account works whether or not they keep it.
+ * The wallet step for a web account. The key is held by the platform,
+ * encrypted, so nothing is stored in this browser: the phrase is the player's
+ * own backup, and the account keeps working whether or not they save it.
  */
 export function WalletSetupPage({ onDone }: Props) {
+  const { user, setUser } = useSessionStore();
+
   const [words, setWords] = useState<string[] | null>(null);
   const [address, setAddress] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<'phrase' | 'address' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
 
@@ -39,13 +48,20 @@ export function WalletSetupPage({ onDone }: Props) {
       const wallets = await apiClient.listWallets();
       if (wallets.length > 0) {
         // Already has one (a resumed onboarding, or a connected wallet). The
-        // phrase was returned once, at creation, and cannot be shown again.
+        // phrase is returned once, at creation, and cannot be shown again.
         onDone();
         return;
       }
       const created = await apiClient.createWallet(WalletNetwork.Ethereum);
       setWords(created.mnemonic.split(' '));
       setAddress(created.address);
+      // The subname is minted with the username but only points somewhere once
+      // the wallet exists, so the fresh profile is what carries it.
+      try {
+        setUser(await apiClient.getCurrentUser());
+      } catch {
+        // The name is a nicety here; the wallet is what mattered.
+      }
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : 'Could not set up your wallet.',
@@ -53,44 +69,44 @@ export function WalletSetupPage({ onDone }: Props) {
     } finally {
       setBusy(false);
     }
-  }, [onDone]);
+  }, [onDone, setUser]);
 
   useEffect(() => {
     void create();
   }, [create]);
 
-  async function copy() {
-    if (!words) return;
-    await navigator.clipboard.writeText(words.join(' '));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+  async function copy(what: 'phrase' | 'address') {
+    const text = what === 'phrase' ? words?.join(' ') : address;
+    if (!text) return;
+    await navigator.clipboard.writeText(text);
+    setCopied(what);
+    setTimeout(() => setCopied(null), 1500);
   }
 
   return (
     <AuthShell
       step={2}
       title={['Your wallet', 'is ready.']}
-      lead="This is where your stake sits and where winnings land. We keep the key for you, so there is nothing to install."
+      lead="We created it with your account. It holds your stake, and winnings land in it."
       points={[
-        { icon: Vault, label: 'Stakes are held in the pot until a match settles' },
-        { icon: ShieldCheck, label: 'The recovery phrase is shown once, here' },
-        { icon: Warning, label: 'Anyone with the phrase can move the funds' },
+        { icon: Vault, label: 'Your stake and winnings sit here' },
+        { icon: ShieldCheck, label: 'We keep the key, so there is nothing to install' },
+        { icon: Warning, label: 'Anyone with the phrase controls the wallet' },
       ]}
     >
-      <h2 className="auth-heading">Save your recovery phrase</h2>
-      <p className="auth-sub">
-        Twelve words that control the wallet. Write them down and keep them off
-        this machine. We cannot show them to you again.
-      </p>
-
       {error ? (
         <>
+          <h2 className="auth-heading">That did not work</h2>
           <div className="banner">{error}</div>
-          <button type="button" className="btn btn-lime btn-block btn-lg" onClick={() => void create()}>
+          <button
+            type="button"
+            className="btn btn-lime btn-block btn-lg"
+            onClick={() => void create()}
+          >
             <ArrowClockwise size={18} />
             Try again
           </button>
-          {/* Never a dead end: the lobby works without the phrase saved. */}
+          {/* Never a dead end: the lobby works, staking is what needs a wallet. */}
           <button type="button" className="btn btn-surface btn-block" onClick={onDone}>
             Skip for now
           </button>
@@ -102,11 +118,50 @@ export function WalletSetupPage({ onDone }: Props) {
         </div>
       ) : (
         <>
-          <div className={revealed ? 'seed-grid' : 'seed-grid is-hidden'}>
-            {(words ?? []).map((word, i) => (
-              <span key={word + i} className="seed-word">
+          <h2 className="auth-heading">We made you a wallet</h2>
+          <p className="auth-sub">
+            Here is your address and your Kombat name. Save the phrase below and
+            you can restore the wallet anywhere.
+          </p>
+
+          {user?.ensName && (
+            <div className="wallet-fact">
+              <span className="wallet-fact-label">YOUR NAME</span>
+              <span className="wallet-fact-value is-lime">{user.ensName}</span>
+            </div>
+          )}
+
+          <button
+            type="button"
+            className="wallet-fact is-button"
+            onClick={() => void copy('address')}
+          >
+            <span className="wallet-fact-label">ADDRESS</span>
+            <span className="wallet-fact-value mono">
+              {address ? shortAddress(address) : ''}
+            </span>
+            {copied === 'address' ? (
+              <Check size={15} color="var(--win)" />
+            ) : (
+              <Copy size={15} color="var(--lime)" />
+            )}
+          </button>
+
+          <div className="seed-head">
+            <span className="card-label">RECOVERY PHRASE</span>
+            <span className="seed-chip">
+              <Lock size={11} weight="fill" />
+              KEEP SECRET
+            </span>
+          </div>
+
+          <div className="seed-grid">
+            {(revealed && words ? words : MASK).map((word, i) => (
+              <span key={i} className="seed-word">
                 <span className="seed-index">{i + 1}</span>
-                {revealed ? word : '••••••'}
+                {revealed && words
+                  ? (word as string)
+                  : '•'.repeat(word as number)}
               </span>
             ))}
           </div>
@@ -117,26 +172,28 @@ export function WalletSetupPage({ onDone }: Props) {
               className="btn btn-surface btn-block"
               onClick={() => setRevealed(r => !r)}
             >
-              <Eye size={16} />
+              {revealed ? <EyeSlash size={16} /> : <Eye size={16} />}
               {revealed ? 'Hide' : 'Reveal'}
             </button>
             <button
               type="button"
               className="btn btn-surface btn-block"
-              onClick={() => void copy()}
+              onClick={() => void copy('phrase')}
               disabled={!revealed}
             >
-              {copied ? <Check size={16} color="var(--win)" /> : <Copy size={16} />}
-              {copied ? 'Copied' : 'Copy'}
+              {copied === 'phrase' ? (
+                <Check size={16} color="var(--win)" />
+              ) : (
+                <Copy size={16} />
+              )}
+              {copied === 'phrase' ? 'Copied' : 'Copy'}
             </button>
           </div>
 
-          {address && (
-            <p className="auth-note">
-              <Vault size={14} />
-              <span className="mono">{address}</span>
-            </p>
-          )}
+          <p className="seed-warning">
+            <Warning size={16} color="var(--gold)" />
+            Never share this phrase. Anyone with it controls your wallet.
+          </p>
 
           <label className="seed-confirm">
             <input
@@ -144,7 +201,7 @@ export function WalletSetupPage({ onDone }: Props) {
               checked={saved}
               onChange={event => setSaved(event.target.checked)}
             />
-            I have written the phrase down somewhere safe
+            I have saved my recovery phrase
           </label>
 
           <button
