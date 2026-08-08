@@ -10,6 +10,7 @@ import { apiClient } from '../lib/api';
 import { initialOf } from '../lib/format';
 import { sessionStorage } from '../lib/session-storage';
 import { useSessionStore } from '../store/session.store';
+import { OnboardingSteps } from '../components/OnboardingSteps';
 import { WalletSetupPage } from './WalletSetupPage';
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,20}$/;
@@ -101,6 +102,7 @@ export function OnboardingPage() {
   return (
     <div className="solo">
       <form className="solo-card" onSubmit={submit}>
+        <OnboardingSteps step={1} />
         <div>
           <h1 className="page-title">Pick a handle</h1>
           <p style={{ color: 'var(--text-2)', marginTop: 'var(--s-3)' }}>
@@ -172,7 +174,7 @@ export function OnboardingPage() {
           className="btn btn-lime btn-block btn-lg"
           disabled={!nameValid || !referralValid || busy}
         >
-          {busy ? <span className="spinner" /> : 'Enter the lobby'}
+          {busy ? <span className="spinner" /> : 'Next'}
         </button>
       </form>
     </div>

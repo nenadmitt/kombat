@@ -1094,6 +1094,13 @@ a {
   background: var(--app);
 }
 
+/* Its panels and buttons are --surface, which would be invisible on a card
+   of the same colour, so this one sits a shade darker. */
+.solo-card.is-wide {
+  width: min(560px, 100%);
+  background: var(--rail);
+}
+
 .solo-card {
   width: min(440px, 100%);
   display: flex;
@@ -1427,6 +1434,11 @@ a {
 .auth-code::placeholder {
   color: var(--text-4);
   letter-spacing: 0.24em;
+}
+
+/* The two-step account setup marker, on its own above the card's content. */
+.onboarding-steps {
+  margin: 0 0 var(--s-2);
 }
 
 /* ── recovery phrase ──────────────────────────────────────────── */

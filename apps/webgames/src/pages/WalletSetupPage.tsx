@@ -6,13 +6,11 @@ import {
   Eye,
   EyeSlash,
   Lock,
-  ShieldCheck,
-  Vault,
   Warning,
 } from '@phosphor-icons/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { AuthShell } from '../components/AuthShell';
+import { OnboardingSteps } from '../components/OnboardingSteps';
 import { apiClient } from '../lib/api';
 import { shortAddress } from '../lib/format';
 import { useSessionStore } from '../store/session.store';
@@ -114,17 +112,10 @@ export function WalletSetupPage({ onDone, onSkip }: Props) {
   }
 
   return (
-    <AuthShell
-      step={2}
-      title={['Your wallet', 'is ready.']}
-      lead="We created it with your account. It holds your stake, and winnings land in it."
-      points={[
-        { icon: Vault, label: 'Your stake and winnings sit here' },
-        { icon: ShieldCheck, label: 'We keep the key, so there is nothing to install' },
-        { icon: Warning, label: 'Anyone with the phrase controls the wallet' },
-      ]}
-    >
-      {error ? (
+    <div className="solo">
+      <div className="solo-card is-wide">
+        <OnboardingSteps step={2} />
+        {error ? (
         <>
           <h2 className="auth-heading">That did not work</h2>
           <div className="banner">{error}</div>
@@ -247,7 +238,8 @@ export function WalletSetupPage({ onDone, onSkip }: Props) {
             Enter the lobby
           </button>
         </>
-      )}
-    </AuthShell>
+        )}
+      </div>
+    </div>
   );
 }
