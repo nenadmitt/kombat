@@ -41,7 +41,8 @@ export function OnboardingPage() {
     return (
       <WalletSetupPage
         onDone={() => {
-          setHasWallet(true);
+          // Custodial: the gate loads its key and connects on the next render.
+          setHasWallet(true, true);
           navigate('/lobby', { replace: true });
         }}
         onSkip={() => {
@@ -68,16 +69,26 @@ export function OnboardingPage() {
         referralEntered ? normalizeReferralCode(referral) : undefined,
       );
       sessionStorage.writeColor(color);
-      setUser(updated);
+
       // A player who signed in with a wallet already has one; an email account
       // needs the platform to mint it before they can stake or be paid out.
       const wallets = await apiClient.listWallets();
-      setHasWallet(wallets.length > 0);
-      if (updated.email && wallets.length === 0) {
+      const mustSetUpWallet = Boolean(updated.email) && wallets.length === 0;
+
+      // Order matters: setUser is what satisfies the "username done" redirect,
+      // so the wallet step has to be armed before it, or the render between
+      // the two sends the player to the lobby and the step never mounts.
+      setHasWallet(
+        wallets.length > 0,
+        wallets.some(wallet => wallet.custodial),
+      );
+      if (mustSetUpWallet) {
         setNeedsWallet(true);
-        return;
       }
-      navigate('/lobby', { replace: true });
+      setUser(updated);
+      if (!mustSetUpWallet) {
+        navigate('/lobby', { replace: true });
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong.');
     } finally {

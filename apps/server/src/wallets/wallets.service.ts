@@ -5,7 +5,7 @@ import {
   NotFoundException,
   NotImplementedException,
 } from '@nestjs/common';
-import { UserPlatform } from '@gaming-platform/core';
+import { UserPlatform, type WalletSummary } from '@gaming-platform/core';
 
 
 import { ChainService } from '../chain';
@@ -14,7 +14,11 @@ import { DbService } from '../db';
 import { EnsSubnameService } from '../ens';
 import { WalletNetwork, WalletOrigin } from '../db/types/wallet';
 import { generateEthereumWallet } from './ethereum-wallet.util';
-import { encryptPrivateKey, parseEncryptionKey } from './key-cipher.util';
+import {
+  decryptPrivateKey,
+  encryptPrivateKey,
+  parseEncryptionKey,
+} from './key-cipher.util';
 
 const MAX_WALLETS_PER_USER = 1;
 
@@ -108,10 +112,34 @@ export class WalletsService {
     return { address, mnemonic };
   }
 
-  async listWallets(
+  /**
+   * The embedded wallet's key, for its owner. A web player signs in their own
+   * browser exactly as a connected wallet does, so the key has to reach the
+   * client; the platform holds it only because a browser has nowhere durable
+   * to keep one.
+   */
+  async getEmbeddedKey(
     userId: string,
-  ): Promise<{ address: string; network: WalletNetwork }[]> {
+  ): Promise<{ address: string; privateKey: string }> {
+    const wallet = await this.dbService.findEmbeddedWalletForUser(userId);
+    if (!wallet?.encryptedPrivateKey) {
+      throw new NotFoundException('This account has no embedded wallet');
+    }
+    return {
+      address: wallet.address,
+      privateKey: decryptPrivateKey(
+        wallet.encryptedPrivateKey,
+        parseEncryptionKey(this.configurationService.W_ENCRYPT),
+      ),
+    };
+  }
+
+  async listWallets(userId: string): Promise<WalletSummary[]> {
     const wallets = await this.dbService.findWalletsForUser(userId);
-    return wallets.map(({ address, network }) => ({ address, network }));
+    return wallets.map(({ address, network, type }) => ({
+      address,
+      network,
+      custodial: type === WalletOrigin.Embedded,
+    }));
   }
 }

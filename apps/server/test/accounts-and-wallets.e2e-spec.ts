@@ -1,4 +1,5 @@
 import { UserPlatform, WalletNetwork } from '@gaming-platform/core';
+import { privateKeyToAccount } from 'viem/accounts';
 
 import { startTestApp, type TestApp } from './harness/app';
 import { createActor, type Actor } from './harness/actor';
@@ -151,6 +152,45 @@ describe('accounts and wallets (e2e)', () => {
         network: WalletNetwork.Ethereum,
       });
       expect(second.status).toBe(409);
+    });
+  });
+
+  describe('GET /wallets/embedded-key', () => {
+    it('refuses an unauthenticated caller', async () => {
+      const { status } = await call('GET', '/wallets/embedded-key');
+      expect(status).toBe(401);
+    });
+
+    it('hands the owner a key that controls the wallet address', async () => {
+      const player = await actor('key-owner', UserPlatform.Web);
+      const created = await player.post('/wallets', {
+        network: WalletNetwork.Ethereum,
+      });
+
+      const { status, body } = await player.get('/wallets/embedded-key');
+      expect(status).toBe(200);
+      expect(body.address).toBe(created.body.address);
+      // The browser signs with this: it has to derive the same address, or
+      // every transaction would come from an account with no funds.
+      expect(privateKeyToAccount(body.privateKey).address).toBe(
+        created.body.address,
+      );
+    });
+
+    it('has no key to give for a device wallet', async () => {
+      const player = await actor('key-mobile', UserPlatform.Mobile);
+      await player.post('/wallets', { network: WalletNetwork.Ethereum });
+
+      const { status } = await player.get('/wallets/embedded-key');
+      expect(status).toBe(404);
+    });
+
+    it('never hands one player another player key', async () => {
+      const owner = await actor('key-a', UserPlatform.Web);
+      await owner.post('/wallets', { network: WalletNetwork.Ethereum });
+      const stranger = await actor('key-b', UserPlatform.Web);
+
+      expect((await stranger.get('/wallets/embedded-key')).status).toBe(404);
     });
   });
 

@@ -150,10 +150,6 @@ export function WalletPage() {
   }
 
   const wrongChain = Boolean(connectedAddress) && chainId !== CHAIN_ID;
-  // Every write here is signed by the connected wallet. A custodial one is
-  // signed server-side, which has no endpoint yet, so its funds are visible
-  // and receivable but not yet spendable from this screen.
-  const canSign = Boolean(connectedAddress);
   const tokenFor = (a: StakeAsset) =>
     target?.tokens.find(token => token.asset === a)?.address as Address | undefined;
 
@@ -294,13 +290,6 @@ export function WalletPage() {
       {wrongChain && (
         <div className="banner">Switch your wallet to {CHAIN_NAME}.</div>
       )}
-      {!canSign && custodial && (
-        <div className="banner">
-          Your wallet is held by Kombat, so deposits are signed for you. That
-          is not built yet: you can receive funds here, and staking from this
-          balance is coming.
-        </div>
-      )}
       {notice && <div className="notice">{notice}</div>}
       {error && !mode && <div className="banner">{error}</div>}
 
@@ -361,7 +350,7 @@ export function WalletPage() {
                 setMode('deposit');
                 setError(null);
               }}
-              disabled={!canSign}
+              disabled={!address}
             >
               <ArrowDown size={16} weight="bold" color="var(--gold)" />
               Deposit to pot
@@ -442,7 +431,7 @@ export function WalletPage() {
                 type="button"
                 className="btn btn-gold btn-block"
                 onClick={() => setMode('deposit')}
-                disabled={!canSign}
+                disabled={!address}
               >
                 Stake
               </button>

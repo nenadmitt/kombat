@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import { AppShell } from './components/AppShell';
+import { EmbeddedWalletGate } from './components/EmbeddedWalletGate';
 import { DemoPage, MatchPage } from './pages/MatchPage';
 import { WelcomeBonusModal } from './components/WelcomeBonusModal';
 import { GamesPage } from './pages/GamesPage';
@@ -40,6 +41,7 @@ export function App() {
         element={
           <RequireSession>
             <LiveData />
+            <EmbeddedWalletGate />
             <WelcomeBonusGate />
             <AppShell />
           </RequireSession>

@@ -12,9 +12,11 @@ type SessionState = {
   loading: boolean;
   /** Null while unknown (loading, or the fetch failed - never gate on null). */
   hasWallet: boolean | null;
+  /** True when that wallet is the platform-held one this browser must load. */
+  walletIsCustodial: boolean;
   /** The player backed out of wallet onboarding; holds for this page load. */
   walletPromptDismissed: boolean;
-  setHasWallet: (hasWallet: boolean) => void;
+  setHasWallet: (hasWallet: boolean, custodial?: boolean) => void;
   dismissWalletPrompt: () => void;
   signIn: (session: AuthSession) => Promise<void>;
   signOut: () => Promise<void>;
@@ -27,6 +29,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   hasSession: Boolean(sessionStorage.read()),
   loading: true,
   hasWallet: null,
+  walletIsCustodial: false,
   walletPromptDismissed: false,
 
   restore: async () => {
@@ -37,11 +40,14 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     try {
       const user = await apiClient.getCurrentUser();
       // Fail open: a wallet-list hiccup must not wall anyone out of the app.
-      const hasWallet = await apiClient
-        .listWallets()
-        .then(wallets => wallets.length > 0)
-        .catch(() => null);
-      set({ user, hasWallet, hasSession: true, loading: false });
+      const wallets = await apiClient.listWallets().catch(() => null);
+      set({
+        user,
+        hasWallet: wallets === null ? null : wallets.length > 0,
+        walletIsCustodial: (wallets ?? []).some(wallet => wallet.custodial),
+        hasSession: true,
+        loading: false,
+      });
       useWebsocketStore.getState().connect();
     } catch {
       // A rejected refresh already cleared storage via onSessionExpired.
@@ -64,6 +70,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       hasSession: false,
       loading: false,
       hasWallet: null,
+      walletIsCustodial: false,
       walletPromptDismissed: false,
     });
     if (refreshToken) await apiClient.logout(refreshToken);
@@ -71,7 +78,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   setUser: user => set({ user }),
 
-  setHasWallet: hasWallet => set({ hasWallet }),
+  setHasWallet: (hasWallet, custodial = false) =>
+    set({ hasWallet, walletIsCustodial: custodial }),
   dismissWalletPrompt: () => set({ walletPromptDismissed: true }),
 }));
 

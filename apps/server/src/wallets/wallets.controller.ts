@@ -7,6 +7,7 @@ import {
   ServiceUnavailableException,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle, seconds } from '@nestjs/throttler';
 import type { Address } from 'viem';
 import { WalletBalances } from '@gaming-platform/core';
 
@@ -58,6 +59,15 @@ export class WalletsController {
       securityContext.userId,
       dto.network,
     );
+  }
+
+  /** Key material: throttled hard, and only ever the caller's own. */
+  @Throttle({ default: { ttl: seconds(60), limit: 10 } })
+  @Get('embedded-key')
+  async embeddedKey(
+    @SecurityContext() securityContext: ISecurityContext,
+  ): Promise<{ address: string; privateKey: string }> {
+    return this.walletsService.getEmbeddedKey(securityContext.userId);
   }
 
   @Get()

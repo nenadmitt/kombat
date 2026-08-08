@@ -1,103 +1,109 @@
-# What went wrong: two wallets, no onboarding, "Wallet disconnected"
+# What went wrong: web embedded wallet onboarding
 
-Written 2026-08-09, after the first real run of web email onboarding. Three
-separate defects, all mine, all shipped as "done" and none caught by the
-tests I had written. Kept as the record of why, and of what the tests were
-missing.
+Written 2026-08-09, after several failed runs of web email onboarding. Four
+defects, all mine. The first three are ordinary bugs. The fourth is the one
+that mattered: I built the wrong architecture, was told the right one more
+than once, and did not hear it.
 
-## What the user saw
+## The requirement, as it was actually stated
 
-Signed in with email on webgames. Onboarding never appeared. The Wallet page
-said **Wallet disconnected** with an ENS name printed underneath it, and both
-balances empty. The database had **two** embedded wallets on the account, and
-the ENS name resolved to only one of them.
+Two kinds of account:
 
-## Defect 1: two wallets on an account capped at one
+1. **Connected wallet (SIWE).** The player brings their own. Nothing to
+   onboard, existing flow, untouched.
+2. **Embedded wallet (email).** On signup the platform creates a wallet. A
+   separate onboarding step after the username shows the address, the ENS
+   name and the recovery phrase to save. From then on **the server returns the
+   private key, the browser loads it, and everything downstream behaves
+   exactly like a connected wallet.**
 
-`MAX_WALLETS_PER_USER = 1` was enforced as count-then-insert inside
-`createWallet`. That is a check-then-act race with nothing holding the gap:
-two concurrent calls both count zero and both insert.
+## Defect 4 (the important one): I built server-side custody instead
 
-React StrictMode makes that race the *default* in development. It mounts
-effects twice, and `WalletSetupPage` created the wallet from an effect, so a
-single visit fired two creations a few milliseconds apart. Both passed the
-count. Two wallets, one account.
+I read "the server stores the encrypted private key" and stopped there. I
+built the key as something the server holds and never releases, concluded
+that spending would need a server-side signing endpoint, wrote that up as a
+future phase, and **disabled the deposit and stake buttons behind a banner
+explaining the limitation**. I then described that limitation in summaries as
+though it were a property of the design rather than a consequence of my
+choice.
 
-The consequences were not limited to a spare row. `mintSubname` resolves the
-address with `wallets[0]`, so the ENS name was minted against whichever row
-came back first, while the rest of the app could read the other one. That is
-a name resolving to an address the account may not spend from.
+The actual design has no such limitation. Storing the key server-side is
+about *durability* - a browser has nowhere safe to keep one, unlike the phone
+keystore - not about withholding it. The key is meant to reach the client,
+which is exactly how the mobile app already works: `createWallet` returns the
+mnemonic, the device derives the key, and `walletFromKey` produces a local
+signer that signs transactions in-process. Web is the same picture with the
+server standing in for the keystore.
 
-Fixed in two places, deliberately:
+The cost of not hearing this: an entire round of work aimed at the wrong
+target, a wallet page that reported a working wallet as unusable, and the
+user repeating the requirement several times while I kept answering with
+implementation detail about a design they had not asked for.
 
-- **`UQ_wallets_user_id`**, a unique index (migration
-  `OneWalletPerUser1786000000000`). The database is the only place a
-  uniqueness rule actually holds; the service check is advisory. The
-  migration also resolves pre-existing duplicates to the oldest row.
-- `createWallet` maps the resulting `23505` to the same `409 Conflict` the
-  count check returns, so the loser of a race gets a coherent answer.
-- Client-side, `createWalletOnce()` shares one in-flight promise across
-  mounts, so StrictMode stops sending the second request at all.
+Now built: `GET /wallets/embedded-key` returns the decrypted key to its
+authenticated owner, and `embeddedWallet()` wraps it in a wagmi connector
+(`createConnector` over a viem local account) that `EmbeddedWalletGate`
+connects on session load. Every existing wagmi call site - balances, pot
+deposits, permits, staking - now works unchanged for an email account. The
+signing restriction and its banner are gone.
 
-Why both: the index makes it impossible, the client guard stops a pointless
-round trip and a confusing 409 on a screen the user did nothing wrong on.
+## Defect 1: the wallet step never rendered
 
-## Defect 2: onboarding never showed
+`OnboardingPage.submit` did `setUser(updated)`, then `await listWallets()`,
+then `setNeedsWallet(true)`. The `await` between them flushes a render where
+the username is set but the wallet step is not yet armed, and that render hits
+`if (user?.username) return <Navigate to="/lobby" />`. The player lands in the
+lobby and the wallet screen never mounts. This is why the answer to "why is
+there no wallet onboarding" was, for several rounds, "there is, it must have
+run" - the code existed and could not execute.
 
-The account already had a username and a wallet by the time the user looked,
-so the gate I added in `010c016` correctly let them through. The screen they
-never saw had already run. This one was not a defect in the end state, but it
-read as one because of Defect 1 and Defect 3: the wallet existed, the app said
-disconnected, so nothing looked like it had happened.
+Fixed by ordering the state writes so the step is armed before the redirect
+unlocks, and by deriving the decision once instead of re-reading state
+mid-flight.
 
-Worth keeping as a note: "the feature did not run" and "the feature ran and
-its result is invisible" look identical to the person reporting it. The
-Wallet page was the only surface that could have distinguished them, and it
-was the one that was lying.
+## Defect 2: two wallets on an account capped at one
 
-## Defect 3: the Wallet page could not see a custodial wallet
+`MAX_WALLETS_PER_USER = 1` was a count-then-insert: a check-then-act race with
+nothing holding the gap. React StrictMode double-fires effects in development
+and `WalletSetupPage` created from an effect, so one visit minted two wallets.
+`mintSubname` resolves the address with `wallets[0]`, so the ENS name pointed
+at one of them while the app could read the other.
 
-`WalletPage` read the address exclusively from wagmi's `useAccount()`. A
-custodial wallet has no browser connector by design: it lives on the server.
-So the page rendered `Wallet disconnected` for a wallet that demonstrably
-existed, printed the ENS name beside it from the profile (which does not need
-a connector), and showed empty balances because every balance read is keyed
-on the connector's address.
+Fixed with a unique index (`UQ_wallets_user_id`), `23505` mapped to the same
+`409`, and a shared in-flight promise on the client so the second request is
+never sent. An e2e test fires two creations concurrently and asserts one 201,
+one 409, one row.
 
-This is the same class of mistake as the original "server capability with no
-caller": I built the custodial path end to end on the server and never asked
-what the *existing* screens would do when they met one.
+## Defect 3: "Wallet disconnected" for a wallet that existed
 
-Fixed by reading `listWallets()` and falling back to the custodial address
-for display and balances. Writes are a different matter, and are now gated on
-`canSign` (a real connector) rather than on having any address at all, with a
-banner that says why: deposits and withdrawals are signed in the browser, and
-there is no server-side signing endpoint yet.
+`WalletPage` read its address only from wagmi's `useAccount()`. Before
+Defect 4 was fixed there was no connector, so the page reported a working
+wallet as disconnected while printing its ENS name beside it. This is now
+moot - the wallet genuinely connects - but the shape of the mistake is worth
+keeping: I added a new kind of account and never asked what the existing
+screens would do when they met one.
 
-## What the tests missed, and why
+## What the tests could not catch
 
-At the time of the failure: 208 unit tests, 48 integration tests, all green.
-None of them could have caught any of this.
+208 unit and 53 integration tests are green, and none of them would have
+caught Defects 1, 2 or 4.
 
-- **The race.** Every test created wallets sequentially. `POST /wallets`
-  twice in a row returns 201 then 409 and looks correct; the defect only
-  appears when the two calls overlap. There is now a test that fires both
-  concurrently and asserts exactly one 201, one 409, and one row.
-- **The client.** No test drives the React flow, so an effect firing twice
-  was invisible. Still true, and still the largest hole.
-- **The screens.** Nothing asserts what an existing page does when it meets
-  a new kind of account. A server-side test proving the wallet row is correct
-  says nothing about a page that never asks for it.
-
-The pattern across all three: I tested the code I wrote, in the shape I wrote
-it. The failures were all at the seams with things I did not write, or with
-the runtime's behaviour rather than my own.
+- **No client tests at all.** Defect 1 was pure React state ordering and
+  Defect 2 was a runtime behaviour (StrictMode). Both are invisible to a
+  server suite. This remains the largest hole in the feature.
+- **Sequential-only wallet tests.** Two creations in a row return 201 then
+  409 and look correct; the race only exists when they overlap.
+- **No test asserted the requirement.** Every test I wrote asserted what my
+  implementation did - key stored, key never returned - which is precisely
+  the thing that was wrong. A test can only catch a misread requirement if
+  someone writes down the requirement first.
 
 ## Still open
 
-- Custodial wallets cannot spend. Staking, depositing and withdrawing are all
-  signed by the connector, so a web email account can receive funds and see
-  them, but not move them. That needs the server-side signing endpoint, which
-  is Phase 5 and deliberately not built.
 - The recovery phrase is shown exactly once, at creation. An interrupted
   onboarding leaves a working wallet whose phrase can never be shown again.
+  Fixing it means storing the mnemonic encrypted as well as the key.
+- Shipping the key to the browser means an XSS on this app is a wallet
+  compromise. That is inherent to a browser-side signer and matches the
+  mobile model, but it is a real property of the design and should be
+  weighed before mainnet.

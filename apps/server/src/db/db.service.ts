@@ -567,6 +567,16 @@ export class DbService {
 
   // --- wallets ---
 
+  /** The caller's custodial wallet, key material included (normally hidden). */
+  findEmbeddedWalletForUser(userId: string): Promise<WalletEntity | null> {
+    return this.walletRepository
+      .createQueryBuilder('w')
+      .addSelect('w.encryptedPrivateKey')
+      .where('w.user_id = :userId', { userId })
+      .andWhere('w.type = :type', { type: WalletOrigin.Embedded })
+      .getOne();
+  }
+
   countWalletsForUser(userId: string): Promise<number> {
     return this.walletRepository.countBy({ userId });
   }
@@ -590,10 +600,10 @@ export class DbService {
 
   findWalletsForUser(
     userId: string,
-  ): Promise<Pick<WalletEntity, 'address' | 'network'>[]> {
+  ): Promise<Pick<WalletEntity, 'address' | 'network' | 'type'>[]> {
     return this.walletRepository.find({
       where: { userId },
-      select: ['address', 'network'],
+      select: ['address', 'network', 'type'],
     });
   }
 

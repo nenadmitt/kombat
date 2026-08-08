@@ -136,6 +136,11 @@ export class ApiClient {
     return this.request('POST', '/wallets', { network }, true);
   }
 
+  /** The embedded wallet's key, so the browser can sign with it directly. */
+  getEmbeddedWalletKey(): Promise<{ address: string; privateKey: string }> {
+    return this.request('GET', '/wallets/embedded-key', undefined, true);
+  }
+
   listWallets(): Promise<WalletSummary[]> {
     return this.request('GET', '/wallets', undefined, true);
   }
