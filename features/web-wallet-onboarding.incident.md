@@ -49,6 +49,8 @@ signing restriction and its banner are gone.
 
 ## Defect 1: the wallet step never rendered
 
+Two causes, and I only found the second by driving a real browser.
+
 `OnboardingPage.submit` did `setUser(updated)`, then `await listWallets()`,
 then `setNeedsWallet(true)`. The `await` between them flushes a render where
 the username is set but the wallet step is not yet armed, and that render hits
@@ -60,6 +62,24 @@ run" - the code existed and could not execute.
 Fixed by ordering the state writes so the step is armed before the redirect
 unlocks, and by deriving the decision once instead of re-reading state
 mid-flight.
+
+That fix was not enough, and I shipped it believing it was. The step then
+mounted and immediately sent the player to the lobby anyway, because
+`onDone` was an inline arrow in the parent: a fresh identity on every
+render, in the dependency array of the setup `useCallback`, so any re-render
+re-ran the setup. The second run listed wallets, found the one the first run
+had just created, concluded the account already had a wallet and called
+`onDone()`. The screen unmounted before anyone could read it.
+
+Fixed by running the setup once per mount behind a ref, caching the whole
+"does this need a wallet, and here it is" answer for the page load rather
+than just the create call, and wrapping the parent's callbacks in
+`useCallback` so they stop churning.
+
+The lesson is the process one: I diagnosed this twice from reading code and
+was wrong both times. It took driving the actual browser over CDP - filling
+the username, submitting, reading the DOM - to see what was happening. That
+should have been the first move, not the third.
 
 ## Defect 2: two wallets on an account capped at one
 

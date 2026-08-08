@@ -100,9 +100,11 @@ export class WalletsService {
     });
 
     // The other half of the pair: a username set before the wallet had none
-    // to mint against, so the name is claimed here instead.
+    // to mint against, so the name is claimed here instead. Awaited, because
+    // the screen that shows this wallet also shows its name - and mintForUsername
+    // never throws, so a slow or failed provider costs the name, not the wallet.
     if (user.username && !user.ensName) {
-      void this.ensSubnameService.mintForUsername(
+      await this.ensSubnameService.mintForUsername(
         userId,
         user.username,
         address,

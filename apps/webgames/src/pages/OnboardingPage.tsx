@@ -3,7 +3,7 @@ import {
   isValidReferralCode,
   normalizeReferralCode,
 } from '@gaming-platform/core';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 
 import { apiClient } from '../lib/api';
@@ -31,6 +31,18 @@ export function OnboardingPage() {
   const [error, setError] = useState<string | null>(null);
   const [needsWallet, setNeedsWallet] = useState(false);
 
+  // Stable across renders: the wallet step keys its one-time setup off these.
+  const finishWallet = useCallback(() => {
+    // Custodial: the gate loads its key and connects on the next render.
+    setHasWallet(true, true);
+    navigate('/lobby', { replace: true });
+  }, [setHasWallet, navigate]);
+
+  const skipWallet = useCallback(() => {
+    dismissWalletPrompt();
+    navigate('/lobby', { replace: true });
+  }, [dismissWalletPrompt, navigate]);
+
   // A returning email user with no wallet re-enters at the wallet step: the
   // username screen is done, and the account is meant to end up with exactly
   // one custodial wallet attached.
@@ -39,17 +51,7 @@ export function OnboardingPage() {
 
   if (needsWallet || resumeWalletStep) {
     return (
-      <WalletSetupPage
-        onDone={() => {
-          // Custodial: the gate loads its key and connects on the next render.
-          setHasWallet(true, true);
-          navigate('/lobby', { replace: true });
-        }}
-        onSkip={() => {
-          dismissWalletPrompt();
-          navigate('/lobby', { replace: true });
-        }}
-      />
+      <WalletSetupPage onDone={finishWallet} onSkip={skipWallet} />
     );
   }
 
