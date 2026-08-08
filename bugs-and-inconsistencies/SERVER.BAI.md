@@ -3,6 +3,25 @@
 Entry format: date, one-line summary, location, why it's wrong, suggested
 fix. Remove an entry in the same change that fixes it.
 
+## 2026-08-09 - The admin panel's users.platform guard is dead once web accounts merge
+
+- **Where:** `apps/server/src/db/db.service.ts` - `findUserPlatforms()`,
+  `hasUserPlatformColumn()` and the `USER_PLATFORM_COLUMN` constant;
+  `PLATFORM_LABELS` / the null branch in
+  `apps/server/src/admin/admin.service.ts`.
+- **Why it's wrong:** the admin stats panel was built on a branch that did not
+  carry the `users.platform` migration, so it reads the column through an
+  `information_schema` probe on every call and returns null when it is absent.
+  `UserPlatform1785800000000` adds the column NOT NULL with a default, so once
+  the web-accounts work is on develop the probe can only ever answer true. It
+  is an extra query per stats request and a null branch in the panel that
+  nothing can reach, plus a second hardcoded copy of the 0/1 mapping that the
+  `UserPlatform` enum in `@gaming-platform/core` already owns.
+- **Suggested fix:** drop `hasUserPlatformColumn()` and the null return, select
+  the column directly (or through the entity, which now maps it), and import
+  `UserPlatform` instead of `PLATFORM_LABELS`. Left alone for now because the
+  file belongs to the admin-stats work, not the branch that added the column.
+
 ## 2026-07-17 - In-memory cache fallback is unsafe once multiple instances run
 
 - **Where:** `apps/server/src/cache/cache.module.ts` (Redis-unreachable
