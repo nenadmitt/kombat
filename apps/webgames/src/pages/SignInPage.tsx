@@ -1,18 +1,18 @@
 import { ApiError } from '@gaming-platform/core';
-import { ConnectKitButton, useModal, useSIWE } from 'connectkit';
+import { ConnectKitButton, useSIWE } from 'connectkit';
 import {
   AppleLogo,
   ArrowLeft,
   CaretRight,
   CheckCircle,
-  ClockCounterClockwise,
-  Devices,
   DiscordLogo,
   Envelope,
+  GameController,
   GoogleLogo,
-  Password,
+  Robot,
   ShieldCheck,
   Timer,
+  Trophy,
   Wallet,
 } from '@phosphor-icons/react';
 import type { Icon } from '@phosphor-icons/react';
@@ -20,11 +20,10 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 
 import { AuthShell } from '../components/AuthShell';
-import { OtpInput } from '../components/OtpInput';
 import { apiClient } from '../lib/api';
 import { useSessionStore } from '../store/session.store';
 
-const CODE_LENGTH = 6;
+const CODE_LENGTH = 8;
 const RESEND_SECONDS = 30;
 
 const SOON: { label: string; icon: Icon }[] = [
@@ -36,7 +35,6 @@ const SOON: { label: string; icon: Icon }[] = [
 export function SignInPage() {
   const { hasSession, user, loading, signIn } = useSessionStore();
   const { isSignedIn, isLoading } = useSIWE();
-  const { openSIWE } = useModal();
 
   const [stage, setStage] = useState<'method' | 'code'>('method');
   const [email, setEmail] = useState('');
@@ -96,9 +94,9 @@ export function SignInPage() {
     return (
       <AuthShell
         title={['Check your', 'inbox.']}
-        lead="We never store a password. Each sign-in uses a fresh six-digit code that expires in ten minutes."
+        lead="We never store a password. Each sign-in uses a fresh eight-character code that expires in fifteen minutes."
         points={[
-          { icon: Timer, label: 'The code expires in ten minutes' },
+          { icon: Timer, label: 'The code expires in fifteen minutes' },
           { icon: CheckCircle, label: 'It works once, then it is spent' },
           { icon: Envelope, label: 'Wrong address? Change it and resend' },
         ]}
@@ -117,7 +115,7 @@ export function SignInPage() {
 
         <h2 className="auth-heading">Check your email</h2>
         <p className="auth-sub">
-          We sent a six-digit code to <strong>{email}</strong>
+          We sent an eight-character code to <strong>{email}</strong>
           {' · '}
           <button
             type="button"
@@ -128,16 +126,28 @@ export function SignInPage() {
           </button>
         </p>
 
-        <OtpInput
-          length={CODE_LENGTH}
+        <input
+          className="input auth-code"
           value={code}
-          onChange={next => {
+          onChange={event => {
+            // Letters and digits, upper case: the server's alphabet. Stripping
+            // to digits made a real code impossible to type or paste.
+            const next = event.target.value
+              .toUpperCase()
+              .replace(/[^A-Z0-9]/g, '')
+              .slice(0, CODE_LENGTH);
             setCode(next);
-            // Six digits is the whole form; making them reach for the button
-            // after the last keystroke is a step with nothing in it.
             if (next.length === CODE_LENGTH) void verify(next);
           }}
+          placeholder="ABCD1234"
+          autoComplete="one-time-code"
+          autoCapitalize="characters"
+          autoCorrect="off"
+          spellCheck={false}
+          maxLength={CODE_LENGTH}
           disabled={busy}
+          aria-label="Login code"
+          autoFocus
         />
 
         {error && <div className="banner">{error}</div>}
@@ -153,7 +163,7 @@ export function SignInPage() {
           ) : code.length === CODE_LENGTH ? (
             'Sign in'
           ) : (
-            'Enter all six digits'
+            'Enter all eight characters'
           )}
         </button>
 
@@ -188,14 +198,14 @@ export function SignInPage() {
   return (
     <AuthShell
       title={['Sign in.', 'Then play.']}
-      lead="One account across web and mobile. Your pot, history and referral code follow the wallet you connect."
+      lead="Four arenas in the browser, played live against whoever else is in the lobby. Stake on the match and the winner takes the pot."
       points={[
-        { icon: Devices, label: 'One account across web and mobile' },
-        { icon: Password, label: 'No password to remember - or leak' },
         {
-          icon: ClockCounterClockwise,
-          label: 'Your pot, history and referral code follow you',
+          icon: GameController,
+          label: 'Battleships, Salvo, Triple Cut and Ludo Royale',
         },
+        { icon: Trophy, label: 'The winner takes the pot, less a 5% platform fee' },
+        { icon: Robot, label: 'Practice against a bot with nothing staked' },
       ]}
     >
       <h2 className="auth-heading">Sign in to Kombat</h2>
@@ -210,9 +220,7 @@ export function SignInPage() {
             type="button"
             className="auth-method is-primary"
             disabled={settling}
-            // An already-connected wallet lands on ConnectKit's profile
-            // screen, which only hints at signing; openSIWE asks outright.
-            onClick={() => (isConnected ? openSIWE(true) : show?.())}
+            onClick={show}
           >
             <span className="auth-method-icon">
               <Wallet size={20} weight="fill" />
@@ -287,7 +295,7 @@ function EmailMethod({
         <span className="auth-method-text">
           <span className="auth-method-title">Continue with email</span>
           <span className="auth-method-sub">
-            We send a six-digit code - no password
+            We send an eight-character code, not a password
           </span>
         </span>
         <CaretRight size={16} />

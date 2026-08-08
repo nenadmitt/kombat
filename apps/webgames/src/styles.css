@@ -1107,21 +1107,15 @@ a {
 /* ── signed-out (auth) ────────────────────────────────────────── */
 
 .auth {
-  min-height: 100%;
-  display: grid;
-  place-items: center;
-  padding: var(--s-6);
-  background: var(--bg);
+  min-height: 100dvh;
+  background: var(--app);
 }
 
+/* Full bleed: the two columns are the page, not a card floating on it. */
 .auth-panel {
-  width: min(1180px, 100%);
+  min-height: 100dvh;
   display: grid;
-  grid-template-columns: 1.6fr 1fr;
-  border-radius: var(--r-xl);
-  background: var(--app);
-  box-shadow: inset 0 0 0 1px var(--hairline);
-  overflow: hidden;
+  grid-template-columns: 1.6fr minmax(0, 520px);
 }
 
 .auth-pitch {
@@ -1129,7 +1123,7 @@ a {
   display: flex;
   flex-direction: column;
   gap: var(--s-8);
-  padding: var(--s-8);
+  padding: var(--s-10);
   /* A lime bloom low on the pitch, as the design has it. */
   background:
     radial-gradient(
@@ -1258,8 +1252,9 @@ a {
 .auth-form {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: var(--s-3);
-  padding: var(--s-8);
+  padding: var(--s-10) var(--s-8);
   background: var(--rail);
 }
 
@@ -1417,43 +1412,80 @@ a {
   color: var(--text-3);
 }
 
-/* ── one-time code ────────────────────────────────────────────── */
+/* The login code is eight characters of letters and digits, so it is one
+   plain field: boxed per-character inputs break paste and autofill. */
+.auth-code {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0.24em;
+  text-align: center;
+  text-transform: uppercase;
+  padding: var(--s-4);
+}
 
-.otp {
-  position: relative;
+.auth-code::placeholder {
+  color: var(--text-4);
+  letter-spacing: 0.24em;
+}
+
+/* ── recovery phrase ──────────────────────────────────────────── */
+
+.seed-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-8) 0;
+}
+
+.seed-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--s-2);
-  cursor: text;
 }
 
-/* The real field sits invisibly over the boxes so paste, autofill and the
-   OS code suggestion all land somewhere real. */
-.otp-field {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  opacity: 0;
-  border: 0;
-  padding: 0;
-}
-
-.otp-box {
-  display: grid;
-  place-items: center;
-  aspect-ratio: 1;
-  border-radius: var(--r-lg);
+.seed-word {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
   background: var(--surface);
   box-shadow: inset 0 0 0 1px var(--hairline);
-  font-weight: 700;
-  font-size: 26px;
-  line-height: 1;
+  font-family: var(--mono);
+  font-size: 13px;
 }
 
-/* Only the caret position lights up; the hidden field is a sibling of the
-   first box, so a :focus + rule would ring box one instead. */
-.otp-box.is-active {
-  box-shadow: inset 0 0 0 1px var(--lime);
+.seed-grid.is-hidden .seed-word {
+  color: var(--text-4);
+}
+
+.seed-index {
+  font-size: 10px;
+  color: var(--text-4);
+}
+
+.seed-actions {
+  display: flex;
+  gap: var(--s-3);
+}
+
+.seed-confirm {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) 0;
+  font-size: 13px;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.seed-confirm input {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  accent-color: var(--lime);
 }
 
 /* ── battleship ───────────────────────────────────────────────── */
@@ -3686,22 +3718,31 @@ a {
 
   /* Signed-out: the pitch column collapses to a header. The form is the
      screen on a phone, so the story around it stops competing for space. */
-  .auth {
-    padding: 0;
-  }
-
   .auth-panel {
     grid-template-columns: minmax(0, 1fr);
     /* Header sizes to its content; the form takes the rest of the screen. */
     grid-template-rows: auto 1fr;
-    min-height: 100dvh;
-    border-radius: 0;
-    box-shadow: none;
   }
 
   .auth-pitch {
     gap: var(--s-5);
     padding: var(--s-6) var(--s-5);
+    min-width: 0;
+  }
+
+  /* The full rail is wider than a phone and was pushing the whole document
+     sideways. Only the step you are on needs naming; the rest stay dots. */
+  .auth-steps {
+    gap: var(--s-2);
+  }
+
+  .auth-step + .auth-step::before {
+    width: 14px;
+    margin-right: var(--s-1);
+  }
+
+  .auth-step:not(.is-active) .auth-step-label {
+    display: none;
   }
 
   .auth-pitch-body {
@@ -3726,16 +3767,13 @@ a {
 
   .auth-form {
     flex: 1;
+    justify-content: flex-start;
     padding: var(--s-5);
     padding-bottom: calc(var(--s-8) + env(safe-area-inset-bottom, 0px));
   }
 
-  .otp {
-    gap: var(--s-1);
-  }
-
-  .otp-box {
-    font-size: 22px;
+  .seed-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   /* The name is the thing to read; its caption stacks underneath. */
@@ -3969,12 +4007,6 @@ a {
   /* Side by side, the two actions squeeze below their labels. */
   .result-actions {
     flex-direction: column;
-  }
-
-  /* Six boxes plus gaps stop fitting; the digits shrink before the row wraps. */
-  .otp-box {
-    border-radius: var(--r-md);
-    font-size: 18px;
   }
 
   .auth-method {

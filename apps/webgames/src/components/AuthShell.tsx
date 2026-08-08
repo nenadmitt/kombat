@@ -41,7 +41,7 @@ export function AuthShell({ title, lead, points, step = 1, children }: Props) {
                   <span className="auth-step-dot">
                     {i + 1 === step ? <span className="auth-step-pip" /> : i + 1}
                   </span>
-                  {label}
+                  <span className="auth-step-label">{label}</span>
                 </li>
               ))}
             </ol>
@@ -66,7 +66,8 @@ export function AuthShell({ title, lead, points, step = 1, children }: Props) {
 
           <p className="auth-footnote">
             <Lock size={13} />
-            Test mode on Ethereum {CHAIN_NAME} - no real funds at risk.
+            This runs on Ethereum {CHAIN_NAME}, a test network. The funds are
+            not real.
           </p>
         </aside>
 

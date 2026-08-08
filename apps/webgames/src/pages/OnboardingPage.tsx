@@ -10,6 +10,7 @@ import { apiClient } from '../lib/api';
 import { initialOf } from '../lib/format';
 import { sessionStorage } from '../lib/session-storage';
 import { useSessionStore } from '../store/session.store';
+import { WalletSetupPage } from './WalletSetupPage';
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,20}$/;
 
@@ -27,8 +28,15 @@ export function OnboardingPage() {
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsWallet, setNeedsWallet] = useState(false);
 
-  if (user?.username) return <Navigate to="/lobby" replace />;
+  if (user?.username && !needsWallet) return <Navigate to="/lobby" replace />;
+
+  if (needsWallet) {
+    return (
+      <WalletSetupPage onDone={() => navigate('/lobby', { replace: true })} />
+    );
+  }
 
   const nameValid = USERNAME_PATTERN.test(username.trim());
   const referralEntered = referral.trim().length > 0;
@@ -45,6 +53,13 @@ export function OnboardingPage() {
       );
       sessionStorage.writeColor(color);
       setUser(updated);
+      // A player who signed in with a wallet already has one; an email account
+      // needs the platform to mint it before they can stake or be paid out.
+      const wallets = await apiClient.listWallets();
+      if (wallets.length === 0) {
+        setNeedsWallet(true);
+        return;
+      }
       navigate('/lobby', { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong.');
