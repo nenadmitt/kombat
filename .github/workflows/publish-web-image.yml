@@ -12,6 +12,9 @@ on:
       demo_app_url:
         description: Webgames demo app URL the hero button links to
         default: https://demo.playkombat.xyz
+      site_url:
+        description: Canonical origin, used for the link-preview image URL
+        default: https://playkombat.xyz
 
 env:
   IMAGE: registry.digitalocean.com/kombat-registry/webapp
@@ -47,5 +50,6 @@ jobs:
             ${{ env.IMAGE }}:latest
           build-args: |
             NEXT_PUBLIC_DEMO_APP_URL=${{ inputs.demo_app_url }}
+            NEXT_PUBLIC_SITE_URL=${{ inputs.site_url }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
