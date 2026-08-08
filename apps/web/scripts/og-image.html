@@ -1,0 +1,275 @@
+<!doctype html>
+<!--
+  Source for public/og.png, the link-preview card. Regenerate after any brand or
+  copy change with `node apps/web/scripts/generate-og.mjs`.
+
+  The mark path and the lowercase Space Grotesk wordmark are the approved lockup
+  (branding/HANDOFF.md) - never redraw either.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Space+Grotesk:wght@700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --panel: #0b0c14;
+        --surface: #141724;
+        --text: #e9e9ed;
+        --text-62: rgba(233, 233, 237, 0.62);
+        --text-55: rgba(233, 233, 237, 0.55);
+        --green: #8ee05a;
+        --amber: #f5b829;
+        --phone-shell: #050509;
+        --phone-edge: #24263a;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+        background: var(--panel);
+        color: var(--text);
+        font-family: Inter, system-ui, sans-serif;
+      }
+
+      .card {
+        position: relative;
+        width: 1200px;
+        height: 630px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 480px;
+        align-items: center;
+        padding: 56px 64px;
+      }
+
+      /* Same lime bloom the hero carries, kept behind everything. */
+      .glow {
+        position: absolute;
+        top: -180px;
+        left: -140px;
+        width: 760px;
+        height: 620px;
+        background: radial-gradient(
+          circle,
+          rgba(142, 224, 90, 0.16),
+          transparent 62%
+        );
+      }
+
+      .copy {
+        position: relative;
+        z-index: 1;
+      }
+
+      .lockup {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+      }
+
+      .wordmark {
+        font-family: "Space Grotesk", Inter, sans-serif;
+        font-weight: 700;
+        font-size: 39px;
+        letter-spacing: -0.045em;
+        line-height: 1;
+        color: var(--text);
+      }
+
+      .title {
+        margin-top: 30px;
+        font-size: 70px;
+        font-weight: 800;
+        line-height: 0.98;
+        letter-spacing: -0.035em;
+      }
+
+      .title .win {
+        color: var(--green);
+      }
+
+      .lead {
+        margin-top: 20px;
+        max-width: 450px;
+        font-size: 23px;
+        line-height: 1.45;
+        color: var(--text-62);
+      }
+
+      .badges {
+        display: flex;
+        gap: 13px;
+        margin-top: 24px;
+      }
+
+      .badge {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 13px 20px;
+        border-radius: 13px;
+        font-size: 18px;
+        font-weight: 700;
+      }
+
+      .badgeGreen {
+        background: rgba(142, 224, 90, 0.1);
+        box-shadow: inset 0 0 0 1.5px rgba(142, 224, 90, 0.42);
+        color: var(--green);
+      }
+
+      .badgeAmber {
+        background: rgba(245, 184, 41, 0.09);
+        box-shadow: inset 0 0 0 1.5px rgba(245, 184, 41, 0.42);
+        color: var(--amber);
+      }
+
+      .foot {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-top: 22px;
+        font-size: 17px;
+        color: var(--text-55);
+      }
+
+      .dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 100px;
+        background: var(--text-55);
+      }
+
+      /* ── phones: the hero's composition, scaled to the card ── */
+
+      .phones {
+        position: relative;
+        height: 630px;
+      }
+
+      .phone {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        background: var(--phone-shell);
+      }
+
+      .phone > .screen {
+        overflow: hidden;
+        background: var(--panel);
+      }
+
+      .phone img {
+        display: block;
+        width: 100%;
+        object-fit: cover;
+        object-position: top center;
+      }
+
+      .side {
+        width: 182px;
+        padding: 7px;
+        border-radius: 28px;
+        box-shadow: 0 0 0 1.5px var(--phone-edge), 0 24px 48px rgba(0, 0, 0, 0.55);
+      }
+
+      .side > .screen {
+        border-radius: 22px;
+      }
+
+      .side img {
+        height: 366px;
+      }
+
+      .left {
+        transform: translate(calc(-50% - 120px), -50%) rotate(-7deg);
+      }
+
+      .right {
+        transform: translate(calc(-50% + 120px), -50%) rotate(7deg);
+      }
+
+      .front {
+        width: 230px;
+        padding: 8px;
+        border-radius: 34px;
+        transform: translate(-50%, -50%);
+        box-shadow: 0 0 0 1.5px var(--phone-edge), 0 34px 66px rgba(0, 0, 0, 0.65);
+        z-index: 2;
+      }
+
+      .front > .screen {
+        border-radius: 27px;
+      }
+
+      .front img {
+        height: 460px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="glow"></div>
+
+      <div class="copy">
+        <div class="lockup">
+          <svg width="40" height="45" viewBox="0 0 50 56" fill="none">
+            <path
+              d="M0 2 H13 V21 L34 0 H50 V14 H34 L20 28 L34 42 H50 V56 H34 L13 35 V54 H0 Z"
+              fill="#8ee05a"
+            />
+          </svg>
+          <span class="wordmark">kombat</span>
+        </div>
+
+        <h1 class="title">
+          Play.<br />Compete.<br /><span class="win">Win.</span>
+        </h1>
+
+        <p class="lead">
+          Multiplayer games for real stakes. Winner takes the pot.
+        </p>
+
+        <div class="badges">
+          <span class="badge badgeGreen">Multiplayer live games</span>
+          <span class="badge badgeAmber">KOMBAT · USDC · ETH</span>
+        </div>
+
+        <div class="foot">
+          <span>playkombat.xyz</span>
+          <span class="dot"></span>
+          <span>Closed test · Sepolia</span>
+        </div>
+      </div>
+
+      <div class="phones">
+        <div class="phone side left">
+          <div class="screen">
+            <img src="../public/screenshots/ludo-turn.png" alt="" />
+          </div>
+        </div>
+        <div class="phone side right">
+          <div class="screen">
+            <img src="../public/screenshots/salvo-hit.png" alt="" />
+          </div>
+        </div>
+        <div class="phone front">
+          <div class="screen">
+            <img src="../public/screenshots/naval-fleet.png" alt="" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

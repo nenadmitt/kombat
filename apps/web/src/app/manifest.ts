@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Kombat",
     short_name: "Kombat",
-    description: "Skill games for real stakes.",
+    description: "Multiplayer games for real stakes.",
     start_url: "/",
     display: "standalone",
     background_color: "#161826",
