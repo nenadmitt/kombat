@@ -1,3 +1,4 @@
+import { UserPlatform } from '@gaming-platform/core';
 import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { DataSource } from 'typeorm';
@@ -69,6 +70,7 @@ describe('AuthenticationService (refresh rotation)', () => {
     await dataSource.query('TRUNCATE "refresh_tokens", "users" CASCADE');
     const user = await dbService.createUser(
       `refresh-${Date.now()}@example.com`,
+      UserPlatform.Mobile,
     );
     userId = user.id;
   });
@@ -88,16 +90,16 @@ describe('AuthenticationService (refresh rotation)', () => {
     const first = await login();
     expect(first.refreshToken).toHaveLength(64);
 
-    const second = await service.refreshSession(first.refreshToken);
+    const second = await service.refreshSession(first.refreshToken, UserPlatform.Mobile);
     expect(second.refreshToken).not.toBe(first.refreshToken);
     expect(second.accessToken).toBe(`access-for-${userId}`);
   });
 
   it('refuses to spend the same refresh token twice', async () => {
     const first = await login();
-    await service.refreshSession(first.refreshToken);
+    await service.refreshSession(first.refreshToken, UserPlatform.Mobile);
 
-    await expect(service.refreshSession(first.refreshToken)).rejects.toThrow(
+    await expect(service.refreshSession(first.refreshToken, UserPlatform.Mobile)).rejects.toThrow(
       UnauthorizedException,
     );
   });
@@ -105,14 +107,14 @@ describe('AuthenticationService (refresh rotation)', () => {
   /** The theft signal: a revoked token coming back means someone copied it. */
   it('revokes every session when a used token is replayed', async () => {
     const first = await login();
-    const second = await service.refreshSession(first.refreshToken);
+    const second = await service.refreshSession(first.refreshToken, UserPlatform.Mobile);
 
     // The thief replays the old token...
-    await expect(service.refreshSession(first.refreshToken)).rejects.toThrow(
+    await expect(service.refreshSession(first.refreshToken, UserPlatform.Mobile)).rejects.toThrow(
       UnauthorizedException,
     );
     // ...which must also kill the victim's still-live token.
-    await expect(service.refreshSession(second.refreshToken)).rejects.toThrow(
+    await expect(service.refreshSession(second.refreshToken, UserPlatform.Mobile)).rejects.toThrow(
       UnauthorizedException,
     );
   });
@@ -121,8 +123,8 @@ describe('AuthenticationService (refresh rotation)', () => {
     const first = await login();
 
     const results = await Promise.allSettled([
-      service.refreshSession(first.refreshToken),
-      service.refreshSession(first.refreshToken),
+      service.refreshSession(first.refreshToken, UserPlatform.Mobile),
+      service.refreshSession(first.refreshToken, UserPlatform.Mobile),
     ]);
     const fulfilled = results.filter(r => r.status === 'fulfilled');
     expect(fulfilled).toHaveLength(1);
@@ -134,7 +136,7 @@ describe('AuthenticationService (refresh rotation)', () => {
       `UPDATE "refresh_tokens" SET "expires_at" = now() - interval '1 day'`,
     );
 
-    await expect(service.refreshSession(refreshToken)).rejects.toThrow(
+    await expect(service.refreshSession(refreshToken, UserPlatform.Mobile)).rejects.toThrow(
       UnauthorizedException,
     );
   });
@@ -152,7 +154,7 @@ describe('AuthenticationService (refresh rotation)', () => {
     const { refreshToken } = await login();
     await service.logout(refreshToken);
 
-    await expect(service.refreshSession(refreshToken)).rejects.toThrow(
+    await expect(service.refreshSession(refreshToken, UserPlatform.Mobile)).rejects.toThrow(
       UnauthorizedException,
     );
   });

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import { AppShell } from './components/AppShell';
+import { EmbeddedWalletGate } from './components/EmbeddedWalletGate';
 import { DemoPage, MatchPage } from './pages/MatchPage';
 import { WelcomeBonusModal } from './components/WelcomeBonusModal';
 import { GamesPage } from './pages/GamesPage';
@@ -40,6 +41,7 @@ export function App() {
         element={
           <RequireSession>
             <LiveData />
+            <EmbeddedWalletGate />
             <WelcomeBonusGate />
             <AppShell />
           </RequireSession>
@@ -127,7 +129,8 @@ function RequireSession({
   children: React.ReactNode;
   skipOnboardingCheck?: boolean;
 }) {
-  const { user, hasSession, loading } = useSessionStore();
+  const { user, hasSession, loading, hasWallet, walletPromptDismissed } =
+    useSessionStore();
   const location = useLocation();
 
   if (loading) return <FullScreenSpinner />;
@@ -135,6 +138,18 @@ function RequireSession({
     return <Navigate to="/signin" replace state={{ from: location.pathname }} />;
   }
   if (!user.username && !skipOnboardingCheck) {
+    return <Navigate to="/onboarding" replace />;
+  }
+  // An email account is meant to end up with its custodial wallet, so a
+  // walletless one is routed back through onboarding on every entry. Backing
+  // out is allowed (free games work either way); it returns next page load.
+  // hasWallet null means unknown - never wall the app on a failed fetch.
+  if (
+    !skipOnboardingCheck &&
+    user.email &&
+    hasWallet === false &&
+    !walletPromptDismissed
+  ) {
     return <Navigate to="/onboarding" replace />;
   }
   return <>{children}</>;

@@ -1,6 +1,8 @@
 import { io, type Socket } from 'socket.io-client';
 import type { JwtSignOptions } from '@nestjs/jwt';
 
+import { UserPlatform } from '@gaming-platform/core';
+
 import { UserEntity } from '../../src/db/entities/user.entity';
 import type { TestApp } from './app';
 
@@ -35,6 +37,7 @@ export async function createActor(
   testApp: TestApp,
   label: string,
   tokenOptions?: JwtSignOptions,
+  platform: UserPlatform = UserPlatform.Mobile,
 ): Promise<Actor> {
   const repo = testApp.dataSource.getRepository(UserEntity);
   const user = await repo.save(
@@ -43,6 +46,7 @@ export async function createActor(
       username: label,
       referralCode: null,
       referredByUserId: null,
+      platform,
     }),
   );
 

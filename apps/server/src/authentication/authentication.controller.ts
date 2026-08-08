@@ -8,10 +8,11 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Throttle, seconds } from '@nestjs/throttler';
-import type { AuthSession } from '@gaming-platform/core';
+import type { AuthSession, UserPlatform } from '@gaming-platform/core';
 
 import { AuthenticationService } from './authentication.service';
 import { ISecurityContext } from './authentication.types';
+import { CallerPlatform } from './decorators/caller-platform.decorator';
 import { SecurityContext } from './decorators/security-context.decorator';
 import { ExchangeTokenDto } from './dto/exchange-token.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -26,8 +27,11 @@ export class AuthenticationController {
   // Sends an email per call - throttled well below the global default.
   @Throttle({ default: { ttl: seconds(60), limit: 5 } })
   @Post('request-token')
-  async requestToken(@Body() dto: RequestTokenDto): Promise<{ success: true }> {
-    await this.authenticationService.requestToken(dto.email);
+  async requestToken(
+    @Body() dto: RequestTokenDto,
+    @CallerPlatform() platform: UserPlatform,
+  ): Promise<{ success: true }> {
+    await this.authenticationService.requestToken(dto.email, platform);
     return { success: true };
   }
 
@@ -38,16 +42,27 @@ export class AuthenticationController {
   @Post('request-token/test')
   async requestTestToken(
     @Body() dto: RequestTokenDto,
+    @CallerPlatform() platform: UserPlatform,
   ): Promise<{ token: string }> {
-    const token = await this.authenticationService.requestTestToken(dto.email);
+    const token = await this.authenticationService.requestTestToken(
+      dto.email,
+      platform,
+    );
     return { token };
   }
 
   // The login-code brute-force surface.
   @Throttle({ default: { ttl: seconds(60), limit: 10 } })
   @Post('exchange-token')
-  async exchangeToken(@Body() dto: ExchangeTokenDto): Promise<AuthSession> {
-    return this.authenticationService.exchangeToken(dto.email, dto.token);
+  async exchangeToken(
+    @Body() dto: ExchangeTokenDto,
+    @CallerPlatform() platform: UserPlatform,
+  ): Promise<AuthSession> {
+    return this.authenticationService.exchangeToken(
+      dto.email,
+      dto.token,
+      platform,
+    );
   }
 
   @Throttle({ default: { ttl: seconds(60), limit: 20 } })
@@ -60,10 +75,14 @@ export class AuthenticationController {
   @Throttle({ default: { ttl: seconds(60), limit: 10 } })
   @Post('siwe/verify')
   @HttpCode(HttpStatus.OK)
-  async siweVerify(@Body() dto: SiweVerifyDto): Promise<AuthSession> {
+  async siweVerify(
+    @Body() dto: SiweVerifyDto,
+    @CallerPlatform() platform: UserPlatform,
+  ): Promise<AuthSession> {
     return this.authenticationService.signInWithEthereum(
       dto.message,
       dto.signature,
+      platform,
     );
   }
 
@@ -74,8 +93,11 @@ export class AuthenticationController {
    */
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refresh(@Body() dto: RefreshTokenDto): Promise<AuthSession> {
-    return this.authenticationService.refreshSession(dto.refreshToken);
+  async refresh(
+    @Body() dto: RefreshTokenDto,
+    @CallerPlatform() platform: UserPlatform,
+  ): Promise<AuthSession> {
+    return this.authenticationService.refreshSession(dto.refreshToken, platform);
   }
 
   /** Revoke one session. Always 204, so it can't be used to probe tokens. */

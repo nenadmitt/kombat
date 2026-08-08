@@ -11,6 +11,7 @@ export const APP_NAME = 'Gaming Platform';
 export * from './api/api-client';
 export * from './api/error-codes';
 export * from './authentication/authentication.types';
+export * from './authentication/platform.types';
 export * from './games/game-room.types';
 export * from './games/turn-based';
 export * from './games/battleship';

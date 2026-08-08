@@ -17,6 +17,22 @@ import { DbService } from '../db';
 const MAX_LABEL_ATTEMPTS = 5;
 
 /**
+ * The name resolves to the same address on every EVM chain we might settle
+ * on, not just mainnet: a wallet that only answers for `eth` looks unfunded
+ * to a wallet app pointed anywhere else.
+ */
+const EVM_CHAINS = [
+  ChainName.Ethereum,
+  ChainName.Base,
+  ChainName.Optimism,
+  ChainName.Arbitrum,
+  ChainName.Scroll,
+] as const;
+
+const evmAddressRecords = (address: string) =>
+  EVM_CHAINS.map(chain => ({ chain, value: address }));
+
+/**
  * Mints <username>.playkombat.xyz off-chain and points it at the user's
  * custodial wallet.
  *
@@ -54,7 +70,7 @@ export class EnsSubnameService {
   async mintForUsername(
     userId: string,
     username: string,
-    address: string | undefined,
+    address: string,
   ): Promise<string | null> {
     if (!this.client) {
       return null;
@@ -84,12 +100,10 @@ export class EnsSubnameService {
           label,
           parentName,
           owner: address,
-          addresses: address
-            ? [{ chain: ChainName.Ethereum, value: address }]
-            : [],
+          addresses: evmAddressRecords(address),
           texts: [{ key: 'name', value: username }],
         });
-        this.logger.log(`Minted ${fullName} for ${userId} (${address ?? 'no wallet'})`);
+        this.logger.log(`Minted ${fullName} for ${userId} (${address})`);
         return fullName;
       }
       this.logger.warn(
@@ -105,25 +119,4 @@ export class EnsSubnameService {
     }
   }
 
-  /**
-   * Point a user's existing subname at their wallet. Onboarding sets the
-   * username before the wallet exists, so the name is usually minted with no
-   * address and would otherwise resolve to nothing.
-   */
-  async attachWallet(userId: string, address: string): Promise<void> {
-    if (!this.client) {
-      return;
-    }
-    try {
-      const user = await this.dbService.findUserById(userId);
-      if (!user?.ensName) {
-        return;
-      }
-      await this.client.setDefaultEvmAddress(user.ensName, address);
-      this.logger.log(`${user.ensName} now resolves to ${address}`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Could not point a subname at ${address}: ${message}`);
-    }
-  }
 }

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, IsNull, Not, Repository } from 'typeorm';
-import { LobbyStakeFilter } from '@gaming-platform/core';
+import { LobbyStakeFilter, UserPlatform } from '@gaming-platform/core';
 
 import {
   CacheKeys,
@@ -451,9 +451,9 @@ export class DbService {
     return rows[0]?.present === true;
   }
 
-  createUser(email: string): Promise<UserEntity> {
+  createUser(email: string, platform: UserPlatform): Promise<UserEntity> {
     return this.userRepository.save(
-      this.userRepository.create({ email, username: null }),
+      this.userRepository.create({ email, username: null, platform }),
     );
   }
 
@@ -463,10 +463,13 @@ export class DbService {
    * deposits, withdrawals and recipient lookup find the user, so the two
    * writes have to land together.
    */
-  async createWalletUser(address: string): Promise<UserEntity> {
+  async createWalletUser(
+    address: string,
+    platform: UserPlatform,
+  ): Promise<UserEntity> {
     return this.dataSource.transaction(async manager => {
       const user = await manager.save(
-        manager.create(UserEntity, { email: null, username: null }),
+        manager.create(UserEntity, { email: null, username: null, platform }),
       );
       await manager.save(
         manager.create(WalletEntity, {
@@ -564,6 +567,16 @@ export class DbService {
 
   // --- wallets ---
 
+  /** The caller's custodial wallet, key material included (normally hidden). */
+  findEmbeddedWalletForUser(userId: string): Promise<WalletEntity | null> {
+    return this.walletRepository
+      .createQueryBuilder('w')
+      .addSelect('w.encryptedPrivateKey')
+      .where('w.user_id = :userId', { userId })
+      .andWhere('w.type = :type', { type: WalletOrigin.Embedded })
+      .getOne();
+  }
+
   countWalletsForUser(userId: string): Promise<number> {
     return this.walletRepository.countBy({ userId });
   }
@@ -580,16 +593,17 @@ export class DbService {
     address: string;
     type: WalletOrigin;
     network: WalletNetwork;
+    encryptedPrivateKey?: string;
   }): Promise<WalletEntity> {
     return this.walletRepository.save(this.walletRepository.create(data));
   }
 
   findWalletsForUser(
     userId: string,
-  ): Promise<Pick<WalletEntity, 'address' | 'network'>[]> {
+  ): Promise<Pick<WalletEntity, 'address' | 'network' | 'type'>[]> {
     return this.walletRepository.find({
       where: { userId },
-      select: ['address', 'network'],
+      select: ['address', 'network', 'type'],
     });
   }
 

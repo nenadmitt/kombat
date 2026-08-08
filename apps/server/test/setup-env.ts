@@ -24,3 +24,12 @@ process.env.STAKE_POT_ADDRESS = '';
 process.env.OPERATOR_PRIVATE_KEY = '';
 process.env.FAUCET_KEY = '';
 process.env.RESEND_API_KEY = '';
+
+// Custodial key encryption. A fixed 32-byte key: the suite asserts that a
+// stored key decrypts back, which needs the value to be stable and valid.
+process.env.W_ENCRYPT = 'ZTJlLXRlc3Qta2V5LWZvci13YWxsZXRzLTMyYnl0ZXM=';
+
+// The shared demo identity, so the both-apps exemption is actually exercised.
+process.env.DEMO_LOGIN_EMAIL = 'demo@e2e.local';
+// Eight characters: ExchangeTokenDto validates the length.
+process.env.DEMO_LOGIN_CODE = 'DEMO2026';

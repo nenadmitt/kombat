@@ -7,6 +7,8 @@ export enum WalletNetwork {
 export type WalletSummary = {
   address: string;
   network: WalletNetwork;
+  /** The platform holds this wallet's key, so the browser can load it. */
+  custodial: boolean;
 };
 
 export type CreateWalletResponse = {
