@@ -2,16 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import {
-  ArrowClockwise,
   ArrowCounterClockwise,
   CheckCircle,
-  SignOut,
   Trash,
 } from "@phosphor-icons/react";
 
-import { LogoLockup } from "@/components/Logo";
+import { AdminHeader } from "@/components/AdminHeader";
 import {
   ADMIN_TOKEN_STORAGE_KEY,
   readAdminTokenFromUrl,
@@ -164,25 +161,11 @@ export default function AdminPage() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.nav}>
-        <Link href="/" className={styles.brand}>
-          <LogoLockup size={26} />
-        </Link>
-        <div className={styles.navActions}>
-          <button
-            type="button"
-            className={styles.navBtn}
-            onClick={() => void load()}
-          >
-            <ArrowClockwise size={14} weight="bold" />
-            Refresh
-          </button>
-          <button type="button" className={styles.navBtn} onClick={signOut}>
-            <SignOut size={14} weight="bold" />
-            Sign out
-          </button>
-        </div>
-      </header>
+      <AdminHeader
+        active="signups"
+        onRefresh={() => void load()}
+        onSignOut={signOut}
+      />
 
       <main className={styles.main}>
         <h1 className={styles.title}>Tester signups</h1>

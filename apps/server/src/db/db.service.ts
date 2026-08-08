@@ -26,6 +26,25 @@ import { WalletNetwork, WalletOrigin } from './types/wallet';
 const PLAYED_IN_ROOM =
   '(room.user_id = :userId OR room.opponent_id = :userId OR room.opponent_ids @> ARRAY[:userId]::uuid[])';
 
+/** Where a user signed up. Added by the web-accounts work; read-only here. */
+const USER_PLATFORM_COLUMN = 'platform';
+
+export interface RoomTotals {
+  total: number;
+  pending: number;
+  inProgress: number;
+  completed: number;
+  staked: number;
+  free: number;
+}
+
+export interface UserRoomTotals extends RoomTotals {
+  wins: number;
+  /** Completed with no winner: forfeits before a result, voided matches. */
+  voids: number;
+  created: number;
+}
+
 /**
  * Sole point of contact with TypeORM repositories/DataSource. Other modules
  * call through here instead of injecting `Repository<T>` directly, so the
@@ -246,6 +265,190 @@ export class DbService {
       // stays a valid base-unit integer for BigInt on the client.
       net: String(r.net ?? '0').split('.')[0]!,
     }));
+  }
+
+  // --- admin stats ---
+
+  countUsers(): Promise<number> {
+    return this.userRepository.count();
+  }
+
+  /** Every room, split by lifecycle and by whether a stake was posted. */
+  async findRoomTotals(): Promise<RoomTotals> {
+    const row = await this.gameRoomRepository
+      .createQueryBuilder('room')
+      .select('COUNT(*)', 'total')
+      .addSelect(`COUNT(*) FILTER (WHERE room.status = :pending)`, 'pending')
+      .addSelect(
+        `COUNT(*) FILTER (WHERE room.status = :inProgress)`,
+        'inProgress',
+      )
+      .addSelect(`COUNT(*) FILTER (WHERE room.status = :completed)`, 'completed')
+      .addSelect(`COUNT(*) FILTER (WHERE room.stake_token IS NOT NULL)`, 'staked')
+      .addSelect(`COUNT(*) FILTER (WHERE room.stake_token IS NULL)`, 'free')
+      .setParameters({
+        pending: GameRoomStatus.Pending,
+        inProgress: GameRoomStatus.InProgress,
+        completed: GameRoomStatus.Completed,
+      })
+      .getRawOne<Record<keyof RoomTotals, string>>();
+    return {
+      total: Number(row?.total ?? 0),
+      pending: Number(row?.pending ?? 0),
+      inProgress: Number(row?.inProgress ?? 0),
+      completed: Number(row?.completed ?? 0),
+      staked: Number(row?.staked ?? 0),
+      free: Number(row?.free ?? 0),
+    };
+  }
+
+  /** Rooms per game type, most-played first. */
+  async findRoomCountsByType(): Promise<
+    { gameType: number; total: number; staked: number }[]
+  > {
+    const rows = await this.gameRoomRepository
+      .createQueryBuilder('room')
+      .select('room.game_type', 'gameType')
+      .addSelect('COUNT(*)', 'total')
+      .addSelect(`COUNT(*) FILTER (WHERE room.stake_token IS NOT NULL)`, 'staked')
+      .groupBy('room.game_type')
+      .orderBy('COUNT(*)', 'DESC')
+      .addOrderBy('room.game_type', 'ASC')
+      .getRawMany<{ gameType: number; total: string; staked: string }>();
+    return rows.map(row => ({
+      gameType: Number(row.gameType),
+      total: Number(row.total),
+      staked: Number(row.staked),
+    }));
+  }
+
+  /**
+   * Rooms played, per participant, in one pass — a per-user query would be one
+   * round trip per row of the admin table. Unnesting the three seat columns
+   * cannot use the seat indexes, so this is a deliberate full scan.
+   */
+  async findRoomCountsByParticipant(): Promise<
+    Map<string, { games: number; staked: number }>
+  > {
+    const rows = await this.gameRoomRepository.manager.query<
+      { userId: string; games: string; staked: string }[]
+    >(
+      `SELECT participant::text AS "userId",
+              COUNT(DISTINCT room.id) AS games,
+              COUNT(DISTINCT room.id) FILTER (WHERE room.stake_token IS NOT NULL)
+                AS staked
+         FROM game_rooms room,
+              LATERAL unnest(
+                array_remove(
+                  ARRAY[room.user_id, room.opponent_id] || room.opponent_ids,
+                  NULL
+                )
+              ) AS participant
+        GROUP BY participant`,
+    );
+    return new Map(
+      rows.map(row => [
+        row.userId,
+        { games: Number(row.games), staked: Number(row.staked) },
+      ]),
+    );
+  }
+
+  /** One player's whole record, live rooms included. */
+  async findRoomTotalsForUser(userId: string): Promise<UserRoomTotals> {
+    const row = await this.gameRoomRepository
+      .createQueryBuilder('room')
+      .select('COUNT(*)', 'total')
+      .addSelect(`COUNT(*) FILTER (WHERE room.status = :pending)`, 'pending')
+      .addSelect(
+        `COUNT(*) FILTER (WHERE room.status = :inProgress)`,
+        'inProgress',
+      )
+      .addSelect(`COUNT(*) FILTER (WHERE room.status = :completed)`, 'completed')
+      .addSelect(`COUNT(*) FILTER (WHERE room.stake_token IS NOT NULL)`, 'staked')
+      .addSelect(`COUNT(*) FILTER (WHERE room.stake_token IS NULL)`, 'free')
+      .addSelect(
+        `COUNT(*) FILTER (WHERE room.winner_user_id = :userId)`,
+        'wins',
+      )
+      .addSelect(
+        `COUNT(*) FILTER (WHERE room.status = :completed
+                            AND room.winner_user_id IS NULL)`,
+        'voids',
+      )
+      .addSelect(`COUNT(*) FILTER (WHERE room.user_id = :userId)`, 'created')
+      .where(PLAYED_IN_ROOM, { userId })
+      .setParameters({
+        pending: GameRoomStatus.Pending,
+        inProgress: GameRoomStatus.InProgress,
+        completed: GameRoomStatus.Completed,
+      })
+      .getRawOne<Record<keyof UserRoomTotals, string>>();
+    return {
+      total: Number(row?.total ?? 0),
+      pending: Number(row?.pending ?? 0),
+      inProgress: Number(row?.inProgress ?? 0),
+      completed: Number(row?.completed ?? 0),
+      staked: Number(row?.staked ?? 0),
+      free: Number(row?.free ?? 0),
+      wins: Number(row?.wins ?? 0),
+      voids: Number(row?.voids ?? 0),
+      created: Number(row?.created ?? 0),
+    };
+  }
+
+  /** One player's rooms per game type, most-played first. */
+  async findRoomCountsByTypeForUser(
+    userId: string,
+  ): Promise<{ gameType: number; total: number; staked: number }[]> {
+    const rows = await this.gameRoomRepository
+      .createQueryBuilder('room')
+      .select('room.game_type', 'gameType')
+      .addSelect('COUNT(*)', 'total')
+      .addSelect(`COUNT(*) FILTER (WHERE room.stake_token IS NOT NULL)`, 'staked')
+      .where(PLAYED_IN_ROOM, { userId })
+      .groupBy('room.game_type')
+      .orderBy('COUNT(*)', 'DESC')
+      .addOrderBy('room.game_type', 'ASC')
+      .getRawMany<{ gameType: number; total: string; staked: string }>();
+    return rows.map(row => ({
+      gameType: Number(row.gameType),
+      total: Number(row.total),
+      staked: Number(row.staked),
+    }));
+  }
+
+  /**
+   * Signup platform per user, or null when the column has not been migrated in
+   * yet. Owned by the web-accounts work; everything here only reads it, so the
+   * admin surface has to work on a database that predates it.
+   */
+  async findUserPlatforms(): Promise<Map<string, number> | null> {
+    if (!(await this.hasUserPlatformColumn())) {
+      return null;
+    }
+    const rows = await this.userRepository.manager.query<
+      { id: string; platform: number | null }[]
+    >(`SELECT id::text AS id, "${USER_PLATFORM_COLUMN}" AS platform FROM users`);
+    return new Map(
+      rows
+        .filter(row => row.platform !== null)
+        .map(row => [row.id, Number(row.platform)]),
+    );
+  }
+
+  /** Not memoized: the column appears mid-life, when its migration runs. */
+  private async hasUserPlatformColumn(): Promise<boolean> {
+    const rows = await this.dataSource.query<{ present: boolean }[]>(
+      `SELECT EXISTS (
+         SELECT 1 FROM information_schema.columns
+          WHERE table_schema = current_schema()
+            AND table_name = 'users'
+            AND column_name = $1
+       ) AS present`,
+      [USER_PLATFORM_COLUMN],
+    );
+    return rows[0]?.present === true;
   }
 
   createUser(email: string): Promise<UserEntity> {
