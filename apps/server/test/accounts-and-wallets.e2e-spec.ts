@@ -249,6 +249,56 @@ describe('accounts and wallets (e2e)', () => {
       expect(crossed.body.message).toMatch(/mobile app/i);
     });
 
+    it('reveals nothing to a caller who has not proven the inbox', async () => {
+      const email = 'closed-book@e2e.local';
+      expect((await signIn(email, 'web')).session).not.toBeNull();
+
+      // Requesting a code from the other app looks exactly like requesting
+      // one for any address - a 403 here would be a free account-and-platform
+      // oracle for anyone with an email list.
+      const requested = await call(
+        'POST',
+        '/authentication/request-token/test',
+        { body: { email }, platform: 'mobile' },
+      );
+      expect([200, 201]).toContain(requested.status);
+
+      // And a wrong code answers 401 regardless of platform: the probe
+      // "403 means the account exists elsewhere" must not work.
+      const probed = await call('POST', '/authentication/exchange-token', {
+        body: { email, token: 'WRONGCOD' },
+        platform: 'mobile',
+      });
+      expect(probed.status).toBe(401);
+    });
+
+    it('leaves a cross-platform 403 code unspent for the right app', async () => {
+      const email = 'unspent-code@e2e.local';
+      expect((await signIn(email, 'web')).session).not.toBeNull();
+
+      const requested = await call(
+        'POST',
+        '/authentication/request-token/test',
+        { body: { email }, platform: 'web' },
+      );
+      const code = requested.body.token;
+
+      // The verdict costs the caller nothing but the round trip: the same
+      // code still signs them in where the account lives.
+      const crossed = await call('POST', '/authentication/exchange-token', {
+        body: { email, token: code },
+        platform: 'mobile',
+      });
+      expect(crossed.status).toBe(403);
+
+      const home = await call('POST', '/authentication/exchange-token', {
+        body: { email, token: code },
+        platform: 'web',
+      });
+      expect([200, 201]).toContain(home.status);
+      expect(home.body.accessToken).toBeTruthy();
+    });
+
     it('lets the shared demo account in from either app', async () => {
       // A demo identity handed out for reviews is not somebody's account:
       // pinning it to one app would lock the web demo out of itself.

@@ -130,9 +130,7 @@ export class AuthenticationService {
     platform: UserPlatform,
   ): Promise<string> {
     let user = await this.dbService.findUserByEmail(email);
-    if (user) {
-      this.assertPlatform(user.platform, platform, user.email);
-    } else {
+    if (!user) {
       user = await this.dbService.createUser(email, platform);
     }
 
@@ -167,12 +165,16 @@ export class AuthenticationService {
     if (!user) {
       throw new UnauthorizedException('Invalid or expired token');
     }
-    this.assertPlatform(user.platform, platform, user.email);
 
     const tokenEntity = await this.dbService.findLoginToken(user.id, token);
     if (!tokenEntity || tokenEntity.expiresAt < new Date()) {
       throw new UnauthorizedException('Invalid or expired token');
     }
+
+    // Only now, with the inbox proven: a 403 before this point would tell an
+    // unauthenticated caller which emails have accounts, and where. The code
+    // is left unspent so it still works on the app the account belongs to.
+    this.assertPlatform(user.platform, platform, user.email);
 
     // Single-use: delete once exchanged, regardless of outcome below.
     await this.dbService.deleteLoginToken(tokenEntity.id);

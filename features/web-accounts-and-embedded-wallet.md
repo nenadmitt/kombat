@@ -13,8 +13,12 @@ Shipped so far:
 
 - `UserPlatform` in core, `users.platform` (migration `UserPlatform1785800000000`,
   backfilled by the rule below).
-- The split enforced at every token-issuing path, refresh included, keyed off
-  `X-App-Platform` via a `@CallerPlatform()` decorator.
+- The split enforced at every session-issuing path, refresh included, keyed
+  off `X-App-Platform` via a `@CallerPlatform()` decorator. The verdict is
+  only given after a proven credential: request-token reveals nothing, and
+  exchange answers 401 to a wrong code on any platform, so the 403 cannot be
+  used to enumerate which emails have accounts or where. A cross-platform 403
+  leaves the code unspent for the app the account belongs to.
 - `W_ENCRYPT` (32-byte base64, validated at boot), AES-256-GCM in
   `wallets/key-cipher.util.ts`, `WalletOrigin.Embedded` and
   `wallets.encrypted_private_key` with a CHECK tying the two together
