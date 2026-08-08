@@ -120,6 +120,24 @@ describe('accounts and wallets (e2e)', () => {
       expect(status).toBe(401);
     });
 
+    it('mints one wallet even when two creations race', async () => {
+      const player = await actor('race-once', UserPlatform.Web);
+
+      // The service counts before it inserts, which two concurrent calls walk
+      // straight past - React StrictMode fires the creating effect twice in
+      // dev and did exactly this. The unique index is what actually holds.
+      const results = await Promise.all([
+        player.post('/wallets', { network: WalletNetwork.Ethereum }),
+        player.post('/wallets', { network: WalletNetwork.Ethereum }),
+      ]);
+
+      expect(results.filter(r => r.status === 201)).toHaveLength(1);
+      expect(results.filter(r => r.status === 409)).toHaveLength(1);
+
+      const { body } = await player.get('/wallets');
+      expect(body).toHaveLength(1);
+    });
+
     it('creates a wallet for a valid token, once', async () => {
       const player = await actor('mobile-once');
 

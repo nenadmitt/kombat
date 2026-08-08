@@ -28,6 +28,28 @@ type Props = {
 const MASK = [6, 5, 8, 6, 7, 4, 5, 9, 6, 5, 7, 6];
 
 /**
+ * One creation per page load, shared across mounts: StrictMode runs effects
+ * twice in dev, and two concurrent creates raced past the server's count
+ * check and minted two wallets. The unique index now refuses the second row;
+ * this stops the double call from ever leaving the client.
+ */
+let creationInFlight: Promise<{ address: string; mnemonic: string }> | null =
+  null;
+
+function createWalletOnce() {
+  if (!creationInFlight) {
+    creationInFlight = apiClient
+      .createWallet(WalletNetwork.Ethereum)
+      .finally(() => {
+        setTimeout(() => {
+          creationInFlight = null;
+        }, 0);
+      });
+  }
+  return creationInFlight;
+}
+
+/**
  * The wallet step for a web account. The key is held by the platform,
  * encrypted, so nothing is stored in this browser: the phrase is the player's
  * own backup, and the account keeps working whether or not they save it.
@@ -54,7 +76,7 @@ export function WalletSetupPage({ onDone, onSkip }: Props) {
         onDone();
         return;
       }
-      const created = await apiClient.createWallet(WalletNetwork.Ethereum);
+      const created = await createWalletOnce();
       setWords(created.mnemonic.split(' '));
       setAddress(created.address);
       // The subname is minted with the username but only points somewhere once

@@ -7,6 +7,7 @@ import {
   StakeAsset,
   type StakePotDepositTarget,
   type StakePotHistoryEntry,
+  type WalletSummary,
 } from '@gaming-platform/core';
 import {
   ArrowDown,
@@ -84,7 +85,12 @@ function useWalletBalances(address: Address | undefined) {
 
 export function WalletPage() {
   const user = useSessionStore(s => s.user);
-  const { address, chainId } = useAccount();
+  const { address: connectedAddress, chainId } = useAccount();
+  // A custodial account has no wagmi connection: its address lives on the
+  // server, so reading only the connector shows "disconnected" to someone
+  // whose wallet plainly exists.
+  const [custodial, setCustodial] = useState<WalletSummary | null>(null);
+  const address = connectedAddress ?? (custodial?.address as Address | undefined);
   const { balances, enabled, refresh } = usePotStore();
 
   const [target, setTarget] = useState<StakePotDepositTarget | null>(null);
@@ -113,6 +119,13 @@ export function WalletPage() {
   }, [enabled]);
 
   useEffect(() => {
+    apiClient
+      .listWallets()
+      .then(wallets => setCustodial(wallets.find(w => w.custodial) ?? null))
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
     if (!depositMined) return;
     setNotice('Deposit confirmed. Your pot updates within a minute.');
     setPendingTx(undefined);
@@ -136,7 +149,11 @@ export function WalletPage() {
     );
   }
 
-  const wrongChain = Boolean(address) && chainId !== CHAIN_ID;
+  const wrongChain = Boolean(connectedAddress) && chainId !== CHAIN_ID;
+  // Every write here is signed by the connected wallet. A custodial one is
+  // signed server-side, which has no endpoint yet, so its funds are visible
+  // and receivable but not yet spendable from this screen.
+  const canSign = Boolean(connectedAddress);
   const tokenFor = (a: StakeAsset) =>
     target?.tokens.find(token => token.asset === a)?.address as Address | undefined;
 
@@ -237,7 +254,13 @@ export function WalletPage() {
         <div>
           <h1 className="page-title">Wallet</h1>
           <div className="wallet-address">
-            <span>{address ? shortAddress(address) : 'Wallet disconnected'}</span>
+            <span>
+              {address
+                ? shortAddress(address)
+                : custodial === null
+                  ? 'Wallet disconnected'
+                  : 'Loading your wallet'}
+            </span>
             {address && (
               <>
                 <button type="button" className="icon-btn" onClick={copyAddress}>
@@ -270,6 +293,13 @@ export function WalletPage() {
 
       {wrongChain && (
         <div className="banner">Switch your wallet to {CHAIN_NAME}.</div>
+      )}
+      {!canSign && custodial && (
+        <div className="banner">
+          Your wallet is held by Kombat, so deposits are signed for you. That
+          is not built yet: you can receive funds here, and staking from this
+          balance is coming.
+        </div>
       )}
       {notice && <div className="notice">{notice}</div>}
       {error && !mode && <div className="banner">{error}</div>}
@@ -331,7 +361,7 @@ export function WalletPage() {
                 setMode('deposit');
                 setError(null);
               }}
-              disabled={!address}
+              disabled={!canSign}
             >
               <ArrowDown size={16} weight="bold" color="var(--gold)" />
               Deposit to pot
@@ -412,7 +442,7 @@ export function WalletPage() {
                 type="button"
                 className="btn btn-gold btn-block"
                 onClick={() => setMode('deposit')}
-                disabled={!address}
+                disabled={!canSign}
               >
                 Stake
               </button>

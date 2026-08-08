@@ -58,22 +58,32 @@ export class WalletsService {
     // the device, and the server has no path that signs for that player.
     const { mnemonic, address, privateKey } = generateEthereumWallet();
 
-    await this.dbService.createWallet({
-      userId,
-      address,
-      type: custodial ? WalletOrigin.Embedded : WalletOrigin.Platform,
-      network,
-      // A web player has no device key store, so the platform holds the key
-      // encrypted at rest. Losing W_ENCRYPT loses every one of these wallets.
-      ...(custodial
-        ? {
-            encryptedPrivateKey: encryptPrivateKey(
-              privateKey,
-              parseEncryptionKey(this.configurationService.W_ENCRYPT),
-            ),
-          }
-        : {}),
-    });
+    try {
+      await this.dbService.createWallet({
+        userId,
+        address,
+        type: custodial ? WalletOrigin.Embedded : WalletOrigin.Platform,
+        network,
+        // A web player has no device key store, so the platform holds the key
+        // encrypted at rest. Losing W_ENCRYPT loses every one of these wallets.
+        ...(custodial
+          ? {
+              encryptedPrivateKey: encryptPrivateKey(
+                privateKey,
+                parseEncryptionKey(this.configurationService.W_ENCRYPT),
+              ),
+            }
+          : {}),
+      });
+    } catch (error) {
+      // The count check above is advisory; the unique index is the rule. Two
+      // concurrent creations (React StrictMode double-fires effects in dev)
+      // both pass the count and race to insert - the loser lands here.
+      if ((error as { code?: string }).code === '23505') {
+        throw new ConflictException('You already have a wallet');
+      }
+      throw error;
+    }
 
     // The wallet needs gas to sign its own first pot deposit. Fire-and-forget:
     // a dusting failure must not fail wallet creation.
