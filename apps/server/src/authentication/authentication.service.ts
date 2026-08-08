@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -6,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes } from 'crypto';
-import type { AuthSession } from '@gaming-platform/core';
+import { UserPlatform, type AuthSession } from '@gaming-platform/core';
 
 import { ConfigurationService } from '../configuration/configuration.service';
 import { DbService } from '../db';
@@ -42,22 +43,44 @@ export class AuthenticationService {
   async signInWithEthereum(
     message: string,
     signature: string,
+    platform: UserPlatform,
   ): Promise<AuthSession> {
     const address = await this.siweService.verify(message, signature);
     const wallet = await this.dbService.findWalletByAddress(address);
-    const userId =
-      wallet?.userId ?? (await this.dbService.createWalletUser(address)).id;
-    return this.issueSession(userId);
+    if (wallet) {
+      const user = await this.dbService.findUserById(wallet.userId);
+      if (user) {
+        this.assertPlatform(user.platform, platform);
+      }
+      return this.issueSession(wallet.userId);
+    }
+    const created = await this.dbService.createWalletUser(address, platform);
+    return this.issueSession(created.id);
   }
 
-  async requestToken(email: string): Promise<void> {
+  /**
+   * An account belongs to the app that created it. The custody models differ
+   * (a mobile wallet lives on the device, a web one is held encrypted by the
+   * platform), so signing in from the other app would hand someone a session
+   * whose wallet their client cannot operate.
+   */
+  private assertPlatform(account: UserPlatform, caller: UserPlatform): void {
+    if (account === caller) return;
+    throw new ForbiddenException(
+      account === UserPlatform.Mobile
+        ? 'This account belongs to the mobile app. Sign in there.'
+        : 'This account belongs to the web app. Sign in there.',
+    );
+  }
+
+  async requestToken(email: string, platform: UserPlatform): Promise<void> {
     // Demo account: no inbox to mail, and the code is fixed. Just make sure
     // the user row exists so the exchange can sign a token for it.
     if (this.isDemoLogin(email)) {
-      await this.ensureUser(email);
+      await this.ensureUser(email, platform);
       return;
     }
-    const token = await this.createLoginToken(email);
+    const token = await this.createLoginToken(email, platform);
     await this.emailService.sendLoginToken(email, token);
   }
 
@@ -72,26 +95,38 @@ export class AuthenticationService {
     );
   }
 
-  private async ensureUser(email: string) {
+  private async ensureUser(email: string, platform: UserPlatform) {
     const existing = await this.dbService.findUserByEmail(email);
-    return existing ?? this.dbService.createUser(email);
+    if (existing) {
+      this.assertPlatform(existing.platform, platform);
+      return existing;
+    }
+    return this.dbService.createUser(email, platform);
   }
 
   /**
    * Same as requestToken, but returns the token instead of emailing it, so
    * local/CI testing doesn't depend on a real inbox. 404s in production.
    */
-  async requestTestToken(email: string): Promise<string> {
+  async requestTestToken(
+    email: string,
+    platform: UserPlatform,
+  ): Promise<string> {
     if (this.configService.IS_PRODUCTION) {
       throw new NotFoundException();
     }
-    return this.createLoginToken(email);
+    return this.createLoginToken(email, platform);
   }
 
-  private async createLoginToken(email: string): Promise<string> {
+  private async createLoginToken(
+    email: string,
+    platform: UserPlatform,
+  ): Promise<string> {
     let user = await this.dbService.findUserByEmail(email);
-    if (!user) {
-      user = await this.dbService.createUser(email);
+    if (user) {
+      this.assertPlatform(user.platform, platform);
+    } else {
+      user = await this.dbService.createUser(email, platform);
     }
 
     // Invalidate any previously issued tokens for this user.
@@ -107,13 +142,17 @@ export class AuthenticationService {
     return token;
   }
 
-  async exchangeToken(email: string, token: string): Promise<AuthSession> {
+  async exchangeToken(
+    email: string,
+    token: string,
+    platform: UserPlatform,
+  ): Promise<AuthSession> {
     // Demo account: accept only the fixed code, bypassing the stored OTP.
     if (this.isDemoLogin(email)) {
       if (token !== this.configService.DEMO_LOGIN_CODE) {
         throw new UnauthorizedException('Invalid or expired token');
       }
-      const demoUser = await this.ensureUser(email);
+      const demoUser = await this.ensureUser(email, platform);
       return this.issueSession(demoUser.id);
     }
 
@@ -121,6 +160,7 @@ export class AuthenticationService {
     if (!user) {
       throw new UnauthorizedException('Invalid or expired token');
     }
+    this.assertPlatform(user.platform, platform);
 
     const tokenEntity = await this.dbService.findLoginToken(user.id, token);
     if (!tokenEntity || tokenEntity.expiresAt < new Date()) {
@@ -145,7 +185,10 @@ export class AuthenticationService {
    * way to tell the thief from the victim, so every live token for that user is
    * revoked and both are forced back through email login.
    */
-  async refreshSession(refreshToken: string): Promise<AuthSession> {
+  async refreshSession(
+    refreshToken: string,
+    platform: UserPlatform,
+  ): Promise<AuthSession> {
     const row = await this.dbService.findRefreshTokenByHash(
       hashRefreshToken(refreshToken),
     );
@@ -163,6 +206,13 @@ export class AuthenticationService {
 
     if (row.expiresAt < new Date()) {
       throw new UnauthorizedException('Invalid or expired session');
+    }
+
+    // The login check is worth nothing if a copied refresh token can walk
+    // around it from the other app.
+    const owner = await this.dbService.findUserById(row.userId);
+    if (owner) {
+      this.assertPlatform(owner.platform, platform);
     }
 
     // Conditional revoke, so two concurrent refreshes with the same token can't

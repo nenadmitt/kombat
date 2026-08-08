@@ -1,3 +1,4 @@
+import { UserPlatform } from '@gaming-platform/core';
 import { Column, CreateDateColumn, Entity, Index } from 'typeorm';
 import { BaseEntity } from './base.entity';
 
@@ -26,6 +27,10 @@ export class UserEntity extends BaseEntity {
   /** Minted once from the first username; never renamed after that. */
   @Column({ name: 'ens_name', type: 'varchar', nullable: true })
   ensName: string | null;
+
+  /** The app this account was created in; it may only sign in there. */
+  @Column({ name: 'platform', type: 'smallint', default: UserPlatform.Mobile })
+  platform: UserPlatform;
 
   /** Who referred them, recorded once at sign-up and never reassigned. */
   @Column({ name: 'referred_by_user_id', type: 'uuid', nullable: true })

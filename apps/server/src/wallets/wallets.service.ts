@@ -2,8 +2,10 @@ import {
   ConflictException,
   Injectable,
   Logger,
+  NotFoundException,
   NotImplementedException,
 } from '@nestjs/common';
+import { UserPlatform } from '@gaming-platform/core';
 
 
 import { ChainService } from '../chain';
@@ -12,6 +14,7 @@ import { DbService } from '../db';
 import { EnsSubnameService } from '../ens';
 import { WalletNetwork, WalletOrigin } from '../db/types/wallet';
 import { generateEthereumWallet } from './ethereum-wallet.util';
+import { encryptPrivateKey, parseEncryptionKey } from './key-cipher.util';
 
 const MAX_WALLETS_PER_USER = 1;
 
@@ -41,19 +44,35 @@ export class WalletsService {
       );
     }
 
-    // The mnemonic is handed to the caller once and never persisted: the
-    // server has no path that signs for a player (deposits, transfers and
-    // permits are all signed on the device), so keeping the key would add no
-    // capability and make this database a single point of total loss. The
-    // consequence is deliberate - a player who loses their mnemonic cannot be
-    // recovered by the platform.
-    const { mnemonic, address } = generateEthereumWallet();
+    const user = await this.dbService.findUserById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    // Custody follows the account, never a caller-supplied flag: a web client
+    // cannot ask for a device wallet it has no way to sign with, and a phone
+    // cannot ask us to hold its key.
+    const custodial = user.platform === UserPlatform.Web;
+
+    // The mnemonic is handed to the caller once and never persisted. For a
+    // mobile (Platform) wallet nothing else is kept either: the key stays on
+    // the device, and the server has no path that signs for that player.
+    const { mnemonic, address, privateKey } = generateEthereumWallet();
 
     await this.dbService.createWallet({
       userId,
       address,
-      type: WalletOrigin.Platform,
+      type: custodial ? WalletOrigin.Embedded : WalletOrigin.Platform,
       network,
+      // A web player has no device key store, so the platform holds the key
+      // encrypted at rest. Losing W_ENCRYPT loses every one of these wallets.
+      ...(custodial
+        ? {
+            encryptedPrivateKey: encryptPrivateKey(
+              privateKey,
+              parseEncryptionKey(this.configurationService.W_ENCRYPT),
+            ),
+          }
+        : {}),
     });
 
     // The wallet needs gas to sign its own first pot deposit. Fire-and-forget:

@@ -4,6 +4,7 @@ import type {
   PublicUserProfile,
   UserProfile,
 } from '../authentication/authentication.types';
+import type { AppPlatform } from '../authentication/platform.types';
 import type { PlayerStats } from '../players/player-stats';
 import type {
   GameRoomSummary,
@@ -47,8 +48,9 @@ export type ApiClientOptions = {
   timeoutMs?: number;
   /** Client build version, sent as X-App-Version so the server can gate old builds. */
   appVersion?: string;
-  /** Sent as X-App-Platform. `web` is exempt from the store-build version floor. */
-  appPlatform?: 'web';
+  /** Sent as X-App-Platform. `web` is exempt from the store-build version
+   *  floor, and the server pins new accounts to the app that created them. */
+  appPlatform?: AppPlatform;
 };
 
 export class ApiError extends Error {

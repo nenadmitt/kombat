@@ -5,8 +5,24 @@ Plan for the third account type described in
 in with email and gets a server-held, encrypted private key, plus a hard
 mobile/web split on which app an account may sign in from.
 
-Status: planned, not started. The onboarding screen design is still to come
-from Nenad; everything server-side can proceed before it lands.
+Status: phases 1-3 built and covered by integration tests; phase 4's sign-in
+screens are built against the supplied design. Remaining: the seed-phrase
+onboarding screen (design still to come) and phase 5, spending.
+
+Shipped so far:
+
+- `UserPlatform` in core, `users.platform` (migration `UserPlatform1785800000000`,
+  backfilled by the rule below).
+- The split enforced at every token-issuing path, refresh included, keyed off
+  `X-App-Platform` via a `@CallerPlatform()` decorator.
+- `W_ENCRYPT` (32-byte base64, validated at boot), AES-256-GCM in
+  `wallets/key-cipher.util.ts`, `WalletOrigin.Embedded` and
+  `wallets.encrypted_private_key` with a CHECK tying the two together
+  (migration `EmbeddedWalletKeys1785900000000`).
+- Custody is chosen from `user.platform` inside `createWallet`, never from a
+  caller flag.
+- Web sign-in: method picker and OTP screens (`AuthShell`, `OtpInput`).
+- Tests: 9 unit (cipher) + 13 integration (`test/accounts-and-wallets.e2e-spec.ts`).
 
 ## Where the code stands today
 

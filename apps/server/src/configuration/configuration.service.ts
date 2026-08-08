@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { isProductionEnv } from './node-env';
+import { parseEncryptionKey } from '../wallets/key-cipher.util';
 
 @Injectable()
 export class ConfigurationService {
@@ -52,6 +53,8 @@ export class ConfigurationService {
   public readonly CHAIN_ID: number;
   /** The platform's hot key - signs pot withdrawals and gas top-ups. */
   public readonly OPERATOR_PRIVATE_KEY: string | undefined;
+  /** Base64, 32 bytes. Encrypts custodial (web) wallet keys at rest. */
+  public readonly W_ENCRYPT: string | undefined;
   /** Confirmations to await before treating a chain tx as final. */
   public readonly CHAIN_CONFIRMATIONS: number;
   /** Max stake per player in human units (applies to every asset). */
@@ -131,6 +134,13 @@ export class ConfigurationService {
       10,
     );
     this.OPERATOR_PRIVATE_KEY = this.configService.get('OPERATOR_PRIVATE_KEY');
+    // Validated at boot rather than at first wallet creation: a bad key here
+    // is a deploy mistake, and finding out mid-signup would strand the user
+    // with an account and no wallet.
+    this.W_ENCRYPT = this.configService.get('W_ENCRYPT');
+    if (this.W_ENCRYPT !== undefined) {
+      parseEncryptionKey(this.W_ENCRYPT);
+    }
     this.CHAIN_CONFIRMATIONS = parseInt(
       this.configService.get('CHAIN_CONFIRMATIONS') ?? '1',
       10,

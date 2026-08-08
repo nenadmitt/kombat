@@ -24,3 +24,7 @@ process.env.STAKE_POT_ADDRESS = '';
 process.env.OPERATOR_PRIVATE_KEY = '';
 process.env.FAUCET_KEY = '';
 process.env.RESEND_API_KEY = '';
+
+// Custodial key encryption. A fixed 32-byte key: the suite asserts that a
+// stored key decrypts back, which needs the value to be stable and valid.
+process.env.W_ENCRYPT = 'ZTJlLXRlc3Qta2V5LWZvci13YWxsZXRzLTMyYnl0ZXM=';
