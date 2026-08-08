@@ -19,7 +19,8 @@ const AVATAR_COLORS = ['#8ee05a', '#f5b829', '#3ee08f', '#8aa0f5'];
 
 export function OnboardingPage() {
   const navigate = useNavigate();
-  const { user, setUser } = useSessionStore();
+  const { user, setUser, hasWallet, setHasWallet, dismissWalletPrompt } =
+    useSessionStore();
 
   const [username, setUsername] = useState('');
   const [referral, setReferral] = useState('');
@@ -30,13 +31,28 @@ export function OnboardingPage() {
   const [error, setError] = useState<string | null>(null);
   const [needsWallet, setNeedsWallet] = useState(false);
 
-  if (user?.username && !needsWallet) return <Navigate to="/lobby" replace />;
+  // A returning email user with no wallet re-enters at the wallet step: the
+  // username screen is done, and the account is meant to end up with exactly
+  // one custodial wallet attached.
+  const resumeWalletStep =
+    Boolean(user?.username) && Boolean(user?.email) && hasWallet === false;
 
-  if (needsWallet) {
+  if (needsWallet || resumeWalletStep) {
     return (
-      <WalletSetupPage onDone={() => navigate('/lobby', { replace: true })} />
+      <WalletSetupPage
+        onDone={() => {
+          setHasWallet(true);
+          navigate('/lobby', { replace: true });
+        }}
+        onSkip={() => {
+          dismissWalletPrompt();
+          navigate('/lobby', { replace: true });
+        }}
+      />
     );
   }
+
+  if (user?.username) return <Navigate to="/lobby" replace />;
 
   const nameValid = USERNAME_PATTERN.test(username.trim());
   const referralEntered = referral.trim().length > 0;
@@ -56,7 +72,8 @@ export function OnboardingPage() {
       // A player who signed in with a wallet already has one; an email account
       // needs the platform to mint it before they can stake or be paid out.
       const wallets = await apiClient.listWallets();
-      if (wallets.length === 0) {
+      setHasWallet(wallets.length > 0);
+      if (updated.email && wallets.length === 0) {
         setNeedsWallet(true);
         return;
       }

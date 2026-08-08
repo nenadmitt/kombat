@@ -20,6 +20,8 @@ import { useSessionStore } from '../store/session.store';
 type Props = {
   /** Called once the player has a wallet and has acknowledged the phrase. */
   onDone: () => void;
+  /** Backing out without a wallet - allowed, but re-prompted next visit. */
+  onSkip?: () => void;
 };
 
 /** Masked lengths for the grid before the words are revealed. */
@@ -30,7 +32,7 @@ const MASK = [6, 5, 8, 6, 7, 4, 5, 9, 6, 5, 7, 6];
  * encrypted, so nothing is stored in this browser: the phrase is the player's
  * own backup, and the account keeps working whether or not they save it.
  */
-export function WalletSetupPage({ onDone }: Props) {
+export function WalletSetupPage({ onDone, onSkip }: Props) {
   const { user, setUser } = useSessionStore();
 
   const [words, setWords] = useState<string[] | null>(null);
@@ -107,7 +109,11 @@ export function WalletSetupPage({ onDone }: Props) {
             Try again
           </button>
           {/* Never a dead end: the lobby works, staking is what needs a wallet. */}
-          <button type="button" className="btn btn-surface btn-block" onClick={onDone}>
+          <button
+            type="button"
+            className="btn btn-surface btn-block"
+            onClick={onSkip ?? onDone}
+          >
             Skip for now
           </button>
         </>
