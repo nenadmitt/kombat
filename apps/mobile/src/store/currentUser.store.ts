@@ -100,6 +100,7 @@ function walletFromKey(privateKey: string): WalletSummary {
   return {
     address: deriveAddressFromPrivateKey(privateKey),
     network: WalletNetwork.Ethereum,
+    custodial: false,
   };
 }
 
