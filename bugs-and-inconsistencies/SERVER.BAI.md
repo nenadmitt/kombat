@@ -3,6 +3,22 @@
 Entry format: date, one-line summary, location, why it's wrong, suggested
 fix. Remove an entry in the same change that fixes it.
 
+## 2026-08-09 - The rate limiter buckets every production client together
+
+- **Where:** `apps/server/src/app.module.ts:29-32` (`ThrottlerModule.forRoot`,
+  100 req / 60s) with no `trust proxy` on the Express instance in `main.ts`
+  and no custom `getTracker`.
+- **Why it's wrong:** the throttler tracks `req.ips[0] ?? req.ip`, and
+  `req.ips` is only populated when Express trusts the proxy. Deployed behind
+  the DigitalOcean/Cloudflare edge that is off, so `req.ip` is the edge's
+  address and **all** traffic shares one 100/60s bucket - a handful of
+  concurrent players can 429 everyone else, and one abusive client cannot be
+  singled out. `x-ratelimit-remaining` on a live request confirms the counter
+  is running in production.
+- **Suggested fix:** `app.set('trust proxy', 1)` in `main.ts` (or a
+  `getTracker` reading `cf-connecting-ip`), so the bucket is per client. Note
+  the count is still per instance - see the 2026-07-17 entry.
+
 ## 2026-08-09 - The admin panel's users.platform guard is dead once web accounts merge
 
 - **Where:** `apps/server/src/db/db.service.ts` - `findUserPlatforms()`,
