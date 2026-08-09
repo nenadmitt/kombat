@@ -1,7 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, IsNull, Not, Repository } from 'typeorm';
-import { LobbyStakeFilter, UserPlatform } from '@gaming-platform/core';
+import {
+  LobbyStakeFilter,
+  RANKING_COIN_POINTS,
+  RANKING_POINTS_FREE_GAME,
+  RANKING_POINTS_STAKED_GAME,
+  RankingEntry,
+  STAKE_ASSET_DECIMALS,
+  STAKEABLE_ASSETS,
+  UserPlatform,
+} from '@gaming-platform/core';
 
 import {
   CacheKeys,
@@ -28,6 +37,13 @@ const PLAYED_IN_ROOM =
 
 /** Where a user signed up. Added by the web-accounts work; read-only here. */
 const USER_PLATFORM_COLUMN = 'platform';
+
+/** Base-unit net winnings -> ranking points, per stake asset. */
+const RANKING_COIN_POINTS_CASE = STAKEABLE_ASSETS.map(
+  asset =>
+    `WHEN ${asset} THEN ${RANKING_COIN_POINTS[asset] ?? 0}` +
+    ` / 10::numeric ^ ${STAKE_ASSET_DECIMALS[asset]}`,
+).join(' ');
 
 export interface RoomTotals {
   total: number;
@@ -264,6 +280,102 @@ export class DbService {
       // numeric comes back as a string; strip any fractional tail so it
       // stays a valid base-unit integer for BigInt on the client.
       net: String(r.net ?? '0').split('.')[0]!,
+    }));
+  }
+
+  /**
+   * Leaderboard points over decided matches (voids and never-started rooms
+   * award nothing): participation per room plus the winner's net payout
+   * converted to points per asset. Unnesting the seat columns cannot use the
+   * seat indexes, so this is a deliberate full scan.
+   */
+  async findRankings(options: {
+    gameType?: GameType;
+    limit: number;
+    offset: number;
+  }): Promise<Omit<RankingEntry, 'rank'>[]> {
+    const params: unknown[] = [
+      GameRoomStatus.Completed,
+      RANKING_POINTS_FREE_GAME,
+      RANKING_POINTS_STAKED_GAME,
+    ];
+    let gameTypeClause = '';
+    if (options.gameType !== undefined) {
+      params.push(options.gameType);
+      gameTypeClause = `AND room.game_type = $${params.length}`;
+    }
+    params.push(options.limit);
+    const limitParam = `$${params.length}`;
+    params.push(options.offset);
+    const offsetParam = `$${params.length}`;
+
+    const rows = await this.gameRoomRepository.manager.query<
+      {
+        userId: string;
+        username: string | null;
+        ensName: string | null;
+        games: string;
+        wins: string;
+        stakedGames: string;
+        playPoints: string;
+        coinPoints: string;
+        totalPoints: string;
+      }[]
+    >(
+      `SELECT ranked.*,
+              ranked."playPoints" + ranked."coinPoints" AS "totalPoints"
+         FROM (
+           SELECT participant::text AS "userId",
+                  u.username AS "username",
+                  u.ens_name AS "ensName",
+                  COUNT(*) AS games,
+                  COUNT(*) FILTER (WHERE room.winner_user_id = participant)
+                    AS wins,
+                  COUNT(*) FILTER (WHERE room.stake_token IS NOT NULL)
+                    AS "stakedGames",
+                  SUM(CASE WHEN room.stake_token IS NULL
+                           THEN $2::numeric ELSE $3::numeric END)
+                    AS "playPoints",
+                  COALESCE(SUM(
+                    CASE WHEN room.winner_user_id = participant
+                          AND settlement.payout IS NOT NULL
+                         THEN (settlement.payout::numeric - room.stake_amount::numeric)
+                              * CASE room.stake_token
+                                  ${RANKING_COIN_POINTS_CASE}
+                                  ELSE 0
+                                END
+                         ELSE 0
+                    END
+                  ), 0) AS "coinPoints"
+             FROM game_rooms room
+             LEFT JOIN match_settlements settlement
+               ON settlement.room_id = room.id
+            CROSS JOIN LATERAL unnest(
+                    array_remove(
+                      ARRAY[room.user_id, room.opponent_id] || room.opponent_ids,
+                      NULL
+                    )
+                  ) AS participant
+             LEFT JOIN users u ON u.id = participant
+            WHERE room.status = $1
+              AND room.winner_user_id IS NOT NULL
+              ${gameTypeClause}
+            GROUP BY participant, u.username, u.ens_name
+         ) ranked
+        ORDER BY "totalPoints" DESC, ranked.games DESC, ranked."userId"
+        LIMIT ${limitParam} OFFSET ${offsetParam}`,
+      params,
+    );
+    return rows.map(row => ({
+      userId: row.userId,
+      username: row.username,
+      ensName: row.ensName,
+      games: Number(row.games),
+      wins: Number(row.wins),
+      stakedGames: Number(row.stakedGames),
+      playPoints: Math.round(Number(row.playPoints)),
+      coinPoints: Math.round(Number(row.coinPoints)),
+      totalPoints: Math.round(Number(row.totalPoints)),
     }));
   }
 

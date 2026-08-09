@@ -6,6 +6,7 @@ import type {
 } from '../authentication/authentication.types';
 import type { AppPlatform } from '../authentication/platform.types';
 import type { PlayerStats } from '../players/player-stats';
+import type { RankingEntry, RankingsQuery } from '../players/rankings';
 import type {
   GameRoomSummary,
   GameType,
@@ -179,6 +180,27 @@ export class ApiClient {
       `/users/profiles?ids=${encodeURIComponent(ids.join(','))}`,
       undefined,
       true,
+    );
+  }
+
+  /** Leaderboard page, general or per game. Public - no session required. */
+  getRankings(query?: RankingsQuery): Promise<RankingEntry[]> {
+    const params = new URLSearchParams();
+    if (query?.gameType !== undefined) {
+      params.set('gameType', String(query.gameType));
+    }
+    if (query?.limit !== undefined) {
+      params.set('limit', String(query.limit));
+    }
+    if (query?.offset !== undefined) {
+      params.set('offset', String(query.offset));
+    }
+    const search = params.toString();
+    return this.request(
+      'GET',
+      `/rankings${search ? `?${search}` : ''}`,
+      undefined,
+      false,
     );
   }
 

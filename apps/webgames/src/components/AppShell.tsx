@@ -3,6 +3,7 @@ import {
   DiamondsFour,
   GameController,
   House,
+  Trophy,
   User,
   Wallet,
 } from '@phosphor-icons/react';
@@ -24,6 +25,7 @@ const NAV: { to: string; label: string; icon: Icon }[] = [
   { to: '/games', label: 'Games', icon: GameController },
   { to: '/wallet', label: 'Wallet', icon: Wallet },
   { to: '/history', label: 'History', icon: ClockCounterClockwise },
+  { to: '/rankings', label: 'Rankings', icon: Trophy },
   { to: '/profile', label: 'Profile', icon: User },
 ];
 

@@ -22,6 +22,7 @@ import { HistoryPage } from './pages/HistoryPage';
 import { LobbyPage } from './pages/LobbyPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { RankingsPage } from './pages/RankingsPage';
 import { SignInPage } from './pages/SignInPage';
 import { WalletPage } from './pages/WalletPage';
 import { apiClient } from './lib/api';
@@ -64,6 +65,7 @@ export function App() {
         <Route path="/games" element={<GamesPage />} />
         <Route path="/wallet" element={<WalletPage />} />
         <Route path="/history" element={<HistoryPage />} />
+        <Route path="/rankings" element={<RankingsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/game/:gameType/:roomId" element={<MatchPage />} />
         <Route path="/demo/:gameType" element={<DemoPage />} />
