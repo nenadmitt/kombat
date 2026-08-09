@@ -36,6 +36,17 @@
   --ludo-yellow: #f5b829;
   --ludo-blue: #5b8def;
 
+  /* Chroma Clash suit colours, shared with the mobile cards. */
+  --chroma-crimson: #e5484d;
+  --chroma-amber: #f5a524;
+  --chroma-jade: #30a46c;
+  --chroma-azure: #3b82f6;
+  /* A wild's ground, and the back of every face-down card. */
+  --chroma-wild: #1b1d2b;
+  --chroma-back: #232532;
+  /* Card print: the oval and the corner glyphs are paper white, not --text. */
+  --chroma-print: #ffffff;
+
   --win: #3ee08f;
   --loss: #ff8792;
   --chain: #8aa0f5;
@@ -3815,6 +3826,525 @@ a {
   }
 }
 
+/* ── chroma clash ─────────────────────────────────────────────── */
+
+.chroma-play {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: var(--s-6);
+  align-items: start;
+}
+
+.chroma-stage {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.chroma-table {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  gap: var(--s-6);
+  padding: var(--s-6) var(--s-5);
+  border-radius: var(--r-xl);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.chroma-turn-pill {
+  position: absolute;
+  top: var(--s-3);
+  right: var(--s-3);
+  z-index: 1;
+  display: none;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-pill);
+  background: var(--app);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+
+.chroma-turn-pill.is-theirs .turn-dot {
+  background: var(--text-3);
+  box-shadow: none;
+  animation: none;
+}
+
+.chroma-turn-pill-name {
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  max-width: 12ch;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chroma-turn-pill .bs-clock {
+  display: flex;
+}
+
+.chroma-turn-pill .bs-clock-value {
+  font-size: 14px;
+}
+
+.chroma-pile,
+.chroma-discard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.chroma-pile-stack {
+  position: relative;
+  display: block;
+}
+
+/* Two offset ghosts sell the depth of the pile behind the top card. */
+.chroma-pile-ghost {
+  position: absolute;
+  top: calc(var(--s-1) / 2);
+  left: calc(var(--s-1) / 2);
+  width: 100%;
+  height: 100%;
+  border-radius: var(--r-sm);
+  background: var(--chroma-wild);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+
+.chroma-pile-ghost.is-far {
+  top: var(--s-1);
+  left: var(--s-1);
+  opacity: 0.6;
+}
+
+.chroma-pile:not(:disabled):hover .chroma-card-back {
+  box-shadow: inset 0 0 0 1px var(--lime-edge);
+}
+
+.chroma-active-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-1) var(--s-3);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--text-2);
+}
+
+.chroma-active-dot {
+  width: 11px;
+  height: 11px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--suit);
+  box-shadow: 0 0 8px var(--suit);
+}
+
+.chroma-turn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+}
+
+.turn-dot.is-idle {
+  background: var(--text-3);
+  box-shadow: none;
+  animation: none;
+}
+
+.chroma-turn-text {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.chroma-notice {
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.chroma-hand-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.chroma-hand-playable {
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--lime);
+}
+
+.chroma-hand {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-2);
+  min-height: 120px;
+  padding: var(--s-4) 0 var(--s-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.chroma-hand::-webkit-scrollbar {
+  display: none;
+}
+
+/* Up to eight cards the hand fans; past that it is a flat scrolling row. */
+.chroma-hand.is-fanned {
+  justify-content: center;
+  gap: 0;
+  overflow: visible;
+}
+
+.chroma-hand.is-fanned .chroma-hand-card {
+  margin-inline: calc(var(--s-1) * -1);
+}
+
+.chroma-hand-card {
+  flex: none;
+  transition: transform 0.14s ease;
+}
+
+/* A card that cannot be played is still legible: the lime edge, not a fade,
+   is what marks the playable ones. */
+.chroma-hand-card:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.chroma-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  position: sticky;
+  top: 0;
+}
+
+.chroma-seats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.chroma-seat {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.chroma-seat.is-turn {
+  box-shadow: inset 0 0 0 1px var(--lime-edge);
+}
+
+.chroma-seat.is-out {
+  opacity: 0.45;
+}
+
+.chroma-seat-avatar {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: var(--r-sm);
+  display: grid;
+  place-items: center;
+  background: var(--surface-hover);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.chroma-seat-dot {
+  position: absolute;
+  right: calc(var(--s-1) / -2);
+  bottom: calc(var(--s-1) / -2);
+  width: 9px;
+  height: 9px;
+  border-radius: var(--r-pill);
+  background: var(--loss);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.chroma-seat-dot.is-online {
+  background: var(--win);
+}
+
+.chroma-seat-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+  flex: 1;
+}
+
+.chroma-seat-name {
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chroma-seat-sub {
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text-3);
+}
+
+.chroma-seat-cards {
+  display: flex;
+  flex: none;
+}
+
+.chroma-mini {
+  width: 14px;
+  height: 20px;
+  border-radius: calc(var(--r-sm) / 3);
+  background: var(--chroma-back);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+
+.chroma-mini + .chroma-mini {
+  margin-left: calc(var(--s-2) * -0.75);
+}
+
+.chroma-seat-count {
+  flex: none;
+  font-weight: 800;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.chroma-actions {
+  display: flex;
+  gap: var(--s-3);
+}
+
+.chroma-solo {
+  flex: 1;
+  letter-spacing: 0.08em;
+}
+
+.chroma-solo.is-armed {
+  background: var(--lime-tint);
+  color: var(--lime-bright);
+  box-shadow:
+    inset 0 0 0 1px var(--lime),
+    0 0 16px var(--lime-tint);
+}
+
+.chroma-play-btn {
+  flex: 1.3;
+}
+
+.chroma-prism-preview {
+  display: grid;
+  place-items: center;
+}
+
+.chroma-prism-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+
+.chroma-prism-opt {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.chroma-prism-opt.is-picked {
+  box-shadow: inset 0 0 0 1px var(--suit);
+}
+
+.chroma-prism-swatch {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: var(--r-sm);
+  background: var(--suit);
+  box-shadow: 0 0 12px var(--suit);
+}
+
+.chroma-prism-label {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.chroma-prism-check {
+  margin-left: auto;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: var(--r-pill);
+  display: grid;
+  place-items: center;
+  background: var(--suit);
+  color: var(--ink);
+}
+
+/* ── chroma cards ─────────────────────────────────────────────── */
+
+.chroma-card {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: var(--card-r);
+  background: var(--suit);
+  box-shadow: inset 0 0 0 1px var(--sunken);
+  overflow: hidden;
+}
+
+.chroma-card.is-playable {
+  box-shadow: inset 0 0 0 2px var(--lime);
+}
+
+.chroma-card.is-selected {
+  box-shadow:
+    inset 0 0 0 2px var(--lime),
+    0 0 14px var(--lime-edge);
+}
+
+.chroma-card.is-dimmed {
+  opacity: 0.45;
+}
+
+/* A wild carries all four suits instead of one face colour. */
+.chroma-card-quads {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, var(--chroma-crimson) 50%, var(--chroma-amber) 50%)
+      top / 100% 50% no-repeat,
+    linear-gradient(90deg, var(--chroma-jade) 50%, var(--chroma-azure) 50%)
+      bottom / 100% 50% no-repeat;
+}
+
+.chroma-card-oval {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--card-w) * 0.92);
+  height: calc(var(--card-w) * 0.62);
+  border-radius: 50%;
+  background: var(--chroma-print);
+  transform: translate(-50%, -50%) rotate(-32deg);
+}
+
+.chroma-card-glyph {
+  position: relative;
+  z-index: 2;
+  font-weight: 800;
+  font-size: var(--glyph-size);
+  line-height: 1;
+  color: var(--suit);
+}
+
+.chroma-card-corner {
+  position: absolute;
+  z-index: 2;
+  top: calc(var(--card-w) * 0.06);
+  left: calc(var(--card-w) * 0.1);
+  font-weight: 800;
+  font-size: var(--corner-size);
+  line-height: 1;
+  color: var(--chroma-print);
+}
+
+.chroma-card-corner.is-br {
+  top: auto;
+  left: auto;
+  bottom: calc(var(--card-w) * 0.06);
+  right: calc(var(--card-w) * 0.1);
+  transform: rotate(180deg);
+}
+
+.chroma-card-back {
+  --suit: var(--chroma-back);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+
+.chroma-card-back-oval {
+  display: grid;
+  place-items: center;
+  width: calc(var(--card-w) * 0.56);
+  height: calc(var(--card-w) * 0.82);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px var(--lime);
+  transform: rotate(-32deg);
+}
+
+.chroma-card-back-star {
+  font-size: var(--back-star);
+  line-height: 1;
+  color: var(--lime);
+  transform: rotate(32deg);
+}
+
+/* The sidebar unpacks into the single column: seats lead, the tray trails. */
+@media (max-width: 1100px) {
+  .chroma-play {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+  }
+
+  .chroma-side {
+    display: contents;
+  }
+
+  .chroma-seats {
+    order: -2;
+    flex-direction: row;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .chroma-seats::-webkit-scrollbar {
+    display: none;
+  }
+
+  .chroma-seat {
+    flex: 1 0 auto;
+    min-width: 170px;
+  }
+
+  .chroma-side .match-turn {
+    order: -1;
+  }
+
+  .chroma-play .match-actions {
+    order: 1;
+  }
+}
+
 /* ── mobile ───────────────────────────────────────────────────── */
 
 /*
@@ -4030,6 +4560,21 @@ a {
     height: 56px;
     padding: var(--s-2);
     border-radius: var(--r-md);
+  }
+
+  /* Same trade as Ludo: the table's corner pill replaces the sidebar strip,
+     which stays mounted because its Countdown drives the demo's timeouts. */
+  .chroma-side .match-turn {
+    display: none;
+  }
+
+  .chroma-turn-pill {
+    display: flex;
+  }
+
+  .chroma-table {
+    gap: var(--s-4);
+    padding: var(--s-6) var(--s-3) var(--s-4);
   }
 
   .wallet-head,

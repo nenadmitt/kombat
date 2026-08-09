@@ -9,7 +9,7 @@ const ARENAS: { gameType: GameType; blurb: string }[] = [
   { gameType: GameType.NavalBattle, blurb: 'Strategy - about 6 min' },
   { gameType: GameType.Salvo, blurb: 'Artillery - about 5 min' },
   { gameType: GameType.TripleCut, blurb: 'Duel - best of five, about 2 min' },
-  { gameType: GameType.ChromaClash, blurb: 'Cards - about 4 min' },
+  { gameType: GameType.ChromaClash, blurb: 'Cards - 2-4 players, about 4 min' },
   { gameType: GameType.Ludo, blurb: 'Board - about 9 min' },
 ];
 
@@ -28,8 +28,8 @@ export function GamesPage() {
             maxWidth: 520,
           }}
         >
-          Five arenas today. Four play right here in the browser; Chroma
-          Clash is in the mobile app while its web client is built.
+          Five arenas today, every one of them playable right here in the
+          browser. Practise against bots, or take a seat for a stake.
         </p>
       </div>
 

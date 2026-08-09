@@ -32,6 +32,7 @@ const FILTERS: { label: string; value: GameType | null }[] = [
   { label: 'Salvo', value: GameType.Salvo },
   { label: 'Triple Cut', value: GameType.TripleCut },
   { label: 'Ludo', value: GameType.Ludo },
+  { label: 'Chroma Clash', value: GameType.ChromaClash },
 ];
 
 export function LobbyPage() {
