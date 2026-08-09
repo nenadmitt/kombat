@@ -1,10 +1,21 @@
-import { STAKE_POT_EVENTS, type StakePotBalances } from '@gaming-platform/core';
-import { useEffect, useState } from 'react';
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import {
+  GameRoomStatus,
+  STAKE_POT_EVENTS,
+  type StakePotBalances,
+} from '@gaming-platform/core';
+import { useEffect, useRef, useState } from 'react';
+import {
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom';
 
 import { AppShell } from './components/AppShell';
 import { EmbeddedWalletGate } from './components/EmbeddedWalletGate';
 import { DemoPage, MatchPage } from './pages/MatchPage';
+import { ResumeMatchModal } from './components/ResumeMatchModal';
 import { WelcomeBonusModal } from './components/WelcomeBonusModal';
 import { GamesPage } from './pages/GamesPage';
 import { HistoryPage } from './pages/HistoryPage';
@@ -15,6 +26,7 @@ import { SignInPage } from './pages/SignInPage';
 import { WalletPage } from './pages/WalletPage';
 import { apiClient } from './lib/api';
 import { sessionStorage } from './lib/session-storage';
+import { useActiveRoomStore } from './store/active-room.store';
 import { usePotStore } from './store/pot.store';
 import { useSessionStore } from './store/session.store';
 import { useWebsocketStore } from './store/websocket.store';
@@ -43,6 +55,7 @@ export function App() {
             <LiveData />
             <EmbeddedWalletGate />
             <WelcomeBonusGate />
+            <ResumeMatchGate />
             <AppShell />
           </RequireSession>
         }
@@ -80,6 +93,45 @@ function LiveData() {
   );
 
   return null;
+}
+
+/**
+ * A match left running follows the player around the app until they rejoin or
+ * forfeit it, the same prompt the mobile app shows. Suppressed on that match's
+ * own route, which is where Rejoin sends them.
+ */
+function ResumeMatchGate() {
+  const room = useActiveRoomStore(s => s.room);
+  const refresh = useActiveRoomStore(s => s.refresh);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [dismissedId, setDismissedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  // Leaving a board is the moment the answer changes: the match either ended
+  // there or is still live and worth prompting about.
+  const onBoard = location.pathname.startsWith('/game/');
+  const wasOnBoard = useRef(onBoard);
+  useEffect(() => {
+    if (wasOnBoard.current && !onBoard) void refresh();
+    wasOnBoard.current = onBoard;
+  }, [onBoard, refresh]);
+
+  if (!room || room.status !== GameRoomStatus.InProgress) return null;
+
+  const matchPath = `/game/${room.gameType}/${room.id}`;
+  if (location.pathname === matchPath || dismissedId === room.id) return null;
+
+  return (
+    <ResumeMatchModal
+      room={room}
+      onRejoin={() => navigate(matchPath)}
+      onDismiss={() => setDismissedId(room.id)}
+    />
+  );
 }
 
 /**

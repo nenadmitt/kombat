@@ -7,13 +7,15 @@ import {
   Wallet,
 } from '@phosphor-icons/react';
 import type { Icon } from '@phosphor-icons/react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 
 import { BrandLockup } from './BrandMark';
+import { ConnectionBanner } from './ConnectionBanner';
 import { useAccount } from 'wagmi';
 
 import { CHAIN_NAME } from '../lib/chain';
 import { initialOf, shortAddress } from '../lib/format';
+import { useLeaveGuardStore } from '../store/leave-guard.store';
 import { useSessionStore } from '../store/session.store';
 import { PotCard } from './PotCard';
 
@@ -29,6 +31,15 @@ export function AppShell() {
   const user = useSessionStore(s => s.user);
   const { address } = useAccount();
   const handle = user?.ensName ?? user?.username ?? null;
+  const intercept = useLeaveGuardStore(s => s.intercept);
+  const navigate = useNavigate();
+
+  // A live board owns the exit: leaving forfeits, so it asks first.
+  const guardedNav = (to: string) => (event: { preventDefault: () => void }) => {
+    if (!intercept) return;
+    event.preventDefault();
+    intercept(() => navigate(to));
+  };
 
   return (
     <div className="shell">
@@ -45,6 +56,7 @@ export function AppShell() {
               className={({ isActive }) =>
                 isActive ? 'rail-link is-active' : 'rail-link'
               }
+              onClick={guardedNav(to)}
             >
               <Glyph size={18} />
               {label}
@@ -96,11 +108,14 @@ export function AppShell() {
               to="/profile"
               className="avatar"
               style={{ width: 38, height: 38, fontSize: 15 }}
+              onClick={guardedNav('/profile')}
             >
               {initialOf(user?.username ?? address)}
             </NavLink>
         </div>
         </header>
+
+        <ConnectionBanner />
 
         <Outlet />
       </div>

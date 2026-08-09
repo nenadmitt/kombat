@@ -6,6 +6,7 @@ import { LudoPlay } from '../games/ludo/LudoPlay';
 import type { LudoEngine } from '../games/ludo/ludo-engine';
 import { useDemoLudo } from '../games/ludo/useDemoLudo';
 import { useMultiplayerLudo } from '../games/ludo/useMultiplayerLudo';
+import { useLeaveGuard } from '../games/use-leave-guard';
 import { useResultExtras } from '../games/use-result-data';
 
 export function LudoMatchPage({ roomId }: { roomId: string }) {
@@ -45,6 +46,8 @@ function LudoFlow({
     over,
     engine.playProps.winnerName ?? 'the winner',
   );
+  const leave = useLeaveGuard(multiplayer && !over);
+  const leaving = leave.pending !== null;
 
   return (
     <div className="page">
@@ -52,7 +55,7 @@ function LudoFlow({
         <button
           type="button"
           className="btn btn-surface"
-          onClick={() => navigate('/lobby')}
+          onClick={() => leave.request(() => navigate('/lobby'))}
         >
           <ArrowLeft size={16} />
           {over || !multiplayer ? 'Back to lobby' : 'Leave board'}
@@ -114,8 +117,11 @@ function LudoFlow({
         />
       )}
 
-      {confirmForfeit && (
-        <div className="modal-backdrop" onClick={() => setConfirmForfeit(false)}>
+      {(confirmForfeit || leaving) && (
+        <div
+          className="modal-backdrop"
+          onClick={() => (leaving ? leave.cancel() : setConfirmForfeit(false))}
+        >
           <div className="modal" onClick={event => event.stopPropagation()}>
             <h2 className="modal-title">Leave this match?</h2>
             <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 13 }}>
@@ -126,7 +132,7 @@ function LudoFlow({
               <button
                 type="button"
                 className="btn btn-surface btn-block"
-                onClick={() => setConfirmForfeit(false)}
+                onClick={() => (leaving ? leave.cancel() : setConfirmForfeit(false))}
               >
                 Keep playing
               </button>
@@ -137,6 +143,7 @@ function LudoFlow({
                 onClick={() => {
                   engine.forfeit();
                   setConfirmForfeit(false);
+                  leave.resolve();
                 }}
               >
                 Leave
