@@ -51,7 +51,10 @@ export async function adminFetch<T>(
     error?: string;
   };
   if (!response.ok) {
-    return { status: "error", message: body.error ?? "That did not work." };
+    return {
+      status: "error",
+      message: body.error ?? `That did not work (${response.status}).`,
+    };
   }
   return { status: "ok", data: body as T };
 }
