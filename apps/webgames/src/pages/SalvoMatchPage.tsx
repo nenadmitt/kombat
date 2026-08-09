@@ -6,6 +6,7 @@ import { SalvoPlay } from '../games/salvo/SalvoPlay';
 import type { SalvoEngine } from '../games/salvo/salvo-engine';
 import { useDemoSalvo } from '../games/salvo/useDemoSalvo';
 import { useMultiplayerSalvo } from '../games/salvo/useMultiplayerSalvo';
+import { useLeaveGuard } from '../games/use-leave-guard';
 import { useResultExtras } from '../games/use-result-data';
 
 export function SalvoMatchPage({ roomId }: { roomId: string }) {
@@ -41,6 +42,8 @@ function SalvoFlow({
     seat => seat.side !== engine.playProps.me,
   );
   const extras = useResultExtras(roomId, over, foe?.name ?? 'Your opponent');
+  const leave = useLeaveGuard(multiplayer && !over);
+  const leaving = leave.pending !== null;
 
   return (
     <div className="page">
@@ -48,7 +51,7 @@ function SalvoFlow({
         <button
           type="button"
           className="btn btn-surface"
-          onClick={() => navigate('/lobby')}
+          onClick={() => leave.request(() => navigate('/lobby'))}
         >
           <ArrowLeft size={16} />
           {over || !multiplayer ? 'Back to lobby' : 'Leave board'}
@@ -105,18 +108,24 @@ function SalvoFlow({
         />
       )}
 
-      {confirmForfeit && (
-        <div className="modal-backdrop" onClick={() => setConfirmForfeit(false)}>
+      {(confirmForfeit || leaving) && (
+        <div
+          className="modal-backdrop"
+          onClick={() => (leaving ? leave.cancel() : setConfirmForfeit(false))}
+        >
           <div className="modal" onClick={event => event.stopPropagation()}>
-            <h2 className="modal-title">Forfeit this match?</h2>
+            <h2 className="modal-title">
+              {leaving ? 'Leave this match?' : 'Forfeit this match?'}
+            </h2>
             <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 13 }}>
-              Your opponent takes the win, and any stake with it.
+              {leaving ? 'Leaving forfeits the match. ' : ''}Your opponent takes
+              the win, and any stake with it.
             </p>
             <div style={{ display: 'flex', gap: 'var(--s-3)' }}>
               <button
                 type="button"
                 className="btn btn-surface btn-block"
-                onClick={() => setConfirmForfeit(false)}
+                onClick={() => (leaving ? leave.cancel() : setConfirmForfeit(false))}
               >
                 Keep playing
               </button>
@@ -127,9 +136,10 @@ function SalvoFlow({
                 onClick={() => {
                   engine.forfeit();
                   setConfirmForfeit(false);
+                  leave.resolve();
                 }}
               >
-                Forfeit
+                {leaving ? 'Leave' : 'Forfeit'}
               </button>
             </div>
           </div>

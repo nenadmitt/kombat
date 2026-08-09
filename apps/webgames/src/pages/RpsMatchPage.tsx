@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { RpsBoard } from '../games/rps/RpsBoard';
 import { useMultiplayerRps } from '../games/rps/useMultiplayerRps';
+import { useLeaveGuard } from '../games/use-leave-guard';
 import { useResultExtras } from '../games/use-result-data';
 
 export function RpsMatchPage({ roomId }: { roomId: string }) {
@@ -13,6 +14,8 @@ export function RpsMatchPage({ roomId }: { roomId: string }) {
 
   const over = engine.playProps.result !== null;
   const extras = useResultExtras(roomId, over, engine.playProps.opponent.name);
+  const leave = useLeaveGuard(!over);
+  const leaving = leave.pending !== null;
 
   return (
     <div className="page">
@@ -20,7 +23,7 @@ export function RpsMatchPage({ roomId }: { roomId: string }) {
         <button
           type="button"
           className="btn btn-surface"
-          onClick={() => navigate('/lobby')}
+          onClick={() => leave.request(() => navigate('/lobby'))}
         >
           <ArrowLeft size={16} />
           {over ? 'Back to lobby' : 'Leave board'}
@@ -72,18 +75,24 @@ export function RpsMatchPage({ roomId }: { roomId: string }) {
         />
       )}
 
-      {confirmForfeit && (
-        <div className="modal-backdrop" onClick={() => setConfirmForfeit(false)}>
+      {(confirmForfeit || leaving) && (
+        <div
+          className="modal-backdrop"
+          onClick={() => (leaving ? leave.cancel() : setConfirmForfeit(false))}
+        >
           <div className="modal" onClick={event => event.stopPropagation()}>
-            <h2 className="modal-title">Forfeit this match?</h2>
+            <h2 className="modal-title">
+              {leaving ? 'Leave this match?' : 'Forfeit this match?'}
+            </h2>
             <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 13 }}>
-              Your opponent takes the win, and any stake with it.
+              {leaving ? 'Leaving forfeits the match. ' : ''}Your opponent takes
+              the win, and any stake with it.
             </p>
             <div style={{ display: 'flex', gap: 'var(--s-3)' }}>
               <button
                 type="button"
                 className="btn btn-surface btn-block"
-                onClick={() => setConfirmForfeit(false)}
+                onClick={() => (leaving ? leave.cancel() : setConfirmForfeit(false))}
               >
                 Keep playing
               </button>
@@ -94,9 +103,10 @@ export function RpsMatchPage({ roomId }: { roomId: string }) {
                 onClick={() => {
                   engine.forfeit();
                   setConfirmForfeit(false);
+                  leave.resolve();
                 }}
               >
-                Forfeit
+                {leaving ? 'Leave' : 'Forfeit'}
               </button>
             </div>
           </div>

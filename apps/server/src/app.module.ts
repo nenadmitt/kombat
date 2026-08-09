@@ -11,6 +11,7 @@ import { CacheModule } from './cache';
 import { DbModule } from './db';
 import { GamesModule } from './games/games.module';
 import { MaintenanceModule } from './maintenance';
+import { RankingsModule } from './rankings/rankings.module';
 import { StakePotModule } from './stake-pot';
 import { TestModule } from './test/test.module';
 import { UsersModule } from './users/users.module';
@@ -39,6 +40,7 @@ loadEnv();
     WebsocketsModule,
     StakePotModule,
     GamesModule,
+    RankingsModule,
     MaintenanceModule,
     AdminModule,
   ],

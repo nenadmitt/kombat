@@ -896,6 +896,15 @@ a {
   grid-template-columns: 1.5fr 1fr 1fr;
 }
 
+.rankings-grid {
+  grid-template-columns: 32px 1.8fr 0.7fr 0.7fr 0.9fr 0.9fr;
+}
+
+.row.is-self {
+  background: var(--lime-tint-soft);
+  border-radius: var(--r-sm);
+}
+
 .toolbar {
   display: flex;
   align-items: center;
@@ -990,11 +999,103 @@ a {
   font-size: 12.5px;
 }
 
+/* ── the board, lifted onto the whole viewport ────────────────── */
+
+/* Under .modal-backdrop (10) so a forfeit confirmation still lands on top,
+   over the mobile bottom rail (9), which it is later in the DOM than. */
+.match-overlay {
+  position: fixed;
+  inset: 0;
+  /* Same iOS caveat as .modal-backdrop: dvh is the visible viewport. */
+  height: 100dvh;
+  z-index: 9;
+  display: grid;
+  place-items: center;
+  padding: var(--s-6);
+  background: rgba(4, 5, 9, 0.72);
+}
+
+.match-surface {
+  width: min(1180px, 100%);
+  max-height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--r-xl);
+  background: var(--app);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  /* Under 900px `.page` stops being its own scroller, so the surface has to
+     be one: hiding the overflow instead puts the board's last row and its
+     primary action out of reach. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.match-surface .conn-banner {
+  margin-top: var(--s-4);
+}
+
+/* ── live-connection banner ───────────────────────────────────── */
+
+.conn-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin: 0 var(--s-8) var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--gold-edge);
+}
+
+.conn-banner-tile {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-md);
+  background: var(--gold-tint);
+  color: var(--gold);
+}
+
+.conn-banner.is-kicked {
+  box-shadow: inset 0 0 0 1px rgba(255, 135, 146, 0.4);
+}
+
+.conn-banner.is-kicked .conn-banner-tile {
+  background: rgba(255, 135, 146, 0.12);
+  color: var(--loss);
+}
+
+.conn-banner-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.conn-banner-title {
+  font-weight: 700;
+  font-size: 13.5px;
+  line-height: 1;
+}
+
+.conn-banner-text {
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  display: grid;
-  place-items: center;
+  /* iOS resolves a fixed inset against the tall (URL-bar-hidden) viewport, so
+     the last button of a full-height card lands under the bar. */
+  height: 100dvh;
+  display: flex;
+  justify-content: center;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--s-6);
   background: rgba(4, 5, 9, 0.72);
   z-index: 10;
@@ -1003,6 +1104,9 @@ a {
 .modal {
   position: relative;
   width: min(440px, 100%);
+  /* Centres while it fits and scrolls once it does not: centring a flex item
+     with align-items would put its overflow out of the scroller's reach. */
+  margin: auto;
   display: flex;
   flex-direction: column;
   gap: var(--s-4);
@@ -1010,6 +1114,27 @@ a {
   border-radius: var(--r-xl);
   background: var(--surface);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+
+.modal.resume {
+  align-items: center;
+  text-align: center;
+}
+
+.resume-icon {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  border-radius: var(--r-pill);
+  background: var(--lime-tint-soft);
+  box-shadow: inset 0 0 0 2px var(--lime-edge);
+}
+
+.resume-copy {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-2);
 }
 
 .radio-line {
@@ -2309,6 +2434,9 @@ a {
 
 .sheet {
   position: fixed;
+  /* Portal sibling of the backdrop, so it centres itself rather than sitting
+     in that scroller. */
+  margin: 0;
   /* Above .modal-backdrop, which is a portal sibling and would otherwise
      paint over the content and swallow its clicks. */
   z-index: 11;
@@ -3776,6 +3904,25 @@ a {
     display: none;
   }
 
+  .conn-banner {
+    margin: 0 var(--s-4) var(--s-3);
+  }
+
+  .modal-backdrop {
+    padding: var(--s-4);
+  }
+
+  /* No room to frame the board on a phone: it takes the screen. */
+  .match-overlay {
+    padding: 0;
+  }
+
+  .match-surface {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+  }
+
   .page {
     gap: var(--s-4);
     padding: var(--s-2) var(--s-4) var(--s-6);
@@ -4043,6 +4190,16 @@ a {
 
   .wallet-grid {
     grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .rankings-grid {
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+  }
+
+  .rankings-grid > :nth-child(3),
+  .rankings-grid > :nth-child(4),
+  .rankings-grid > :nth-child(5) {
+    display: none;
   }
 
   .toolbar {

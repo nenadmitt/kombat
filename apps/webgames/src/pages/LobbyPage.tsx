@@ -20,6 +20,7 @@ import { GameIcon } from '../components/GameIcon';
 import { WaitingForPlayersModal } from '../components/WaitingForPlayersModal';
 import { apiClient } from '../lib/api';
 import { GAME_LABELS, isWebPlayable } from '../lib/format';
+import { useActiveRoomStore } from '../store/active-room.store';
 import { useLobbyStore } from '../store/lobby.store';
 import { useSessionStore } from '../store/session.store';
 import { useUsernames } from '../store/usernames';
@@ -42,7 +43,10 @@ export function LobbyPage() {
   const { joinChannel, leaveChannel, on } = useWebsocketStore();
   const socketStatus = useWebsocketStore(s => s.status);
 
-  const [activeRoom, setActiveRoom] = useState<GameRoomSummary | null>(null);
+  const activeRoom = useActiveRoomStore(s => s.room);
+  const setActiveRoom = useActiveRoomStore(s => s.setRoom);
+  const patchActiveRoom = useActiveRoomStore(s => s.patchRoom);
+  const refreshActiveRoom = useActiveRoomStore(s => s.refresh);
   const [creating, setCreating] = useState(false);
   const [code, setCode] = useState('');
   const [joinCodeOpen, setJoinCodeOpen] = useState(false);
@@ -69,11 +73,8 @@ export function LobbyPage() {
 
   useEffect(() => {
     void load();
-    apiClient
-      .getMyActiveGameRoom()
-      .then(setActiveRoom)
-      .catch(() => setActiveRoom(null));
-  }, [load]);
+    void refreshActiveRoom();
+  }, [load, refreshActiveRoom]);
 
   useEffect(() => {
     joinChannel(LOBBY_CHANNEL);
@@ -102,7 +103,7 @@ export function LobbyPage() {
         room && room.id === p.roomId
           ? { ...room, joinedCount: p.joinedCount }
           : room;
-      setActiveRoom(patch);
+      patchActiveRoom(patch);
       setJoinedRoom(patch);
     };
     const offPlayerJoined = on(ROOM_EVENTS.playerJoined, applySeatCount);
@@ -130,7 +131,16 @@ export function LobbyPage() {
       offStarted();
       leaveChannel(LOBBY_CHANNEL);
     };
-  }, [joinChannel, leaveChannel, on, upsert, remove, navigate, socketStatus]);
+  }, [
+    joinChannel,
+    leaveChannel,
+    on,
+    upsert,
+    remove,
+    navigate,
+    socketStatus,
+    patchActiveRoom,
+  ]);
 
   async function join(room: GameRoomSummary) {
     setJoiningId(room.id);
