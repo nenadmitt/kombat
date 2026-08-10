@@ -71,7 +71,8 @@ export const DEADLINES_KEY = 'bs:deadlines';
 
 /** Deadline kinds: `setup`/`turn` are Battleship's, `ludo-turn` is Ludo's,
  *  `rps-round` is Triple Cut's, `chroma-turn` is ChromaClash's,
- *  `salvo-turn` is Salvo's. A new
+ *  `salvo-turn` is Salvo's, `room-abandon` is the grace window on a
+ *  disconnected player's not-yet-started room. A new
  *  turn-based game adds its own kind here and an enforcer in the deadline
  *  sweeper. */
 export type DeadlineKind =
@@ -80,7 +81,8 @@ export type DeadlineKind =
   | 'ludo-turn'
   | 'rps-round'
   | 'chroma-turn'
-  | 'salvo-turn';
+  | 'salvo-turn'
+  | 'room-abandon';
 
 const DEADLINE_KINDS: readonly DeadlineKind[] = [
   'setup',
@@ -89,6 +91,7 @@ const DEADLINE_KINDS: readonly DeadlineKind[] = [
   'rps-round',
   'chroma-turn',
   'salvo-turn',
+  'room-abandon',
 ];
 
 /** Member format for DEADLINES_KEY: `{roomId}|{kind}|{turnSeq}`. */
@@ -98,18 +101,23 @@ export const deadlineMember = (
   seq: number,
 ): string => `${roomId}|${kind}|${seq}`;
 
+/** `room-abandon` spends the third field on the user id instead of a seq, so
+ *  one member per (room, player) - a re-disconnect upserts rather than piles up. */
+export const roomAbandonMember = (roomId: string, userId: string): string =>
+  `${roomId}|room-abandon|${userId}`;
+
 export const parseDeadlineMember = (
   member: string,
-): { roomId: string; kind: DeadlineKind; seq: number } | null => {
-  const [roomId, kind, seq] = member.split('|');
+): { roomId: string; kind: DeadlineKind; seq: number; arg: string } | null => {
+  const [roomId, kind, arg] = member.split('|');
   if (
     !roomId ||
     !DEADLINE_KINDS.includes(kind as DeadlineKind) ||
-    seq === undefined
+    arg === undefined
   ) {
     return null;
   }
-  return { roomId, kind: kind as DeadlineKind, seq: Number(seq) };
+  return { roomId, kind: kind as DeadlineKind, seq: Number(arg), arg };
 };
 
 // --- TTLs ----------------------------------------------------------------------

@@ -19,6 +19,7 @@ import { BattleshipMatchService } from './battleships/battleship-match.service';
 import { ChromaMatchService } from './chroma/chroma-match.service';
 import { SalvoMatchService } from './salvo/salvo-match.service';
 import { LudoMatchService } from './ludo/ludo-match.service';
+import { RoomAbandonService } from './room-abandon.service';
 import { RpsMatchService } from './rps/rps-match.service';
 import { StakesService } from './stakes/stakes.service';
 
@@ -26,9 +27,9 @@ const SWEEP_INTERVAL_MS = 1_000;
 const SWEEP_BATCH_LIMIT = 50;
 
 /**
- * Polls the shared deadline schedule and enforces expired windows for every
- * turn-based game - the member's kind routes it to the right enforcer
- * (battleship setup/turn, ludo turn; a new game adds a kind + a case here).
+ * Polls the shared deadline schedule and enforces expired windows - the
+ * member's kind routes it to the right enforcer (battleship setup/turn, ludo
+ * turn, the abandoned-room grace; a new game adds a kind + a case here).
  * Enforcement survives restarts and works from any instance:
  *
  * - popDueDeadlines is atomic, so exactly one instance receives a given
@@ -52,6 +53,7 @@ export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
     private readonly rpsMatchService: RpsMatchService,
     private readonly websocketsService: WebsocketsService,
     private readonly stakesService: StakesService,
+    private readonly roomAbandonService: RoomAbandonService,
   ) {}
 
   onModuleInit(): void {
@@ -117,6 +119,8 @@ export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
         return this.enforceChromaTurnTimeout(parsed.roomId, parsed.seq);
       case 'salvo-turn':
         return this.enforceSalvoTurnTimeout(parsed.roomId, parsed.seq);
+      case 'room-abandon':
+        return this.roomAbandonService.enforce(parsed.roomId, parsed.arg);
     }
   }
 

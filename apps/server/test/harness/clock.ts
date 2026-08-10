@@ -1,4 +1,9 @@
-import { CacheKeys, deadlineMember, type DeadlineKind } from '../../src/cache';
+import {
+  CacheKeys,
+  deadlineMember,
+  roomAbandonMember,
+  type DeadlineKind,
+} from '../../src/cache';
 import type { TestApp } from './app';
 
 /**
@@ -20,6 +25,16 @@ export async function expireDeadline(
     deadlineMember(roomId, kind, seq),
     Date.now() - 1,
   );
+}
+
+/** The abandon grace window, same trick. Safe to call before the disconnect
+ *  has been processed: the scheduler upserts, so callers just try again. */
+export async function expireAbandon(
+  testApp: TestApp,
+  roomId: string,
+  userId: string,
+): Promise<void> {
+  await testApp.cache.addDeadline(roomAbandonMember(roomId, userId), Date.now() - 1);
 }
 
 type CachedMatch = {

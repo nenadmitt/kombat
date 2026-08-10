@@ -5,12 +5,13 @@ import {
   SALVO_EVENTS,
 } from '@gaming-platform/core';
 
-import { CacheService, deadlineMember } from '../cache';
+import { CacheService, deadlineMember, roomAbandonMember } from '../cache';
 import { WebsocketsService } from '../websockets';
 import { BattleshipMatchService } from './battleships/battleship-match.service';
 import { ChromaMatchService } from './chroma/chroma-match.service';
 import { GameDeadlineSweeper } from './game-deadline.sweeper';
 import { LudoMatchService } from './ludo/ludo-match.service';
+import { RoomAbandonService } from './room-abandon.service';
 import { RpsMatchService } from './rps/rps-match.service';
 import { SalvoMatchService } from './salvo/salvo-match.service';
 import { StakesService } from './stakes/stakes.service';
@@ -36,6 +37,7 @@ describe('GameDeadlineSweeper', () => {
   let rps: { timeoutRound: jest.Mock };
   let chroma: { timeoutTurn: jest.Mock };
   let salvo: { timeoutTurn: jest.Mock };
+  let roomAbandon: { enforce: jest.Mock };
   let sweeper: GameDeadlineSweeper;
 
   const sweep = () =>
@@ -87,6 +89,7 @@ describe('GameDeadlineSweeper', () => {
     rps = { timeoutRound: jest.fn().mockResolvedValue(null) };
     chroma = { timeoutTurn: jest.fn().mockResolvedValue(null) };
     salvo = { timeoutTurn: jest.fn().mockResolvedValue(null) };
+    roomAbandon = { enforce: jest.fn().mockResolvedValue(undefined) };
 
     sweeper = new GameDeadlineSweeper(
       cache,
@@ -97,6 +100,7 @@ describe('GameDeadlineSweeper', () => {
       rps as unknown as RpsMatchService,
       websockets,
       stakes,
+      roomAbandon as unknown as RoomAbandonService,
     );
   });
 
@@ -118,6 +122,13 @@ describe('GameDeadlineSweeper', () => {
       expect(rps.timeoutRound).toHaveBeenCalledWith(ROOM, 5);
       expect(chroma.timeoutTurn).toHaveBeenCalledWith(ROOM, 6);
       expect(salvo.timeoutTurn).toHaveBeenCalledWith(ROOM, 7);
+    });
+
+    it('routes an abandon member with the user id from its third field', async () => {
+      due = [roomAbandonMember(ROOM, WINNER)];
+      await sweep();
+
+      expect(roomAbandon.enforce).toHaveBeenCalledWith(ROOM, WINNER);
     });
 
     it('drops malformed members without aborting the batch', async () => {

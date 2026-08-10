@@ -16,6 +16,7 @@ import { GamesController } from './games.controller';
 import { GamesService } from './games.service';
 import { LudoGateway } from './ludo/ludo.gateway';
 import { LudoMatchService } from './ludo/ludo-match.service';
+import { RoomAbandonService } from './room-abandon.service';
 import { RpsGateway } from './rps/rps.gateway';
 import { RpsMatchService } from './rps/rps-match.service';
 import { StakeSweeper } from './stakes/stake.sweeper';
@@ -44,6 +45,7 @@ import { StakesService } from './stakes/stakes.service';
     ChromaGateway,
     SalvoMatchService,
     SalvoGateway,
+    RoomAbandonService,
     GameDeadlineSweeper,
   ],
 })

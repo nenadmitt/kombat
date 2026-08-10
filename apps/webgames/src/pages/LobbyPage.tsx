@@ -92,6 +92,18 @@ export function LobbyPage() {
     void refreshActiveRoom();
   }, [load, refreshActiveRoom]);
 
+  // A room can be reaped while this client is offline, so the removal event
+  // is missable; reconnecting refetches instead of trusting local state.
+  const prevSocketStatusRef = useRef(socketStatus);
+  useEffect(() => {
+    const was = prevSocketStatusRef.current;
+    prevSocketStatusRef.current = socketStatus;
+    if (was === 'disconnected' && socketStatus === 'connected') {
+      void load();
+      void refreshActiveRoom();
+    }
+  }, [socketStatus, load, refreshActiveRoom]);
+
   useEffect(() => {
     joinChannel(LOBBY_CHANNEL);
     const offAdded = on(LOBBY_EVENTS.roomAdded, payload =>
@@ -100,9 +112,12 @@ export function LobbyPage() {
     const offUpdated = on(LOBBY_EVENTS.roomUpdated, payload =>
       upsert(payload as GameRoomSummary),
     );
-    const offRemoved = on(LOBBY_EVENTS.roomRemoved, payload =>
-      remove((payload as { roomId: string }).roomId),
-    );
+    const offRemoved = on(LOBBY_EVENTS.roomRemoved, payload => {
+      const { roomId } = payload as { roomId: string };
+      remove(roomId);
+      if (activeRoomRef.current?.id === roomId) setActiveRoom(null);
+      if (joinedRoomRef.current?.id === roomId) setJoinedRoom(null);
+    });
     // A 2-player room starts the instant someone joins mine.
     const offOpponent = on(ROOM_EVENTS.opponentJoined, payload => {
       const { roomId } = payload as { roomId: string };
@@ -156,6 +171,7 @@ export function LobbyPage() {
     navigate,
     socketStatus,
     patchActiveRoom,
+    setActiveRoom,
   ]);
 
   // The lobby keeps moving under an open confirmation, so the sheet reads the
@@ -236,9 +252,14 @@ export function LobbyPage() {
       setJoinedRoom(null);
       await load();
     } catch (err) {
-      setJoinError(
-        err instanceof ApiError ? err.message : 'Could not leave that room.',
-      );
+      if (err instanceof ApiError && err.status === 404) {
+        setJoinedRoom(null);
+        await load();
+      } else {
+        setJoinError(
+          err instanceof ApiError ? err.message : 'Could not leave that room.',
+        );
+      }
     } finally {
       setLeaving(false);
     }
@@ -252,9 +273,14 @@ export function LobbyPage() {
       setActiveRoom(null);
       await load();
     } catch (err) {
-      setJoinError(
-        err instanceof ApiError ? err.message : 'Could not close that room.',
-      );
+      if (err instanceof ApiError && err.status === 404) {
+        setActiveRoom(null);
+        await load();
+      } else {
+        setJoinError(
+          err instanceof ApiError ? err.message : 'Could not close that room.',
+        );
+      }
     } finally {
       setClosingRoom(false);
     }
