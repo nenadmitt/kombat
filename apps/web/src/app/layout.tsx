@@ -37,7 +37,7 @@ export const metadata: Metadata = {
         url: "/og.png",
         width: 1200,
         height: 630,
-        alt: "Kombat - multiplayer games for real stakes, shown on three phones",
+        alt: "Kombat - play a real opponent, free or staked",
       },
     ],
   },

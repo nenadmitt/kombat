@@ -145,7 +145,9 @@ export default function LandingPage() {
           <div className={`${styles.kicker} ${styles.kickerAmber}`}>
             The stake pot
           </div>
-          <h2 className={styles.sectionTitle}>Sign once. Play all night.</h2>
+          <h2 className={styles.sectionTitle}>
+            One deposit covers every match.
+          </h2>
           <p className={styles.sectionLead}>
             If you do want to play for something, your pot is a balance held in
             the match contract. Fund it once from any wallet and staked matches
