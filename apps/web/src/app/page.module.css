@@ -53,7 +53,8 @@
 .navStake {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  min-width: 96px;
   padding: 11px 18px;
   border-radius: 11px;
   background: var(--amber);
@@ -72,7 +73,8 @@
 .navCta {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  min-width: 96px;
   padding: 11px 18px;
   border-radius: 11px;
   border: 1px solid var(--green);
@@ -185,24 +187,9 @@
 }
 
 .heroNote {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  padding: 6px 14px 6px 6px;
-  border-radius: 10px;
-  background: var(--surface);
-  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.22);
-  font: 600 12.5px/1 var(--font-body);
-  color: var(--amber);
-}
-
-.heroNoteIcon {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
-  background: rgba(245, 184, 41, 0.15);
+  font: 700 11px/1 var(--font-heading);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
   color: var(--amber);
 }
 

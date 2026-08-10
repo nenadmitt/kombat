@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   ArrowRight,
   Crosshair,
-  TestTube,
   Percent,
   ShieldCheck,
   Trophy,
@@ -11,10 +10,10 @@ import {
   TelegramLogo,
   ArrowUpRight,
 } from "@phosphor-icons/react/dist/ssr";
-import { PotIcon } from "@/components/BrandIcon";
 import { LogoLockup } from "@/components/Logo";
 import { ReferralCodeRow } from "@/components/ReferralCodeRow";
 import { HeroCollage } from "@/components/HeroCollage";
+import { ScrollKick } from "@/components/ScrollKick";
 import { GamesCarousel } from "@/components/GamesCarousel";
 import { ApplyForm } from "@/components/InviteForms";
 import { PotIllustration } from "@/components/PotIllustration";
@@ -35,12 +34,10 @@ export default function LandingPage() {
           <a href="#pot" className={styles.navLink}>Stake pot</a>
           <a href="#invite" className={styles.navLink}>Invite &amp; earn</a>
           <Link href="/stake" className={styles.navStake}>
-            <PotIcon size={17} />
             Stake
           </Link>
           <a href={DEMO_APP_URL} className={styles.navCta}>
             Play
-            <ArrowRight size={14} weight="bold" />
           </a>
         </nav>
       </header>
@@ -67,12 +64,7 @@ export default function LandingPage() {
                 Play on mobile
               </a>
             </div>
-            <div className={styles.heroNote}>
-              <span className={styles.heroNoteIcon}>
-                <TestTube size={13} weight="fill" />
-              </span>
-              Currently in test mode on Sepolia
-            </div>
+            <div className={styles.heroNote}>Currently in test mode on Sepolia</div>
           </div>
           <div className={styles.heroStats}>
             <div>
@@ -92,7 +84,9 @@ export default function LandingPage() {
           </div>
         </div>
         <div className={styles.heroArt}>
-          <HeroCollage />
+          <ScrollKick>
+            <HeroCollage />
+          </ScrollKick>
         </div>
       </section>
 
