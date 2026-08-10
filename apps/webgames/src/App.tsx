@@ -14,6 +14,7 @@ import {
 
 import { AppShell } from './components/AppShell';
 import { EmbeddedWalletGate } from './components/EmbeddedWalletGate';
+import { UnloadGuard } from './components/UnloadGuard';
 import { DemoPage, MatchPage } from './pages/MatchPage';
 import { ResumeMatchModal } from './components/ResumeMatchModal';
 import { WelcomeBonusModal } from './components/WelcomeBonusModal';
@@ -54,6 +55,7 @@ export function App() {
         element={
           <RequireSession>
             <LiveData />
+            <UnloadGuard />
             <EmbeddedWalletGate />
             <WelcomeBonusGate />
             <ResumeMatchGate />

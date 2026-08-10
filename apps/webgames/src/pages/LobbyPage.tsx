@@ -216,6 +216,7 @@ export function LobbyPage() {
         setJoinedRoom(joined);
         setWaitingMinimized(false);
         setJoiningId(null);
+        void refreshActiveRoom();
         return;
       }
       navigate(`/game/${joined.gameType}/${joined.id}`);
@@ -250,10 +251,12 @@ export function LobbyPage() {
     try {
       await apiClient.leaveGameRoom(room.id);
       setJoinedRoom(null);
+      void refreshActiveRoom();
       await load();
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
         setJoinedRoom(null);
+        void refreshActiveRoom();
         await load();
       } else {
         setJoinError(
