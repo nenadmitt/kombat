@@ -9,6 +9,7 @@ import styles from "./AdminHeader.module.css";
 const TABS = [
   { key: "stats", href: "/admin/stats", label: "Stats" },
   { key: "signups", href: "/admin", label: "Signups" },
+  { key: "moderation", href: "/moderation", label: "Moderation" },
 ] as const;
 
 export function AdminHeader({
