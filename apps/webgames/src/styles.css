@@ -2652,7 +2652,7 @@ a {
   text-align: left;
 }
 
-.picker-item:hover {
+.picker-item:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.05);
 }
 
@@ -4077,11 +4077,18 @@ a {
 
 .chroma-hand.is-fanned .chroma-hand-card {
   margin-inline: calc(var(--s-1) * -1);
+  transform: rotate(var(--fan-turn, 0deg))
+    translateY(calc(var(--fan-lift, 0px) + var(--card-lift, 0px)));
 }
 
 .chroma-hand-card {
   flex: none;
+  transform: translateY(var(--card-lift, 0px));
   transition: transform 0.14s ease;
+}
+
+.chroma-hand-card.is-picked {
+  --card-lift: calc(var(--s-3) * -1);
 }
 
 /* A card that cannot be played is still legible: the lime edge, not a fade,
@@ -4255,8 +4262,12 @@ a {
 }
 
 .chroma-prism-label {
+  min-width: 0;
   font-weight: 700;
   font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .chroma-prism-check {
@@ -4273,7 +4284,11 @@ a {
 
 /* ── chroma cards ─────────────────────────────────────────────── */
 
+/* Only --card-w comes from the component; the face is proportional to it, so
+   a fluid width rescales every part of the card at once. */
 .chroma-card {
+  --card-h: calc(var(--card-w) * 1.5);
+  --card-r: calc(var(--card-w) * 0.14);
   position: relative;
   flex: none;
   display: grid;
@@ -4326,7 +4341,7 @@ a {
   position: relative;
   z-index: 2;
   font-weight: 800;
-  font-size: var(--glyph-size);
+  font-size: calc(var(--card-w) * var(--glyph-scale));
   line-height: 1;
   color: var(--suit);
 }
@@ -4337,7 +4352,7 @@ a {
   top: calc(var(--card-w) * 0.06);
   left: calc(var(--card-w) * 0.1);
   font-weight: 800;
-  font-size: var(--corner-size);
+  font-size: max(9px, calc(var(--card-w) * 0.2));
   line-height: 1;
   color: var(--chroma-print);
 }
@@ -4366,7 +4381,7 @@ a {
 }
 
 .chroma-card-back-star {
-  font-size: var(--back-star);
+  font-size: calc(var(--card-w) * 0.25);
   line-height: 1;
   color: var(--lime);
   transform: rotate(32deg);
@@ -4377,6 +4392,9 @@ a {
   .chroma-play {
     display: flex;
     flex-direction: column;
+    /* The grid above aligns to the start; as a column that would size every
+       row to its content and push the widest one off the screen. */
+    align-items: stretch;
     gap: var(--s-4);
   }
 
@@ -4386,6 +4404,7 @@ a {
 
   .chroma-seats {
     order: -2;
+    min-width: 0;
     flex-direction: row;
     overflow-x: auto;
     scrollbar-width: none;
@@ -4406,6 +4425,53 @@ a {
 
   .chroma-play .match-actions {
     order: 1;
+  }
+}
+
+/* A fanned hand is wider than a phone, so below this it goes back to the flat
+   row and scrolls inside itself rather than dragging the page sideways. */
+@media (max-width: 600px) {
+  .chroma-hand.is-fanned {
+    justify-content: flex-start;
+    gap: var(--s-2);
+    overflow-x: auto;
+  }
+
+  .chroma-hand.is-fanned .chroma-hand-card {
+    margin-inline: 0;
+    transform: translateY(var(--card-lift, 0px));
+  }
+
+  .chroma-seat {
+    min-width: 148px;
+    padding: var(--s-2) var(--s-3);
+  }
+
+  .chroma-seat-cards {
+    display: none;
+  }
+
+  .chroma-prism-grid {
+    gap: var(--s-2);
+  }
+
+  .chroma-prism-opt {
+    gap: var(--s-2);
+    padding: var(--s-2);
+  }
+
+  .chroma-prism-swatch {
+    width: 26px;
+    height: 26px;
+  }
+
+  .chroma-prism-label {
+    font-size: 13px;
+  }
+
+  .chroma-prism-check {
+    width: 18px;
+    height: 18px;
   }
 }
 
@@ -4639,6 +4705,25 @@ a {
   .chroma-table {
     gap: var(--s-4);
     padding: var(--s-6) var(--s-3) var(--s-4);
+  }
+
+  .chroma-play {
+    gap: var(--s-3);
+  }
+
+  .chroma-stage {
+    gap: var(--s-3);
+  }
+
+  /* The sticky tray sits under the hand, so the fan needs headroom above it
+     rather than the desktop breathing space below. */
+  .chroma-hand {
+    min-height: 0;
+    padding: var(--s-4) 0 0;
+  }
+
+  .chroma-turn-text {
+    font-size: 12px;
   }
 
   .wallet-head,

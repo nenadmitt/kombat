@@ -23,9 +23,11 @@ import { ConfigurationService } from '../../configuration/configuration.service'
 import { DbService } from '../../db';
 import { GameRoomEntity } from '../../db/entities/game-room.entity';
 import { StakePotChainService, StakePotService } from '../../stake-pot';
+import type { StakeSettlementTotals } from '../../stake-pot/stake-pot.service';
 import { WebsocketsService } from '../../websockets';
 import { isMultiSeatGame } from '../game-type.util';
 import { participantsOf } from '../room.util';
+import { stakeLegsOf } from './stake-legs.util';
 
 const MATCH_KEY_BY_GAME: Record<GameType, (roomId: string) => string> = {
   [GameType.NavalBattle]: CacheKeys.battleshipMatch,
@@ -197,12 +199,7 @@ export class StakesService {
   /** Moves every participant's stake available -> locked, all of it or none. */
   private async holdFromPot(room: GameRoomEntity): Promise<boolean> {
     try {
-      await this.stakePotService.holdForMatch(
-        room.id,
-        participantsOf(room),
-        room.stakeToken!,
-        BigInt(room.stakeAmount!),
-      );
+      await this.stakePotService.holdForMatch(room.id, stakeLegsOf(room));
     } catch (error) {
       await this.dbService.updateMatchSettlement(room.id, {
         status: SettlementStatus.Voided,
@@ -327,20 +324,13 @@ export class StakesService {
       const settlement = await this.stakePotService.settleMatch(
         room.id,
         winnerUserId,
-        participantsOf(room),
-        room.stakeToken!,
-        BigInt(room.stakeAmount!),
+        stakeLegsOf(room),
       );
       await this.dbService.updateMatchSettlement(room.id, {
         status: SettlementStatus.Settled,
         // Null when the room was already settled (a replayed completion); leave
         // the recorded figures alone in that case.
-        ...(settlement
-          ? {
-              payout: settlement.payout.toString(),
-              fee: settlement.fee.toString(),
-            }
-          : {}),
+        ...(settlement ? settledFigures(settlement) : {}),
         error: null,
       });
     } catch (error) {
@@ -394,4 +384,34 @@ export class StakesService {
       this.websocketsService.sendToUser(participant, event, payload);
     }
   }
+}
+
+/**
+ * A single-asset match records the scalar columns every existing reader
+ * understands; a genuinely mixed one records the per-asset maps, since no
+ * scalar can carry two sets of decimals. Exactly one representation is ever
+ * present - readers disagree about which to prefer, so both must never be.
+ */
+function settledFigures(settlement: StakeSettlementTotals): {
+  payout: string | null;
+  fee: string | null;
+  payoutByAsset: Record<string, string> | null;
+  feeByAsset: Record<string, string> | null;
+} {
+  const assets = Object.keys(settlement.payoutByAsset);
+  if (assets.length === 1) {
+    const asset = assets[0]!;
+    return {
+      payout: settlement.payoutByAsset[asset]!,
+      fee: settlement.feeByAsset[asset] ?? '0',
+      payoutByAsset: null,
+      feeByAsset: null,
+    };
+  }
+  return {
+    payout: null,
+    fee: null,
+    payoutByAsset: settlement.payoutByAsset,
+    feeByAsset: settlement.feeByAsset,
+  };
 }

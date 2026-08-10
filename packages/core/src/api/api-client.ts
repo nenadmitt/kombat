@@ -354,8 +354,15 @@ export class ApiClient {
     return this.request('POST', `/games/rooms/${id}/forfeit`, undefined, true);
   }
 
-  joinGameRoom(id: string): Promise<GameRoomSummary> {
-    return this.request('POST', `/games/rooms/${id}/join`, undefined, true);
+  /** A stable-staked room accepts any stablecoin 1:1; omit `stakeToken` to
+   *  stake whatever the room was opened in. */
+  joinGameRoom(id: string, stakeToken?: StakeAsset): Promise<GameRoomSummary> {
+    return this.request(
+      'POST',
+      `/games/rooms/${id}/join`,
+      stakeToken === undefined ? undefined : { stakeToken },
+      true,
+    );
   }
 
   /** Creator-only early start for a multi-player (Ludo) room. */

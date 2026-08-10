@@ -10,6 +10,7 @@ import {
   STAKE_ASSET_DECIMALS,
   STAKEABLE_ASSETS,
   UserPlatform,
+  convertStakeAmount,
 } from '@gaming-platform/core';
 
 import {
@@ -17,6 +18,7 @@ import {
   CacheService,
   GAME_ROOM_TTL_SECONDS,
 } from '../cache';
+import { stakeAssetFor } from '../games/stakes/stake-legs.util';
 import { AppSettingEntity } from './entities/app-setting.entity';
 import { EmailLoginTokenEntity } from './entities/email-login-token.entity';
 import { GameRoomEntity } from './entities/game-room.entity';
@@ -37,6 +39,9 @@ const PLAYED_IN_ROOM =
 
 /** Where a user signed up. Added by the web-accounts work; read-only here. */
 const USER_PLATFORM_COLUMN = 'platform';
+
+/** Newest cross-stable rooms corrected per seat, matching the history page cap. */
+const MIXED_STAKE_ROOM_LIMIT = 50;
 
 /** Base-unit net winnings -> ranking points, per stake asset. */
 const RANKING_COIN_POINTS_CASE = STAKEABLE_ASSETS.map(
@@ -272,15 +277,78 @@ export class DbService {
       .where('room.status = :status', { status: GameRoomStatus.Completed })
       .andWhere('room.stake_token IS NOT NULL')
       .andWhere('room.winner_user_id IS NOT NULL')
+      .andWhere('room.stake_token_choices IS NULL')
       .andWhere(PLAYED_IN_ROOM, { userId })
       .groupBy('room.stake_token')
       .getRawMany<{ stakeToken: number; net: string }>();
-    return rows.map(r => ({
-      stakeToken: Number(r.stakeToken),
+
+    const net = new Map<number, bigint>();
+    for (const row of rows) {
       // numeric comes back as a string; strip any fractional tail so it
       // stays a valid base-unit integer for BigInt on the client.
-      net: String(r.net ?? '0').split('.')[0]!,
+      net.set(
+        Number(row.stakeToken),
+        BigInt(String(row.net ?? '0').split('.')[0]!),
+      );
+    }
+    for (const [asset, amount] of await this.mixedStakeNetForUser(userId)) {
+      net.set(asset, (net.get(asset) ?? 0n) + amount);
+    }
+    return [...net].map(([stakeToken, amount]) => ({
+      stakeToken,
+      net: amount.toString(),
     }));
+  }
+
+  /**
+   * The same net, for rooms where players staked different stablecoins. Each
+   * seat nets in its own token, so there is no single-column SQL for it - and
+   * these rooms are rare enough that reading them one by one is cheaper than
+   * dragging the query above off its indexes.
+   */
+  private async mixedStakeNetForUser(
+    userId: string,
+  ): Promise<Map<number, bigint>> {
+    const rooms = await this.gameRoomRepository
+      .createQueryBuilder('room')
+      .where('room.status = :status', { status: GameRoomStatus.Completed })
+      .andWhere('room.stake_token IS NOT NULL')
+      .andWhere('room.winner_user_id IS NOT NULL')
+      .andWhere('room.stake_token_choices IS NOT NULL')
+      .andWhere(PLAYED_IN_ROOM, { userId })
+      .orderBy('room.completed_at', 'DESC')
+      .take(MIXED_STAKE_ROOM_LIMIT)
+      .getMany();
+    if (rooms.length === 0) {
+      return new Map();
+    }
+    const settlements = await this.matchSettlementRepository.find({
+      where: { roomId: In(rooms.map(room => room.id)) },
+    });
+    const byRoom = new Map(settlements.map(row => [row.roomId, row] as const));
+
+    const net = new Map<number, bigint>();
+    const add = (asset: number, amount: bigint) =>
+      net.set(asset, (net.get(asset) ?? 0n) + amount);
+    for (const room of rooms) {
+      const own = stakeAssetFor(room, userId);
+      const stake = BigInt(
+        convertStakeAmount(room.stakeAmount!, room.stakeToken!, own),
+      );
+      if (room.winnerUserId !== userId) {
+        add(own, -stake);
+        continue;
+      }
+      const prize = byRoom.get(room.id)?.payoutByAsset;
+      if (!prize) {
+        continue; // Not settled yet - nets zero, as the indexed query assumes.
+      }
+      for (const [asset, amount] of Object.entries(prize)) {
+        add(Number(asset), BigInt(amount));
+      }
+      add(own, -stake);
+    }
+    return net;
   }
 
   /**
@@ -288,6 +356,9 @@ export class DbService {
    * award nothing): participation per room plus the winner's net payout
    * converted to points per asset. Unnesting the seat columns cannot use the
    * seat indexes, so this is a deliberate full scan.
+   *
+   * Every stablecoin scores the same per human unit, so a mixed room's stake
+   * term can stay in the room's token even when that seat staked another one.
    */
   async findRankings(options: {
     gameType?: GameType;
@@ -338,12 +409,28 @@ export class DbService {
                     AS "playPoints",
                   COALESCE(SUM(
                     CASE WHEN room.winner_user_id = participant
-                          AND settlement.payout IS NOT NULL
-                         THEN (settlement.payout::numeric - room.stake_amount::numeric)
-                              * CASE room.stake_token
-                                  ${RANKING_COIN_POINTS_CASE}
-                                  ELSE 0
-                                END
+                          AND (settlement.payout IS NOT NULL
+                               OR settlement.payout_by_asset IS NOT NULL)
+                         THEN COALESCE(
+                                settlement.payout::numeric
+                                  * CASE room.stake_token
+                                      ${RANKING_COIN_POINTS_CASE}
+                                      ELSE 0
+                                    END,
+                                (SELECT COALESCE(SUM(
+                                          (leg.value #>> '{}')::numeric
+                                          * CASE leg.key::int
+                                              ${RANKING_COIN_POINTS_CASE}
+                                              ELSE 0
+                                            END
+                                        ), 0)
+                                   FROM jsonb_each(settlement.payout_by_asset) leg)
+                              )
+                              - room.stake_amount::numeric
+                                * CASE room.stake_token
+                                    ${RANKING_COIN_POINTS_CASE}
+                                    ELSE 0
+                                  END
                          ELSE 0
                     END
                   ), 0) AS "coinPoints"
@@ -863,13 +950,43 @@ export class DbService {
    * the same Pending room can't both win: the second UPDATE affects 0 rows.
    * Returns whether this call took the seat.
    */
-  async joinGameRoom(id: string, opponentId: string): Promise<boolean> {
-    const result = await this.gameRoomRepository.update(
-      { id, status: GameRoomStatus.Pending, opponentId: IsNull() },
-      { opponentId, status: GameRoomStatus.InProgress },
-    );
+  async joinGameRoom(
+    id: string,
+    opponentId: string,
+    stakeToken: StakeAsset | null = null,
+  ): Promise<boolean> {
+    let seated: boolean;
+    if (stakeToken === null) {
+      const result = await this.gameRoomRepository.update(
+        { id, status: GameRoomStatus.Pending, opponentId: IsNull() },
+        { opponentId, status: GameRoomStatus.InProgress },
+      );
+      seated = (result.affected ?? 0) > 0;
+    } else {
+      // query() hands back [rows, affectedCount] for DML, never a bare array.
+      const [rows] = (await this.gameRoomRepository.query(
+        `UPDATE "game_rooms"
+            SET "opponent_id" = $2,
+                "status" = $4,
+                "stake_token_choices" =
+                  COALESCE("stake_token_choices", '{}'::jsonb)
+                  || jsonb_build_object($2::uuid::text, $5::int)
+          WHERE "id" = $1
+            AND "status" = $3
+            AND "opponent_id" IS NULL
+          RETURNING "id"`,
+        [
+          id,
+          opponentId,
+          GameRoomStatus.Pending,
+          GameRoomStatus.InProgress,
+          stakeToken,
+        ],
+      )) as [unknown[], number];
+      seated = rows.length > 0;
+    }
     await this.cacheService.del(CacheKeys.gameRoom(id));
-    return (result.affected ?? 0) > 0;
+    return seated;
   }
 
   /**
@@ -877,17 +994,26 @@ export class DbService {
    * capacity, no-duplicate and not-the-creator atomically, so two racing
    * joins can't oversubscribe the room. Returns whether the join landed.
    */
-  async appendGameRoomOpponent(id: string, userId: string): Promise<boolean> {
+  async appendGameRoomOpponent(
+    id: string,
+    userId: string,
+    stakeToken: StakeAsset | null = null,
+  ): Promise<boolean> {
     const result = await this.gameRoomRepository.query(
       `UPDATE "game_rooms"
-         SET "opponent_ids" = array_append("opponent_ids", $2)
+         SET "opponent_ids" = array_append("opponent_ids", $2),
+             "stake_token_choices" = CASE
+               WHEN $4::int IS NULL THEN "stake_token_choices"
+               ELSE COALESCE("stake_token_choices", '{}'::jsonb)
+                    || jsonb_build_object($2::text, $4::int)
+             END
        WHERE "id" = $1
          AND "status" = $3
          AND "user_id" != $2
          AND NOT ($2 = ANY("opponent_ids"))
          AND cardinality("opponent_ids") < "player_count" - 1
        RETURNING "id"`,
-      [id, userId, GameRoomStatus.Pending],
+      [id, userId, GameRoomStatus.Pending, stakeToken],
     );
     await this.cacheService.del(CacheKeys.gameRoom(id));
     return (result as unknown[]).length > 0;
@@ -897,7 +1023,8 @@ export class DbService {
   async removeGameRoomOpponent(id: string, userId: string): Promise<boolean> {
     const result = await this.gameRoomRepository.query(
       `UPDATE "game_rooms"
-         SET "opponent_ids" = array_remove("opponent_ids", $2)
+         SET "opponent_ids" = array_remove("opponent_ids", $2),
+             "stake_token_choices" = NULLIF("stake_token_choices" - $2::text, '{}'::jsonb)
        WHERE "id" = $1 AND "status" = $3 AND $2 = ANY("opponent_ids")
        RETURNING "id"`,
       [id, userId, GameRoomStatus.Pending],
@@ -1040,7 +1167,13 @@ export class DbService {
     patch: Partial<
       Pick<
         MatchSettlementEntity,
-        'status' | 'payout' | 'fee' | 'attempts' | 'error'
+        | 'status'
+        | 'payout'
+        | 'fee'
+        | 'payoutByAsset'
+        | 'feeByAsset'
+        | 'attempts'
+        | 'error'
       >
     >,
   ): Promise<void> {

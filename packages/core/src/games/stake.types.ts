@@ -34,6 +34,17 @@ export function isStakeableAsset(asset: StakeAsset): boolean {
   return STAKEABLE_ASSETS.includes(asset);
 }
 
+/** The stablecoins, which the platform treats as interchangeable 1:1. */
+export const STABLE_ASSETS: StakeAsset[] = [
+  StakeAsset.Usdc,
+  StakeAsset.Usdt,
+  StakeAsset.Dai,
+];
+
+export function isStableAsset(asset: StakeAsset): boolean {
+  return STABLE_ASSETS.includes(asset);
+}
+
 /** The only stake sizes a room may be created with, in human units. */
 export const STAKE_PRESETS = [1, 5, 10, 25, 50, 100, 250, 500] as const;
 
@@ -118,6 +129,36 @@ export function parseStakeAmount(value: string, asset: StakeAsset): string {
   const base = BigInt(whole!) * 10n ** BigInt(decimals) +
     BigInt(frac.padEnd(decimals, '0') || '0');
   return base.toString();
+}
+
+/**
+ * The same human value expressed in another asset's base units - a 10 USDC
+ * stake is 10 DAI. Throws rather than truncate when the target asset cannot
+ * represent the value (preset stakes are whole units, so it never fires).
+ */
+export function convertStakeAmount(
+  amount: string,
+  from: StakeAsset,
+  to: StakeAsset,
+): string {
+  if (!/^\d+$/.test(amount)) {
+    throw new Error(`Invalid amount: ${amount}`);
+  }
+  const value = BigInt(amount);
+  if (from === to) {
+    return value.toString();
+  }
+  const shift = STAKE_ASSET_DECIMALS[to] - STAKE_ASSET_DECIMALS[from];
+  if (shift >= 0) {
+    return (value * 10n ** BigInt(shift)).toString();
+  }
+  const divisor = 10n ** BigInt(-shift);
+  if (value % divisor !== 0n) {
+    throw new Error(
+      `${amount} ${STAKE_ASSET_SYMBOLS[from]} has more precision than ${STAKE_ASSET_SYMBOLS[to]} can hold`,
+    );
+  }
+  return (value / divisor).toString();
 }
 
 /** GET /wallets/balances response. */
