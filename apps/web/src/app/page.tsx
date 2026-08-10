@@ -4,7 +4,6 @@ import {
   Crosshair,
   LockSimple,
   Percent,
-  Play,
   ShieldCheck,
   Trophy,
   CheckCircle,
@@ -57,22 +56,21 @@ export default function LandingPage() {
             <span className={styles.heroTitleAccent}>Free or staked.</span>
           </h1>
           <p className={styles.heroLead}>
-            Play in your browser right now, nothing to install. The quickest
-            game is over in two minutes, a full game of Battleships takes about
-            six. Open a room for nothing, or put a stake on it and the winner
-            takes the pot.
+            Play in your browser, free or for a stake, and the winner takes the
+            pot.
           </p>
           <div className={styles.heroActions}>
-            <a href={DEMO_APP_URL} className={styles.playCta}>
-              <Play size={22} weight="fill" />
-              Play now
-            </a>
-            <a href="#apply" className={styles.heroAside}>
-              Interested in the mobile app? Join the waitlist
-            </a>
+            <div className={styles.heroButtons}>
+              <a href={DEMO_APP_URL} className={styles.playCta}>
+                Play on web
+              </a>
+              <a href="#apply" className={styles.playSecondary}>
+                Play on mobile
+              </a>
+            </div>
             <div className={styles.heroNote}>
-              <LockSimple size={13} />
-              Test mode on Ethereum Sepolia - no real funds at risk.
+              <LockSimple size={12} weight="bold" />
+              Currently in test mode on Sepolia
             </div>
           </div>
           <div className={styles.heroStats}>
