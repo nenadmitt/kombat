@@ -5,23 +5,15 @@ import { CHROMA_SUIT_VAR, glyphFor, isActionValue } from './chroma-theme';
 
 type Props = {
   card: ChromaCard;
-  /** Card width; height follows the design's 2:3 ratio. */
-  width: number;
+  /** Any CSS length. Every other measurement on the card derives from it in
+   *  the stylesheet, so a fluid width scales the whole face. */
+  width: string;
   /** Outlined as currently legal to play. */
   playable?: boolean;
   /** Picked in the hand: lime ring, glow and a lift. */
   selected?: boolean;
   dimmed?: boolean;
 };
-
-/** Geometry that keeps a card recognisable at any width, from the design. */
-function frame(width: number): CSSProperties {
-  return {
-    '--card-w': `${width}px`,
-    '--card-h': `${Math.round(width * 1.5)}px`,
-    '--card-r': `${Math.round(width * 0.14)}px`,
-  } as CSSProperties;
-}
 
 /**
  * One Chroma card: suit-coloured face (wilds get the four-quadrant back), the
@@ -38,12 +30,11 @@ export function ChromaCardView({
   const isWild = card.suit === 'wild';
   const glyph = glyphFor(card.value);
   const style: CSSProperties = {
-    ...frame(width),
+    '--card-w': width,
     '--suit': isWild
       ? 'var(--chroma-wild)'
       : CHROMA_SUIT_VAR[card.suit as ChromaSuit],
-    '--glyph-size': `${Math.round(width * (isActionValue(card.value) ? 0.4 : 0.56))}px`,
-    '--corner-size': `${Math.max(9, Math.round(width * 0.2))}px`,
+    '--glyph-scale': isActionValue(card.value) ? '0.4' : '0.56',
   } as CSSProperties;
 
   const classes = ['chroma-card'];
@@ -63,17 +54,13 @@ export function ChromaCardView({
 }
 
 /** The face-down back used for the draw pile and opponents' mini cards. */
-export function ChromaCardBack({ width }: { width: number }) {
+export function ChromaCardBack({ width }: { width: string }) {
   return (
-    <span className="chroma-card chroma-card-back" style={frame(width)}>
-      <span
-        className="chroma-card-back-oval"
-        style={
-          {
-            '--back-star': `${Math.round(width * 0.25)}px`,
-          } as CSSProperties
-        }
-      >
+    <span
+      className="chroma-card chroma-card-back"
+      style={{ '--card-w': width } as CSSProperties}
+    >
+      <span className="chroma-card-back-oval">
         <span className="chroma-card-back-star">✦</span>
       </span>
     </span>

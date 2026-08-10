@@ -17,12 +17,13 @@ import { CHROMA_SUIT_HEX, CHROMA_SUIT_VAR, SUIT_LABELS } from './chroma-theme';
 import type { ChromaPlayProps } from './chroma-engine';
 import type { ResultExtras } from '../use-result-data';
 
-/** Card widths, in the design's proportions for each surface. */
-const HAND_CARD_W = 58;
-const HAND_CARD_W_CROWDED = 50;
-const DRAW_CARD_W = 64;
-const DISCARD_CARD_W = 72;
-const PRISM_CARD_W = 78;
+/** Card widths per surface. Fluid so a phone gets the whole table without a
+ *  horizontal scroll; the rest of each card's geometry follows in CSS. */
+const HAND_CARD_W = 'clamp(42px, 12vw, 58px)';
+const HAND_CARD_W_CROWDED = 'clamp(36px, 10vw, 50px)';
+const DRAW_CARD_W = 'clamp(46px, 14vw, 64px)';
+const DISCARD_CARD_W = 'clamp(52px, 16vw, 72px)';
+const PRISM_CARD_W = 'clamp(56px, 18vw, 78px)';
 
 /** Past this the fan stops reading and the hand becomes a scrolling row. */
 const FAN_LIMIT = 8;
@@ -244,16 +245,20 @@ export function ChromaPlay(props: ChromaPlayProps & ResultExtras) {
         <div className={fanned ? 'chroma-hand is-fanned' : 'chroma-hand'}>
           {myHand.map((card, i) => {
             const isSelected = selected === i;
-            const lift = (fanned ? Math.abs(i - mid) * 3 : 0) + (isSelected ? -14 : 0);
             return (
               <button
                 key={`${card.suit}-${card.value}-${i}`}
                 type="button"
-                className="chroma-hand-card"
+                className={
+                  isSelected ? 'chroma-hand-card is-picked' : 'chroma-hand-card'
+                }
                 disabled={!selectable(i)}
-                style={{
-                  transform: `rotate(${fanned ? (i - mid) * 4 : 0}deg) translateY(${lift}px)`,
-                }}
+                style={
+                  {
+                    '--fan-turn': `${(i - mid) * 4}deg`,
+                    '--fan-lift': `${Math.abs(i - mid) * 3}px`,
+                  } as CSSProperties
+                }
                 onClick={() => setSelected(prev => (prev === i ? null : i))}
               >
                 <ChromaCardView
