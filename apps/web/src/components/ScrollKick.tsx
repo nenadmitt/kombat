@@ -52,5 +52,10 @@ export function ScrollKick({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  return <div ref={ref}>{children}</div>;
+  // display:contents keeps the wrapper out of layout; --kick still inherits.
+  return (
+    <div ref={ref} style={{ display: "contents" }}>
+      {children}
+    </div>
+  );
 }
