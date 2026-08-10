@@ -47,6 +47,10 @@ export const metadata: Metadata = {
     description: DESCRIPTION,
     images: ["/og.png"],
   },
+  // Base App domain verification.
+  other: {
+    "base:app_id": "6a79cea385896ee843331810",
+  },
 };
 
 export default function RootLayout({
