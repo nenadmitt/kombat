@@ -4,7 +4,8 @@ import { useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { ArrowLeft, ArrowRight, Plus } from "@phosphor-icons/react";
 import { GameIcon } from "@/components/GameIcon";
-import { PhoneFrame } from "@/components/PhoneFrame";
+import { GameArt } from "@/components/GameArt";
+import { DEMO_APP_URL } from "@/lib/links";
 import styles from "./GamesCarousel.module.css";
 
 type Game = {
@@ -15,7 +16,7 @@ type Game = {
   description: string;
   matchLength: string;
   screenshots?: [string, string];
-  /** Looping gameplay recordings; when set, play inside the frames with the
+  /** Looping gameplay recordings; when set, play inside the art cards with the
    *  screenshots as posters. See public/recordings/README.md. */
   videos?: [string | undefined, string | undefined];
 };
@@ -127,6 +128,7 @@ export function GamesCarousel() {
     <section id="games" className={styles.arena}>
       <div className={styles.head}>
         <div>
+          <div className={styles.kicker}>The arena</div>
           <h2 className={styles.title}>Pick your game.</h2>
           <p className={styles.lead}>
             New games ship during the closed test, and testers vote on what
@@ -193,27 +195,25 @@ export function GamesCarousel() {
                   </button>
                 </div>
               </div>
-              <div className={styles.phones}>
-                <div className={styles.phonesGlow} />
-                <PhoneFrame
-                  variant="back"
-                  width={212}
-                  height={426}
+              <div className={styles.art}>
+                <div className={styles.artGlow} />
+                <GameArt
+                  width={188}
+                  height={409}
                   src={game.screenshots?.[0]}
                   video={game.videos?.[0]}
-                  alt={`${game.name} screen`}
+                  alt={`${game.name} gameplay`}
                   placeholder={`${game.name} screenshot soon`}
-                  className={styles.phoneBack}
+                  className={styles.artBack}
                 />
-                <PhoneFrame
-                  variant="front"
-                  width={244}
-                  height={492}
+                <GameArt
+                  width={224}
+                  height={487}
                   src={game.screenshots?.[1]}
                   video={game.videos?.[1]}
-                  alt={`${game.name} screen`}
+                  alt={`${game.name} gameplay`}
                   placeholder={`${game.name} screenshot soon`}
-                  className={styles.phoneFront}
+                  className={styles.artFront}
                 />
               </div>
             </article>
@@ -232,8 +232,8 @@ export function GamesCarousel() {
               We add a new game every few weeks during the closed test. Testers
               get a say in which one comes next.
             </p>
-            <a href="#apply" className={styles.moreLink}>
-              Join the test to vote
+            <a href={DEMO_APP_URL} className={styles.moreLink}>
+              Play what&apos;s live now
             </a>
           </article>
         </div>

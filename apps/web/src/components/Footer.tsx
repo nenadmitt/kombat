@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { DiscordLogo, TelegramLogo, X } from "@phosphor-icons/react";
 
 import { LogoLockup } from "@/components/Logo";
-import { CHAIN_NAME, IS_TESTNET } from "@/lib/chain";
 import { DISCORD_URL, TELEGRAM_URL } from "@/lib/links";
 import styles from "./Footer.module.css";
 
@@ -36,12 +35,6 @@ export function Footer() {
     <footer className={styles.footer}>
       <div className={styles.brand}>
         <LogoLockup size={20} color="var(--text-55)" />
-        {IS_TESTNET && (
-          <span className={styles.network}>
-            <span className={styles.networkDot} aria-hidden="true" />
-            Test mode · {CHAIN_NAME}
-          </span>
-        )}
       </div>
 
       <nav className={styles.links} aria-label="Footer">

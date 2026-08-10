@@ -8,32 +8,8 @@ import {
   WarningCircle,
 } from "@phosphor-icons/react";
 
-import { onInviteRequested, requestInvite } from "@/lib/invite-bus";
+import { onInviteRequested } from "@/lib/invite-bus";
 import styles from "./InviteForms.module.css";
-
-const DEMO_APP_URL =
-  process.env.NEXT_PUBLIC_DEMO_APP_URL ?? "https://demo.playkombat.xyz";
-
-export function HeroInviteForm() {
-  return (
-    <div className={styles.heroForm}>
-      <div className={styles.heroFormRow}>
-        <a href={DEMO_APP_URL} className={styles.heroSubmit}>
-          Demo app
-        </a>
-        <button
-          type="button"
-          className={styles.heroSecondary}
-          onClick={() =>
-            document.getElementById("apply")?.scrollIntoView({ behavior: "smooth" })
-          }
-        >
-          Request mobile invite
-        </button>
-      </div>
-    </div>
-  );
-}
 
 /** Mirrors the server check in app/api/tester-signups/route.ts. */
 const EMAIL =
@@ -127,7 +103,7 @@ export function ApplyForm() {
 
   return (
     <form className={styles.card} onSubmit={handleSubmit}>
-      <div className={styles.kicker}>Apply for access</div>
+      <div className={styles.kicker}>Mobile waitlist</div>
 
       <label className={styles.cardField}>
         <EnvelopeSimple size={17} className={styles.fieldIcon} />

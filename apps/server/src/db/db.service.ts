@@ -1133,6 +1133,16 @@ export class DbService {
     return qb.orderBy('room.created_at', 'ASC').getMany();
   }
 
+  /** Pending rooms (private included) at least this old — the stale-lobby sweep. */
+  findPendingGameRoomsCreatedBefore(cutoff: Date): Promise<GameRoomEntity[]> {
+    return this.gameRoomRepository
+      .createQueryBuilder('room')
+      .where('room.status = :status', { status: GameRoomStatus.Pending })
+      .andWhere('room.created_at <= :cutoff', { cutoff })
+      .orderBy('room.created_at', 'ASC')
+      .getMany();
+  }
+
   /**
    * Every live room (Pending or InProgress), newest first, private included.
    * Admin surface only - unlike the lobby query this applies no privacy or

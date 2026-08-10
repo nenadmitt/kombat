@@ -13,6 +13,7 @@ import { LudoMatchService } from './ludo/ludo-match.service';
 import {
   PENDING_ROOM_ABANDON_SECONDS,
   RoomAbandonService,
+  STALE_LOBBY_IDLE_MS,
 } from './room-abandon.service';
 import { RpsMatchService } from './rps/rps-match.service';
 import { StakesService } from './stakes/stakes.service';
@@ -37,6 +38,7 @@ describe('RoomAbandonService', () => {
   let userEvents: { userId: string; event: string; payload: unknown }[];
   let disconnectListener: ((userId: string) => void) | undefined;
 
+  let kv: Map<string, string>;
   let db: {
     findActiveGameRoomForParticipant: jest.Mock;
     findGameRoomByIdFresh: jest.Mock;
@@ -44,6 +46,7 @@ describe('RoomAbandonService', () => {
     findGameRoomForUser: jest.Mock;
     deleteGameRoom: jest.Mock;
     removeGameRoomOpponent: jest.Mock;
+    findPendingGameRoomsCreatedBefore: jest.Mock;
   };
   let stakes: {
     beginFunding: jest.Mock;
@@ -82,6 +85,7 @@ describe('RoomAbandonService', () => {
     channelEvents = [];
     userEvents = [];
     disconnectListener = undefined;
+    kv = new Map();
 
     db = {
       findActiveGameRoomForParticipant: jest.fn().mockResolvedValue(null),
@@ -90,6 +94,7 @@ describe('RoomAbandonService', () => {
       findGameRoomForUser: jest.fn().mockResolvedValue(null),
       deleteGameRoom: jest.fn().mockResolvedValue(undefined),
       removeGameRoomOpponent: jest.fn().mockResolvedValue(true),
+      findPendingGameRoomsCreatedBefore: jest.fn().mockResolvedValue([]),
     };
     stakes = {
       beginFunding: jest.fn().mockResolvedValue(undefined),
@@ -99,6 +104,13 @@ describe('RoomAbandonService', () => {
     const cache = {
       addDeadline: async (member: string, at: number) => {
         scheduled.push({ member, at });
+      },
+      get: async (key: string) => kv.get(key) ?? null,
+      set: async (key: string, value: string) => {
+        kv.set(key, value);
+      },
+      del: async (...keys: string[]) => {
+        keys.forEach(key => kv.delete(key));
       },
     } as unknown as CacheService;
 
@@ -137,6 +149,7 @@ describe('RoomAbandonService', () => {
   });
 
   afterEach(() => {
+    service.onModuleDestroy();
     jest.restoreAllMocks();
   });
 
@@ -315,6 +328,54 @@ describe('RoomAbandonService', () => {
           payload: { roomId: ROOM },
         },
       ]);
+    });
+  });
+
+  describe('stale lobby sweep', () => {
+    it('reaps a backlog room whose creator was never seen online', async () => {
+      const room = pendingRoom();
+      db.findPendingGameRoomsCreatedBefore.mockResolvedValue([room]);
+      db.findGameRoomForUser.mockResolvedValue(room);
+      await service.sweepStale();
+
+      expect(db.findPendingGameRoomsCreatedBefore).toHaveBeenCalledWith(
+        new Date(NOW - STALE_LOBBY_IDLE_MS),
+      );
+      expect(db.deleteGameRoom).toHaveBeenCalledWith(ROOM);
+      expect(channelEvents).toEqual([
+        {
+          channel: LOBBY_CHANNEL,
+          event: LOBBY_EVENTS.roomRemoved,
+          payload: { roomId: ROOM },
+        },
+      ]);
+    });
+
+    it('restarts the idle clock while the creator is online', async () => {
+      const room = pendingRoom();
+      db.findPendingGameRoomsCreatedBefore.mockResolvedValue([room]);
+      db.findGameRoomForUser.mockResolvedValue(room);
+
+      online.add(CREATOR);
+      await service.sweepStale(NOW);
+      expect(db.deleteGameRoom).not.toHaveBeenCalled();
+
+      online.delete(CREATOR);
+      await service.sweepStale(NOW + STALE_LOBBY_IDLE_MS - 1);
+      expect(db.deleteGameRoom).not.toHaveBeenCalled();
+
+      await service.sweepStale(NOW + STALE_LOBBY_IDLE_MS);
+      expect(db.deleteGameRoom).toHaveBeenCalledWith(ROOM);
+    });
+
+    it('swallows a room that started between the scan and the close', async () => {
+      db.findPendingGameRoomsCreatedBefore.mockResolvedValue([pendingRoom()]);
+      db.findGameRoomForUser.mockResolvedValue(
+        pendingRoom({ status: GameRoomStatus.InProgress, opponentId: JOINER }),
+      );
+
+      await expect(service.sweepStale()).resolves.toBeUndefined();
+      expect(db.deleteGameRoom).not.toHaveBeenCalled();
     });
   });
 });

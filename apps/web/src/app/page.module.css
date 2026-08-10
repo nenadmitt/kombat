@@ -20,7 +20,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 24px 60px;
+  padding: 22px 60px;
 }
 
 .brand {
@@ -33,12 +33,13 @@
 .navLinks {
   display: flex;
   align-items: center;
-  gap: 32px;
+  gap: 36px;
 }
 
 .navLink {
   font: 600 14px/1 var(--font-heading);
   color: var(--text-62);
+  white-space: nowrap;
 }
 
 .navLink {
@@ -52,9 +53,10 @@
 .navStake {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 18px;
-  border-radius: 12px;
+  justify-content: center;
+  min-width: 96px;
+  padding: 11px 18px;
+  border-radius: 11px;
   background: var(--amber);
   color: var(--panel);
   font: 700 14px/1 var(--font-heading);
@@ -71,12 +73,14 @@
 .navCta {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 18px;
-  border-radius: 12px;
+  justify-content: center;
+  min-width: 96px;
+  padding: 11px 18px;
+  border-radius: 11px;
   border: 1px solid var(--green);
   color: var(--green);
   font: 700 14px/1 var(--font-heading);
+  white-space: nowrap;
 }
 
 .navCta {
@@ -99,7 +103,8 @@
   align-content: center;
   min-height: 100vh;
   min-height: 100svh;
-  padding: 72px 60px 80px;
+  padding: 74px 60px 80px;
+  overflow: hidden;
 }
 
 .heroCopy {
@@ -124,81 +129,106 @@
   text-wrap: pretty;
 }
 
+.heroActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18px;
+  margin-top: 34px;
+}
+
+.heroButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.playCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 14px 26px;
+  border-radius: 12px;
+  background: var(--green);
+  color: var(--panel);
+  font: 700 15px/1 var(--font-heading);
+  letter-spacing: -0.01em;
+  box-shadow: 0 4px 16px rgba(142, 224, 90, 0.32);
+  transition: filter 140ms ease-out, box-shadow 140ms ease-out;
+}
+
+.playCta:hover {
+  filter: brightness(1.07);
+  color: var(--panel);
+  box-shadow: 0 6px 20px rgba(142, 224, 90, 0.42);
+}
+
+.playCta:active {
+  filter: brightness(0.96);
+}
+
+.playSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 14px 26px;
+  border-radius: 12px;
+  color: var(--text);
+  font: 700 15px/1 var(--font-heading);
+  letter-spacing: -0.01em;
+  box-shadow: inset 0 0 0 1px rgba(233, 233, 237, 0.22);
+  transition: background 140ms ease-out, box-shadow 140ms ease-out;
+}
+
+.playSecondary:hover {
+  color: var(--text);
+  background: rgba(233, 233, 237, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(233, 233, 237, 0.34);
+}
+
+.heroNote {
+  font: 700 11px/1 var(--font-heading);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+
 .heroStats {
   display: flex;
-  gap: 40px;
-  margin-top: 40px;
+  gap: 44px;
+  margin-top: 44px;
 }
 
 .heroStatValue {
-  font: 800 28px/1 var(--font-heading);
+  font: 800 26px/1 var(--font-heading);
 }
 
 .heroStatLabel {
-  font: 500 13px/1.3 var(--font-body);
-  margin-top: 8px;
+  font: 600 11px/1.2 var(--font-heading);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-top: 9px;
   color: var(--text-55);
 }
 
-.heroPhones {
+.heroArt {
   position: relative;
   display: flex;
+  align-items: center;
   justify-content: center;
-  --side-shift: 148px;
+  min-width: 0;
+  animation: heroArtIn 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.heroPhoneFront {
-  animation: heroFrontIn 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-/* Scoped under .heroPhones to outrank PhoneFrame's own `.shell {position:
-   relative}`. A bare `.heroPhoneLeft` ties on specificity and then depends on
-   which stylesheet the bundler emits last, which is not something to bet the
-   layout on. */
-.heroPhones .heroPhoneLeft,
-.heroPhones .heroPhoneRight {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-}
-
-.heroPhones .heroPhoneLeft {
-  transform: translate(calc(-50% - var(--side-shift)), -50%) rotate(-7deg);
-  animation: heroSideLeft 700ms 340ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.heroPhones .heroPhoneRight {
-  transform: translate(calc(-50% + var(--side-shift)), -50%) rotate(7deg);
-  animation: heroSideRight 700ms 440ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-/* `from` only: each phone animates to its class transform, so the resting
-   composition lives in one place. */
-@keyframes heroFrontIn {
+@keyframes heroArtIn {
   from {
     opacity: 0;
     transform: translateY(26px) scale(0.97);
   }
 }
 
-@keyframes heroSideLeft {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.9);
-  }
-}
-
-@keyframes heroSideRight {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.9);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .heroPhoneFront,
-  .heroPhoneLeft,
-  .heroPhoneRight {
+  .heroArt {
     animation: none;
   }
 }
@@ -212,6 +242,21 @@
   min-height: 100vh;
   min-height: 100svh;
   padding: 72px 60px;
+}
+
+.kicker {
+  font: 600 11px/1 var(--font-heading);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--green);
+}
+
+.kickerAmber {
+  color: var(--amber);
+}
+
+.kicker + .sectionTitle {
+  margin-top: 18px;
 }
 
 .sectionTitle {
@@ -234,13 +279,18 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 24px;
-  margin-top: 40px;
+  margin-top: 44px;
 }
 
 .howCard {
-  padding: 24px;
-  border-radius: 16px;
+  padding: 26px;
+  border-radius: 18px;
   background: var(--surface);
+  transition: box-shadow 140ms ease-out;
+}
+
+.howCard:hover {
+  box-shadow: inset 0 0 0 1px rgba(233, 233, 237, 0.14);
 }
 
 .howCardTop {
@@ -250,9 +300,9 @@
 }
 
 .howIcon {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
   background: rgba(142, 224, 90, 0.15);
   display: grid;
   place-items: center;
@@ -271,14 +321,14 @@
 
 .howCardTitle {
   font: 600 19px/1.2 var(--font-heading);
-  margin-top: 20px;
+  margin-top: 22px;
 }
 
 .howCardBody {
   font-size: 15px;
   line-height: 1.6;
   color: var(--text-62);
-  margin: 12px 0 0;
+  margin: 11px 0 0;
 }
 
 /* ── stake pot ── */
@@ -286,7 +336,7 @@
 .pot {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 72px;
+  gap: 70px;
   align-items: center;
   align-content: center;
   min-height: 100vh;
@@ -308,13 +358,17 @@
   font-size: 15px;
 }
 
+.checkItem svg {
+  flex: none;
+}
+
 .amberCta {
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  margin-top: 32px;
-  padding: 16px 24px;
-  border-radius: 12px;
+  margin-top: 34px;
+  padding: 15px 22px;
+  border-radius: 13px;
   background: var(--amber);
   color: var(--panel);
   font: 700 15px/1 var(--font-heading);
@@ -364,7 +418,7 @@
 .invite {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 72px;
+  gap: 70px;
   align-items: center;
   align-content: center;
   min-height: 100vh;
@@ -377,7 +431,7 @@
 }
 
 .referralCard {
-  border-radius: 20px;
+  border-radius: 22px;
   padding: 28px;
   background: var(--surface);
 }
@@ -391,7 +445,9 @@
 
 .panelKicker,
 .panelKickerSm {
-  font: 500 13px/1.3 var(--font-body);
+  font: 600 11px/1.2 var(--font-heading);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
   color: var(--text-55);
 }
 
@@ -399,8 +455,8 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 6px 12px;
-  border-radius: 8px;
+  padding: 6px 11px;
+  border-radius: 9px;
   background: rgba(245, 184, 41, 0.14);
   font: 700 10px/1 var(--font-heading);
   letter-spacing: 0.09em;
@@ -477,12 +533,12 @@ button.referralCode:hover {
 .referralStats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 13px;
   margin-top: 20px;
 }
 
 .referralStat {
-  padding: 20px;
+  padding: 22px;
   border-radius: 16px;
   background: rgba(0, 0, 0, 0.26);
 }
@@ -493,12 +549,14 @@ button.referralCode:hover {
 }
 
 .referralStatValue {
-  font: 800 28px/1 var(--font-heading);
+  font: 800 27px/1 var(--font-heading);
 }
 
 .referralStatLabel {
-  font: 500 13px/1.3 var(--font-body);
-  margin-top: 12px;
+  font: 600 11px/1.2 var(--font-heading);
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  margin-top: 11px;
   color: var(--text-55);
 }
 
@@ -513,19 +571,21 @@ button.referralCode:hover {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-top: 16px;
+  margin-top: 18px;
 }
 
 .feeRow {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 11px;
 }
 
 .feeRowLabel {
-  width: 96px;
+  width: 88px;
   flex: none;
-  font: 500 13px/1.3 var(--font-body);
+  font: 600 11px/1.2 var(--font-heading);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--text-55);
 }
 
@@ -634,16 +694,17 @@ button.referralCode:hover {
 /* ── apply ── */
 
 .apply {
+  position: relative;
   display: grid;
   align-content: center;
-  min-height: 100vh;
-  min-height: 100svh;
-  padding: 0 24px 8px;
+  padding: 52px 60px 58px;
+  background: var(--panel-2);
+  overflow: hidden;
 }
 
 .applyCard {
   position: relative;
-  padding: 64px 36px;
+  padding: 52px 36px;
   border-radius: 24px;
   background: var(--green);
   color: var(--panel);
@@ -665,21 +726,9 @@ button.referralCode:hover {
   align-items: center;
 }
 
-.testBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 12px;
-  border-radius: 18px;
-  background: rgba(11, 12, 20, 0.16);
-  font: 700 11px/1 var(--font-heading);
-  letter-spacing: 0.14em;
-  color: var(--panel);
-}
-
 .applyTitle {
-  margin: 20px 0 0;
-  font: 600 40px/1.1 var(--font-heading);
+  margin: 0;
+  font: 600 30px/1.15 var(--font-heading);
   letter-spacing: -0.025em;
 }
 
@@ -721,19 +770,10 @@ button.referralCode:hover {
   .how,
   .pot,
   .invite,
-  .community {
+  .community,
+  .apply {
     padding-left: 28px;
     padding-right: 28px;
-  }
-
-  .apply {
-    padding-left: 16px;
-    padding-right: 16px;
-  }
-
-  .applyCard {
-    padding-left: 12px;
-    padding-right: 12px;
   }
 
   .heroTitle {
@@ -774,7 +814,8 @@ button.referralCode:hover {
   .how,
   .pot,
   .invite,
-  .community {
+  .community,
+  .apply {
     padding-left: 20px;
     padding-right: 20px;
   }
@@ -785,15 +826,7 @@ button.referralCode:hover {
     text-align: center;
   }
 
-  .apply {
-    padding-left: 12px;
-    padding-right: 12px;
-  }
-
   .applyCard {
-    padding-left: 20px;
-    padding-right: 20px;
-    border-radius: 18px;
     text-align: center;
   }
 
@@ -816,17 +849,19 @@ button.referralCode:hover {
     margin-top: 32px;
   }
 
-  .heroPhones {
-    --side-shift: 92px;
+  .heroActions {
+    align-items: center;
+    width: 100%;
   }
 
-  .heroPhoneFront {
-    --phone-w: 180px;
+  .heroButtons {
+    width: 100%;
   }
 
-  .heroPhoneLeft,
-  .heroPhoneRight {
-    --phone-w: 132px;
+  .playCta,
+  .playSecondary {
+    flex: 1 1 140px;
+    justify-content: center;
   }
 
   .how,
@@ -837,7 +872,7 @@ button.referralCode:hover {
 
   .pot,
   .invite,
-  .applyCard {
+  .apply {
     padding-top: 48px;
     padding-bottom: 48px;
   }
@@ -845,10 +880,6 @@ button.referralCode:hover {
   .pot,
   .invite {
     gap: 44px;
-  }
-
-  .inviteCopy {
-    order: -1;
   }
 
   .sectionTitle,
