@@ -105,17 +105,6 @@
   overflow: hidden;
 }
 
-.heroGlow {
-  position: absolute;
-  left: -120px;
-  top: -140px;
-  width: 620px;
-  height: 620px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(142, 224, 90, 0.14), transparent 66%);
-  pointer-events: none;
-}
-
 .heroCopy {
   position: relative;
 }
@@ -198,15 +187,23 @@
 .heroNote {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 7px 13px;
-  border-radius: 18px;
-  background: rgba(245, 184, 41, 0.11);
-  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.34);
-  font: 700 11px/1 var(--font-heading);
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-  color: var(--amber);
+  gap: 9px;
+  padding: 6px 14px 6px 6px;
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px rgba(233, 233, 237, 0.1);
+  font: 600 12.5px/1 var(--font-body);
+  color: var(--text-62);
+}
+
+.heroNoteIcon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: rgba(142, 224, 90, 0.15);
+  color: var(--green);
 }
 
 .heroStats {
@@ -721,21 +718,18 @@ button.referralCode:hover {
 
 .applyCard {
   position: relative;
+  padding: 52px 36px;
+  border-radius: 24px;
+  background: var(--green);
+  color: var(--panel);
+  overflow: hidden;
 }
 
-.applyGlow {
-  position: absolute;
-  right: -100px;
-  top: -120px;
-  width: 520px;
-  height: 520px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(142, 224, 90, 0.13), transparent 66%);
-  pointer-events: none;
-}
-
+/* Secondary text on the lime is the foreground at reduced alpha - a gray here
+   reads as dirt against the hue. */
 .apply .sectionLead {
-  max-width: 520px;
+  color: rgba(11, 12, 20, 0.72);
+  max-width: 460px;
 }
 
 .applyGrid {
@@ -746,35 +740,23 @@ button.referralCode:hover {
   align-items: center;
 }
 
-.testBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 12px;
-  border-radius: 18px;
-  background: rgba(245, 184, 41, 0.13);
-  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.4);
-  font: 700 11px/1 var(--font-heading);
-  letter-spacing: 0.14em;
-  color: var(--amber);
-}
-
 .applyTitle {
-  margin: 16px 0 0;
+  margin: 0;
   font: 600 30px/1.15 var(--font-heading);
   letter-spacing: -0.025em;
 }
 
+/* On the lime panel the ink is the foreground, not a gray. */
 .applyContact {
   margin: 20px 0 0;
-  max-width: 520px;
+  max-width: 460px;
   font-size: 15px;
   line-height: 1.6;
-  color: var(--text-55);
+  color: rgba(11, 12, 20, 0.72);
 }
 
 .applyLink {
-  color: var(--green);
+  color: var(--panel);
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 3px;

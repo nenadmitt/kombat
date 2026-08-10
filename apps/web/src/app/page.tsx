@@ -2,7 +2,7 @@ import Link from "next/link";
 import {
   ArrowRight,
   Crosshair,
-  LockSimple,
+  TestTube,
   Percent,
   ShieldCheck,
   Trophy,
@@ -46,7 +46,6 @@ export default function LandingPage() {
       </header>
 
       <section className={styles.hero}>
-        <div className={styles.heroGlow} aria-hidden="true" />
         <div className={styles.heroCopy}>
           <h1 className={styles.heroTitle}>
             Play a real
@@ -69,7 +68,9 @@ export default function LandingPage() {
               </a>
             </div>
             <div className={styles.heroNote}>
-              <LockSimple size={12} weight="bold" />
+              <span className={styles.heroNoteIcon}>
+                <TestTube size={13} weight="fill" />
+              </span>
               Currently in test mode on Sepolia
             </div>
           </div>
@@ -328,10 +329,8 @@ export default function LandingPage() {
 
       <section id="apply" className={styles.apply}>
         <div className={styles.applyCard}>
-          <div className={styles.applyGlow} aria-hidden="true" />
           <div className={styles.applyGrid}>
             <div>
-              <div className={styles.testBadge}>TEST MODE</div>
               <h2 className={styles.applyTitle}>
                 Interested in the mobile app?
               </h2>
