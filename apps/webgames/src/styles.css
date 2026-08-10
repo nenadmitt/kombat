@@ -29,6 +29,8 @@
   --gold-tint: rgba(245, 184, 41, 0.16);
   --gold-tint-soft: rgba(245, 184, 41, 0.08);
   --gold-edge: rgba(245, 184, 41, 0.4);
+  --silver: #c3c9d6;
+  --bronze: #d08a4e;
 
   /* Ludo seat colours, shared with the mobile board. */
   --ludo-red: #ff5a6e;
@@ -916,6 +918,12 @@ a {
   border-radius: var(--r-sm);
 }
 
+.row-head.rankings-grid,
+.row.rankings-grid {
+  padding-left: var(--s-3);
+  padding-right: var(--s-3);
+}
+
 .toolbar {
   display: flex;
   align-items: center;
@@ -934,6 +942,62 @@ a {
   display: flex;
   gap: var(--s-3);
   flex: none;
+}
+
+.dropdown {
+  position: relative;
+}
+
+.dropdown-caret {
+  color: var(--text-3);
+  transition: transform 0.15s ease;
+}
+
+.dropdown-caret.is-open {
+  transform: rotate(180deg);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + var(--s-2));
+  left: 0;
+  z-index: 40;
+  min-width: 208px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-2);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1px solid var(--hairline-strong);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+.dropdown-option {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--text-2);
+  text-align: left;
+}
+
+.dropdown-option:hover,
+.dropdown-option:focus-visible {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.dropdown-option.is-active {
+  background: var(--lime-tint-soft);
+  color: var(--lime-bright);
+}
+
+.dropdown-option-label {
+  flex: 1;
 }
 
 /* The empty lobby is an invitation, not a dead end. */

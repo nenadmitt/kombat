@@ -44,7 +44,7 @@ function ChromaFlow({
     over,
     engine.playProps.winnerName ?? 'the winner',
   );
-  const leave = useLeaveGuard(multiplayer && !over);
+  const leave = useLeaveGuard(!over);
   const leaving = leave.pending !== null;
 
   return (
@@ -123,8 +123,9 @@ function ChromaFlow({
           <div className="modal" onClick={event => event.stopPropagation()}>
             <h2 className="modal-title">Leave this match?</h2>
             <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 13 }}>
-              Your hand is folded and you are eliminated. With two players left,
-              your opponent takes the pot.
+              {multiplayer
+                ? 'Your hand is folded and you are eliminated. With two players left, your opponent takes the pot.'
+                : 'The practice match is discarded.'}
             </p>
             <div style={{ display: 'flex', gap: 'var(--s-3)' }}>
               <button
