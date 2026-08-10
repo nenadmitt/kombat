@@ -5,9 +5,11 @@ import {
   type GameType,
   type RankingEntry,
 } from '@gaming-platform/core';
-import { ArrowClockwise } from '@phosphor-icons/react';
+import { ArrowClockwise, Medal, SquaresFour } from '@phosphor-icons/react';
 import { useCallback, useEffect, useState } from 'react';
 
+import { Dropdown } from '../components/Dropdown';
+import { GameIcon } from '../components/GameIcon';
 import { apiClient } from '../lib/api';
 import { GAME_LABELS, initialOf } from '../lib/format';
 import { useSessionStore } from '../store/session.store';
@@ -66,18 +68,20 @@ export function RankingsPage() {
           }}
         >
           <div className="toolbar">
-            <div className="filter-strip">
-              {FILTERS.map(({ value, label }) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={filter === value ? 'pill is-active' : 'pill'}
-                  onClick={() => setFilter(value)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <Dropdown
+              options={FILTERS.map(({ value, label }) => ({
+                value,
+                label,
+                icon:
+                  value === 'all' ? (
+                    <SquaresFour size={18} color="var(--text-3)" />
+                  ) : (
+                    <GameIcon gameType={value} size={18} />
+                  ),
+              }))}
+              value={filter}
+              onChange={setFilter}
+            />
             <button
               type="button"
               className="pill"
@@ -175,12 +179,14 @@ function RankingRow({
 }) {
   const name =
     entry.username ?? entry.ensName ?? `${entry.userId.slice(0, 8)}…`;
-  const rankColor =
+  const medalColor =
     entry.rank === 1
       ? 'var(--gold)'
-      : entry.rank <= 3
-        ? 'var(--text)'
-        : 'var(--text-3)';
+      : entry.rank === 2
+        ? 'var(--silver)'
+        : entry.rank === 3
+          ? 'var(--bronze)'
+          : null;
 
   return (
     <div
@@ -188,8 +194,20 @@ function RankingRow({
         isSelf ? 'row rankings-grid is-self' : 'row row-hover rankings-grid'
       }
     >
-      <span className="mono" style={{ fontSize: 13, color: rankColor }}>
-        {entry.rank}
+      <span
+        className="mono"
+        style={{
+          fontSize: 13,
+          color: 'var(--text-3)',
+          display: 'flex',
+          alignItems: 'center',
+        }}
+      >
+        {medalColor ? (
+          <Medal size={18} weight="fill" color={medalColor} />
+        ) : (
+          entry.rank
+        )}
       </span>
       <span className="row-name">
         <span

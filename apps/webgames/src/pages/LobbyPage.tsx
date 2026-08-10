@@ -11,11 +11,19 @@ import {
   type RoomPlayerJoinedPayload,
   type RoomStartedPayload,
 } from '@gaming-platform/core';
-import { Copy, PaperPlaneTilt, Plus, SignIn, UsersThree } from '@phosphor-icons/react';
+import {
+  Copy,
+  PaperPlaneTilt,
+  Plus,
+  SignIn,
+  SquaresFour,
+  UsersThree,
+} from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { CreateRoomModal } from '../components/CreateRoomModal';
+import { Dropdown } from '../components/Dropdown';
 import { GameIcon } from '../components/GameIcon';
 import { WaitingForPlayersModal } from '../components/WaitingForPlayersModal';
 import { apiClient } from '../lib/api';
@@ -32,6 +40,7 @@ const FILTERS: { label: string; value: GameType | null }[] = [
   { label: 'Salvo', value: GameType.Salvo },
   { label: 'Triple Cut', value: GameType.TripleCut },
   { label: 'Ludo', value: GameType.Ludo },
+  { label: 'Chroma Clash', value: GameType.ChromaClash },
 ];
 
 export function LobbyPage() {
@@ -252,20 +261,20 @@ export function LobbyPage() {
           />
 
           <div className="toolbar">
-            <div className="filter-strip">
-              {FILTERS.map(filter => (
-                <button
-                  key={filter.label}
-                  type="button"
-                  className={
-                    activeFilter === filter.value ? 'pill is-active' : 'pill'
-                  }
-                  onClick={() => setGameTypeFilter(filter.value)}
-                >
-                  {filter.label}
-                </button>
-              ))}
-            </div>
+            <Dropdown
+              options={FILTERS.map(filter => ({
+                value: filter.value,
+                label: filter.label,
+                icon:
+                  filter.value === null ? (
+                    <SquaresFour size={18} color="var(--text-3)" />
+                  ) : (
+                    <GameIcon gameType={filter.value} size={18} />
+                  ),
+              }))}
+              value={activeFilter}
+              onChange={setGameTypeFilter}
+            />
             <div className="toolbar-actions">
               <button
                 type="button"

@@ -22,6 +22,7 @@ export const WEB_PLAYABLE_GAMES: readonly GameType[] = [
   GameType.Salvo,
   GameType.TripleCut,
   GameType.Ludo,
+  GameType.ChromaClash,
 ];
 
 export function isWebPlayable(gameType: GameType): boolean {

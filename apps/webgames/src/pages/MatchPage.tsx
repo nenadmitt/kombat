@@ -4,6 +4,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 
 import { MatchOverlay } from '../components/MatchOverlay';
 import { BattleshipDemoPage, BattleshipMatchPage } from './BattleshipMatchPage';
+import { ChromaDemoPage, ChromaMatchPage } from './ChromaMatchPage';
 import { DemoRpsPage } from './DemoRpsPage';
 import { LudoDemoPage, LudoMatchPage } from './LudoMatchPage';
 import { SalvoDemoPage, SalvoMatchPage } from './SalvoMatchPage';
@@ -35,6 +36,7 @@ export function MatchPage() {
       {parsed === GameType.NavalBattle && <BattleshipMatchPage roomId={roomId} />}
       {parsed === GameType.Salvo && <SalvoMatchPage roomId={roomId} />}
       {parsed === GameType.Ludo && <LudoMatchPage roomId={roomId} />}
+      {parsed === GameType.ChromaClash && <ChromaMatchPage roomId={roomId} />}
     </Board>
   );
 }
@@ -50,6 +52,7 @@ export function DemoPage() {
       {parsed === GameType.NavalBattle && <BattleshipDemoPage />}
       {parsed === GameType.Salvo && <SalvoDemoPage />}
       {parsed === GameType.Ludo && <LudoDemoPage />}
+      {parsed === GameType.ChromaClash && <ChromaDemoPage />}
     </Board>
   );
 }

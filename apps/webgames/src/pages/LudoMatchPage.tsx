@@ -46,7 +46,7 @@ function LudoFlow({
     over,
     engine.playProps.winnerName ?? 'the winner',
   );
-  const leave = useLeaveGuard(multiplayer && !over);
+  const leave = useLeaveGuard(!over);
   const leaving = leave.pending !== null;
 
   return (
@@ -125,8 +125,9 @@ function LudoFlow({
           <div className="modal" onClick={event => event.stopPropagation()}>
             <h2 className="modal-title">Leave this match?</h2>
             <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 13 }}>
-              Your pawns go back to base and you are out of the race. The rest
-              of the table plays on for the pot.
+              {multiplayer
+                ? 'Your pawns go back to base and you are out of the race. The rest of the table plays on for the pot.'
+                : 'The practice match is discarded.'}
             </p>
             <div style={{ display: 'flex', gap: 'var(--s-3)' }}>
               <button

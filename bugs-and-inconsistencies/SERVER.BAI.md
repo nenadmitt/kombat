@@ -3,6 +3,23 @@
 Entry format: date, one-line summary, location, why it's wrong, suggested
 fix. Remove an entry in the same change that fixes it.
 
+## 2026-08-10 - An eliminated Chroma player is never told their hand is gone
+
+- **Where:** `apps/server/src/games/chroma/chroma-match.service.ts:572-573`
+  (`eliminate()` empties `match.hands[userId]`), against the returns of
+  `forfeit()` (~line 398, `changedHands: {}`) and `timeoutTurn()` (~line 372,
+  which only carries the timed-out player's hand when they force-drew).
+- **Why it's wrong:** the hand only reaches a client on the caller-only
+  `chroma:hand` push, which the gateway sends per entry in `changedHands`.
+  Elimination clears the server-side hand but never lists that user, so no
+  push goes out and their client keeps rendering the cards it last received:
+  the table's `handCounts` says 0 while their own hand still shows seven.
+  Affects mobile and webgames equally.
+- **Suggested fix:** set `changedHands[userId] = []` wherever `eliminate()`
+  runs - simplest is to have `eliminate()` take the `changedHands` record (or
+  return the cleared hand) so forfeit, timeout and any future caller cannot
+  forget it.
+
 ## 2026-08-09 - The admin panel's users.platform guard is dead once web accounts merge
 
 - **Where:** `apps/server/src/db/db.service.ts` - `findUserPlatforms()`,

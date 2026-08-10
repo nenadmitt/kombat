@@ -36,6 +36,7 @@ export function Sheet({
   subtitle,
   children,
   footer,
+  dismissible = true,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -43,6 +44,8 @@ export function Sheet({
   subtitle?: string;
   children: ReactNode;
   footer?: ReactNode;
+  /** False when the sheet asks for something the match cannot continue without. */
+  dismissible?: boolean;
 }) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -60,9 +63,11 @@ export function Sheet({
                 </DialogPrimitive.Description>
               )}
             </div>
-            <DialogPrimitive.Close className="icon-btn" aria-label="Close">
-              <X size={16} />
-            </DialogPrimitive.Close>
+            {dismissible && (
+              <DialogPrimitive.Close className="icon-btn" aria-label="Close">
+                <X size={16} />
+              </DialogPrimitive.Close>
+            )}
           </div>
           <div className="sheet-body">{children}</div>
           {footer}

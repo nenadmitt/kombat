@@ -1,6 +1,6 @@
 import {
   formatStakeAmount,
-  LUDO_MIN_PLAYERS,
+  MULTI_SEAT_MIN_PLAYERS,
   STAKE_ASSET_SYMBOLS,
   type GameRoomSummary,
 } from '@gaming-platform/core';
@@ -40,7 +40,10 @@ export function WaitingForPlayersModal({
   const multiSeat = room.playerCount > 2;
   const seatsLeft = room.playerCount - room.joinedCount;
   const canStartNow =
-    multiSeat && !isGuest && room.joinedCount >= LUDO_MIN_PLAYERS && seatsLeft > 0;
+    multiSeat &&
+    !isGuest &&
+    room.joinedCount >= MULTI_SEAT_MIN_PLAYERS &&
+    seatsLeft > 0;
 
   async function copy(what: 'code' | 'link') {
     const text =

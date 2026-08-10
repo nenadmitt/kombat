@@ -41,7 +41,7 @@ function BattleshipFlow({
   const [confirmForfeit, setConfirmForfeit] = useState(false);
   const over = engine.playProps.result !== null;
   const extras = useResultExtras(roomId, over, engine.playProps.opponent.name);
-  const leave = useLeaveGuard(multiplayer && !over);
+  const leave = useLeaveGuard(!over);
   const leaving = leave.pending !== null;
 
   return (
@@ -127,8 +127,9 @@ function BattleshipFlow({
               {leaving ? 'Leave this match?' : 'Forfeit this match?'}
             </h2>
             <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 13 }}>
-              {leaving ? 'Leaving forfeits the match. ' : ''}Your opponent takes
-              the win, and any stake with it.
+              {multiplayer
+                ? `${leaving ? 'Leaving forfeits the match. ' : ''}Your opponent takes the win, and any stake with it.`
+                : 'The practice match is discarded.'}
             </p>
             <div style={{ display: 'flex', gap: 'var(--s-3)' }}>
               <button
