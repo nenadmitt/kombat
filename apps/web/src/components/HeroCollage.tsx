@@ -182,24 +182,21 @@ export function HeroCollage() {
           </svg>
         </span>
 
-        <span className={`${styles.piece} ${styles.gavel}`}>
+        <span className={`${styles.piece} ${styles.tank}`}>
           <svg viewBox="0 0 68 49" fill="none">
-            <rect
-              x="30"
-              y="4"
-              width="30"
-              height="7"
-              rx="3.5"
-              fill="var(--green)"
-              transform="rotate(-34 30 10)"
+            <path
+              d="M33 27 L57 14"
+              stroke="var(--green)"
+              strokeWidth="7"
+              strokeLinecap="round"
             />
-            <path d="M6 30 C6 20 40 20 40 30 Z" fill="var(--green)" />
+            <path d="M9 31 C9 20 39 20 39 31 Z" fill="var(--green)" />
             <rect
               x="2"
-              y="29"
-              width="46"
-              height="13"
-              rx="6.5"
+              y="30"
+              width="50"
+              height="14"
+              rx="7"
               fill="var(--green)"
             />
           </svg>

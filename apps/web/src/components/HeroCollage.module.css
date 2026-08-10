@@ -294,7 +294,7 @@
   animation-delay: -2.4s;
 }
 
-.gavel {
+.tank {
   right: calc(50 * var(--u));
   bottom: calc(40 * var(--u));
   width: calc(74 * var(--u));
