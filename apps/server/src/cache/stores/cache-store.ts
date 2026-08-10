@@ -59,6 +59,8 @@ export const CacheKeys = {
   salvoLock: (roomId: string): string => `lock:salvo:${roomId}`,
   /** Cached GameRoomEntity JSON (short TTL — bounds staleness). */
   gameRoom: (id: string): string => `room:${id}`,
+  /** Last sweep tick (epoch ms) a pending room's creator was seen online. */
+  lobbyCreatorSeen: (roomId: string): string => `room:seen:${roomId}`,
   /** Cached PlatformStatus JSON (maintenance flag; DB row is the truth). */
   platformStatus: (): string => 'platform:status',
   /** An issued, not-yet-spent SIWE nonce. Deleting it is what makes it single-use. */

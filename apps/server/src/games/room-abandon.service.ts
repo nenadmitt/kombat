@@ -1,7 +1,13 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 
-import { CacheService, roomAbandonMember } from '../cache';
+import { CacheKeys, CacheService, roomAbandonMember } from '../cache';
 import { DbService } from '../db';
+import { GameRoomEntity } from '../db/entities/game-room.entity';
 import { GameRoomStatus } from '../db/types/game';
 import { WebsocketsService } from '../websockets';
 import { GamesService } from './games.service';
@@ -11,15 +17,27 @@ import { participantsOf } from './room.util';
  *  is given up on. Long enough to cover a tab reload or a tunnel change. */
 export const PENDING_ROOM_ABANDON_SECONDS = 30;
 
+/** A Pending room is reaped once its creator has been offline this long,
+ *  counted from creation or from the last sweep that saw them online. */
+export const STALE_LOBBY_IDLE_MS = 15 * 60 * 1000;
+const STALE_SWEEP_INTERVAL_MS = 60_000;
+const CREATOR_SEEN_TTL_SECONDS = (2 * STALE_LOBBY_IDLE_MS) / 1000;
+
 /**
  * A player whose socket drops while their room is still Pending has the room
  * closed (creator) or their seat freed (joiner) after the grace window, via
  * the same GamesService calls the manual endpoints use. Started matches are
  * left to the turn clock, which already hands a vanished player the loss.
+ *
+ * A periodic DB sweep backstops the disconnect path: it reaps Pending rooms
+ * whose creator has been offline for STALE_LOBBY_IDLE_MS, catching rooms
+ * whose disconnect was never observed (deploy, restart, lost deadline).
  */
 @Injectable()
-export class RoomAbandonService implements OnModuleInit {
+export class RoomAbandonService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RoomAbandonService.name);
+  private staleInterval?: ReturnType<typeof setInterval>;
+  private staleSweeping = false;
 
   constructor(
     private readonly cacheService: CacheService,
@@ -37,6 +55,20 @@ export class RoomAbandonService implements OnModuleInit {
         );
       });
     });
+    this.staleInterval = setInterval(() => {
+      void this.sweepStale().catch(error => {
+        this.logger.error(
+          'Stale-lobby sweep failed',
+          error instanceof Error ? error.stack : String(error),
+        );
+      });
+    }, STALE_SWEEP_INTERVAL_MS);
+  }
+
+  onModuleDestroy(): void {
+    if (this.staleInterval) {
+      clearInterval(this.staleInterval);
+    }
   }
 
   async schedule(userId: string): Promise<void> {
@@ -81,5 +113,49 @@ export class RoomAbandonService implements OnModuleInit {
         }`,
       );
     }
+  }
+
+  async sweepStale(now = Date.now()): Promise<void> {
+    if (this.staleSweeping) {
+      return;
+    }
+    this.staleSweeping = true;
+    try {
+      const rooms = await this.dbService.findPendingGameRoomsCreatedBefore(
+        new Date(now - STALE_LOBBY_IDLE_MS),
+      );
+      for (const room of rooms) {
+        try {
+          await this.reapIfCreatorGone(room, now);
+        } catch (error) {
+          // Raced a join/start/close, or another instance's sweep won.
+          this.logger.log(
+            `Stale cleanup for room ${room.id} skipped: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }
+      }
+    } finally {
+      this.staleSweeping = false;
+    }
+  }
+
+  private async reapIfCreatorGone(
+    room: GameRoomEntity,
+    now: number,
+  ): Promise<void> {
+    const seenKey = CacheKeys.lobbyCreatorSeen(room.id);
+    if (await this.websocketsService.isUserOnline(room.userId)) {
+      await this.cacheService.set(seenKey, String(now), CREATOR_SEEN_TTL_SECONDS);
+      return;
+    }
+    const seen = Number(await this.cacheService.get(seenKey));
+    const idleSince = seen > 0 ? seen : room.createdAt.getTime();
+    if (now - idleSince < STALE_LOBBY_IDLE_MS) {
+      return;
+    }
+    await this.gamesService.closeRoom(room.userId, room.id);
+    await this.cacheService.del(seenKey);
   }
 }
