@@ -128,6 +128,7 @@ export function GamesCarousel() {
     <section id="games" className={styles.arena}>
       <div className={styles.head}>
         <div>
+          <div className={styles.kicker}>The arena</div>
           <h2 className={styles.title}>Pick your game.</h2>
           <p className={styles.lead}>
             New games ship during the closed test, and testers vote on what

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import {
+  ArrowRight,
   Crosshair,
+  LockSimple,
   Percent,
   Play,
   ShieldCheck,
@@ -13,7 +15,7 @@ import {
 import { PotIcon } from "@/components/BrandIcon";
 import { LogoLockup } from "@/components/Logo";
 import { ReferralCodeRow } from "@/components/ReferralCodeRow";
-import { GameArt } from "@/components/GameArt";
+import { HeroCollage } from "@/components/HeroCollage";
 import { GamesCarousel } from "@/components/GamesCarousel";
 import { ApplyForm } from "@/components/InviteForms";
 import { PotIllustration } from "@/components/PotIllustration";
@@ -39,11 +41,13 @@ export default function LandingPage() {
           </Link>
           <a href={DEMO_APP_URL} className={styles.navCta}>
             Play
+            <ArrowRight size={14} weight="bold" />
           </a>
         </nav>
       </header>
 
       <section className={styles.hero}>
+        <div className={styles.heroGlow} aria-hidden="true" />
         <div className={styles.heroCopy}>
           <h1 className={styles.heroTitle}>
             Play a real
@@ -66,6 +70,10 @@ export default function LandingPage() {
             <a href="#apply" className={styles.heroAside}>
               Interested in the mobile app? Join the waitlist
             </a>
+            <div className={styles.heroNote}>
+              <LockSimple size={13} />
+              Test mode on Ethereum Sepolia - no real funds at risk.
+            </div>
           </div>
           <div className={styles.heroStats}>
             <div>
@@ -85,31 +93,12 @@ export default function LandingPage() {
           </div>
         </div>
         <div className={styles.heroArt}>
-          <GameArt
-            width={172}
-            height={374}
-            src="/screenshots/ludo-turn.png"
-            alt="A Ludo Royale board mid-race"
-            className={styles.heroArtLeft}
-          />
-          <GameArt
-            width={216}
-            height={470}
-            src="/screenshots/naval-fleet.png"
-            alt="A Battleships fleet grid mid-match"
-            className={styles.heroArtFront}
-          />
-          <GameArt
-            width={172}
-            height={374}
-            src="/screenshots/salvo-hit.png"
-            alt="A Salvo artillery duel landing a hit"
-            className={styles.heroArtRight}
-          />
+          <HeroCollage />
         </div>
       </section>
 
       <section id="how" className={styles.how}>
+        <div className={styles.kicker}>How it works</div>
         <h2 className={styles.sectionTitle}>
           Three steps between your wallet and the pot.
         </h2>
@@ -160,6 +149,9 @@ export default function LandingPage() {
 
       <section id="pot" className={styles.pot}>
         <div>
+          <div className={`${styles.kicker} ${styles.kickerAmber}`}>
+            The stake pot
+          </div>
           <h2 className={styles.sectionTitle}>Sign once. Play all night.</h2>
           <p className={styles.sectionLead}>
             If you do want to play for something, your pot is a balance held in
@@ -182,6 +174,7 @@ export default function LandingPage() {
           </div>
           <Link href="/stake" className={styles.amberCta}>
             Open the stake page
+            <ArrowRight size={15} weight="bold" />
           </Link>
         </div>
         <div className={styles.potArt}>
@@ -191,6 +184,37 @@ export default function LandingPage() {
       </section>
 
       <section id="invite" className={styles.invite}>
+        <div className={styles.inviteCopy}>
+          <div className={`${styles.kicker} ${styles.kickerAmber}`}>
+            Invite &amp; earn
+          </div>
+          <h2 className={styles.sectionTitle}>
+            Invite players, earn on every match
+          </h2>
+          <p className={styles.sectionLead}>
+            Share your code. When someone you invited plays a staked match,
+            0.1% of the platform fee goes to your pot, for as long as they
+            keep playing.
+          </p>
+          <div className={styles.checkList}>
+            <div className={styles.checkItem}>
+              <CheckCircle size={18} weight="fill" className={styles.amber} />
+              Credited automatically on every settled match
+            </div>
+            <div className={styles.checkItem}>
+              <CheckCircle size={18} weight="fill" className={styles.amber} />
+              Paid into your pot, ready to stake again
+            </div>
+            <div className={styles.checkItem}>
+              <CheckCircle size={18} weight="fill" className={styles.amber} />
+              Codes and totals carry over at launch
+            </div>
+          </div>
+          <Link href="/stake?tab=invite" className={styles.amberCta}>
+            See your referral page
+            <ArrowRight size={15} weight="bold" />
+          </Link>
+        </div>
         <div className={styles.referralCard}>
           <div className={styles.referralHead}>
             <div className={styles.panelKicker}>Your referral code · Example</div>
@@ -251,36 +275,10 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
-        <div className={styles.inviteCopy}>
-          <h2 className={styles.sectionTitle}>
-            Invite players, earn on every match
-          </h2>
-          <p className={styles.sectionLead}>
-            Share your code. When someone you invited plays a staked match,
-            0.1% of the platform fee goes to your pot, for as long as they
-            keep playing.
-          </p>
-          <div className={styles.checkList}>
-            <div className={styles.checkItem}>
-              <CheckCircle size={18} weight="fill" className={styles.amber} />
-              Credited automatically on every settled match
-            </div>
-            <div className={styles.checkItem}>
-              <CheckCircle size={18} weight="fill" className={styles.amber} />
-              Paid into your pot, ready to stake again
-            </div>
-            <div className={styles.checkItem}>
-              <CheckCircle size={18} weight="fill" className={styles.amber} />
-              Codes and totals carry over at launch
-            </div>
-          </div>
-          <Link href="/stake?tab=invite" className={styles.amberCta}>
-            See your referral page
-          </Link>
-        </div>
       </section>
 
       <section id="community" className={styles.community}>
+        <div className={styles.kicker}>Get involved</div>
         <h2 className={styles.sectionTitle}>Found a bug? Got an idea?</h2>
         <p className={styles.sectionLead}>
           Report a bug, suggest a feature, or get involved some other way. The
@@ -332,6 +330,7 @@ export default function LandingPage() {
 
       <section id="apply" className={styles.apply}>
         <div className={styles.applyCard}>
+          <div className={styles.applyGlow} aria-hidden="true" />
           <div className={styles.applyGrid}>
             <div>
               <div className={styles.testBadge}>TEST MODE</div>

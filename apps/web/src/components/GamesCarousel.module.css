@@ -7,6 +7,7 @@
   /* Card art is a fixed 757px, so the padding is only a floor - keep it tight
      or the section outgrows the viewport the other sections are pinned to. */
   padding: 28px 0;
+  background: var(--panel-2);
 }
 
 .head {
@@ -15,6 +16,14 @@
   justify-content: space-between;
   gap: 30px;
   padding: 0 60px;
+}
+
+.kicker {
+  font: 600 11px/1 var(--font-heading);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--green);
+  margin-bottom: 18px;
 }
 
 .title {
@@ -238,7 +247,7 @@
   flex-direction: column;
   justify-content: center;
   gap: 18px;
-  background: var(--panel);
+  background: var(--panel-2);
   box-shadow: none;
 }
 
@@ -354,6 +363,10 @@
 
   .title {
     font-size: 34px;
+  }
+
+  .kicker {
+    margin-bottom: 14px;
   }
 
   .lead {
