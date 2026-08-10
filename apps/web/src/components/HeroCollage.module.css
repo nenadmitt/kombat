@@ -116,7 +116,7 @@
 /* Centred with translateX, so its drift has to carry that offset through. */
 @keyframes heroLogoDrift {
   50% {
-    transform: translateX(-50%) translateY(calc(-6 * var(--u)));
+    transform: translateX(-50%) translateY(calc(-11 * var(--u)));
   }
 }
 
@@ -137,16 +137,35 @@
 .piece,
 .tile {
   --rot: 0deg;
-  --tilt: 1.6deg;
-  --lift: calc(-7 * var(--u));
+  --tilt: 3deg;
+  --lift: calc(-15 * var(--u));
+  --sway: calc(3 * var(--u));
   transform: rotate(var(--rot));
   animation: heroDrift 9s ease-in-out infinite;
   will-change: transform;
 }
 
+/* Loose cards ride higher than the weighted tiles. */
+.card {
+  --tilt: 3.8deg;
+  --lift: calc(-19 * var(--u));
+}
+
+.tile {
+  --tilt: 2.2deg;
+  --lift: calc(-12 * var(--u));
+}
+
+/* Three stops rather than two, so a piece traces a loose orbit instead of
+   bobbing straight up and down. */
 @keyframes heroDrift {
-  50% {
-    transform: rotate(calc(var(--rot) + var(--tilt))) translateY(var(--lift));
+  35% {
+    transform: rotate(calc(var(--rot) + var(--tilt)))
+      translate(var(--sway), var(--lift));
+  }
+  70% {
+    transform: rotate(calc(var(--rot) - var(--tilt)))
+      translate(calc(var(--sway) * -1), calc(var(--lift) * 0.4));
   }
 }
 

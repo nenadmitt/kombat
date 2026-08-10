@@ -191,9 +191,9 @@
   padding: 6px 14px 6px 6px;
   border-radius: 10px;
   background: var(--surface);
-  box-shadow: inset 0 0 0 1px rgba(233, 233, 237, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(245, 184, 41, 0.22);
   font: 600 12.5px/1 var(--font-body);
-  color: var(--text-62);
+  color: var(--amber);
 }
 
 .heroNoteIcon {
@@ -202,8 +202,8 @@
   width: 24px;
   height: 24px;
   border-radius: 7px;
-  background: rgba(142, 224, 90, 0.15);
-  color: var(--green);
+  background: rgba(245, 184, 41, 0.15);
+  color: var(--amber);
 }
 
 .heroStats {
