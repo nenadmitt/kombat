@@ -19,11 +19,13 @@ import {
   ROOM_EVENTS,
   RPS_EVENTS,
   StakeAsset,
+  convertStakeAmount,
   supportsMultiplayerRoom,
 } from '@gaming-platform/core';
 
 import { DbService } from '../db';
 import { GameRoomEntity } from '../db/entities/game-room.entity';
+import { MatchSettlementEntity } from '../db/entities/match-settlement.entity';
 import { GameRoomStatus, GameType } from '../db/types/game';
 import { WebsocketsService } from '../websockets';
 import { gameChannel } from '../websockets/rooms.util';
@@ -38,6 +40,7 @@ import { MaintenanceService } from '../maintenance';
 import { LudoMatchService } from './ludo/ludo-match.service';
 import { participantsOf } from './room.util';
 import { RpsMatchService } from './rps/rps-match.service';
+import { resolveJoinToken, stakeAssetFor } from './stakes/stake-legs.util';
 import { StakesService } from './stakes/stakes.service';
 
 @Injectable()
@@ -157,7 +160,11 @@ export class GamesService {
    * creator's opponent-joined) once the pot is on-chain; the match start is
    * gated on that.
    */
-  async joinRoom(userId: string, roomId: string): Promise<GameRoomSummary> {
+  async joinRoom(
+    userId: string,
+    roomId: string,
+    stakeToken?: StakeAsset,
+  ): Promise<GameRoomSummary> {
     await this.maintenanceService.assertNotInMaintenance();
     const room = await this.dbService.findGameRoomById(roomId);
     if (!room) {
@@ -174,30 +181,44 @@ export class GamesService {
       );
     }
 
+    const joinToken = resolveJoinToken(room, stakeToken);
+
     // Check the joiner's balance BEFORE flipping the room — a broke joiner
     // shouldn't take a pending room off the market.
-    if (room.stakeToken !== null) {
+    if (room.stakeToken !== null && joinToken !== null) {
       await this.stakesService.assertSufficientBalance(
         userId,
-        room.stakeToken,
-        room.stakeAmount!,
+        joinToken,
+        convertStakeAmount(room.stakeAmount!, room.stakeToken, joinToken),
       );
     }
 
+    // Only a leg that differs from the room's token needs recording; leaving
+    // the column null keeps every single-asset room on the legacy read paths.
+    const chosen = joinToken !== room.stakeToken ? joinToken : null;
+
     if (isMultiSeatGame(room.gameType)) {
-      return this.joinMultiSeatRoom(userId, room);
+      return this.joinMultiSeatRoom(userId, room, chosen);
     }
 
     // Conditional seat-taking: if another joiner won the race between the
     // Pending check above and here, this affects 0 rows and we bail out
     // rather than overwriting their seat.
-    const seated = await this.dbService.joinGameRoom(roomId, userId);
+    const seated = await this.dbService.joinGameRoom(roomId, userId, chosen);
     if (!seated) {
       throw new ConflictException('This room is no longer accepting players.');
     }
     const joined: GameRoomEntity = Object.assign(room, {
       opponentId: userId,
       status: GameRoomStatus.InProgress,
+      ...(chosen !== null
+        ? {
+            stakeTokenChoices: {
+              ...(room.stakeTokenChoices ?? {}),
+              [userId]: chosen,
+            },
+          }
+        : {}),
     });
     // Filled and flipped to InProgress: drop it from the lobby.
     this.emitLobbyRemoved(joined);
@@ -225,15 +246,19 @@ export class GamesService {
   private async joinMultiSeatRoom(
     userId: string,
     room: GameRoomEntity,
+    stakeToken: StakeAsset | null,
   ): Promise<GameRoomSummary> {
     const appended = await this.dbService.appendGameRoomOpponent(
       room.id,
       userId,
+      stakeToken,
     );
     if (!appended) {
       throw new ConflictException('This room is no longer accepting players.');
     }
-    const updated = await this.dbService.findGameRoomById(room.id);
+    // Fresh: the roster this reads is what decides whether the match starts,
+    // and what token each seat is funded in.
+    const updated = await this.dbService.findGameRoomByIdFresh(room.id);
     if (!updated) {
       throw new NotFoundException('Game room not found');
     }
@@ -269,7 +294,9 @@ export class GamesService {
    */
   async startRoom(userId: string, roomId: string): Promise<GameRoomSummary> {
     await this.maintenanceService.assertNotInMaintenance();
-    const room = await this.dbService.findGameRoomById(roomId);
+    // Fresh: this decides whether the match starts, and the roster and token
+    // choices it funds on must not come from a stale copy.
+    const room = await this.dbService.findGameRoomByIdFresh(roomId);
     if (!room) {
       throw new NotFoundException('Game room not found');
     }
@@ -433,17 +460,32 @@ export class GamesService {
         const isVoid = room.winnerUserId === null;
         const result = isVoid ? 'void' : isWinner ? 'win' : 'loss';
 
+        // Everything this player sees is denominated in the token THEY staked,
+        // never the room's - the two differ once someone joins with another
+        // stablecoin, and mixing the decimals would misprice the whole row.
+        let stakeToken = room.stakeToken;
+        let stakeAmount = room.stakeAmount;
         let prizeDelta: string | null = null;
         if (room.stakeToken !== null && room.stakeAmount) {
-          const stake = BigInt(room.stakeAmount);
+          const own = stakeAssetFor(room, userId);
+          const stake = BigInt(
+            convertStakeAmount(room.stakeAmount, room.stakeToken, own),
+          );
+          stakeToken = own;
+          stakeAmount =
+            own === room.stakeToken ? room.stakeAmount : stake.toString();
           if (isVoid) {
             prizeDelta = '0';
           } else if (isWinner) {
             const settlement = await this.dbService.findMatchSettlementByRoomId(room.id);
+            const payout = settlement
+              ? totalPayoutIn(settlement, room.stakeToken, own)
+              : null;
             // payout − own stake; before settlement lands, estimate as stake.
-            prizeDelta = settlement?.payout
-              ? (BigInt(settlement.payout) - stake).toString()
-              : stake.toString();
+            prizeDelta =
+              payout === null
+                ? stake.toString()
+                : (payout - stake).toString();
           } else {
             prizeDelta = (-stake).toString();
           }
@@ -455,8 +497,8 @@ export class GamesService {
           opponentUsername: opponentUsernames[0] ?? null,
           opponentUsernames,
           result,
-          stakeAmount: room.stakeAmount,
-          stakeToken: room.stakeToken,
+          stakeAmount,
+          stakeToken,
           prizeDelta,
           endReason: room.endReason,
           completedAt: (room.completedAt ?? room.createdAt).toISOString(),
@@ -598,6 +640,28 @@ export class GamesService {
       return { winnerUserId: null };
     }
   }
+}
+
+/** The whole prize, valued in one viewer's token; null before it is settled. */
+function totalPayoutIn(
+  settlement: MatchSettlementEntity,
+  roomToken: StakeAsset,
+  viewerToken: StakeAsset,
+): bigint | null {
+  if (settlement.payoutByAsset) {
+    return Object.entries(settlement.payoutByAsset).reduce(
+      (total, [asset, amount]) =>
+        total +
+        BigInt(
+          convertStakeAmount(amount, Number(asset) as StakeAsset, viewerToken),
+        ),
+      0n,
+    );
+  }
+  if (settlement.payout) {
+    return BigInt(convertStakeAmount(settlement.payout, roomToken, viewerToken));
+  }
+  return null;
 }
 
 function toGameRoomSummary(room: GameRoomEntity): GameRoomSummary {

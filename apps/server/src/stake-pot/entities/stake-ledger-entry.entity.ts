@@ -22,9 +22,10 @@ import { BaseEntity } from '../../db/entities/base.entity';
   unique: true,
   where: '"tx_hash" IS NOT NULL',
 })
-// One Hold/Capture/Release per player per room, one Prize, one Fee. This is
-// what stops two concurrent settlements both paying out.
-@Index('UQ_stake_ledger_room_entry', ['roomId', 'userId', 'kind'], {
+// One Hold/Capture/Release per player per room, one Prize, one Fee - per
+// asset, since a cross-stable room pays the winner a prize in each token it
+// was staked in. This is what stops two concurrent settlements both paying out.
+@Index('UQ_stake_ledger_room_entry', ['roomId', 'userId', 'kind', 'asset'], {
   unique: true,
   where: '"room_id" IS NOT NULL',
 })

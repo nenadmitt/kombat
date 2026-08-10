@@ -32,6 +32,7 @@ describe('GamesService room lifecycle', () => {
   let db: {
     findOpenGameRoomForUser: jest.Mock;
     findGameRoomById: jest.Mock;
+    findGameRoomByIdFresh: jest.Mock;
     createGameRoom: jest.Mock;
     findPendingGameRoomByCode: jest.Mock;
     findGameRoomByCode: jest.Mock;
@@ -75,7 +76,12 @@ describe('GamesService room lifecycle', () => {
       findGameRoomByCode: jest.fn().mockResolvedValue(null),
       joinGameRoom: jest.fn().mockResolvedValue(true),
       startGameRoom: jest.fn().mockResolvedValue(true),
+      findGameRoomByIdFresh: jest.fn(),
     };
+    // The start path reads fresh; every case here stubs one room either way.
+    db.findGameRoomByIdFresh.mockImplementation((id: string) =>
+      db.findGameRoomById(id),
+    );
     stakes = {
       validateStake: jest.fn(),
       assertSufficientBalance: jest.fn().mockResolvedValue(undefined),

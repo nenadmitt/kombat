@@ -27,6 +27,14 @@ export class MatchSettlementEntity extends BaseEntity {
   @Column({ name: 'fee', type: 'numeric', precision: 78, scale: 0, nullable: true })
   fee: string | null;
 
+  /** Set instead of the scalars above when the match was staked in more than
+   *  one asset: base-unit payout/fee per asset, each in its own decimals. */
+  @Column({ name: 'payout_by_asset', type: 'jsonb', nullable: true })
+  payoutByAsset: Record<string, string> | null;
+
+  @Column({ name: 'fee_by_asset', type: 'jsonb', nullable: true })
+  feeByAsset: Record<string, string> | null;
+
   @Column({ name: 'attempts', type: 'smallint', default: 0 })
   attempts: number;
 

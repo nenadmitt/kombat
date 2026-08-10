@@ -29,6 +29,7 @@ import { GameType } from '../db/types/game';
 import { BattleshipMatchService } from './battleships/battleship-match.service';
 import { ChromaMatchService } from './chroma/chroma-match.service';
 import { CreateGameRoomDto } from './dto/create-game-room.dto';
+import { JoinGameRoomDto } from './dto/join-game-room.dto';
 import { ListGameRoomsDto } from './dto/list-game-rooms.dto';
 import { MatchHistoryQueryDto } from './dto/match-history-query.dto';
 import { GamesService } from './games.service';
@@ -93,9 +94,14 @@ export class GamesController {
   @UseGuards(SupportedVersionGuard)
   async joinRoom(
     @Param('id') id: string,
+    @Body() dto: JoinGameRoomDto,
     @SecurityContext() securityContext: ISecurityContext,
   ): Promise<GameRoomSummary> {
-    return this.gamesService.joinRoom(securityContext.userId, id);
+    return this.gamesService.joinRoom(
+      securityContext.userId,
+      id,
+      dto?.stakeToken,
+    );
   }
 
   /** Creator-only early start for a multi-player (Ludo) room. */

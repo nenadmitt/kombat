@@ -7,6 +7,7 @@ import {
   LOBBY_EVENTS,
   ROOM_EVENTS,
   STAKE_ASSET_SYMBOLS,
+  StakeAsset,
   type GameRoomSummary,
   type RoomPlayerJoinedPayload,
   type RoomStartedPayload,
@@ -25,6 +26,7 @@ import { useNavigate } from 'react-router-dom';
 import { CreateRoomModal } from '../components/CreateRoomModal';
 import { Dropdown } from '../components/Dropdown';
 import { GameIcon } from '../components/GameIcon';
+import { JoinRoomModal } from '../components/JoinRoomModal';
 import { WaitingForPlayersModal } from '../components/WaitingForPlayersModal';
 import { apiClient } from '../lib/api';
 import { GAME_LABELS, isWebPlayable } from '../lib/format';
@@ -67,6 +69,9 @@ export function LobbyPage() {
   const [waitingMinimized, setWaitingMinimized] = useState(false);
   // A multi-seat room I joined but do not own: I wait for it to start too.
   const [joinedRoom, setJoinedRoom] = useState<GameRoomSummary | null>(null);
+  // A staked room the user asked to join, waiting on the confirmation sheet.
+  const [pendingJoin, setPendingJoin] = useState<GameRoomSummary | null>(null);
+  const [resolvingCode, setResolvingCode] = useState(false);
   const [starting, setStarting] = useState(false);
   const [leaving, setLeaving] = useState(false);
 
@@ -76,6 +81,8 @@ export function LobbyPage() {
   activeRoomRef.current = activeRoom;
   const joinedRoomRef = useRef(joinedRoom);
   joinedRoomRef.current = joinedRoom;
+  // Only a room the lobby ever listed can be judged gone by its absence.
+  const pendingListedRef = useRef(false);
 
   const hostIds = useMemo(() => rooms.map(room => room.creatorUserId), [rooms]);
   const usernames = useUsernames(hostIds);
@@ -151,11 +158,42 @@ export function LobbyPage() {
     patchActiveRoom,
   ]);
 
-  async function join(room: GameRoomSummary) {
+  // The lobby keeps moving under an open confirmation, so the sheet reads the
+  // live room. A room joined by code is never listed, hence the fallback.
+  const pendingRoom = pendingJoin
+    ? (rooms.find(room => room.id === pendingJoin.id) ?? pendingJoin)
+    : null;
+
+  useEffect(() => {
+    if (!pendingJoin || joiningId === pendingJoin.id) return;
+    const live = rooms.find(room => room.id === pendingJoin.id);
+    if (live) {
+      pendingListedRef.current = true;
+      if (live.joinedCount < live.playerCount) return;
+    } else if (!pendingListedRef.current) {
+      return; // Never listed (a private room reached by code) - leave it open.
+    }
+    setPendingJoin(null);
+    setJoinError('That room is no longer open.');
+  }, [rooms, pendingJoin, joiningId]);
+
+  /** Every join funnels through here; a staked room confirms first. */
+  function requestJoin(room: GameRoomSummary) {
+    setJoinError(null);
+    if (room.stakeToken === null) {
+      void confirmJoin(room);
+      return;
+    }
+    pendingListedRef.current = false;
+    setPendingJoin(room);
+  }
+
+  async function confirmJoin(room: GameRoomSummary, stakeToken?: StakeAsset) {
     setJoiningId(room.id);
     setJoinError(null);
     try {
-      const joined = await apiClient.joinGameRoom(room.id);
+      const joined = await apiClient.joinGameRoom(room.id, stakeToken);
+      setPendingJoin(null);
       // Joining the last free seat starts the match; any earlier seat leaves
       // the table still filling, and the board does not exist yet.
       if (joined.status === GameRoomStatus.Pending) {
@@ -224,6 +262,8 @@ export function LobbyPage() {
 
   async function joinByCode(event: React.FormEvent) {
     event.preventDefault();
+    if (resolvingCode) return;
+    setResolvingCode(true);
     setJoinError(null);
     try {
       const room = await apiClient.getGameRoomByCode(code);
@@ -231,12 +271,14 @@ export function LobbyPage() {
         setJoinError(`${GAME_LABELS[room.gameType]} is playable on mobile only.`);
         return;
       }
-      await join(room);
+      requestJoin(room);
       setJoinCodeOpen(false);
     } catch (err) {
       setJoinError(
         err instanceof ApiError ? err.message : 'No open room with that code.',
       );
+    } finally {
+      setResolvingCode(false);
     }
   }
 
@@ -257,7 +299,7 @@ export function LobbyPage() {
           <FeaturedRoom
             room={openRooms.find(room => isWebPlayable(room.gameType)) ?? null}
             hostName={name => usernames[name] ?? 'someone'}
-            onJoin={join}
+            onJoin={requestJoin}
           />
 
           <div className="toolbar">
@@ -298,7 +340,9 @@ export function LobbyPage() {
             </div>
           </div>
 
-          {joinError && <div className="banner">{joinError}</div>}
+          {joinError && !pendingRoom && (
+            <div className="banner">{joinError}</div>
+          )}
 
           <div className="rows">
             <div className="row-head room-grid">
@@ -368,7 +412,7 @@ export function LobbyPage() {
                     <button
                       type="button"
                       className="btn btn-outline-lime"
-                      onClick={() => join(room)}
+                      onClick={() => requestJoin(room)}
                       disabled={joiningId === room.id}
                     >
                       {joiningId === room.id ? '...' : 'Join'}
@@ -620,6 +664,20 @@ export function LobbyPage() {
           />
         )}
 
+      {pendingRoom && (
+        <JoinRoomModal
+          room={pendingRoom}
+          hostName={usernames[pendingRoom.creatorUserId] ?? 'someone'}
+          busy={joiningId === pendingRoom.id}
+          error={joinError}
+          onClose={() => {
+            setPendingJoin(null);
+            setJoinError(null);
+          }}
+          onConfirm={stakeToken => void confirmJoin(pendingRoom, stakeToken)}
+        />
+      )}
+
       {joinCodeOpen && (
         <div className="modal-backdrop" onClick={() => setJoinCodeOpen(false)}>
           <form
@@ -651,9 +709,15 @@ export function LobbyPage() {
               <button
                 type="submit"
                 className="btn btn-lime btn-block"
-                disabled={code.trim().length < 6 || joiningId !== null}
+                disabled={
+                  code.trim().length < 6 || resolvingCode || joiningId !== null
+                }
               >
-                {joiningId ? <span className="spinner" /> : 'Join room'}
+                {resolvingCode || joiningId ? (
+                  <span className="spinner" />
+                ) : (
+                  'Join room'
+                )}
               </button>
             </div>
           </form>

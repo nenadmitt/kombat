@@ -73,6 +73,11 @@ export class GameRoomEntity extends BaseEntity {
   @Column({ name: 'stake_amount', type: 'numeric', precision: 78, scale: 0, nullable: true })
   stakeAmount: string | null;
 
+  /** Joiners who staked a different stablecoin than the room's, keyed by user
+   *  id. Null (the common case) means everyone staked `stakeToken`. */
+  @Column({ name: 'stake_token_choices', type: 'jsonb', nullable: true })
+  stakeTokenChoices: Record<string, StakeAsset> | null;
+
   // ---- result (set when the room completes) ------------------------------
 
   /** Winner, or null while running / when the match was voided. */

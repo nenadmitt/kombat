@@ -90,3 +90,20 @@ fix. Remove an entry in the same change that fixes it.
   safe to change: mobile ignores the fields, and
   `apps/webgames/src/pages/WalletPage.tsx` prints `amount` verbatim with a
   comment pointing here.
+
+## 2026-08-10 - `appendGameRoomOpponent` / `removeGameRoomOpponent` always report success
+
+- **Where:** `apps/server/src/db/db.service.ts` (`appendGameRoomOpponent`,
+  `removeGameRoomOpponent`) - both end with
+  `return (result as unknown[]).length > 0`.
+- **Why it's wrong:** TypeORM's `query()` returns `[rows, affectedCount]` for a
+  DML statement, not a bare row array, so the length is **always 2** and both
+  methods return `true` even when the UPDATE matched nothing. The guards in the
+  SQL (room full, duplicate joiner, room already started, seat not held) still
+  hold in the database, but `GamesService.joinMultiSeatRoom` and `leaveRoom`
+  never see the rejection: a joiner who lost the race is told they were seated,
+  and `leaveRoom` reports success for a room that already started. Verified with
+  a probe: `UPDATE ... RETURNING "id"` on zero rows yields `[[], 0]`.
+- **Suggested fix:** destructure - `const [rows] = await ...` and test
+  `rows.length > 0` (this is what `joinGameRoom`'s new choice-carrying branch
+  does).

@@ -20,6 +20,13 @@ import { WebsocketsService } from '../websockets';
 import { StakeLedgerEntryEntity } from './entities/stake-ledger-entry.entity';
 import { StakePotWithdrawalEntity } from './entities/stake-pot-withdrawal.entity';
 import { StakedBalanceEntity } from './entities/staked-balance.entity';
+import type { StakeLeg } from './stake-leg';
+
+/** What a settlement moved, per asset, in that asset's base units. */
+export type StakeSettlementTotals = {
+  payoutByAsset: Record<string, string>;
+  feeByAsset: Record<string, string>;
+};
 
 /** Fee income accrues here; sweeping it to the treasury is a withdrawal like
  *  any other. Fixed uuid outside the generated space, so it can never collide
@@ -291,51 +298,47 @@ export class StakePotService {
 
   /**
    * Hold every participant's stake: available -> locked, all of it or none.
-   * Throws ConflictException with nothing charged when someone can't cover it,
-   * so the caller can void the room. Participants who already hold for this
-   * room (a retried funding) are skipped, not charged twice.
+   * Each leg is held in the asset that player chose. Throws ConflictException
+   * with nothing charged when someone can't cover it, so the caller can void
+   * the room. Participants who already hold for this room (a retried funding)
+   * are skipped, not charged twice.
    */
-  async holdForMatch(
-    roomId: string,
-    userIds: string[],
-    asset: StakeAsset,
-    amount: bigint,
-  ): Promise<void> {
+  async holdForMatch(roomId: string, legs: StakeLeg[]): Promise<void> {
     const held = await this.dataSource.transaction(async manager => {
       const existing = await manager.find(StakeLedgerEntryEntity, {
         where: { roomId, kind: StakeLedgerKind.Hold },
       });
       const alreadyHeld = new Set(existing.map(entry => entry.userId));
-      const pendingUsers = userIds.filter(userId => !alreadyHeld.has(userId));
-      if (pendingUsers.length === 0) {
+      const pending = legs.filter(leg => !alreadyHeld.has(leg.userId));
+      if (pending.length === 0) {
         return [];
       }
 
-      for (const userId of this.ordered(pendingUsers)) {
-        const balance = await this.lockBalance(manager, userId, asset);
+      for (const leg of this.orderedLegs(pending)) {
+        const balance = await this.lockBalance(manager, leg.userId, leg.asset);
         const available = BigInt(balance.available);
-        if (available < amount) {
+        if (available < leg.amount) {
           // Rolls the whole transaction back - nobody is charged for a match
           // that can't be funded.
           throw new ConflictException(
             'Not enough in your stake pot for this match.',
           );
         }
-        const remaining = available - amount;
+        const remaining = available - leg.amount;
         await this.writeBalance(manager, balance, {
           available: remaining,
-          locked: BigInt(balance.locked) + amount,
+          locked: BigInt(balance.locked) + leg.amount,
         });
         await this.appendEntry(manager, {
-          userId,
-          asset,
+          userId: leg.userId,
+          asset: leg.asset,
           kind: StakeLedgerKind.Hold,
-          amount: -amount,
+          amount: -leg.amount,
           balanceAfter: remaining,
           roomId,
         });
       }
-      return pendingUsers;
+      return pending.map(leg => leg.userId);
     });
 
     await this.pushBalances(held);
@@ -345,14 +348,16 @@ export class StakePotService {
    * Pay out a finished match: burn every hold, credit the winner pot - fee and
    * the platform the fee, in one transaction so a crash can't leave the pot
    * short or long. Idempotent per room via the Capture entries.
+   *
+   * Each asset the match was staked in settles on its own: no leg is ever
+   * converted, so the winner is paid one prize per asset and the fee is taken
+   * per asset.
    */
   async settleMatch(
     roomId: string,
     winnerUserId: string,
-    userIds: string[],
-    asset: StakeAsset,
-    amount: bigint,
-  ): Promise<{ payout: bigint; fee: bigint } | null> {
+    expectedLegs: StakeLeg[],
+  ): Promise<StakeSettlementTotals | null> {
     const result = await this.dataSource.transaction(async manager => {
       if (await this.roomHasEntry(manager, roomId, StakeLedgerKind.Capture)) {
         return null;
@@ -365,69 +370,109 @@ export class StakePotService {
         return null;
       }
 
-      const pot = amount * BigInt(userIds.length);
-      const fee = (pot * BigInt(this.configurationService.STAKE_FEE_BPS)) / BPS_DENOMINATOR;
-      const payout = pot - fee;
+      // The holds decide what is captured, never the caller's view of the
+      // room: two callers reading different copies of it would otherwise write
+      // Captures in different assets, which the unique index treats as
+      // distinct rows. `expectedLegs` only covers a room that was never funded.
+      const holds = await manager.find(StakeLedgerEntryEntity, {
+        where: { roomId, kind: StakeLedgerKind.Hold },
+      });
+      const settling: StakeLeg[] = holds.length
+        ? holds.map(hold => ({
+            userId: hold.userId,
+            asset: hold.asset,
+            // A Hold's amount is the negated stake.
+            amount: -BigInt(hold.amount),
+          }))
+        : expectedLegs;
+
+      const potByAsset = new Map<StakeAsset, bigint>();
+      for (const leg of settling) {
+        potByAsset.set(leg.asset, (potByAsset.get(leg.asset) ?? 0n) + leg.amount);
+      }
 
       // Capture every hold first (including the winner's own stake), then pay
       // the whole pot back out - so the winner's row nets +payout−stake and
       // the arithmetic is the same for every participant.
-      for (const userId of this.ordered(userIds)) {
-        const balance = await this.lockBalance(manager, userId, asset);
+      for (const leg of this.orderedLegs(settling)) {
+        const balance = await this.lockBalance(manager, leg.userId, leg.asset);
         await this.writeBalance(manager, balance, {
-          locked: BigInt(balance.locked) - amount,
+          locked: BigInt(balance.locked) - leg.amount,
         });
         await this.appendEntry(manager, {
-          userId,
-          asset,
+          userId: leg.userId,
+          asset: leg.asset,
           kind: StakeLedgerKind.Capture,
-          amount: -amount,
+          amount: -leg.amount,
           balanceAfter: BigInt(balance.available),
           roomId,
         });
       }
 
-      const winnerBalance = await this.lockBalance(manager, winnerUserId, asset);
-      const winnerAvailable = BigInt(winnerBalance.available) + payout;
-      await this.writeBalance(manager, winnerBalance, {
-        available: winnerAvailable,
-      });
-      await this.appendEntry(manager, {
-        userId: winnerUserId,
-        asset,
-        kind: StakeLedgerKind.Prize,
-        amount: payout,
-        balanceAfter: winnerAvailable,
-        roomId,
-      });
+      const payoutByAsset: Record<string, string> = {};
+      const feeByAsset: Record<string, string> = {};
+      for (const asset of [...potByAsset.keys()].sort((a, b) => a - b)) {
+        const pot = potByAsset.get(asset)!;
+        const fee =
+          (pot * BigInt(this.configurationService.STAKE_FEE_BPS)) /
+          BPS_DENOMINATOR;
+        const payout = pot - fee;
+        payoutByAsset[asset] = payout.toString();
+        feeByAsset[asset] = fee.toString();
 
-      if (fee > 0n) {
-        const platform = await this.lockBalance(
+        const winnerBalance = await this.lockBalance(
           manager,
-          PLATFORM_ACCOUNT_ID,
+          winnerUserId,
           asset,
         );
-        const platformAvailable = BigInt(platform.available) + fee;
-        await this.writeBalance(manager, platform, {
-          available: platformAvailable,
+        const winnerAvailable = BigInt(winnerBalance.available) + payout;
+        await this.writeBalance(manager, winnerBalance, {
+          available: winnerAvailable,
         });
         await this.appendEntry(manager, {
-          userId: PLATFORM_ACCOUNT_ID,
+          userId: winnerUserId,
           asset,
-          kind: StakeLedgerKind.Fee,
-          amount: fee,
-          balanceAfter: platformAvailable,
+          kind: StakeLedgerKind.Prize,
+          amount: payout,
+          balanceAfter: winnerAvailable,
           roomId,
         });
+
+        if (fee > 0n) {
+          const platform = await this.lockBalance(
+            manager,
+            PLATFORM_ACCOUNT_ID,
+            asset,
+          );
+          const platformAvailable = BigInt(platform.available) + fee;
+          await this.writeBalance(manager, platform, {
+            available: platformAvailable,
+          });
+          await this.appendEntry(manager, {
+            userId: PLATFORM_ACCOUNT_ID,
+            asset,
+            kind: StakeLedgerKind.Fee,
+            amount: fee,
+            balanceAfter: platformAvailable,
+            roomId,
+          });
+        }
       }
-      return { payout, fee, notify: userIds };
+      return {
+        payoutByAsset,
+        feeByAsset,
+        notify: settling.map(leg => leg.userId),
+      };
     });
 
     if (!result) {
       return null;
     }
     await this.pushBalances(result.notify);
-    return { payout: result.payout, fee: result.fee };
+    return {
+      payoutByAsset: result.payoutByAsset,
+      feeByAsset: result.feeByAsset,
+    };
   }
 
   /** Return every hold to its owner. Idempotent, and a no-op for a room that
@@ -724,8 +769,10 @@ export class StakePotService {
   }
 
   /** Deterministic lock order - the deadlock guard for multi-player rooms. */
-  private ordered(userIds: string[]): string[] {
-    return [...userIds].sort();
+  private orderedLegs(legs: StakeLeg[]): StakeLeg[] {
+    return [...legs].sort((a, b) =>
+      a.userId < b.userId ? -1 : a.userId > b.userId ? 1 : a.asset - b.asset,
+    );
   }
 
   private orderedBy<T>(items: T[], key: (item: T) => string): T[] {

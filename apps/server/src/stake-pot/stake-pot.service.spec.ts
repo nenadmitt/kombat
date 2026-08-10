@@ -12,7 +12,12 @@ import { WebsocketsService } from '../websockets';
 import { StakeLedgerEntryEntity } from './entities/stake-ledger-entry.entity';
 import { StakePotWithdrawalEntity } from './entities/stake-pot-withdrawal.entity';
 import { StakedBalanceEntity } from './entities/staked-balance.entity';
-import { PLATFORM_ACCOUNT_ID, StakePotService } from './stake-pot.service';
+import type { StakeLeg } from './stake-leg';
+import {
+  PLATFORM_ACCOUNT_ID,
+  StakePotService,
+  type StakeSettlementTotals,
+} from './stake-pot.service';
 import {
   createTestDataSource,
   testUserId,
@@ -29,6 +34,17 @@ const DAVE = testUserId('dave');
 const ROOM = '11111111-1111-4111-8111-111111111111';
 const ROOM_2 = '22222222-2222-4222-8222-222222222222';
 const WALLET = '0x000000000000000000000000000000000000dEaD';
+
+const legs = (
+  userIds: string[],
+  amount: bigint,
+  asset: StakeAsset = ASSET,
+): StakeLeg[] => userIds.map(userId => ({ userId, asset, amount }));
+
+const payoutOf = (totals: StakeSettlementTotals | null, asset = ASSET) =>
+  BigInt(totals!.payoutByAsset[asset]!);
+const feeOf = (totals: StakeSettlementTotals | null, asset = ASSET) =>
+  BigInt(totals!.feeByAsset[asset]!);
 
 describe('StakePotService (ledger)', () => {
   let dataSource: DataSource;
@@ -139,7 +155,7 @@ describe('StakePotService (ledger)', () => {
     await deposit(ALICE, STAKE * 2n);
     await deposit(BOB, STAKE * 2n);
 
-    await service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE);
+    await service.holdForMatch(ROOM, legs([ALICE, BOB], STAKE));
 
     expect(await balanceOf(ALICE)).toEqual({ available: STAKE, locked: STAKE });
     expect(await balanceOf(BOB)).toEqual({ available: STAKE, locked: STAKE });
@@ -149,7 +165,7 @@ describe('StakePotService (ledger)', () => {
     for (const user of [ALICE, BOB, CAROL, DAVE]) {
       await deposit(user, STAKE);
     }
-    await service.holdForMatch(ROOM, [ALICE, BOB, CAROL, DAVE], ASSET, STAKE);
+    await service.holdForMatch(ROOM, legs([ALICE, BOB, CAROL, DAVE], STAKE));
 
     for (const user of [ALICE, BOB, CAROL, DAVE]) {
       expect(await balanceOf(user)).toEqual({ available: 0n, locked: STAKE });
@@ -161,7 +177,7 @@ describe('StakePotService (ledger)', () => {
     await deposit(BOB, STAKE - 1n);
 
     await expect(
-      service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE),
+      service.holdForMatch(ROOM, legs([ALICE, BOB], STAKE)),
     ).rejects.toBeInstanceOf(ConflictException);
 
     // Nobody is charged for a match that could not be funded.
@@ -177,8 +193,8 @@ describe('StakePotService (ledger)', () => {
     await deposit(ALICE, STAKE * 2n);
     await deposit(BOB, STAKE * 2n);
 
-    await service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE);
-    await service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE);
+    await service.holdForMatch(ROOM, legs([ALICE, BOB], STAKE));
+    await service.holdForMatch(ROOM, legs([ALICE, BOB], STAKE));
 
     expect(await balanceOf(ALICE)).toEqual({ available: STAKE, locked: STAKE });
     expect(
@@ -189,9 +205,9 @@ describe('StakePotService (ledger)', () => {
   it('holds only the participants still missing one', async () => {
     await deposit(ALICE, STAKE);
     await deposit(BOB, STAKE);
-    await service.holdForMatch(ROOM, [ALICE], ASSET, STAKE);
+    await service.holdForMatch(ROOM, legs([ALICE], STAKE));
 
-    await service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE);
+    await service.holdForMatch(ROOM, legs([ALICE, BOB], STAKE));
 
     expect(await balanceOf(ALICE)).toEqual({ available: 0n, locked: STAKE });
     expect(await balanceOf(BOB)).toEqual({ available: 0n, locked: STAKE });
@@ -205,8 +221,8 @@ describe('StakePotService (ledger)', () => {
     await deposit(CAROL, STAKE * 2n);
 
     const results = await Promise.allSettled([
-      service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE),
-      service.holdForMatch(ROOM_2, [ALICE, CAROL], ASSET, STAKE),
+      service.holdForMatch(ROOM, legs([ALICE, BOB], STAKE)),
+      service.holdForMatch(ROOM_2, legs([ALICE, CAROL], STAKE)),
     ]);
 
     const fulfilled = results.filter(r => r.status === 'fulfilled');
@@ -220,7 +236,7 @@ describe('StakePotService (ledger)', () => {
     await deposit(BOB, STAKE);
 
     const results = await Promise.allSettled([
-      service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE),
+      service.holdForMatch(ROOM, legs([ALICE, BOB], STAKE)),
       service.requestWithdrawal(ALICE, ASSET, STAKE, WALLET),
     ]);
 
@@ -240,13 +256,16 @@ describe('StakePotService (ledger)', () => {
   it('pays the winner pot minus fee and credits the fee to the platform', async () => {
     await deposit(ALICE, STAKE);
     await deposit(BOB, STAKE);
-    await service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE);
+    await service.holdForMatch(ROOM, legs([ALICE, BOB], STAKE));
 
-    const result = await service.settleMatch(ROOM, ALICE, [ALICE, BOB], ASSET, STAKE);
+    const result = await service.settleMatch(ROOM, ALICE, legs([ALICE, BOB], STAKE));
 
     const pot = STAKE * 2n;
     const fee = (pot * BigInt(FEE_BPS)) / 10_000n;
-    expect(result).toEqual({ payout: pot - fee, fee });
+    expect(result).toEqual({
+      payoutByAsset: { [ASSET]: (pot - fee).toString() },
+      feeByAsset: { [ASSET]: fee.toString() },
+    });
     expect(await balanceOf(ALICE)).toEqual({
       available: pot - fee,
       locked: 0n,
@@ -264,10 +283,10 @@ describe('StakePotService (ledger)', () => {
     for (const user of players) {
       await deposit(user, STAKE);
     }
-    await service.holdForMatch(ROOM, players, ASSET, STAKE);
-    const result = await service.settleMatch(ROOM, CAROL, players, ASSET, STAKE);
+    await service.holdForMatch(ROOM, legs(players, STAKE));
+    const result = await service.settleMatch(ROOM, CAROL, legs(players, STAKE));
 
-    expect(result!.payout + result!.fee).toBe(STAKE * 4n);
+    expect(payoutOf(result) + feeOf(result)).toBe(STAKE * 4n);
     let total = 0n;
     for (const user of [...players, PLATFORM_ACCOUNT_ID]) {
       const b = await balanceOf(user);
@@ -283,26 +302,23 @@ describe('StakePotService (ledger)', () => {
     for (const user of [ALICE, BOB, CAROL]) {
       await deposit(user, tiny);
     }
-    await service.holdForMatch(ROOM, [ALICE, BOB, CAROL], ASSET, tiny);
-    const result = await service.settleMatch(
-      ROOM,
-      ALICE,
-      [ALICE, BOB, CAROL],
-      ASSET,
-      tiny,
-    );
+    await service.holdForMatch(ROOM, legs([ALICE, BOB, CAROL], tiny));
+    const result = await service.settleMatch(ROOM, ALICE, legs([ALICE, BOB, CAROL], tiny));
 
-    expect(result).toEqual({ payout: 3n, fee: 0n });
+    expect(result).toEqual({
+      payoutByAsset: { [ASSET]: '3' },
+      feeByAsset: { [ASSET]: '0' },
+    });
     expect((await balanceOf(ALICE)).available).toBe(3n);
   });
 
   it('is idempotent when a completed match is settled twice', async () => {
     await deposit(ALICE, STAKE);
     await deposit(BOB, STAKE);
-    await service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE);
-    await service.settleMatch(ROOM, ALICE, [ALICE, BOB], ASSET, STAKE);
+    await service.holdForMatch(ROOM, legs([ALICE, BOB], STAKE));
+    await service.settleMatch(ROOM, ALICE, legs([ALICE, BOB], STAKE));
 
-    const second = await service.settleMatch(ROOM, ALICE, [ALICE, BOB], ASSET, STAKE);
+    const second = await service.settleMatch(ROOM, ALICE, legs([ALICE, BOB], STAKE));
 
     expect(second).toBeNull();
     const pot = STAKE * 2n;
@@ -314,11 +330,14 @@ describe('StakePotService (ledger)', () => {
     service = makeService(0);
     await deposit(ALICE, STAKE);
     await deposit(BOB, STAKE);
-    await service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE);
+    await service.holdForMatch(ROOM, legs([ALICE, BOB], STAKE));
 
-    const result = await service.settleMatch(ROOM, ALICE, [ALICE, BOB], ASSET, STAKE);
+    const result = await service.settleMatch(ROOM, ALICE, legs([ALICE, BOB], STAKE));
 
-    expect(result).toEqual({ payout: STAKE * 2n, fee: 0n });
+    expect(result).toEqual({
+      payoutByAsset: { [ASSET]: (STAKE * 2n).toString() },
+      feeByAsset: { [ASSET]: '0' },
+    });
     expect(
       await balances.findOneBy({ userId: PLATFORM_ACCOUNT_ID, asset: ASSET }),
     ).toBeNull();
@@ -329,7 +348,7 @@ describe('StakePotService (ledger)', () => {
   it('returns every hold on a void', async () => {
     await deposit(ALICE, STAKE);
     await deposit(BOB, STAKE);
-    await service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE);
+    await service.holdForMatch(ROOM, legs([ALICE, BOB], STAKE));
 
     await service.releaseMatch(ROOM);
 
@@ -340,7 +359,7 @@ describe('StakePotService (ledger)', () => {
   it('is idempotent when a void is replayed', async () => {
     await deposit(ALICE, STAKE);
     await deposit(BOB, STAKE);
-    await service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE);
+    await service.holdForMatch(ROOM, legs([ALICE, BOB], STAKE));
 
     await service.releaseMatch(ROOM);
     await service.releaseMatch(ROOM);
@@ -351,8 +370,8 @@ describe('StakePotService (ledger)', () => {
   it('refuses to release a room that was already settled', async () => {
     await deposit(ALICE, STAKE);
     await deposit(BOB, STAKE);
-    await service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE);
-    await service.settleMatch(ROOM, ALICE, [ALICE, BOB], ASSET, STAKE);
+    await service.holdForMatch(ROOM, legs([ALICE, BOB], STAKE));
+    await service.settleMatch(ROOM, ALICE, legs([ALICE, BOB], STAKE));
 
     await service.releaseMatch(ROOM);
 
@@ -368,10 +387,10 @@ describe('StakePotService (ledger)', () => {
   it('refuses to settle a room that was already released', async () => {
     await deposit(ALICE, STAKE);
     await deposit(BOB, STAKE);
-    await service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE);
+    await service.holdForMatch(ROOM, legs([ALICE, BOB], STAKE));
     await service.releaseMatch(ROOM);
 
-    const result = await service.settleMatch(ROOM, ALICE, [ALICE, BOB], ASSET, STAKE);
+    const result = await service.settleMatch(ROOM, ALICE, legs([ALICE, BOB], STAKE));
 
     expect(result).toBeNull();
     expect(await balanceOf(ALICE)).toEqual({ available: STAKE, locked: 0n });
@@ -408,7 +427,7 @@ describe('StakePotService (ledger)', () => {
   it('cannot withdraw funds locked by a live match', async () => {
     await deposit(ALICE, STAKE);
     await deposit(BOB, STAKE);
-    await service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE);
+    await service.holdForMatch(ROOM, legs([ALICE, BOB], STAKE));
 
     await expect(
       service.requestWithdrawal(ALICE, ASSET, STAKE, WALLET),
@@ -484,7 +503,7 @@ describe('StakePotService (ledger)', () => {
   it('totals the ledger the way reconciliation expects', async () => {
     await deposit(ALICE, STAKE * 2n);
     await deposit(BOB, STAKE);
-    await service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE);
+    await service.holdForMatch(ROOM, legs([ALICE, BOB], STAKE));
     await service.requestWithdrawal(ALICE, ASSET, STAKE, WALLET);
 
     const totals = await service.getLedgerTotals();
@@ -534,9 +553,9 @@ describe('StakePotService (ledger)', () => {
   it('debits the platform account when the owner sweeps fees', async () => {
     await deposit(ALICE, STAKE);
     await deposit(BOB, STAKE);
-    await service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE);
-    const settlement = await service.settleMatch(ROOM, ALICE, [ALICE, BOB], ASSET, STAKE);
-    const fee = settlement!.fee;
+    await service.holdForMatch(ROOM, legs([ALICE, BOB], STAKE));
+    const settlement = await service.settleMatch(ROOM, ALICE, legs([ALICE, BOB], STAKE));
+    const fee = feeOf(settlement);
 
     await service.recordFeeSweep(ASSET, fee, { txHash: '0xsweep', logIndex: 0 });
 
@@ -553,11 +572,11 @@ describe('StakePotService (ledger)', () => {
   it('records a sweep once, however often the range is re-scanned', async () => {
     await deposit(ALICE, STAKE);
     await deposit(BOB, STAKE);
-    await service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE);
-    const settlement = await service.settleMatch(ROOM, ALICE, [ALICE, BOB], ASSET, STAKE);
+    await service.holdForMatch(ROOM, legs([ALICE, BOB], STAKE));
+    const settlement = await service.settleMatch(ROOM, ALICE, legs([ALICE, BOB], STAKE));
 
-    await service.recordFeeSweep(ASSET, settlement!.fee, { txHash: '0xdup', logIndex: 0 });
-    await service.recordFeeSweep(ASSET, settlement!.fee, { txHash: '0xdup', logIndex: 0 });
+    await service.recordFeeSweep(ASSET, feeOf(settlement), { txHash: '0xdup', logIndex: 0 });
+    await service.recordFeeSweep(ASSET, feeOf(settlement), { txHash: '0xdup', logIndex: 0 });
 
     expect(await ledger.countBy({ kind: StakeLedgerKind.FeeSweep })).toBe(1);
   });
@@ -579,9 +598,9 @@ describe('StakePotService (ledger)', () => {
   it('reports fees accrued, swept and claimable', async () => {
     await deposit(ALICE, STAKE);
     await deposit(BOB, STAKE);
-    await service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE);
-    const settlement = await service.settleMatch(ROOM, ALICE, [ALICE, BOB], ASSET, STAKE);
-    const fee = settlement!.fee;
+    await service.holdForMatch(ROOM, legs([ALICE, BOB], STAKE));
+    const settlement = await service.settleMatch(ROOM, ALICE, legs([ALICE, BOB], STAKE));
+    const fee = feeOf(settlement);
 
     let summary = (await service.getFeeSummary()).find(f => f.asset === ASSET)!;
     expect(summary).toMatchObject({
@@ -603,27 +622,27 @@ describe('StakePotService (ledger)', () => {
   it('keeps the reconciliation total in step with a sweep', async () => {
     await deposit(ALICE, STAKE);
     await deposit(BOB, STAKE);
-    await service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE);
-    const settlement = await service.settleMatch(ROOM, ALICE, [ALICE, BOB], ASSET, STAKE);
+    await service.holdForMatch(ROOM, legs([ALICE, BOB], STAKE));
+    const settlement = await service.settleMatch(ROOM, ALICE, legs([ALICE, BOB], STAKE));
 
     const before = (await service.getLedgerTotals())[ASSET];
-    await service.recordFeeSweep(ASSET, settlement!.fee, {
+    await service.recordFeeSweep(ASSET, feeOf(settlement), {
       txHash: '0xs3',
       logIndex: 0,
     });
     const after = (await service.getLedgerTotals())[ASSET];
 
     // The expected on-chain holdings drop by exactly what left the contract.
-    expect(before - after).toBe(settlement!.fee);
+    expect(before - after).toBe(feeOf(settlement));
   });
 
   it('does not push socket events to the platform fee account', async () => {
     await deposit(ALICE, STAKE);
     await deposit(BOB, STAKE);
-    await service.holdForMatch(ROOM, [ALICE, BOB], ASSET, STAKE);
+    await service.holdForMatch(ROOM, legs([ALICE, BOB], STAKE));
     sent = [];
 
-    await service.settleMatch(ROOM, ALICE, [ALICE, BOB], ASSET, STAKE);
+    await service.settleMatch(ROOM, ALICE, legs([ALICE, BOB], STAKE));
 
     expect(sent.map(s => s.userId)).toEqual(
       expect.arrayContaining([ALICE, BOB]),
