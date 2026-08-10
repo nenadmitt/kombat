@@ -335,10 +335,9 @@ export default function LandingPage() {
                 Interested in the mobile app?
               </h2>
               <p className={styles.sectionLead}>
-                The iOS and Android app is in closed testing on Ethereum
-                Sepolia, and we add testers in small batches. Leave your email
-                to join the waitlist and we&apos;ll send an invite with test
-                funds. Nothing you stake during the test is real money.
+                Apply here and we&apos;ll send you an invite. iOS is in closed
+                testing now, Android follows soon. Nothing you stake during the
+                test is real money.
               </p>
               <p className={styles.applyContact}>
                 Stuck on something? Ask in the{" "}

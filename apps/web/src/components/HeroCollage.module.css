@@ -8,6 +8,14 @@
   aspect-ratio: 500 / 580;
   margin: 0 auto;
   container-type: inline-size;
+  animation: heroSettle 900ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+@keyframes heroSettle {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
 }
 
 .scene {
@@ -102,6 +110,14 @@
   display: grid;
   place-items: center;
   z-index: 5;
+  animation: heroLogoDrift 7.5s ease-in-out infinite;
+}
+
+/* Centred with translateX, so its drift has to carry that offset through. */
+@keyframes heroLogoDrift {
+  50% {
+    transform: translateX(-50%) translateY(calc(-6 * var(--u)));
+  }
 }
 
 .logoTile svg {
@@ -113,6 +129,25 @@
 .piece {
   position: absolute;
   filter: drop-shadow(0 calc(16 * var(--u)) calc(28 * var(--u)) rgba(0, 0, 0, 0.55));
+}
+
+/* Each piece keeps its own resting angle in --rot, so the shared drift can
+   tilt away from it instead of overwriting it. */
+.card,
+.piece,
+.tile {
+  --rot: 0deg;
+  --tilt: 1.6deg;
+  --lift: calc(-7 * var(--u));
+  transform: rotate(var(--rot));
+  animation: heroDrift 9s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes heroDrift {
+  50% {
+    transform: rotate(calc(var(--rot) + var(--tilt))) translateY(var(--lift));
+  }
 }
 
 .card svg,
@@ -127,8 +162,10 @@
   top: calc(92 * var(--u));
   width: calc(94 * var(--u));
   height: calc(133 * var(--u));
-  transform: rotate(-14deg);
+  --rot: -14deg;
   z-index: 3;
+  animation-duration: 9s;
+  animation-delay: -1.2s;
 }
 
 .cardRed {
@@ -136,8 +173,10 @@
   top: calc(74 * var(--u));
   width: calc(82 * var(--u));
   height: calc(116 * var(--u));
-  transform: rotate(-5deg);
+  --rot: -5deg;
   z-index: 2;
+  animation-duration: 10.5s;
+  animation-delay: -3.4s;
 }
 
 .cardBlue {
@@ -145,8 +184,10 @@
   top: calc(72 * var(--u));
   width: calc(90 * var(--u));
   height: calc(128 * var(--u));
-  transform: rotate(10deg);
+  --rot: 10deg;
   z-index: 3;
+  animation-duration: 9.6s;
+  animation-delay: -2.1s;
 }
 
 .tile {
@@ -171,7 +212,9 @@
   top: calc(214 * var(--u));
   width: calc(72 * var(--u));
   height: calc(72 * var(--u));
-  transform: rotate(-7deg);
+  --rot: -7deg;
+  animation-duration: 8.4s;
+  animation-delay: -0.6s;
 }
 
 .hitTile {
@@ -179,7 +222,9 @@
   top: calc(246 * var(--u));
   width: calc(72 * var(--u));
   height: calc(72 * var(--u));
-  transform: rotate(6deg);
+  --rot: 6deg;
+  animation-duration: 11s;
+  animation-delay: -4.2s;
 }
 
 .pawnRedTile,
@@ -203,13 +248,17 @@
 .pawnRedTile {
   left: calc(112 * var(--u));
   bottom: calc(120 * var(--u));
-  transform: rotate(-5deg);
+  --rot: -5deg;
+  animation-duration: 9.2s;
+  animation-delay: -2.8s;
 }
 
 .pawnBlueTile {
   right: calc(126 * var(--u));
   bottom: calc(114 * var(--u));
-  transform: rotate(7deg);
+  --rot: 7deg;
+  animation-duration: 10.2s;
+  animation-delay: -1.7s;
 }
 
 .diceFour {
@@ -217,8 +266,10 @@
   top: calc(316 * var(--u));
   width: calc(146 * var(--u));
   height: calc(42 * var(--u));
-  transform: rotate(-8deg);
+  --rot: -8deg;
   z-index: 4;
+  animation-duration: 8.8s;
+  animation-delay: -3.9s;
 }
 
 .diceThree {
@@ -226,8 +277,10 @@
   top: calc(350 * var(--u));
   width: calc(110 * var(--u));
   height: calc(39 * var(--u));
-  transform: rotate(5deg);
+  --rot: 5deg;
   z-index: 4;
+  animation-duration: 10.8s;
+  animation-delay: -0.9s;
 }
 
 .spinner {
@@ -237,6 +290,8 @@
   height: calc(58 * var(--u));
   margin-left: calc(-29 * var(--u));
   z-index: 4;
+  animation-duration: 9.4s;
+  animation-delay: -2.4s;
 }
 
 .gavel {
@@ -244,8 +299,10 @@
   bottom: calc(40 * var(--u));
   width: calc(74 * var(--u));
   height: calc(53 * var(--u));
-  transform: rotate(-9deg);
+  --rot: -9deg;
   z-index: 4;
+  animation-duration: 8.6s;
+  animation-delay: -4.6s;
 }
 
 .target {
@@ -254,6 +311,18 @@
   width: calc(56 * var(--u));
   height: calc(56 * var(--u));
   z-index: 4;
+  animation-duration: 10s;
+  animation-delay: -1.4s;
 }
 
 
+
+@media (prefers-reduced-motion: reduce) {
+  .stage,
+  .logoTile,
+  .card,
+  .piece,
+  .tile {
+    animation: none;
+  }
+}
