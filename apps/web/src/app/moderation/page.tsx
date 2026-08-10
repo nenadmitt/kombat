@@ -90,7 +90,7 @@ export default function ModerationPage() {
               type="password"
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
-              placeholder="Admin token"
+              placeholder="Password"
               autoFocus
               spellCheck={false}
               autoComplete="off"
