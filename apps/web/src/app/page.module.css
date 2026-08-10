@@ -124,6 +124,51 @@
   text-wrap: pretty;
 }
 
+.heroActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18px;
+  margin-top: 34px;
+}
+
+.playCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 22px 42px;
+  border-radius: 16px;
+  background: var(--green);
+  color: var(--panel);
+  font: 800 20px/1 var(--font-heading);
+  letter-spacing: -0.01em;
+  box-shadow: 0 6px 22px rgba(142, 224, 90, 0.38);
+  transition: filter 140ms ease-out, box-shadow 140ms ease-out;
+}
+
+.playCta:hover {
+  filter: brightness(1.07);
+  color: var(--panel);
+  box-shadow: 0 8px 26px rgba(142, 224, 90, 0.48);
+}
+
+.playCta:active {
+  filter: brightness(0.96);
+}
+
+.heroAside {
+  font: 500 14px/1.5 var(--font-body);
+  color: var(--text-55);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: rgba(233, 233, 237, 0.28);
+  transition: color 140ms ease-out;
+}
+
+.heroAside:hover {
+  color: var(--text);
+}
+
 .heroStats {
   display: flex;
   gap: 40px;
@@ -140,39 +185,37 @@
   color: var(--text-55);
 }
 
-.heroPhones {
+.heroArt {
   position: relative;
   display: flex;
+  align-items: center;
   justify-content: center;
-  --side-shift: 148px;
+  --overlap: 40px;
 }
 
-.heroPhoneFront {
+.heroArtFront {
+  z-index: 2;
   animation: heroFrontIn 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Scoped under .heroPhones to outrank PhoneFrame's own `.shell {position:
-   relative}`. A bare `.heroPhoneLeft` ties on specificity and then depends on
-   which stylesheet the bundler emits last, which is not something to bet the
-   layout on. */
-.heroPhones .heroPhoneLeft,
-.heroPhones .heroPhoneRight {
-  position: absolute;
-  top: 50%;
-  left: 50%;
+.heroArtLeft,
+.heroArtRight {
+  transform: rotate(var(--tilt)) translateY(16px);
+  animation: heroSideIn 700ms 340ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.heroPhones .heroPhoneLeft {
-  transform: translate(calc(-50% - var(--side-shift)), -50%) rotate(-7deg);
-  animation: heroSideLeft 700ms 340ms cubic-bezier(0.16, 1, 0.3, 1) both;
+.heroArtLeft {
+  --tilt: -5deg;
+  margin-right: calc(var(--overlap) * -1);
 }
 
-.heroPhones .heroPhoneRight {
-  transform: translate(calc(-50% + var(--side-shift)), -50%) rotate(7deg);
-  animation: heroSideRight 700ms 440ms cubic-bezier(0.16, 1, 0.3, 1) both;
+.heroArtRight {
+  --tilt: 5deg;
+  margin-left: calc(var(--overlap) * -1);
+  animation-delay: 440ms;
 }
 
-/* `from` only: each phone animates to its class transform, so the resting
+/* `from` only: each card animates to its class transform, so the resting
    composition lives in one place. */
 @keyframes heroFrontIn {
   from {
@@ -181,24 +224,17 @@
   }
 }
 
-@keyframes heroSideLeft {
+@keyframes heroSideIn {
   from {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.9);
-  }
-}
-
-@keyframes heroSideRight {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.9);
+    transform: rotate(var(--tilt)) translateY(16px) scale(0.9);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .heroPhoneFront,
-  .heroPhoneLeft,
-  .heroPhoneRight {
+  .heroArtFront,
+  .heroArtLeft,
+  .heroArtRight {
     animation: none;
   }
 }
@@ -816,17 +852,29 @@ button.referralCode:hover {
     margin-top: 32px;
   }
 
-  .heroPhones {
-    --side-shift: 92px;
+  .heroActions {
+    align-items: center;
+    width: 100%;
   }
 
-  .heroPhoneFront {
-    --phone-w: 180px;
+  .playCta {
+    width: 100%;
+    justify-content: center;
   }
 
-  .heroPhoneLeft,
-  .heroPhoneRight {
-    --phone-w: 132px;
+  /* Viewport-relative from here down: three fixed-width cards plus their
+     overlap do not fit a phone-width column. */
+  .heroArt {
+    --overlap: 5vw;
+  }
+
+  .heroArtFront {
+    --art-w: 40vw;
+  }
+
+  .heroArtLeft,
+  .heroArtRight {
+    --art-w: 28vw;
   }
 
   .how,

@@ -43,56 +43,6 @@
   color: var(--text-55);
 }
 
-/* ── hero ── */
-
-.heroForm {
-  margin-top: 34px;
-  max-width: 470px;
-}
-
-.heroFormRow {
-  display: flex;
-  gap: 11px;
-}
-
-.heroSubmit {
-  display: inline-flex;
-  align-items: center;
-  border: 0;
-  cursor: pointer;
-  padding: 17px 24px;
-  border-radius: 13px;
-  background: var(--green);
-  color: var(--panel);
-  font: 700 15px/1 var(--font-heading);
-  text-decoration: none;
-  white-space: nowrap;
-  box-shadow: 0 4px 14px rgba(142, 224, 90, 0.35);
-  transition: filter 140ms ease-out, box-shadow 140ms ease-out;
-}
-
-.heroSubmit:hover {
-  filter: brightness(1.08);
-  box-shadow: 0 6px 18px rgba(142, 224, 90, 0.45);
-}
-
-.heroSecondary {
-  border: 0;
-  cursor: pointer;
-  padding: 17px 20px;
-  border-radius: 13px;
-  background: var(--surface);
-  color: var(--text-62);
-  font: 600 13px/1 var(--font-heading);
-  white-space: nowrap;
-  transition: color 140ms ease-out, box-shadow 140ms ease-out;
-}
-
-.heroSecondary:hover {
-  color: var(--text);
-  box-shadow: inset 0 0 0 1px rgba(142, 224, 90, 0.45);
-}
-
 /* ── apply card ── */
 
 .card {
@@ -193,25 +143,6 @@
 }
 
 @media (max-width: 640px) {
-  .heroForm {
-    margin-top: 28px;
-  }
-
-  .heroFormRow {
-    flex-direction: column;
-  }
-
-  .heroSubmit,
-  .heroSecondary {
-    width: 100%;
-    justify-content: center;
-    padding: 17px 24px;
-  }
-
-  .heroForm {
-    max-width: none;
-  }
-
   .card {
     padding: 20px;
   }

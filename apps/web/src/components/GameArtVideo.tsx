@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import styles from "./PhoneFrame.module.css";
+import styles from "./GameArt.module.css";
 
-type PhoneVideoProps = {
+type GameArtVideoProps = {
   src: string;
   poster?: string;
 };
 
-export function PhoneVideo({ src, poster }: PhoneVideoProps) {
+export function GameArtVideo({ src, poster }: GameArtVideoProps) {
   const ref = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {

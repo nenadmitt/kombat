@@ -1,25 +1,13 @@
-.shell {
+.card {
   position: relative;
-  width: var(--phone-w, var(--phone-w-base));
+  width: var(--art-w, var(--art-w-base));
   max-width: 100%;
-  background: var(--phone-shell);
-}
-
-.back {
-  box-shadow: 0 0 0 1.5px var(--phone-edge), 0 24px 48px rgba(0, 0, 0, 0.55);
-}
-
-.front {
-  box-shadow: 0 0 0 1.5px var(--phone-edge), 0 34px 66px rgba(0, 0, 0, 0.65);
-  z-index: 2;
-}
-
-.screen {
-  position: relative;
-  width: 100%;
-  aspect-ratio: var(--phone-ratio);
+  aspect-ratio: var(--art-ratio);
+  border-radius: 22px;
   overflow: hidden;
-  background: var(--panel);
+  background: var(--panel-2);
+  box-shadow: 0 0 0 1px rgba(233, 233, 237, 0.16),
+    0 24px 48px rgba(0, 0, 0, 0.55);
 }
 
 .img {
@@ -42,7 +30,7 @@
   display: grid;
   place-items: center;
   border: 1.5px dashed rgba(233, 233, 237, 0.16);
-  border-radius: 18px;
+  border-radius: 14px;
 }
 
 .placeholderLabel {

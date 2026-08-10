@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   Crosshair,
   Percent,
+  Play,
   ShieldCheck,
   Trophy,
   CheckCircle,
@@ -12,12 +13,12 @@ import {
 import { PotIcon } from "@/components/BrandIcon";
 import { LogoLockup } from "@/components/Logo";
 import { ReferralCodeRow } from "@/components/ReferralCodeRow";
-import { PhoneFrame } from "@/components/PhoneFrame";
+import { GameArt } from "@/components/GameArt";
 import { GamesCarousel } from "@/components/GamesCarousel";
-import { ApplyForm, HeroInviteForm } from "@/components/InviteForms";
+import { ApplyForm } from "@/components/InviteForms";
 import { PotIllustration } from "@/components/PotIllustration";
 import { Footer } from "@/components/Footer";
-import { DISCORD_URL, TELEGRAM_URL } from "@/lib/links";
+import { DEMO_APP_URL, DISCORD_URL, TELEGRAM_URL } from "@/lib/links";
 import styles from "./page.module.css";
 
 export default function LandingPage() {
@@ -36,8 +37,8 @@ export default function LandingPage() {
             <PotIcon size={17} />
             Stake
           </Link>
-          <a href="#apply" className={styles.navCta}>
-            Apply for access
+          <a href={DEMO_APP_URL} className={styles.navCta}>
+            Play
           </a>
         </nav>
       </header>
@@ -52,11 +53,20 @@ export default function LandingPage() {
             <span className={styles.heroTitleAccent}>Free or staked.</span>
           </h1>
           <p className={styles.heroLead}>
-            The quickest game is over in two minutes, a full game of
-            Battleships takes about six. Open a room for nothing, or put a
-            stake on it and the winner takes the pot.
+            Play in your browser right now, nothing to install. The quickest
+            game is over in two minutes, a full game of Battleships takes about
+            six. Open a room for nothing, or put a stake on it and the winner
+            takes the pot.
           </p>
-          <HeroInviteForm />
+          <div className={styles.heroActions}>
+            <a href={DEMO_APP_URL} className={styles.playCta}>
+              <Play size={22} weight="fill" />
+              Play now
+            </a>
+            <a href="#apply" className={styles.heroAside}>
+              Interested in the mobile app? Join the waitlist
+            </a>
+          </div>
           <div className={styles.heroStats}>
             <div>
               <div className={styles.heroStatValue}>50+</div>
@@ -74,30 +84,27 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
-        <div className={styles.heroPhones}>
-          <PhoneFrame
-            variant="back"
-            width={210}
-            height={422}
+        <div className={styles.heroArt}>
+          <GameArt
+            width={172}
+            height={374}
             src="/screenshots/ludo-turn.png"
-            alt="Ludo Royale board in the Kombat app"
-            className={styles.heroPhoneLeft}
+            alt="A Ludo Royale board mid-race"
+            className={styles.heroArtLeft}
           />
-          <PhoneFrame
-            variant="back"
-            width={210}
-            height={422}
-            src="/screenshots/salvo-hit.png"
-            alt="Salvo artillery duel in the Kombat app"
-            className={styles.heroPhoneRight}
-          />
-          <PhoneFrame
-            variant="front"
-            width={262}
-            height={526}
+          <GameArt
+            width={216}
+            height={470}
             src="/screenshots/naval-fleet.png"
-            alt="Battleships fleet grid in the Kombat app"
-            className={styles.heroPhoneFront}
+            alt="A Battleships fleet grid mid-match"
+            className={styles.heroArtFront}
+          />
+          <GameArt
+            width={172}
+            height={374}
+            src="/screenshots/salvo-hit.png"
+            alt="A Salvo artillery duel landing a hit"
+            className={styles.heroArtRight}
           />
         </div>
       </section>
@@ -328,11 +335,14 @@ export default function LandingPage() {
           <div className={styles.applyGrid}>
             <div>
               <div className={styles.testBadge}>TEST MODE</div>
-              <h2 className={styles.applyTitle}>Kombat is in closed testing.</h2>
+              <h2 className={styles.applyTitle}>
+                Interested in the mobile app?
+              </h2>
               <p className={styles.sectionLead}>
-                We&apos;re adding testers in small batches on Ethereum Sepolia.
-                Leave your email and we&apos;ll send an invite with test funds.
-                Nothing you stake during the test is real money.
+                The iOS and Android app is in closed testing on Ethereum
+                Sepolia, and we add testers in small batches. Leave your email
+                to join the waitlist and we&apos;ll send an invite with test
+                funds. Nothing you stake during the test is real money.
               </p>
               <p className={styles.applyContact}>
                 Stuck on something? Ask in the{" "}
