@@ -1,7 +1,11 @@
 import { ConflictException } from '@nestjs/common';
 
 import { CacheService } from './cache.service';
-import { deadlineMember, parseDeadlineMember } from './stores/cache-store';
+import {
+  deadlineMember,
+  parseDeadlineMember,
+  roomAbandonMember,
+} from './stores/cache-store';
 import { InMemoryCacheStore } from './stores/memory.store';
 
 /**
@@ -158,8 +162,18 @@ describe('CacheService over InMemoryCacheStore', () => {
           roomId: 'room-1',
           kind,
           seq: 7,
+          arg: '7',
         });
       }
+    });
+
+    it('carries a user id through the abandon member instead of a seq', () => {
+      expect(parseDeadlineMember(roomAbandonMember('room-1', 'user-1'))).toEqual({
+        roomId: 'room-1',
+        kind: 'room-abandon',
+        seq: NaN,
+        arg: 'user-1',
+      });
     });
 
     it('rejects unknown kinds and truncated members', () => {

@@ -26,6 +26,7 @@ export class WebsocketsService {
    * connections (same single-instance caveat as the in-memory cache fallback).
    */
   private readonly onlineCounts = new Map<string, number>();
+  private readonly goneListeners = new Set<(userId: string) => void>();
 
   setServer(server: Server): void {
     this.server = server;
@@ -41,14 +42,55 @@ export class WebsocketsService {
     const next = (this.onlineCounts.get(userId) ?? 0) - 1;
     if (next > 0) {
       this.onlineCounts.set(userId, next);
-    } else {
-      this.onlineCounts.delete(userId);
+      return;
     }
+    this.onlineCounts.delete(userId);
+    for (const listener of this.goneListeners) {
+      try {
+        listener(userId);
+      } catch (error) {
+        this.logger.error(
+          `Disconnect listener failed for ${userId}`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      }
+    }
+  }
+
+  /** Fires when a user's last socket *on this instance* closes - the account
+   *  may still be connected elsewhere, so confirm with isUserOnline. */
+  onLastSocketClosed(listener: (userId: string) => void): void {
+    this.goneListeners.add(listener);
   }
 
   /** The ids of users with at least one open socket on this instance. */
   getOnlineUserIds(): string[] {
     return [...this.onlineCounts.keys()];
+  }
+
+  /**
+   * Whether the user holds a socket on *any* instance - fetchSockets is
+   * cluster-wide under the Redis adapter. An adapter that cannot answer
+   * reports online, since callers tear state down on a "no".
+   */
+  async isUserOnline(userId: string): Promise<boolean> {
+    if (this.onlineCounts.has(userId)) {
+      return true;
+    }
+    if (!this.server) {
+      return false;
+    }
+    try {
+      const sockets = await this.server.in(userRoom(userId)).fetchSockets();
+      return sockets.length > 0;
+    } catch (error) {
+      this.logger.warn(
+        `Presence lookup for ${userId} failed, assuming online: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return true;
+    }
   }
 
   /** Sends `event` to every socket the given user currently has connected. */
