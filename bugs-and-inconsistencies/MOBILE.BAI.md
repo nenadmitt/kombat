@@ -138,3 +138,23 @@ fix. Remove an entry in the same change that fixes it.
   files that must agree.
 - **Suggested fix:** build the mobile list from `CHAIN_TOKENS` / `tokensForChain`
   and keep only the mobile-specific presentation (ordering, icons) locally.
+
+## 2026-08-12 - Mobile Ludo subscribes to none of the ability events
+
+- **Where:** `apps/mobile/src/games/ludo/useMultiplayerLudo.ts` - it listens for
+  `rolled`, `moved`, `turn-timeout`, `eliminated`, `presence` and `ended`, but
+  not `ludo:launched`, `ludo:jumped`, `ludo:teleported` or `ludo:shielded`.
+- **Why it's wrong:** in a room mixing web and mobile clients, every ability a
+  web player uses is invisible to the mobile board until some later event
+  happens to carry a full `tokens` map. A teleport leaves the pawn drawn on its
+  old cell, a launcher jump does the same, and the Extra Jump glow and shield
+  ring never appear at all (mobile has no `jumps`/`shields` state and its
+  `LudoBoard` takes no buff prop). The mobile client is a full participant in
+  these rooms, so it is showing a board that disagrees with the server. The
+  ability payloads also carry a `turn` that can hand the turn on, so mobile can
+  miss a turn change outright.
+- **Suggested fix:** mirror the webgames engine
+  (`apps/webgames/src/games/ludo/useMultiplayerLudo.ts`): subscribe to the four
+  ability events, apply their `turn`, hold `jumps` and `shields` in state (both
+  already ship on the REST snapshot as `LudoRoomState.jumps` / `.shields`), and
+  pass them through to the Skia board.

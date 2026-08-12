@@ -15,6 +15,7 @@ import { GameDeadlineSweeper } from './game-deadline.sweeper';
 import { GamesController } from './games.controller';
 import { GamesService } from './games.service';
 import { LudoGateway } from './ludo/ludo.gateway';
+import { CryptoLudoDieRoller, LudoDieRoller } from './ludo/ludo.dice';
 import { LudoMatchService } from './ludo/ludo-match.service';
 import { RoomAbandonService } from './room-abandon.service';
 import { RpsGateway } from './rps/rps.gateway';
@@ -37,6 +38,7 @@ import { StakesService } from './stakes/stakes.service';
     StakeSweeper,
     BattleshipMatchService,
     BattleshipGateway,
+    { provide: LudoDieRoller, useClass: CryptoLudoDieRoller },
     LudoMatchService,
     LudoGateway,
     RpsMatchService,

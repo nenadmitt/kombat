@@ -29,6 +29,14 @@ export const SAFE_TRACK_INDICES: ReadonlySet<number> = new Set([
   0, 8, 13, 21, 26, 34, 39, 47,
 ]);
 
+/** The four safe cells that belong to nobody - the start cells are safe too,
+ *  but they are a color's own doorstep, not a neutral star. */
+export const NEUTRAL_STAR_INDICES: ReadonlySet<number> = new Set(
+  [...SAFE_TRACK_INDICES].filter(
+    index => !Object.values(START_OFFSET).includes(index),
+  ),
+);
+
 const span = (
   from: [number, number],
   to: [number, number],

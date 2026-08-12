@@ -1,6 +1,9 @@
 import type {
+  LudoAbilityKind,
   LudoColor,
   LudoEndReason,
+  LudoJumps,
+  LudoShields,
   LudoStage,
   LudoTokens,
 } from '@gaming-platform/core';
@@ -42,8 +45,19 @@ export type LudoPlayProps = {
   winnerName: string | null;
   /** Opposing pawns I sent home (result-screen stat). */
   myCaptures: number;
+  /** My charge in half-points, and what my bar has left. */
+  chargeHp: number;
+  usesLeft: Record<LudoAbilityKind, number>;
+  /** Buffed pawns of every seat - the Extra Jump glow is public. */
+  jumps: LudoJumps;
+  /** Shielded pawns of every seat - the ring is public. */
+  shields: LudoShields;
   onRoll: () => void;
   onMoveToken: (tokenIndex: number) => void;
+  onLaunch: (tokenIndex: number) => void;
+  onJump: (tokenIndex: number) => void;
+  onTeleport: (tokenIndex: number) => void;
+  onShield: (tokenIndex: number) => void;
   /** Demo enforces its own timeouts; multiplayer leaves it to the server. */
   onTimerExpire?: () => void;
 };

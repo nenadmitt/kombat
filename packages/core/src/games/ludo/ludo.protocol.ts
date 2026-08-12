@@ -1,3 +1,6 @@
+import type { LudoAbilityKind } from './ludo.abilities';
+import type { LudoJumps } from './ludo.jumps';
+import type { LudoShields } from './ludo.shields';
 import type {
   LudoCapture,
   LudoColor,
@@ -20,14 +23,23 @@ export const LUDO_EVENTS = {
   roll: 'ludo:roll',
   move: 'ludo:move',
   forfeit: 'ludo:forfeit',
+  launch: 'ludo:launch',
+  jump: 'ludo:jump',
+  teleport: 'ludo:teleport',
+  shield: 'ludo:shield',
   // server -> game channel
   rolled: 'ludo:rolled',
   moved: 'ludo:moved',
+  launched: 'ludo:launched',
+  jumped: 'ludo:jumped',
+  teleported: 'ludo:teleported',
+  shielded: 'ludo:shielded',
   turnTimeout: 'ludo:turn-timeout',
   eliminated: 'ludo:eliminated',
   presence: 'ludo:presence',
   ended: 'ludo:ended',
   // server -> caller only
+  abilityState: 'ludo:ability-state',
   error: 'ludo:error',
 } as const;
 
@@ -50,6 +62,26 @@ export type LudoForfeitPayload = {
   roomId: string;
 };
 
+export type LudoLaunchPayload = {
+  roomId: string;
+  tokenIndex: number;
+};
+
+export type LudoJumpPayload = {
+  roomId: string;
+  tokenIndex: number;
+};
+
+export type LudoTeleportPayload = {
+  roomId: string;
+  tokenIndex: number;
+};
+
+export type LudoShieldPayload = {
+  roomId: string;
+  tokenIndex: number;
+};
+
 // --- server -> game channel payloads -----------------------------------------
 
 export type LudoRolledPayload = {
@@ -66,6 +98,8 @@ export type LudoRolledPayload = {
   nextTurnUserId: string;
   /** Epoch ms when the current turn times out. */
   turnDeadline: number;
+  /** Public charge in half-points, per user. */
+  chargeHp: Record<string, number>;
 };
 
 export type LudoMovedPayload = {
@@ -82,10 +116,78 @@ export type LudoMovedPayload = {
   tokens: LudoTokens;
   /** The roller earned another roll (rolled a six, chain below the cap). */
   extraRoll: boolean;
+  /** Public charge in half-points, per user - a landing can pay charge. */
+  chargeHp: Record<string, number>;
   stage: LudoStage;
   nextTurnUserId: string;
   turnDeadline: number;
   winnerUserId: string | null;
+};
+
+/**
+ * Where the turn stands once an ability has resolved. An ability may be cast
+ * with a die already pending, so the caster's movable set is re-derived and
+ * the turn passes when the ability left nothing to move.
+ */
+export type LudoAbilityTurn = {
+  stage: LudoStage;
+  /** The caster's movable token indices when a die is still pending. */
+  movableTokens: number[];
+  nextTurnUserId: string;
+  turnDeadline: number;
+};
+
+/** The launcher fired: a jump that lands like a normal move. */
+export type LudoLaunchedPayload = {
+  byUserId: string;
+  color: LudoColor;
+  tokenIndex: number;
+  fromProgress: LudoProgress;
+  toProgress: LudoProgress;
+  captures: LudoCapture[];
+  captureCounts: Record<string, number>;
+  tokens: LudoTokens;
+  chargeHp: Record<string, number>;
+  turn: LudoAbilityTurn;
+  winnerUserId: string | null;
+};
+
+/** Extra Jump landed on a pawn. Public: the glow is on the board for everyone. */
+export type LudoJumpedPayload = {
+  byUserId: string;
+  color: LudoColor;
+  tokenIndex: number;
+  chargeHp: Record<string, number>;
+  jumps: LudoJumps;
+  turn: LudoAbilityTurn;
+};
+
+/** A pawn skipped straight to the first square of its home column. */
+export type LudoTeleportedPayload = {
+  byUserId: string;
+  color: LudoColor;
+  tokenIndex: number;
+  fromProgress: LudoProgress;
+  toProgress: LudoProgress;
+  tokens: LudoTokens;
+  chargeHp: Record<string, number>;
+  turn: LudoAbilityTurn;
+};
+
+/** A pawn took the permanent shield. Public, like the Extra Jump glow. */
+export type LudoShieldedPayload = {
+  byUserId: string;
+  color: LudoColor;
+  tokenIndex: number;
+  chargeHp: Record<string, number>;
+  shields: LudoShields;
+  turn: LudoAbilityTurn;
+};
+
+/** Private to the caster: what their bar has left after an ability. */
+export type LudoAbilityStatePayload = {
+  chargeHp: number;
+  usesLeft: Record<LudoAbilityKind, number>;
 };
 
 export type LudoTurnTimeoutPayload = {
@@ -96,6 +198,10 @@ export type LudoTurnTimeoutPayload = {
   eliminatedColor: LudoColor | null;
   /** Token map after any elimination reset. */
   tokens: LudoTokens;
+  /** Buffed pawns after any elimination dropped the leaver's. */
+  jumps: LudoJumps;
+  /** Shielded pawns after any elimination dropped the leaver's. */
+  shields: LudoShields;
   nextTurnUserId: string;
   turnDeadline: number;
   /** Set when the elimination left only one player standing. */
@@ -107,6 +213,8 @@ export type LudoEliminatedPayload = {
   userId: string;
   color: LudoColor;
   tokens: LudoTokens;
+  jumps: LudoJumps;
+  shields: LudoShields;
   nextTurnUserId: string;
   turnDeadline: number;
   winnerUserId: string | null;
@@ -152,4 +260,12 @@ export type LudoRoomState = {
   endReason: LudoEndReason | null;
   /** Epoch ms when the current turn times out (null once over). */
   turnDeadline: number | null;
+  /** Public charge in half-points, per user. */
+  chargeHp: Record<string, number>;
+  /** Buffed pawns of every color - the glow is public. */
+  jumps: LudoJumps;
+  /** Shielded pawns of every color - the ring is public. */
+  shields: LudoShields;
+  /** The requesting user's remaining uses. */
+  abilityUses: Record<LudoAbilityKind, number>;
 };

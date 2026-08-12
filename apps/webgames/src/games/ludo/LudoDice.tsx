@@ -34,12 +34,21 @@ export function LudoDice({ value, rolling = false }: Props) {
     return () => clearInterval(id);
   }, [rolling, value]);
 
-  const lit = face ? (PIPS[face] ?? []) : [];
+  const lit = face ? (PIPS[face] ?? []) : null;
 
   return (
     <div className={rolling ? 'ludo-die is-rolling' : 'ludo-die'}>
       {Array.from({ length: 9 }, (_, i) => (
-        <span key={i} className={lit.includes(i) ? 'ludo-pip is-lit' : 'ludo-pip'} />
+        <span
+          key={i}
+          className={
+            lit === null
+              ? 'ludo-pip is-ghost'
+              : lit.includes(i)
+                ? 'ludo-pip is-lit'
+                : 'ludo-pip'
+          }
+        />
       ))}
     </div>
   );

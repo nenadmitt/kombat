@@ -1,16 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ApiError,
+  freshAbilityUses,
   HOME_PROGRESS,
   LUDO_EVENTS,
+  type LudoAbilityKind,
+  type LudoAbilityStatePayload,
+  type LudoAbilityTurn,
   type LudoColor,
   type LudoEliminatedPayload,
   type LudoEndReason,
+  type LudoJumpedPayload,
+  type LudoJumps,
+  type LudoLaunchedPayload,
   type LudoMovedPayload,
   type LudoPlayer,
   type LudoPresencePayload,
   type LudoRolledPayload,
+  type LudoShieldedPayload,
+  type LudoShields,
   type LudoStage,
+  type LudoTeleportedPayload,
   type LudoTokens,
   type LudoTurnTimeoutPayload,
 } from '@gaming-platform/core';
@@ -20,7 +30,10 @@ import { useSessionStore } from '../../store/session.store';
 import { useUsernames } from '../../store/usernames';
 import { useWebsocketStore } from '../../store/websocket.store';
 import { LUDO_COLOR_NAMES } from './ludo-theme';
-import type { LudoEngine, LudoSeatView } from './ludo-engine';
+import {
+  type LudoEngine,
+  type LudoSeatView,
+} from './ludo-engine';
 
 const SYNC_RETRY_MS = 3000;
 
@@ -56,6 +69,11 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
   const [myCaptures, setMyCaptures] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [waitingError, setWaitingError] = useState<string | null>(null);
+  const [chargeHp, setChargeHp] = useState<Record<string, number>>({});
+  const [usesLeft, setUsesLeft] =
+    useState<Record<LudoAbilityKind, number>>(freshAbilityUses);
+  const [jumps, setJumps] = useState<LudoJumps>({});
+  const [shields, setShields] = useState<LudoShields>({});
 
   const usernames = useUsernames(players.map(p => p.userId));
 
@@ -87,6 +105,17 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
     };
   }, [roomId]);
 
+  /** An ability can be cast mid-turn, so it carries the turn on with it. */
+  const applyAbilityTurn = useCallback(
+    (turn: LudoAbilityTurn, byUserId: string) => {
+      setStage(turn.stage);
+      setTurnUserId(turn.nextTurnUserId);
+      setTurnDeadline(turn.turnDeadline);
+      setMovable(byUserId === myUserIdRef.current ? turn.movableTokens : []);
+    },
+    [],
+  );
+
   /** Replace local state with the authoritative snapshot (mount + reconnect). */
   const syncState = useCallback(async () => {
     try {
@@ -106,6 +135,10 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
       if (myUserIdRef.current) {
         setMyCaptures(state.captureCounts?.[myUserIdRef.current] ?? 0);
       }
+      setChargeHp(state.chargeHp ?? {});
+      setUsesLeft(state.abilityUses ?? freshAbilityUses());
+      setJumps(state.jumps ?? {});
+      setShields(state.shields ?? {});
       setWaitingError(null);
       setLoaded(true);
     } catch (err) {
@@ -130,6 +163,7 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
       setTurnUserId(p.nextTurnUserId);
       setTurnDeadline(p.turnDeadline);
       setMovable(p.byUserId === myUserIdRef.current ? p.movableTokens : []);
+      setChargeHp(p.chargeHp ?? {});
       if (p.thirdSix) {
         setNotice(`${nameOf(p.byUserId)} rolled three sixes - turn lost`);
       } else if (
@@ -146,6 +180,7 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
     const offMoved = on(LUDO_EVENTS.moved, payload => {
       const p = payload as LudoMovedPayload;
       setTokens(p.tokens);
+      setChargeHp(p.chargeHp);
       setStage(p.stage);
       setTurnUserId(p.nextTurnUserId);
       setTurnDeadline(p.turnDeadline);
@@ -166,9 +201,65 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
       }
     });
 
+    const offAbilityState = on(LUDO_EVENTS.abilityState, payload => {
+      const p = payload as LudoAbilityStatePayload;
+      setUsesLeft(p.usesLeft);
+      const me = myUserIdRef.current;
+      if (me) {
+        setChargeHp(prev => ({ ...prev, [me]: p.chargeHp }));
+      }
+    });
+
+    const offLaunched = on(LUDO_EVENTS.launched, payload => {
+      const p = payload as LudoLaunchedPayload;
+      setTokens(p.tokens);
+      setChargeHp(p.chargeHp);
+      applyAbilityTurn(p.turn, p.byUserId);
+      if (myUserIdRef.current) {
+        setMyCaptures(p.captureCounts?.[myUserIdRef.current] ?? 0);
+      }
+      setNotice(
+        p.captures.length > 0
+          ? `${nameOf(p.byUserId)} launched a pawn and captured ${p.captures
+              .map(c => LUDO_COLOR_NAMES[c.color])
+              .join(' & ')}!`
+          : `${nameOf(p.byUserId)} launched a pawn forward`,
+      );
+      if (p.winnerUserId) {
+        setWinnerUserId(p.winnerUserId);
+        setEndReason('complete');
+      }
+    });
+
+    const offJumped = on(LUDO_EVENTS.jumped, payload => {
+      const p = payload as LudoJumpedPayload;
+      setJumps(p.jumps);
+      setChargeHp(p.chargeHp);
+      applyAbilityTurn(p.turn, p.byUserId);
+      setNotice(`${nameOf(p.byUserId)} boosted a pawn with Extra Jump`);
+    });
+
+    const offTeleported = on(LUDO_EVENTS.teleported, payload => {
+      const p = payload as LudoTeleportedPayload;
+      setTokens(p.tokens);
+      setChargeHp(p.chargeHp);
+      applyAbilityTurn(p.turn, p.byUserId);
+      setNotice(`${nameOf(p.byUserId)} teleported a pawn to its home stretch`);
+    });
+
+    const offShielded = on(LUDO_EVENTS.shielded, payload => {
+      const p = payload as LudoShieldedPayload;
+      setShields(p.shields);
+      setChargeHp(p.chargeHp);
+      applyAbilityTurn(p.turn, p.byUserId);
+      setNotice(`${nameOf(p.byUserId)} shielded a pawn`);
+    });
+
     const offTimeout = on(LUDO_EVENTS.turnTimeout, payload => {
       const p = payload as LudoTurnTimeoutPayload;
       setTokens(p.tokens);
+      setJumps(p.jumps ?? {});
+      setShields(p.shields ?? {});
       setTurnUserId(p.nextTurnUserId);
       setTurnDeadline(p.turnDeadline);
       setStage('roll');
@@ -188,6 +279,8 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
     const offEliminated = on(LUDO_EVENTS.eliminated, payload => {
       const p = payload as LudoEliminatedPayload;
       setTokens(p.tokens);
+      setJumps(p.jumps ?? {});
+      setShields(p.shields ?? {});
       setTurnUserId(p.nextTurnUserId);
       setTurnDeadline(p.turnDeadline);
       setStage('roll');
@@ -215,14 +308,20 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
     // Gateway failures (enter and every action) surface here rather than
     // hanging the screen with no explanation.
     const offGatewayError = on(LUDO_EVENTS.error, raw => {
-      setWaitingError(
-        (raw as { message?: string }).message ?? 'Something went wrong.',
-      );
+      const message =
+        (raw as { message?: string }).message ?? 'Something went wrong.';
+      setWaitingError(message);
+      setNotice(message);
     });
 
     return () => {
       offRolled();
       offMoved();
+      offAbilityState();
+      offLaunched();
+      offJumped();
+      offTeleported();
+      offShielded();
       offTimeout();
       offEliminated();
       offPresence();
@@ -230,7 +329,10 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
       offGatewayError();
       leaveChannel(channel);
     };
-  }, [roomId, joinChannel, leaveChannel, on, emit, nameOf]);
+    // `status` is a dependency because a forced reconnect replaces the socket
+    // instance: handlers bound to the old one are gone, and without re-running
+    // this the match goes silent while still looking connected.
+  }, [roomId, joinChannel, leaveChannel, on, emit, nameOf, applyAbilityTurn, status]);
 
   // The snapshot must eventually land: without it the board renders empty and
   // a resumed match has no turn state.
@@ -258,6 +360,34 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
   const onMoveToken = useCallback(
     (tokenIndex: number) => {
       emit(LUDO_EVENTS.move, { roomId, tokenIndex });
+    },
+    [roomId, emit],
+  );
+
+  const onLaunch = useCallback(
+    (tokenIndex: number) => {
+      emit(LUDO_EVENTS.launch, { roomId, tokenIndex });
+    },
+    [roomId, emit],
+  );
+
+  const onJump = useCallback(
+    (tokenIndex: number) => {
+      emit(LUDO_EVENTS.jump, { roomId, tokenIndex });
+    },
+    [roomId, emit],
+  );
+
+  const onTeleport = useCallback(
+    (tokenIndex: number) => {
+      emit(LUDO_EVENTS.teleport, { roomId, tokenIndex });
+    },
+    [roomId, emit],
+  );
+
+  const onShield = useCallback(
+    (tokenIndex: number) => {
+      emit(LUDO_EVENTS.shield, { roomId, tokenIndex });
     },
     [roomId, emit],
   );
@@ -330,8 +460,16 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
       resultReason,
       winnerName: winnerUserId ? nameOf(winnerUserId) : null,
       myCaptures,
+      chargeHp: myUserId ? (chargeHp[myUserId] ?? 0) : 0,
+      usesLeft,
+      jumps,
+      shields,
       onRoll,
       onMoveToken,
+      onLaunch,
+      onJump,
+      onTeleport,
+      onShield,
     },
   };
 }

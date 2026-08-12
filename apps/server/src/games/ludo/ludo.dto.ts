@@ -25,3 +25,43 @@ export class LudoForfeitDto {
   @IsUUID()
   roomId: string;
 }
+
+export class LudoLaunchDto {
+  @IsUUID()
+  roomId: string;
+
+  @IsInt()
+  @Min(0)
+  @Max(TOKENS_PER_PLAYER - 1)
+  tokenIndex: number;
+}
+
+export class LudoJumpDto {
+  @IsUUID()
+  roomId: string;
+
+  @IsInt()
+  @Min(0)
+  @Max(TOKENS_PER_PLAYER - 1)
+  tokenIndex: number;
+}
+
+export class LudoTeleportDto {
+  @IsUUID()
+  roomId: string;
+
+  @IsInt()
+  @Min(0)
+  @Max(TOKENS_PER_PLAYER - 1)
+  tokenIndex: number;
+}
+
+export class LudoShieldDto {
+  @IsUUID()
+  roomId: string;
+
+  @IsInt()
+  @Min(0)
+  @Max(TOKENS_PER_PLAYER - 1)
+  tokenIndex: number;
+}
