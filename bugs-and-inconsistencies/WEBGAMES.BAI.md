@@ -40,3 +40,38 @@ fix. Remove an entry in the same change that fixes it.
   on every handover). Every game that mounts a Countdown shares it.
 - **Suggested fix**: reset `now` to `Date.now()` in the same effect that
   restarts the interval when `deadline` changes.
+
+## 2026-08-12 — Sign-in page copy predates Chroma Clash
+
+- **Where**: `apps/webgames/src/pages/SignInPage.tsx:201` and the feature
+  bullet naming "Battleships, Salvo, Triple Cut and Ludo Royale".
+- **Why it's wrong**: the lead says "Four arenas in the browser" and the games
+  bullet lists four, but `src/pages/GamesPage.tsx:9-13` ships five —
+  Chroma Clash is missing from both.
+- **Suggested fix**: "Five arenas in the browser" and add Chroma Clash to the
+  bullet.
+
+## 2026-08-12 — README "What it is" section predates email auth and the embedded wallet
+
+- **Where**: `apps/webgames/README.md:29-33`.
+- **Why it's wrong**: it claims "Auth is the wallet. No email" and "There is no
+  custodial wallet on web, so `POST /wallets` is never called from here." All
+  three claims are stale: `src/pages/SignInPage.tsx:52-83` does email OTP
+  login, `src/pages/WalletSetupPage.tsx:52` calls `createWallet`, and
+  `src/lib/embedded-wallet.ts` + `src/components/EmbeddedWalletGate.tsx` run a
+  server-held custodial wallet as a wagmi connector.
+- **Suggested fix**: rewrite the first bullet to describe both sign-in methods
+  (email OTP → embedded custodial wallet, SIWE → imported wallet) and drop the
+  "never called from here" sentence.
+
+## 2026-08-13 — `tsconfig.tsbuildinfo` is tracked, so its `.gitignore` rule never applies
+
+- **Where**: `apps/webgames/tsconfig.tsbuildinfo` is committed (added in
+  `a49a2bf`) while `.gitignore:114` carries `*.tsbuildinfo`.
+- **Why it's wrong**: `.gitignore` only covers untracked paths, so the ignore
+  rule added to fix this exact problem has no effect on the one file that
+  already slipped in. Every `npm run typecheck --workspace
+  @gaming-platform/webgames` now leaves a modified tracked build artifact in
+  `git status`, and it collides on merge.
+- **Suggested fix**: `git rm --cached apps/webgames/tsconfig.tsbuildinfo` and
+  commit the removal; the existing ignore rule then holds.
