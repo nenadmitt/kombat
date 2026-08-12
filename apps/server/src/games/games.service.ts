@@ -223,9 +223,8 @@ export class GamesService {
           }
         : {}),
     });
-    // Filled and flipped to InProgress: drop it from the lobby.
-    this.emitLobbyRemoved(joined);
-
+    // Tell the creator before the lobby delta: a client that tracks its own
+    // room by the lobby list would otherwise drop it and miss this.
     if (room.stakeToken !== null) {
       await this.stakesService.beginFunding(joined);
     } else {
@@ -235,6 +234,8 @@ export class GamesService {
         { roomId },
       );
     }
+    // Filled and flipped to InProgress: drop it from the lobby.
+    this.emitLobbyRemoved(joined);
 
     return toGameRoomSummary(joined);
   }
@@ -373,10 +374,10 @@ export class GamesService {
     const started: GameRoomEntity = Object.assign(room, {
       status: GameRoomStatus.InProgress,
     });
-    // Left the lobby the moment it flipped to InProgress.
-    this.emitLobbyRemoved(started);
+    // Seated players first, lobby delta second - see joinTwoPlayerRoom.
     if (started.stakeToken !== null) {
       await this.stakesService.beginFunding(started);
+      this.emitLobbyRemoved(started);
       return;
     }
     for (const participant of participantsOf(started)) {
@@ -384,6 +385,8 @@ export class GamesService {
         roomId: room.id,
       });
     }
+    // Left the lobby the moment it flipped to InProgress.
+    this.emitLobbyRemoved(started);
   }
 
   // ---- lobby list deltas -------------------------------------------------

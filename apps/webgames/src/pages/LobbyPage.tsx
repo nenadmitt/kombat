@@ -112,11 +112,22 @@ export function LobbyPage() {
     const offUpdated = on(LOBBY_EVENTS.roomUpdated, payload =>
       upsert(payload as GameRoomSummary),
     );
+    // A room leaves the lobby both when it starts and when it is reaped, and
+    // the payload cannot tell those apart - so re-read rather than drop a room
+    // that is one event away from sending us into the match.
     const offRemoved = on(LOBBY_EVENTS.roomRemoved, payload => {
       const { roomId } = payload as { roomId: string };
       remove(roomId);
-      if (activeRoomRef.current?.id === roomId) setActiveRoom(null);
-      if (joinedRoomRef.current?.id === roomId) setJoinedRoom(null);
+      const wasMine =
+        activeRoomRef.current?.id === roomId ||
+        joinedRoomRef.current?.id === roomId;
+      if (!wasMine) return;
+      void apiClient.getMyActiveGameRoom().then(room => {
+        setActiveRoom(room);
+        if (room?.id !== roomId && joinedRoomRef.current?.id === roomId) {
+          setJoinedRoom(null);
+        }
+      });
     });
     // A 2-player room starts the instant someone joins mine.
     const offOpponent = on(ROOM_EVENTS.opponentJoined, payload => {
