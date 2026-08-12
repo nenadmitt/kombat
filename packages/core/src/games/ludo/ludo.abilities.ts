@@ -27,7 +27,7 @@ export const ABILITY_MAX_USES: Record<LudoAbilityKind, number> = {
 };
 
 /** How far the launcher throws a pawn - fixed, not rolled. */
-export const LAUNCH_DISTANCE = 20;
+export const LAUNCH_DISTANCE = 15;
 
 /** A rolled 5 pays half a point, a 6 pays a full one. */
 export function chargeHpForRoll(die: number): number {

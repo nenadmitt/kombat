@@ -3,6 +3,23 @@
 Entry format: date, one-line summary, location, why it's wrong, suggested
 fix. Remove an entry in the same change that fixes it.
 
+## 2026-08-13 - Ludo casts use four socket events for one uniform operation
+
+- **Where:** `packages/core/src/games/ludo/ludo.protocol.ts` (`launch`,
+  `jump`, `teleport`, `shield`) and their four handlers in
+  `apps/server/src/games/ludo/ludo.gateway.ts`.
+- **Why it's wrong:** all four casts carry the identical payload
+  (`{roomId, tokenIndex}`) and identical guards; the split is a leftover
+  from the placed-trap era when payloads differed. Battleship already
+  models this as one `fire` event with a `kind` field, so the two games'
+  protocols disagree on the same shape of operation, and every new ability
+  costs an event + DTO + handler + client emitter.
+- **Suggested fix:** one inbound `ludo:ability` event with
+  `{roomId, kind, tokenIndex}` and a single `@IsIn`-validated DTO
+  dispatching to the existing service methods. Keep the per-effect
+  outbound broadcasts (their payloads genuinely differ). Update both
+  webgames hooks and the e2e suites in the same change.
+
 ## 2026-08-10 - An eliminated Chroma player is never told their hand is gone
 
 - **Where:** `apps/server/src/games/chroma/chroma-match.service.ts:572-573`

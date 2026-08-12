@@ -339,7 +339,7 @@ describe('ludo timeouts (e2e)', () => {
 
     it('re-arms the clock when a cast passes the turn on', async () => {
       await startMatch(joiner);
-      await walkTo(34);
+      await walkTo(40);
       await roll(host, 5);
       const armed = await turnSeq();
 

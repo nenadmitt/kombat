@@ -6,6 +6,7 @@ import {
   GameRoomStatus,
   GameType,
   HOME_ARRIVAL_HP,
+  LAUNCH_DISTANCE,
   LUDO_EVENTS,
   ROOM_EVENTS,
   STAR_LANDING_HP,
@@ -564,7 +565,7 @@ describe('ludo match (e2e)', () => {
     });
 
     it('refuses a launch that would stack onto an own pawn', async () => {
-      await walk([20, -1, -1, -1]);
+      await walk([LAUNCH_DISTANCE, -1, -1, -1]);
       await roll(host, 6);
       await move(host, 1);
 
@@ -593,7 +594,7 @@ describe('ludo match (e2e)', () => {
       await startMatch(joiner);
     });
 
-    it('throws a pawn exactly twenty cells', async () => {
+    it('throws a pawn the full launch distance', async () => {
       await fillBar([host, joiner]);
       await roll(host, 6);
       await move(host, 1);
@@ -607,7 +608,7 @@ describe('ludo match (e2e)', () => {
 
       expect(launched).toMatchObject({
         fromProgress: 0,
-        toProgress: 20,
+        toProgress: LAUNCH_DISTANCE,
         winnerUserId: null,
       });
       expect(launched.chargeHp[host.userId]).toBe(
@@ -624,9 +625,10 @@ describe('ludo match (e2e)', () => {
       await fillBar([host, joiner]);
       await roll(host, 6);
       await move(host, 1);
-      await roll(host, 1);
+      // Progress 6 is the only start-of-track square a launch turns into a
+      // neutral star landing.
+      await roll(host, 6);
       await move(host, 1);
-      await pass(joiner);
 
       const launched = await cast<LudoLaunchedPayload>(
         host,
@@ -635,16 +637,16 @@ describe('ludo match (e2e)', () => {
         1,
       );
 
-      expect(launched).toMatchObject({ fromProgress: 1, toProgress: 21 });
+      expect(launched).toMatchObject({ fromProgress: 6, toProgress: 21 });
       expect(launched.chargeHp[host.userId]).toBe(
         CHARGE_MAX_HP - ABILITY_COST_HP.launcher + STAR_LANDING_HP,
       );
     });
 
     it('clamps a launch into home and pays for banking the pawn', async () => {
-      await walk([40, -1, -1, -1]);
+      await walk([45, -1, -1, -1]);
       const before = (await matchState(host)).chargeHp[host.userId]!;
-      expect(before).toBe(8);
+      expect(before).toBe(9);
 
       const launched = await cast<LudoLaunchedPayload>(
         host,
@@ -653,7 +655,7 @@ describe('ludo match (e2e)', () => {
         0,
       );
 
-      expect(launched).toMatchObject({ fromProgress: 40, toProgress: 56 });
+      expect(launched).toMatchObject({ fromProgress: 45, toProgress: 56 });
       expect(launched.tokens.red![0]).toBe(56);
       expect(launched.chargeHp[host.userId]).toBe(
         before - ABILITY_COST_HP.launcher + HOME_ARRIVAL_HP,
@@ -664,11 +666,11 @@ describe('ludo match (e2e)', () => {
       await fillBar([host, joiner]);
       await pass(host);
 
+      // Green's pawn on its own progress 2 stands on the square a launch from
+      // the red start cell lands on.
       await roll(joiner, 6);
       await move(joiner, 1);
-      await roll(joiner, 6);
-      await move(joiner, 1);
-      await roll(joiner, 1);
+      await roll(joiner, 2);
       await move(joiner, 1);
 
       await roll(host, 6);
@@ -680,7 +682,7 @@ describe('ludo match (e2e)', () => {
         1,
       );
 
-      expect(launched).toMatchObject({ fromProgress: 0, toProgress: 20 });
+      expect(launched).toMatchObject({ fromProgress: 0, toProgress: 15 });
       expect(launched.captures).toEqual([{ color: 'green', tokenIndex: 1 }]);
       expect(launched.captureCounts[host.userId]).toBe(1);
       expect(launched.tokens.green![1]).toBe(-1);
@@ -785,7 +787,7 @@ describe('ludo match (e2e)', () => {
     });
 
     it('passes the turn when a cast leaves the pending die nothing to move', async () => {
-      await walk([34, -1, -1, -1]);
+      await walk([40, -1, -1, -1]);
       await roll(host, 5);
 
       const launched = await cast<LudoLaunchedPayload>(
@@ -795,7 +797,7 @@ describe('ludo match (e2e)', () => {
         0,
       );
 
-      expect(launched.toProgress).toBe(54);
+      expect(launched.toProgress).toBe(55);
       expect(launched.turn).toMatchObject({
         stage: 'roll',
         movableTokens: [],
@@ -853,7 +855,7 @@ describe('ludo match (e2e)', () => {
     });
 
     it('ends the match once, and only once, when a launch banks the last pawn', async () => {
-      await walk([56, 56, 56, 36]);
+      await walk([56, 56, 56, 41]);
 
       const ended = waitFor<LudoEndedPayload>(
         joiner.socket,
