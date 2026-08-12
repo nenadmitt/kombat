@@ -26,17 +26,23 @@
   --lime-edge: rgba(142, 224, 90, 0.45);
 
   --gold: #f5b829;
+  /* Lighter than --gold, which is byte-identical to --ludo-yellow: anything
+     drawn behind a pawn needs to read on a yellow one too. */
+  --gold-bright: #ffd977;
   --gold-tint: rgba(245, 184, 41, 0.16);
   --gold-tint-soft: rgba(245, 184, 41, 0.08);
   --gold-edge: rgba(245, 184, 41, 0.4);
   --silver: #c3c9d6;
   --bronze: #d08a4e;
 
+  /* The Ludo shield: blue is teleport's, gold is Extra Jump's. */
+  --shield: var(--silver);
+
   /* Ludo seat colours, shared with the mobile board. */
   --ludo-red: #ff5a6e;
   --ludo-green: #3ee08f;
   --ludo-yellow: #f5b829;
-  --ludo-blue: #5b8def;
+  --ludo-blue: #7aa5ff;
 
   /* Chroma Clash suit colours, shared with the mobile cards. */
   --chroma-crimson: #e5484d;
@@ -3663,7 +3669,7 @@ a {
 
 .ludo-play {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-columns: minmax(0, 1fr) 330px;
   gap: var(--s-6);
   align-items: start;
 }
@@ -3685,9 +3691,15 @@ a {
 }
 
 /* The board is square and sized by the column, so a 2- and a 4-seat table
-   render identically. */
-.ludo-board {
+   render identically. The wrapper is the tooltip's positioning box, so it
+   must track the board's own box, not the padded panel around it. */
+.ludo-board-wrap {
+  position: relative;
   width: min(560px, 100%);
+}
+
+.ludo-board {
+  width: 100%;
   height: auto;
   aspect-ratio: 1;
   display: block;
@@ -3711,39 +3723,65 @@ a {
   }
 }
 
-.ludo-turn-pill {
-  position: absolute;
-  top: var(--s-3);
-  right: var(--s-3);
-  z-index: 1;
-  display: none;
+.ludo-pawn-boost {
+  animation: ludo-boost 1.8s ease-in-out infinite;
+}
+
+@keyframes ludo-boost {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.ludo-pawn-shield {
+  animation: ludo-shield 2.6s ease-in-out infinite;
+}
+
+@keyframes ludo-shield {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.ludo-pawn-tip-line {
+  display: flex;
   align-items: center;
   gap: var(--s-2);
-  padding: var(--s-2) var(--s-3);
-  border-radius: var(--r-pill);
-  background: rgba(11, 12, 20, 0.78);
-  box-shadow: inset 0 0 0 1px var(--hairline-strong);
 }
 
-.ludo-turn-pill-name {
-  font-weight: 700;
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  max-width: 12ch;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.ludo-pawn-tip-icon {
+  display: grid;
+  place-items: center;
 }
 
-.ludo-turn-pill .bs-clock-value {
-  font-size: 14px;
-}
-
-.ludo-turn-pill .bs-clock {
+.ludo-pawn-tip {
+  position: absolute;
+  z-index: 2;
   display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.3;
+  white-space: nowrap;
+  transform: translate(-50%, calc(-100% - var(--s-2)));
+  pointer-events: none;
 }
 
+/* The rail follows the Ludo design mock's own radius scale (14/15/18/22),
+   which the shared --r-* steps do not carry. */
 .ludo-side {
   display: flex;
   flex-direction: column;
@@ -3752,25 +3790,29 @@ a {
   top: 0;
 }
 
+.ludo-side .match-actions {
+  gap: var(--s-4);
+}
+
 .ludo-seats {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-3);
 }
 
 .ludo-seat {
   display: flex;
   align-items: center;
-  gap: var(--s-3);
-  padding: var(--s-3);
-  border-radius: var(--r-md);
+  gap: 11px;
+  padding: 13px;
+  border-radius: 14px;
   background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--hairline);
 }
 
 /* Whose turn it is reads from the seat's own colour, not a shared accent. */
 .ludo-seat.is-turn {
-  box-shadow: inset 0 0 0 1px var(--seat);
+  background: color-mix(in srgb, var(--seat) 12%, var(--surface));
+  box-shadow: inset 0 0 0 1.5px var(--seat);
 }
 
 .ludo-seat.is-out {
@@ -3778,22 +3820,22 @@ a {
 }
 
 .ludo-seat-avatar {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   flex: none;
-  border-radius: var(--r-sm);
+  border-radius: 11px;
   display: grid;
   place-items: center;
   background: var(--seat);
   color: var(--ink);
   font-weight: 800;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .ludo-seat-meta {
   display: flex;
   flex-direction: column;
-  gap: var(--s-1);
+  gap: 7px;
   min-width: 0;
   flex: 1;
 }
@@ -3808,17 +3850,18 @@ a {
 }
 
 .ludo-seat-sub {
-  font-size: 11px;
+  font-size: 10.5px;
+  font-weight: 700;
   line-height: 1;
   color: var(--text-3);
 }
 
 .ludo-seat-dot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   flex: none;
   border-radius: var(--r-pill);
-  background: var(--text-4);
+  background: rgba(233, 233, 237, 0.18);
 }
 
 .ludo-seat-dot.is-online {
@@ -3826,34 +3869,722 @@ a {
   box-shadow: 0 0 7px var(--lime);
 }
 
-.ludo-roll {
+.ludo-seat.is-turn .ludo-seat-dot {
+  background: var(--seat);
+  box-shadow: 0 0 8px var(--seat);
+  animation: kpulse 1.5s ease-in-out infinite;
+}
+
+.ludo-match-title {
+  font-size: 20px;
+}
+
+.ludo-top-spacer {
+  width: 110px;
+}
+
+/* ── ludo abilities ───────────────────────────────────────────── */
+
+.ability-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: 18px;
+  border-radius: 18px;
+  background: var(--rail);
+}
+
+.ability-head {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.ability-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--text-2);
+}
+
+.ability-help {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--text-3);
+  cursor: pointer;
+}
+
+.ability-help:hover,
+.ability-help.is-open {
+  background: var(--lime-tint);
+  box-shadow: inset 0 0 0 1px var(--lime-edge);
+  color: var(--lime);
+}
+
+.ability-pts {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-1);
+  padding: 5px 10px;
+  border-radius: 9px;
+  background: var(--gold-tint);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--gold);
+}
+
+.ability-pts.is-lg {
+  padding: 7px 12px;
+  border-radius: var(--r-sm);
+  font-size: 15px;
+}
+
+.ability-pts.is-gaining {
+  animation: charge-glow 1.4s ease-out;
+}
+
+@keyframes charge-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(245, 184, 41, 0);
+  }
+  25% {
+    box-shadow: 0 2px 18px 2px rgba(245, 184, 41, 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(245, 184, 41, 0);
+  }
+}
+
+.ability-gain {
+  position: absolute;
+  right: 8px;
+  top: -6px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--gold-bright);
+  text-shadow: 0 0 12px rgba(245, 184, 41, 0.8);
+  pointer-events: none;
+  animation: charge-gain 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes charge-gain {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-26px);
+  }
+}
+
+.ability-pts-unit {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  opacity: 0.7;
+}
+
+.charge-track {
+  display: flex;
+  gap: var(--s-1);
+}
+
+.charge-seg {
+  flex: 1;
+  height: 8px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.charge-seg-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+}
+
+.ability-open {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 14px;
+  border-radius: 13px;
+  box-shadow: inset 0 0 0 1px var(--gold-edge);
+  color: var(--gold);
+}
+
+.ability-open:hover:not(:disabled) {
+  background: var(--gold-tint);
+}
+
+.ability-open-label {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ability-open.is-armed {
+  background: var(--gold-tint);
+  box-shadow: inset 0 0 0 1px var(--gold);
+}
+
+.ability-open.is-armed .ability-open-label {
+  color: var(--gold-bright);
+}
+
+.ludo-ability-backdrop {
+  backdrop-filter: blur(3px);
+}
+
+.ludo-ability-modal {
+  width: min(660px, 100%);
+  gap: 0;
+  padding: 28px;
+  border-radius: 22px;
+  box-shadow: 0 34px 90px rgba(0, 0, 0, 0.66);
+}
+
+.ability-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--s-4);
-  padding: var(--s-4);
+}
+
+.ability-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.ability-modal-title .modal-title {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.ability-modal-rule {
+  margin: 14px 0 0;
+  max-width: 520px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+.ludo-ability-modal .charge-track {
+  margin-top: 18px;
+}
+
+.ability-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s-3);
+  margin-top: var(--s-5);
+}
+
+.ability-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 11px;
+  padding: var(--s-4) var(--s-3);
+  min-width: 0;
+  border: 0;
+  border-radius: 15px;
+  background: var(--surface-muted);
+  color: var(--text);
+  text-align: center;
+  cursor: pointer;
+}
+
+.ability-card:hover:not(.is-locked):not(.is-picked) {
+  background: var(--surface-hover);
+}
+
+.ability-card.is-locked {
+  background: rgba(0, 0, 0, 0.32);
+  cursor: not-allowed;
+}
+
+.ability-card.is-picked {
+  background: var(--lime-tint);
+  box-shadow: inset 0 0 0 1.5px var(--lime);
+}
+
+.ability-card-icon {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ability-card.is-picked .ability-card-icon {
+  background: var(--lime-tint);
+}
+
+.ability-card-name {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.ability-card-cost {
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--gold);
+}
+
+.ability-card-uses {
+  margin-top: auto;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  line-height: 1;
+}
+
+.ability-card-uses.is-ready {
+  color: var(--lime-bright);
+}
+
+.ability-card-uses.is-short {
+  color: var(--gold);
+}
+
+.ability-card-uses.is-spent {
+  color: var(--text-3);
+}
+
+.ability-detail {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-top: var(--s-5);
+  padding: 18px;
   border-radius: var(--r-lg);
   background: var(--sunken);
 }
 
-.ludo-hint {
+.ability-detail-icon {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ability-detail-body {
   flex: 1;
+  min-width: 0;
+}
+
+.ability-detail-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ability-badge {
+  padding: 3px 7px;
+  border-radius: 6px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+}
+
+.ability-badge.is-ready {
+  background: var(--lime-tint);
+  color: var(--lime-bright);
+}
+
+.ability-badge.is-short {
+  background: var(--gold-tint);
+  color: var(--gold);
+}
+
+.ability-badge.is-spent {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-3);
+}
+
+.ability-detail-text {
+  margin: 11px 0 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+.ludo-points-modal {
+  width: min(400px, 100%);
+}
+
+.ludo-points-modal .ability-modal-actions {
+  justify-content: flex-end;
+}
+
+.points-rules {
+  display: flex;
+  flex-direction: column;
+}
+
+.points-rule {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-3) 0;
+  box-shadow: 0 1px 0 var(--hairline);
+}
+
+.points-rule:last-child {
+  box-shadow: none;
+}
+
+.points-rule-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.points-rule-value {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--gold);
+}
+
+.points-cap {
   margin: 0;
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--sunken);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
+.ability-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: 22px;
+}
+
+.ability-modal-foot {
+  flex: 1;
+  min-width: 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-4);
+}
+
+.ability-modal-close {
+  flex: none;
+  padding: 15px 24px;
+  border-radius: 13px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-2);
+}
+
+.ability-modal-close:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text);
+}
+
+.ability-modal-arm {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 15px 26px;
+  border-radius: 13px;
+  background: var(--lime);
+  color: var(--ink);
+  font-size: 14.5px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.ability-modal-arm:hover:not(:disabled) {
+  filter: brightness(1.07);
+}
+
+/* ── ludo turn & dice card ────────────────────────────────────── */
+
+.ludo-turn {
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+  border-radius: 18px;
+  background: var(--rail);
+}
+
+.ludo-turn-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.ludo-turn-who {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.ludo-turn-avatar {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--seat);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.ludo-turn-name {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ludo-turn-clock {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--seat) 13%, transparent);
+}
+
+.ludo-turn.is-mine .ludo-turn-clock {
+  background: var(--lime-tint);
+}
+
+.ludo-turn-clock .bs-clock-value {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.ludo-turn-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--seat);
+  box-shadow: 0 0 8px var(--seat);
+  animation: kpulse 1.5s ease-in-out infinite;
+}
+
+.ludo-turn.is-mine .ludo-turn-dot {
+  background: var(--lime);
+  box-shadow: 0 0 8px var(--lime);
+}
+
+.ludo-roll-row {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  gap: var(--s-3);
+  margin-top: 18px;
+}
+
+.ludo-roll-btn {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  padding: 0 14px;
+  border-radius: 15px;
+  background: var(--lime);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.ludo-roll-btn:hover:not(:disabled) {
+  filter: brightness(1.07);
+}
+
+/* Already a muted ghost, so the global disabled dimming would erase it. */
+.ludo-roll-btn.is-waiting {
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  color: var(--text-2);
+  opacity: 1;
+}
+
+.ludo-notice {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+  padding: 13px 15px;
+  border-radius: var(--r-md);
+  background: var(--sunken);
+}
+
+.ludo-notice-bolt {
+  flex: none;
+  color: var(--lime);
+}
+
+.ludo-notice-dots {
+  flex: none;
+  display: flex;
+  gap: 3px;
+}
+
+.ludo-notice-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--seat);
+  animation: kpulse 1.2s ease-in-out infinite;
+}
+
+.ludo-notice-dots span:nth-child(2) {
+  animation-delay: 0.18s;
+}
+
+.ludo-notice-dots span:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+.ludo-notice-text {
+  flex: 1;
+  min-width: 0;
   font-size: 12px;
-  line-height: 1.45;
+  line-height: 1.4;
+  color: var(--text-2);
+}
+
+
+/* Phones: the seat list becomes a chip strip above the board. */
+.ludo-seat-strip {
+  display: none;
+  gap: var(--s-2);
+}
+
+.ludo-chip {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 9px var(--s-1);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.ludo-chip.is-turn {
+  background: color-mix(in srgb, var(--seat) 14%, var(--surface));
+  box-shadow: inset 0 0 0 1.5px var(--seat);
+}
+
+.ludo-chip.is-out {
+  opacity: 0.45;
+}
+
+.ludo-chip-avatar {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--seat);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.ludo-chip-avatar .ludo-seat-dot {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.ludo-chip-avatar .ludo-seat-dot.is-online {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 6px var(--lime);
+}
+
+.ludo-chip-count {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--text-3);
+}
+
+.ludo-chip.is-turn .ludo-chip-count {
   color: var(--text-2);
 }
 
 .ludo-die {
-  width: 78px;
-  height: 78px;
+  width: 74px;
+  height: 74px;
   flex: none;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
   gap: var(--s-1);
-  padding: var(--s-3);
-  border-radius: var(--r-lg);
-  background: #f4f5fa;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+  padding: 11px;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.5);
 }
 
 .ludo-die.is-rolling {
@@ -3875,7 +4606,12 @@ a {
 }
 
 .ludo-pip.is-lit {
-  background: #20222e;
+  background: rgba(11, 12, 20, 0.45);
+}
+
+/* Before the first roll the die shows its whole grid, faintly. */
+.ludo-pip.is-ghost {
+  background: rgba(11, 12, 20, 0.28);
 }
 
 @media (max-width: 1100px) {
@@ -4675,21 +5411,64 @@ a {
     gap: var(--s-1);
   }
 
-  /* The board's corner pill replaces the sidebar turn strip. The strip
-     stays mounted (its Countdown enforces the demo's timeouts) - hidden. */
-  .ludo-side .match-turn {
+  .ludo-side .ludo-seats {
     display: none;
   }
 
-  .ludo-turn-pill {
+  .ludo-seat-strip {
     display: flex;
   }
 
-  .ludo-roll .ludo-die {
-    width: 56px;
-    height: 56px;
-    padding: var(--s-2);
-    border-radius: var(--r-md);
+  .ludo-side .match-actions {
+    gap: var(--s-3);
+  }
+
+  .ability-bar,
+  .ludo-turn {
+    padding: 14px;
+    border-radius: var(--r-lg);
+  }
+
+  .ludo-roll-row {
+    margin-top: 13px;
+  }
+
+  .ludo-turn .ludo-die {
+    width: 62px;
+    height: 62px;
+    padding: 9px;
+    border-radius: 15px;
+    gap: 3px;
+  }
+
+  .ludo-ability-modal {
+    padding: var(--s-5);
+    border-radius: var(--r-xl);
+  }
+
+  /* Two ability cards per row: four across is too narrow to read on a phone. */
+  .ability-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ability-modal-actions {
+    flex-wrap: wrap;
+  }
+
+  .ability-modal-foot {
+    order: 1;
+    flex-basis: 100%;
+    text-align: center;
+  }
+
+  .ability-modal-close {
+    padding: var(--s-4) var(--s-5);
+  }
+
+  .ability-modal-arm {
+    flex: 1;
+    justify-content: center;
+    padding: var(--s-4);
   }
 
   /* Same trade as Ludo: the table's corner pill replaces the sidebar strip,
@@ -4963,4 +5742,30 @@ a {
 
 .asset-name {
   font-size: 11px;
+}
+
+/* Ludo match header collapses to one slim bar: exit icon left, title right.
+   Late in the file so it outranks the generic .match-topline wrap rules. */
+@media (max-width: 900px) {
+  .match-topline.ludo-topline {
+    flex-wrap: nowrap;
+    gap: var(--s-3);
+  }
+
+  .ludo-topline .match-topline-title {
+    order: 0;
+    flex-basis: auto;
+    margin-left: auto;
+    align-items: flex-end;
+  }
+
+  .ludo-topline .ludo-match-title {
+    font-size: 16px;
+  }
+
+  .ludo-topline .match-topline-sub,
+  .ludo-topline .ludo-top-label,
+  .ludo-topline .ludo-top-spacer {
+    display: none;
+  }
 }

@@ -1,5 +1,3 @@
-import { randomInt } from 'node:crypto';
-
 import {
   ConflictException,
   ForbiddenException,
@@ -7,27 +5,55 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  ABILITY_COST_HP,
+  addChargeHp,
+  addJump,
+  addShield,
   allTokensHome,
   applyMove,
+  chargeHpForRoll,
   colorForSeat,
   DIE_SIDES,
+  dropColorJumps,
+  dropColorShields,
+  freshAbilityUses,
+  hasJump,
   initialTokens,
+  jumpableTokens,
+  jumpDistance,
+  jumpsFor,
+  LAUNCH_DISTANCE,
+  launchableTokens,
+  launcherTarget,
   legalMoves,
   LUDO_MAX_PLAYERS,
+  LudoAbilityKind,
+  LudoAbilityStatePayload,
+  LudoAbilityTurn,
   LudoColor,
   LudoEliminatedPayload,
   LudoEndReason,
+  LudoJumpedPayload,
+  LudoJumps,
+  LudoLaunchedPayload,
   LudoMovedPayload,
   LudoPlayer,
   LudoRolledPayload,
   LudoRoomState,
+  LudoShieldedPayload,
+  LudoShields,
   LudoStage,
+  LudoTeleportedPayload,
   LudoTokens,
   LudoTurnTimeoutPayload,
   MAX_CONSECUTIVE_SIXES,
   MAX_TIMEOUTS,
+  moveBonusHp,
   nextColorInPlay,
   resetTokensToBase,
+  shieldableTokens,
+  TELEPORT_TO,
+  teleportableTokens,
   TURN_SECONDS,
 } from '@gaming-platform/core';
 
@@ -40,6 +66,7 @@ import {
 } from '../../cache';
 import { GameRoomEntity } from '../../db/entities/game-room.entity';
 import { GameRoomStatus } from '../../db/types/game';
+import { LudoDieRoller } from './ludo.dice';
 
 export type LudoMatchState = {
   roomId: string;
@@ -60,6 +87,13 @@ export type LudoMatchState = {
   online: Record<string, boolean>;
   /** Running capture totals per user (missing on pre-existing matches). */
   captureCounts?: Record<string, number>;
+  /** Charge in half-points per user. */
+  chargeHp: Record<string, number>;
+  abilityUses: Record<string, Record<LudoAbilityKind, number>>;
+  /** Pawns carrying Extra Jump, all owners - public. */
+  jumps: LudoJumps;
+  /** Pawns carrying the permanent shield, all owners - public. */
+  shields: LudoShields;
   turnStartedAt: number | null;
   /** Bumped on every turn-clock restart; stale deadlines carry an old seq. */
   turnSeq: number;
@@ -76,7 +110,10 @@ export type LudoMatchState = {
  */
 @Injectable()
 export class LudoMatchService {
-  constructor(private readonly cacheService: CacheService) {}
+  constructor(
+    private readonly cacheService: CacheService,
+    private readonly dieRoller: LudoDieRoller,
+  ) {}
 
   /** Fetch (or lazily create) the match for a started room. */
   getOrCreate(room: GameRoomEntity): Promise<LudoMatchState> {
@@ -110,6 +147,12 @@ export class LudoMatchService {
         timeouts: Object.fromEntries(userIds.map(id => [id, 0])),
         online: Object.fromEntries(userIds.map(id => [id, false])),
         captureCounts: Object.fromEntries(userIds.map(id => [id, 0])),
+        chargeHp: Object.fromEntries(userIds.map(id => [id, 0])),
+        abilityUses: Object.fromEntries(
+          userIds.map(id => [id, freshAbilityUses()]),
+        ),
+        jumps: {},
+        shields: {},
         turnStartedAt: Date.now(),
         turnSeq: 1,
         winnerUserId: null,
@@ -127,11 +170,17 @@ export class LudoMatchService {
       const match = await this.require(roomId);
       this.assertTurn(match, userId, 'roll');
 
-      const die = randomInt(1, DIE_SIDES + 1);
+      const die = this.dieRoller.roll();
       const sixChain = die === DIE_SIDES ? match.sixChain + 1 : 0;
       const thirdSix = sixChain >= MAX_CONSECUTIVE_SIXES;
       const color = this.colorOf(match, userId);
-      const movable = thirdSix ? [] : legalMoves(match.tokens, color, die);
+      const movable = thirdSix
+        ? []
+        : legalMoves(match.tokens, color, die, jumpsFor(match.jumps, color));
+      match.chargeHp[userId] = addChargeHp(
+        match.chargeHp[userId] ?? 0,
+        chargeHpForRoll(die),
+      );
 
       if (movable.length > 0) {
         match.stage = 'move';
@@ -159,6 +208,7 @@ export class LudoMatchService {
         stage: match.stage,
         nextTurnUserId: match.turnUserId,
         turnDeadline: this.deadline(match),
+        chargeHp: { ...match.chargeHp },
       };
     });
   }
@@ -178,13 +228,27 @@ export class LudoMatchService {
 
       const color = this.colorOf(match, userId);
       const die = match.die!;
-      const result = applyMove(match.tokens, color, tokenIndex, die);
+      const distance = jumpDistance(
+        (match.tokens[color] ?? [])[tokenIndex]!,
+        die,
+        hasJump(match.jumps, color, tokenIndex),
+      );
+      const result = applyMove(
+        match.tokens,
+        color,
+        tokenIndex,
+        distance,
+        match.shields,
+      );
       match.tokens = result.tokens;
-      if (result.captures.length > 0) {
-        match.captureCounts = match.captureCounts ?? {};
-        match.captureCounts[userId] =
-          (match.captureCounts[userId] ?? 0) + result.captures.length;
-      }
+      this.creditCaptures(match, userId, result.captures.length);
+      this.creditMove(
+        match,
+        userId,
+        color,
+        result.toProgress,
+        result.captures.length,
+      );
       match.die = null;
       match.movable = [];
 
@@ -217,12 +281,205 @@ export class LudoMatchService {
         toProgress: result.toProgress,
         captures: result.captures,
         captureCounts: { ...(match.captureCounts ?? {}) },
-        tokens: match.tokens,
+        tokens: result.tokens,
         extraRoll: extraRoll && !winnerUserId,
+        chargeHp: { ...match.chargeHp },
         stage: match.stage,
         nextTurnUserId: match.turnUserId,
         turnDeadline: this.deadline(match),
         winnerUserId,
+      };
+    });
+  }
+
+  /** Fire the launcher: one of my on-track tokens jumps LAUNCH_DISTANCE cells. */
+  launch(
+    roomId: string,
+    userId: string,
+    tokenIndex: number,
+  ): Promise<{
+    launched: LudoLaunchedPayload;
+    owner: LudoAbilityStatePayload;
+  }> {
+    return this.locked(roomId, async () => {
+      const match = await this.require(roomId);
+      this.assertMyTurn(match, userId);
+
+      const color = this.colorOf(match, userId);
+      if (!launchableTokens(match.tokens, color).includes(tokenIndex)) {
+        throw new ConflictException('That pawn cannot be launched.');
+      }
+      const from = match.tokens[color]![tokenIndex]!;
+      const to = launcherTarget(from, LAUNCH_DISTANCE)!;
+
+      this.spend(match, userId, 'launcher');
+
+      const result = applyMove(
+        match.tokens,
+        color,
+        tokenIndex,
+        to - from,
+        match.shields,
+      );
+      match.tokens = result.tokens;
+      this.creditCaptures(match, userId, result.captures.length);
+      this.creditMove(match, userId, color, to, result.captures.length);
+
+      let winnerUserId: string | null = null;
+      let passed = false;
+      if (allTokensHome(match.tokens, color)) {
+        match.phase = 'over';
+        match.winnerUserId = userId;
+        match.endReason = 'complete';
+        winnerUserId = userId;
+      } else {
+        passed = this.settleAbilityTurn(match, userId);
+      }
+      await this.persist(match);
+      if (passed) {
+        await this.scheduleTurnDeadline(match);
+      }
+
+      return {
+        launched: {
+          byUserId: userId,
+          color,
+          tokenIndex,
+          fromProgress: from,
+          toProgress: to,
+          captures: result.captures,
+          captureCounts: { ...(match.captureCounts ?? {}) },
+          tokens: result.tokens,
+          chargeHp: { ...match.chargeHp },
+          turn: this.turnSnapshot(match),
+          winnerUserId,
+        },
+        owner: this.abilityState(match, userId),
+      };
+    });
+  }
+
+  /** Buff one of my pawns: every shared-track move it makes is doubled. */
+  addJumpAbility(
+    roomId: string,
+    userId: string,
+    tokenIndex: number,
+  ): Promise<{ jumped: LudoJumpedPayload; owner: LudoAbilityStatePayload }> {
+    return this.locked(roomId, async () => {
+      const match = await this.require(roomId);
+      this.assertMyTurn(match, userId);
+
+      const color = this.colorOf(match, userId);
+      const targets = jumpableTokens(match.tokens, color, match.jumps);
+      if (!targets.includes(tokenIndex)) {
+        throw new ConflictException('That pawn cannot take Extra Jump.');
+      }
+
+      this.spend(match, userId, 'jump');
+      match.jumps = addJump(match.jumps, color, tokenIndex);
+      const passed = this.settleAbilityTurn(match, userId);
+      await this.persist(match);
+      if (passed) {
+        await this.scheduleTurnDeadline(match);
+      }
+
+      return {
+        jumped: {
+          byUserId: userId,
+          color,
+          tokenIndex,
+          chargeHp: { ...match.chargeHp },
+          jumps: match.jumps,
+          turn: this.turnSnapshot(match),
+        },
+        owner: this.abilityState(match, userId),
+      };
+    });
+  }
+
+  /** Skip one of my on-track pawns to the first square of its home column. */
+  teleport(
+    roomId: string,
+    userId: string,
+    tokenIndex: number,
+  ): Promise<{
+    teleported: LudoTeleportedPayload;
+    owner: LudoAbilityStatePayload;
+  }> {
+    return this.locked(roomId, async () => {
+      const match = await this.require(roomId);
+      this.assertMyTurn(match, userId);
+
+      const color = this.colorOf(match, userId);
+      const targets = teleportableTokens(match.tokens, color);
+      if (!targets.includes(tokenIndex)) {
+        throw new ConflictException('That pawn cannot teleport.');
+      }
+      const from = (match.tokens[color] ?? [])[tokenIndex]!;
+
+      this.spend(match, userId, 'teleport');
+      match.tokens = {
+        ...match.tokens,
+        [color]: (match.tokens[color] ?? []).map((p, i) =>
+          i === tokenIndex ? TELEPORT_TO : p,
+        ),
+      };
+      const passed = this.settleAbilityTurn(match, userId);
+      await this.persist(match);
+      if (passed) {
+        await this.scheduleTurnDeadline(match);
+      }
+
+      return {
+        teleported: {
+          byUserId: userId,
+          color,
+          tokenIndex,
+          fromProgress: from,
+          toProgress: TELEPORT_TO,
+          tokens: match.tokens,
+          chargeHp: { ...match.chargeHp },
+          turn: this.turnSnapshot(match),
+        },
+        owner: this.abilityState(match, userId),
+      };
+    });
+  }
+
+  /** Shield one of my pawns: nothing can capture it for the rest of the match. */
+  addShieldAbility(
+    roomId: string,
+    userId: string,
+    tokenIndex: number,
+  ): Promise<{ shielded: LudoShieldedPayload; owner: LudoAbilityStatePayload }> {
+    return this.locked(roomId, async () => {
+      const match = await this.require(roomId);
+      this.assertMyTurn(match, userId);
+
+      const color = this.colorOf(match, userId);
+      const targets = shieldableTokens(match.tokens, color, match.shields);
+      if (!targets.includes(tokenIndex)) {
+        throw new ConflictException('That pawn cannot take a shield.');
+      }
+
+      this.spend(match, userId, 'shield');
+      match.shields = addShield(match.shields, color, tokenIndex);
+      const passed = this.settleAbilityTurn(match, userId);
+      await this.persist(match);
+      if (passed) {
+        await this.scheduleTurnDeadline(match);
+      }
+
+      return {
+        shielded: {
+          byUserId: userId,
+          color,
+          tokenIndex,
+          chargeHp: { ...match.chargeHp },
+          shields: match.shields,
+          turn: this.turnSnapshot(match),
+        },
+        owner: this.abilityState(match, userId),
       };
     });
   }
@@ -266,6 +523,8 @@ export class LudoMatchService {
         timeouts: { ...match.timeouts },
         eliminatedColor,
         tokens: match.tokens,
+        jumps: match.jumps,
+        shields: match.shields,
         nextTurnUserId: match.turnUserId,
         turnDeadline: this.deadline(match),
         winnerUserId,
@@ -289,12 +548,10 @@ export class LudoMatchService {
       const winnerUserId = this.eliminate(match, userId, 'forfeit');
       if (!winnerUserId && wasTheirTurn) {
         this.passTurn(match);
-      }
-      if (!winnerUserId) {
         this.restartTurnClock(match);
       }
       await this.persist(match);
-      if (!winnerUserId) {
+      if (!winnerUserId && wasTheirTurn) {
         await this.scheduleTurnDeadline(match);
       }
 
@@ -302,6 +559,8 @@ export class LudoMatchService {
         userId,
         color,
         tokens: match.tokens,
+        jumps: match.jumps,
+        shields: match.shields,
         nextTurnUserId: match.turnUserId,
         turnDeadline: this.deadline(match),
         winnerUserId,
@@ -347,6 +606,10 @@ export class LudoMatchService {
       winnerUserId: match.winnerUserId,
       endReason: match.endReason,
       turnDeadline: match.phase === 'play' ? this.deadline(match) : null,
+      chargeHp: { ...match.chargeHp },
+      jumps: match.jumps,
+      shields: match.shields,
+      abilityUses: match.abilityUses[userId] ?? freshAbilityUses(),
     };
   }
 
@@ -364,10 +627,28 @@ export class LudoMatchService {
     );
   }
 
-  private load(roomId: string): Promise<LudoMatchState | null> {
-    return this.cacheService.getJson<LudoMatchState>(
+  private async load(roomId: string): Promise<LudoMatchState | null> {
+    const match = await this.cacheService.getJson<LudoMatchState>(
       CacheKeys.ludoMatch(roomId),
     );
+    if (!match) {
+      return null;
+    }
+    // Matches cached before an ability shipped carry no field for it, and a
+    // ledger missing its key.
+    const partial = match as Partial<LudoMatchState>;
+    return {
+      ...match,
+      chargeHp: partial.chargeHp ?? {},
+      abilityUses: Object.fromEntries(
+        Object.entries(partial.abilityUses ?? {}).map(([id, uses]) => [
+          id,
+          { ...freshAbilityUses(), ...uses },
+        ]),
+      ),
+      jumps: partial.jumps ?? {},
+      shields: partial.shields ?? {},
+    };
   }
 
   private persist(match: LudoMatchState): Promise<void> {
@@ -410,11 +691,8 @@ export class LudoMatchService {
     }
   }
 
-  private assertTurn(
-    match: LudoMatchState,
-    userId: string,
-    stage: LudoStage,
-  ): void {
+  /** Abilities are open at any point of the caster's own turn. */
+  private assertMyTurn(match: LudoMatchState, userId: string): void {
     this.assertParticipant(match, userId);
     if (match.phase !== 'play') {
       throw new ConflictException('The match is not in play.');
@@ -422,6 +700,14 @@ export class LudoMatchService {
     if (match.turnUserId !== userId) {
       throw new ConflictException('It is not your turn.');
     }
+  }
+
+  private assertTurn(
+    match: LudoMatchState,
+    userId: string,
+    stage: LudoStage,
+  ): void {
+    this.assertMyTurn(match, userId);
     if (match.stage !== stage) {
       throw new ConflictException(
         stage === 'roll' ? 'Pick a token to move first.' : 'Roll the die first.',
@@ -433,15 +719,105 @@ export class LudoMatchService {
     return match.players.find(p => p.userId === userId)!.color;
   }
 
+  private userOf(match: LudoMatchState, color: LudoColor): string {
+    return match.players.find(p => p.color === color)!.userId;
+  }
+
+  private creditCaptures(
+    match: LudoMatchState,
+    userId: string,
+    count: number,
+  ): void {
+    if (count === 0) {
+      return;
+    }
+    match.captureCounts = match.captureCounts ?? {};
+    match.captureCounts[userId] = (match.captureCounts[userId] ?? 0) + count;
+  }
+
+  private creditMove(
+    match: LudoMatchState,
+    userId: string,
+    color: LudoColor,
+    toProgress: number,
+    captureCount: number,
+  ): void {
+    match.chargeHp[userId] = addChargeHp(
+      match.chargeHp[userId] ?? 0,
+      moveBonusHp(color, toProgress, captureCount),
+    );
+  }
+
+  /** Charge and a use for one ability, or a rejection the client can show. */
+  private spend(
+    match: LudoMatchState,
+    userId: string,
+    kind: LudoAbilityKind,
+  ): void {
+    const uses = match.abilityUses[userId] ?? freshAbilityUses();
+    if ((uses[kind] ?? 0) <= 0) {
+      throw new ConflictException('No uses left for that ability.');
+    }
+    const charge = match.chargeHp[userId] ?? 0;
+    if (charge < ABILITY_COST_HP[kind]) {
+      throw new ConflictException('Not enough ability points.');
+    }
+    match.abilityUses[userId] = { ...uses, [kind]: uses[kind]! - 1 };
+    match.chargeHp[userId] = charge - ABILITY_COST_HP[kind];
+  }
+
+  private abilityState(
+    match: LudoMatchState,
+    userId: string,
+  ): LudoAbilityStatePayload {
+    return {
+      chargeHp: match.chargeHp[userId] ?? 0,
+      usesLeft: match.abilityUses[userId] ?? freshAbilityUses(),
+    };
+  }
+
+  /**
+   * An ability cast with a die already pending can leave that die with no
+   * legal move at all (it moved the only movable pawn), which hands the turn
+   * on. Casting never buys the caster more time, so the clock only restarts
+   * when the turn actually passes. Returns whether it did - the caller must
+   * then reschedule the deadline, since the old seq is now stale.
+   */
+  private settleAbilityTurn(match: LudoMatchState, userId: string): boolean {
+    if (match.stage !== 'move') {
+      return false;
+    }
+    const color = this.colorOf(match, userId);
+    const movable = legalMoves(
+      match.tokens,
+      color,
+      match.die!,
+      jumpsFor(match.jumps, color),
+    );
+    if (movable.length > 0) {
+      match.movable = movable;
+      return false;
+    }
+    this.passTurn(match);
+    this.restartTurnClock(match);
+    return true;
+  }
+
+  private turnSnapshot(match: LudoMatchState): LudoAbilityTurn {
+    return {
+      stage: match.stage,
+      movableTokens: [...match.movable],
+      nextTurnUserId: match.turnUserId,
+      turnDeadline: this.deadline(match),
+    };
+  }
+
   /** Hand the turn to the next non-eliminated player, fresh roll stage. */
   private passTurn(match: LudoMatchState): void {
     const colors = match.players.map(p => p.color);
-    const next = nextColorInPlay(
-      colors,
-      this.colorOf(match, match.turnUserId),
-      match.eliminated,
-    );
-    match.turnUserId = match.players.find(p => p.color === next)!.userId;
+    const current = this.colorOf(match, match.turnUserId);
+    const next = nextColorInPlay(colors, current, match.eliminated);
+    match.turnUserId = this.userOf(match, next);
     match.stage = 'roll';
     match.die = null;
     match.sixChain = 0;
@@ -460,6 +836,8 @@ export class LudoMatchService {
     const color = this.colorOf(match, userId);
     match.eliminated = [...match.eliminated, color];
     match.tokens = resetTokensToBase(match.tokens, color);
+    match.jumps = dropColorJumps(match.jumps, color);
+    match.shields = dropColorShields(match.shields, color);
 
     const standing = match.players.filter(
       p => !match.eliminated.includes(p.color),

@@ -31,6 +31,55 @@ export function waitFor<T = unknown>(
   });
 }
 
+/**
+ * Resolves on `event`, rejects if `errorEvent` lands first. A gateway that
+ * refuses an action answers on its error channel and nothing else, so without
+ * this a refusal surfaces as a timeout that names neither the action nor the
+ * reason.
+ *
+ * `where` skips events this caller is not waiting for. A broadcast reaches
+ * every seat's socket at its own pace, so one seat's socket can still be
+ * holding another seat's event when the next action goes out - taking that as
+ * the answer makes the test run one action ahead of the server.
+ */
+export function waitForOrError<T = unknown>(
+  socket: Socket,
+  event: string,
+  errorEvent: string,
+  options: { where?: (payload: T) => boolean; timeoutMs?: number } = {},
+): Promise<T> {
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  return new Promise<T>((resolve, reject) => {
+    const settle = (finish: () => void): void => {
+      clearTimeout(timer);
+      socket.off(event, onEvent);
+      socket.off(errorEvent, onError);
+      finish();
+    };
+    const onEvent = (payload: T): void => {
+      if (options.where && !options.where(payload)) {
+        return;
+      }
+      settle(() => resolve(payload));
+    };
+    const onError = (payload: { message?: string }): void =>
+      settle(() =>
+        reject(new Error(`"${event}" refused: ${payload?.message ?? ''}`)),
+      );
+    const timer = setTimeout(
+      () =>
+        settle(() =>
+          reject(
+            new Error(`Timed out after ${timeoutMs}ms waiting for "${event}"`),
+          ),
+        ),
+      timeoutMs,
+    );
+    socket.on(event, onEvent);
+    socket.on(errorEvent, onError);
+  });
+}
+
 /** Fails if the event arrives within the window. Use sparingly — it always
  *  costs its full duration. */
 export function expectNoEvent(

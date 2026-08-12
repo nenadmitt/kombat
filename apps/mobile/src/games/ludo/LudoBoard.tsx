@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import {
   BlurMask,
@@ -161,14 +161,20 @@ function LudoBoard({
     );
   }, [pulse]);
 
-  /** Screen-space anchor (pawn center) for every token of a color. */
+  const prevProgressRef = useRef(new Map<string, number>());
+
+  /** Screen-space anchor (pawn center) for every token of a color, plus the
+   *  intermediate track cells its last move walked through. */
   const tokenAnchors = useMemo(() => {
     const anchors: {
       color: LudoColor;
       tokenIndex: number;
       x: number;
       y: number;
+      path: { x: number; y: number }[];
     }[] = [];
+    const prevProgress = prevProgressRef.current;
+    const nextProgress = new Map<string, number>();
     for (const color of seatedColors) {
       const list = tokens[color] ?? [];
       // Group on-track tokens by cell so stacked pawns fan out slightly.
@@ -181,13 +187,33 @@ function LudoBoard({
         }
       });
       list.forEach((p, tokenIndex) => {
+        nextProgress.set(`${color}-${tokenIndex}`, p);
         if (p === -1) {
-          anchors.push({ color, tokenIndex, ...baseSlotCenter(color, tokenIndex, cell) });
+          anchors.push({
+            color,
+            tokenIndex,
+            ...baseSlotCenter(color, tokenIndex, cell),
+            path: [],
+          });
           return;
         }
         const boardCell = cellForProgress(color, p);
         if (!boardCell) {
           return; // home - rendered by the HUD count, not the board
+        }
+        // Cells between the previous progress and this one, so the pawn hops
+        // field by field instead of flying straight across the board. Base
+        // releases and captures (from/to -1) keep the single arc.
+        const from = prevProgress.get(`${color}-${tokenIndex}`);
+        const path: { x: number; y: number }[] = [];
+        if (from !== undefined && from >= 0 && from !== p) {
+          const dir = p > from ? 1 : -1;
+          for (let q = from + dir; q !== p; q += dir) {
+            const wc = cellForProgress(color, q);
+            if (wc) {
+              path.push({ x: (wc.col + 0.5) * cell, y: (wc.row + 0.5) * cell });
+            }
+          }
         }
         const stack = byCell.get(`${boardCell.row},${boardCell.col}`)!;
         const fan = stack.length > 1 ? stack.indexOf(tokenIndex) - (stack.length - 1) / 2 : 0;
@@ -197,9 +223,11 @@ function LudoBoard({
           tokenIndex,
           x: (boardCell.col + 0.5) * cell + fan * cell * 0.38,
           y: (boardCell.row + 0.5) * cell - Math.abs(fan) * cell * 0.06,
+          path,
         });
       });
     }
+    prevProgressRef.current = nextProgress;
     return anchors;
   }, [seatedColors, tokens, cell]);
 
@@ -296,6 +324,10 @@ function LudoBoard({
             key={`${anchor.color}-${anchor.tokenIndex}`}
             targetX={anchor.x - pawnW / 2}
             targetY={anchor.y - pawnH * 0.62}
+            path={anchor.path.map(w => ({
+              x: w.x - pawnW / 2,
+              y: w.y - pawnH * 0.62,
+            }))}
             width={pawnW}
             height={pawnH}
             hop={cell * 0.6}
@@ -313,15 +345,19 @@ function LudoBoard({
   );
 }
 
+/** Per-cell hop duration when a move walks several fields. */
+const HOP_MS = 150;
+
 /**
- * A pawn that hops to wherever its target moves: position changes animate
- * along a sine arc (a jump), covering normal moves, base releases and
- * captures being sent home alike. A movable (highlighted) pawn enlarges and
- * glows in step with the board's shared pulse.
+ * A pawn that hops to wherever its target moves. A move along the track hops
+ * through every `path` cell in order (one arc per field); base releases and
+ * captures pass an empty path and jump in a single arc. A movable
+ * (highlighted) pawn enlarges and glows in step with the board's shared pulse.
  */
 function AnimatedPawn({
   targetX,
   targetY,
+  path,
   width,
   height,
   hop,
@@ -333,6 +369,7 @@ function AnimatedPawn({
 }: {
   targetX: number;
   targetY: number;
+  path: { x: number; y: number }[];
   width: number;
   height: number;
   hop: number;
@@ -342,40 +379,53 @@ function AnimatedPawn({
   pulse: SharedValue<number>;
   glowRadius: number;
 }) {
-  const fromX = useSharedValue(targetX);
-  const fromY = useSharedValue(targetY);
-  const toX = useSharedValue(targetX);
-  const toY = useSharedValue(targetY);
+  const xs = useSharedValue([targetX, targetX]);
+  const ys = useSharedValue([targetY, targetY]);
+  // Measured in segments: floor = current waypoint, fraction = hop progress.
   const progress = useSharedValue(1);
 
   useEffect(() => {
-    if (toX.value === targetX && toY.value === targetY) {
+    const curXs = xs.value;
+    const curYs = ys.value;
+    if (
+      curXs[curXs.length - 1] === targetX &&
+      curYs[curYs.length - 1] === targetY
+    ) {
       return;
     }
     // Start the jump from wherever the pawn is rendered right now, so a
     // target change mid-flight doesn't teleport it.
-    const p = progress.value;
-    fromX.value = fromX.value + (toX.value - fromX.value) * p;
-    fromY.value = fromY.value + (toY.value - fromY.value) * p;
-    toX.value = targetX;
-    toY.value = targetY;
+    const segs = curXs.length - 1;
+    const p = Math.min(Math.max(progress.value, 0), segs);
+    const i = Math.min(Math.floor(p), segs - 1);
+    const t = p - i;
+    const startX = curXs[i]! + (curXs[i + 1]! - curXs[i]!) * t;
+    const startY = curYs[i]! + (curYs[i + 1]! - curYs[i]!) * t;
+    const nextXs = [startX, ...path.map(w => w.x), targetX];
+    const nextYs = [startY, ...path.map(w => w.y), targetY];
+    xs.value = nextXs;
+    ys.value = nextYs;
+    const nextSegs = nextXs.length - 1;
     progress.value = 0;
-    progress.value = withTiming(1, {
-      duration: 420,
-      easing: Easing.out(Easing.quad),
+    progress.value = withTiming(nextSegs, {
+      duration: nextSegs > 1 ? nextSegs * HOP_MS : 420,
+      easing: nextSegs > 1 ? Easing.linear : Easing.out(Easing.quad),
     });
-  }, [targetX, targetY, fromX, fromY, toX, toY, progress]);
+  }, [targetX, targetY, path, xs, ys, progress]);
 
   // Scale about the pawn's visual center (where it stands on its cell).
   const cx = width / 2;
   const cy = height * 0.62;
   const transform = useDerivedValue(() => {
-    const p = progress.value;
-    const x = fromX.value + (toX.value - fromX.value) * p;
-    const y =
-      fromY.value +
-      (toY.value - fromY.value) * p -
-      Math.sin(Math.min(1, Math.max(0, p)) * Math.PI) * hop;
+    const px = xs.value;
+    const py = ys.value;
+    const segs = px.length - 1;
+    const p = Math.min(Math.max(progress.value, 0), segs);
+    const i = Math.min(Math.floor(p), segs - 1);
+    const t = p - i;
+    const x = px[i]! + (px[i + 1]! - px[i]!) * t;
+    const hopHeight = segs > 1 ? hop * 0.55 : hop;
+    const y = py[i]! + (py[i + 1]! - py[i]!) * t - Math.sin(t * Math.PI) * hopHeight;
     const scale = highlighted ? 1 + 0.18 * pulse.value : 1;
     return [
       { translateX: x + cx },

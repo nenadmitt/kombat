@@ -16,7 +16,7 @@ const RGB: Record<LudoColor, [number, number, number]> = {
   red: [255, 90, 110],
   green: [62, 224, 143],
   yellow: [245, 184, 41],
-  blue: [91, 141, 239],
+  blue: [122, 165, 255],
 };
 
 export function ludoTint(color: LudoColor, alpha: number): string {

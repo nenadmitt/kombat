@@ -18,6 +18,7 @@ import {
   MatchHistoryEntry,
   ROOM_EVENTS,
   RPS_EVENTS,
+  SALVO_EVENTS,
   StakeAsset,
   convertStakeAmount,
   supportsMultiplayerRoom,
@@ -40,6 +41,7 @@ import { MaintenanceService } from '../maintenance';
 import { LudoMatchService } from './ludo/ludo-match.service';
 import { participantsOf } from './room.util';
 import { RpsMatchService } from './rps/rps-match.service';
+import { SalvoMatchService } from './salvo/salvo-match.service';
 import { resolveJoinToken, stakeAssetFor } from './stakes/stake-legs.util';
 import { StakesService } from './stakes/stakes.service';
 
@@ -53,6 +55,7 @@ export class GamesService {
     private readonly chromaMatchService: ChromaMatchService,
     private readonly ludoMatchService: LudoMatchService,
     private readonly rpsMatchService: RpsMatchService,
+    private readonly salvoMatchService: SalvoMatchService,
     private readonly stakesService: StakesService,
   ) {}
 
@@ -546,9 +549,12 @@ export class GamesService {
     // existed, completing the DB room is enough to end it. Each 2-player game
     // ends its own live match state and announces on its own channel event.
     const isRps = room.gameType === GameType.TripleCut;
+    const isSalvo = room.gameType === GameType.Salvo;
     try {
       if (isRps) {
         await this.rpsMatchService.forfeit(roomId, userId);
+      } else if (isSalvo) {
+        await this.salvoMatchService.forfeit(roomId, userId);
       } else {
         await this.battleshipMatchService.forfeit(roomId, userId);
       }
@@ -562,7 +568,11 @@ export class GamesService {
     // drops it.)
     this.websocketsService.sendToChannel(
       gameChannel(roomId),
-      isRps ? RPS_EVENTS.ended : BATTLESHIP_EVENTS.ended,
+      isRps
+        ? RPS_EVENTS.ended
+        : isSalvo
+          ? SALVO_EVENTS.ended
+          : BATTLESHIP_EVENTS.ended,
       { winnerUserId: opponentId, reason: 'forfeit' },
     );
 

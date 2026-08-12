@@ -51,18 +51,20 @@ function LudoFlow({
 
   return (
     <div className="page">
-      <div className="match-topline">
+      <div className="match-topline ludo-topline">
         <button
           type="button"
           className="btn btn-surface"
           onClick={() => leave.request(() => navigate('/lobby'))}
         >
           <ArrowLeft size={16} />
-          {over || !multiplayer ? 'Back to lobby' : 'Leave board'}
+          <span className="ludo-top-label">
+            {over || !multiplayer ? 'Back to lobby' : 'Leave board'}
+          </span>
         </button>
 
         <div className="match-topline-title">
-          <h1 className="page-title" style={{ fontSize: 20 }}>
+          <h1 className="page-title ludo-match-title">
             Ludo Royale{multiplayer ? '' : ' - practice'}
           </h1>
           <span className="match-topline-sub">
@@ -83,10 +85,10 @@ function LudoFlow({
             onClick={() => setConfirmForfeit(true)}
           >
             <Flag size={16} color="var(--loss)" />
-            Forfeit
+            <span className="ludo-top-label">Forfeit</span>
           </button>
         ) : (
-          <span style={{ width: 110 }} />
+          <span className="ludo-top-spacer" />
         )}
       </div>
 

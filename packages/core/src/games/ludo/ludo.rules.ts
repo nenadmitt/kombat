@@ -5,6 +5,8 @@ import {
   TOKENS_PER_PLAYER,
   TRACK_END,
 } from './ludo.board';
+import { jumpDistance } from './ludo.jumps';
+import { hasShield, type LudoShields } from './ludo.shields';
 import type {
   LudoCapture,
   LudoColor,
@@ -28,11 +30,14 @@ export function colorForSeat(seat: number): LudoColor {
   return LUDO_COLORS[seat]!;
 }
 
-/** A fresh token set for the given colors: everything in base. */
+/** A fresh token set: every color opens with one pawn already on its start
+ *  cell, the rest in base. The placement is not a move, so it pays nothing. */
 export function initialTokens(colors: LudoColor[]): LudoTokens {
   const tokens: LudoTokens = {};
   for (const color of colors) {
-    tokens[color] = Array.from({ length: TOKENS_PER_PLAYER }, () => -1);
+    tokens[color] = Array.from({ length: TOKENS_PER_PLAYER }, (_, index) =>
+      index === 0 ? 0 : -1,
+    );
   }
   return tokens;
 }
@@ -44,12 +49,14 @@ export function initialTokens(colors: LudoColor[]): LudoTokens {
  * holding one of the player's OWN tokens is illegal - no stacking (home
  * itself excepted; different colors may still share safe cells). Same color
  * + same progress is always the same cell, so occupancy is a progress
- * comparison.
+ * comparison. `jumped` names the token indices carrying Extra Jump, whose
+ * shared-track steps count double.
  */
 export function legalMoves(
   tokens: LudoTokens,
   color: LudoColor,
   die: number,
+  jumped: readonly number[] = [],
 ): number[] {
   const own = tokens[color] ?? [];
   const moves: number[] = [];
@@ -58,10 +65,11 @@ export function legalMoves(
     if (p === HOME_PROGRESS) {
       continue;
     }
-    if (p === -1 ? die !== DIE_SIDES : p + die > HOME_PROGRESS) {
+    const step = jumpDistance(p, die, jumped.includes(i));
+    if (p === -1 ? die !== DIE_SIDES : p + step > HOME_PROGRESS) {
       continue;
     }
-    const target = p === -1 ? 0 : p + die;
+    const target = p === -1 ? 0 : p + step;
     const blockedByOwn =
       target !== HOME_PROGRESS &&
       own.some((other, j) => j !== i && other === target);
@@ -83,15 +91,17 @@ export type LudoMoveResult = {
 
 /**
  * Apply a legal move and resolve captures: landing on a non-safe shared-track
- * cell sends every other color's token on that cell back to its base.
- * Pure - returns a new token map. The caller is responsible for only passing
- * moves that `legalMoves` allows.
+ * cell sends every other color's token on that cell back to its base. A
+ * shielded token reads like a safe cell - both pawns coexist and nothing is
+ * captured. Pure - returns a new token map. The caller is responsible for
+ * only passing moves that `legalMoves` allows.
  */
 export function applyMove(
   tokens: LudoTokens,
   color: LudoColor,
   tokenIndex: number,
   die: number,
+  shields?: LudoShields,
 ): LudoMoveResult {
   const fromProgress = tokens[color]![tokenIndex]!;
   const toProgress = fromProgress === -1 ? 0 : fromProgress + die;
@@ -112,6 +122,9 @@ export function applyMove(
         const list = next[other]!;
         for (let i = 0; i < list.length; i++) {
           const p = list[i]!;
+          if (hasShield(shields, other, i)) {
+            continue;
+          }
           if (p >= 0 && p <= TRACK_END && absoluteTrackIndex(other, p) === landedAbs) {
             list[i] = -1;
             captures.push({ color: other, tokenIndex: i });

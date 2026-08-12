@@ -71,7 +71,7 @@ export const colors = {
   ludoRed: '#ff5a6e',
   ludoGreen: '#3ee08f',
   ludoYellow: '#f5b829',
-  ludoBlue: '#5b8def',
+  ludoBlue: '#7aa5ff',
 
   // ---- Chroma Clash suit colors (from the Chroma Clash design) -----------
   chromaCrimson: '#E5484D',

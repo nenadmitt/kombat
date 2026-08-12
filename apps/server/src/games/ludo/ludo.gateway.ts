@@ -19,8 +19,12 @@ import { LudoMatchService } from './ludo-match.service';
 import {
   LudoEnterDto,
   LudoForfeitDto,
+  LudoJumpDto,
+  LudoLaunchDto,
   LudoMoveDto,
   LudoRollDto,
+  LudoShieldDto,
+  LudoTeleportDto,
 } from './ludo.dto';
 
 type SocketWithUser = Socket & { data: { userId?: string } };
@@ -95,7 +99,7 @@ export class LudoGateway {
     }
     try {
       await this.loadParticipantRoom(dto.roomId, userId);
-      const payload = await this.matchService.move(
+      const moved = await this.matchService.move(
         dto.roomId,
         userId,
         dto.tokenIndex,
@@ -103,15 +107,160 @@ export class LudoGateway {
       this.websocketsService.sendToChannel(
         gameChannel(dto.roomId),
         LUDO_EVENTS.moved,
-        payload,
+        moved,
       );
-      if (payload.winnerUserId) {
+      if (moved.winnerUserId) {
+        this.websocketsService.sendToChannel(
+          gameChannel(dto.roomId),
+          LUDO_EVENTS.ended,
+          { winnerUserId: moved.winnerUserId, reason: 'complete' },
+        );
         await this.stakesService.completeMatch(
           dto.roomId,
-          payload.winnerUserId,
+          moved.winnerUserId,
           'complete',
         );
       }
+    } catch (error) {
+      this.emitError(client, error);
+    }
+  }
+
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  @SubscribeMessage(LUDO_EVENTS.launch)
+  async handleLaunch(
+    @ConnectedSocket() client: SocketWithUser,
+    @MessageBody() dto: LudoLaunchDto,
+  ): Promise<void> {
+    const userId = client.data.userId;
+    if (!userId) {
+      return;
+    }
+    try {
+      await this.loadParticipantRoom(dto.roomId, userId);
+      const { launched, owner } = await this.matchService.launch(
+        dto.roomId,
+        userId,
+        dto.tokenIndex,
+      );
+      this.websocketsService.sendToChannel(
+        gameChannel(dto.roomId),
+        LUDO_EVENTS.launched,
+        launched,
+      );
+      this.websocketsService.sendToUser(
+        userId,
+        LUDO_EVENTS.abilityState,
+        owner,
+      );
+      if (launched.winnerUserId) {
+        this.websocketsService.sendToChannel(
+          gameChannel(dto.roomId),
+          LUDO_EVENTS.ended,
+          { winnerUserId: launched.winnerUserId, reason: 'complete' },
+        );
+        await this.stakesService.completeMatch(
+          dto.roomId,
+          launched.winnerUserId,
+          'complete',
+        );
+      }
+    } catch (error) {
+      this.emitError(client, error);
+    }
+  }
+
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  @SubscribeMessage(LUDO_EVENTS.jump)
+  async handleJump(
+    @ConnectedSocket() client: SocketWithUser,
+    @MessageBody() dto: LudoJumpDto,
+  ): Promise<void> {
+    const userId = client.data.userId;
+    if (!userId) {
+      return;
+    }
+    try {
+      await this.loadParticipantRoom(dto.roomId, userId);
+      const { jumped, owner } = await this.matchService.addJumpAbility(
+        dto.roomId,
+        userId,
+        dto.tokenIndex,
+      );
+      this.websocketsService.sendToChannel(
+        gameChannel(dto.roomId),
+        LUDO_EVENTS.jumped,
+        jumped,
+      );
+      this.websocketsService.sendToUser(
+        userId,
+        LUDO_EVENTS.abilityState,
+        owner,
+      );
+    } catch (error) {
+      this.emitError(client, error);
+    }
+  }
+
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  @SubscribeMessage(LUDO_EVENTS.teleport)
+  async handleTeleport(
+    @ConnectedSocket() client: SocketWithUser,
+    @MessageBody() dto: LudoTeleportDto,
+  ): Promise<void> {
+    const userId = client.data.userId;
+    if (!userId) {
+      return;
+    }
+    try {
+      await this.loadParticipantRoom(dto.roomId, userId);
+      const { teleported, owner } = await this.matchService.teleport(
+        dto.roomId,
+        userId,
+        dto.tokenIndex,
+      );
+      this.websocketsService.sendToChannel(
+        gameChannel(dto.roomId),
+        LUDO_EVENTS.teleported,
+        teleported,
+      );
+      this.websocketsService.sendToUser(
+        userId,
+        LUDO_EVENTS.abilityState,
+        owner,
+      );
+    } catch (error) {
+      this.emitError(client, error);
+    }
+  }
+
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  @SubscribeMessage(LUDO_EVENTS.shield)
+  async handleShield(
+    @ConnectedSocket() client: SocketWithUser,
+    @MessageBody() dto: LudoShieldDto,
+  ): Promise<void> {
+    const userId = client.data.userId;
+    if (!userId) {
+      return;
+    }
+    try {
+      await this.loadParticipantRoom(dto.roomId, userId);
+      const { shielded, owner } = await this.matchService.addShieldAbility(
+        dto.roomId,
+        userId,
+        dto.tokenIndex,
+      );
+      this.websocketsService.sendToChannel(
+        gameChannel(dto.roomId),
+        LUDO_EVENTS.shielded,
+        shielded,
+      );
+      this.websocketsService.sendToUser(
+        userId,
+        LUDO_EVENTS.abilityState,
+        owner,
+      );
     } catch (error) {
       this.emitError(client, error);
     }

@@ -11,6 +11,7 @@ import { ChromaMatchService } from './chroma/chroma-match.service';
 import { GamesService } from './games.service';
 import { LudoMatchService } from './ludo/ludo-match.service';
 import { RpsMatchService } from './rps/rps-match.service';
+import { SalvoMatchService } from './salvo/salvo-match.service';
 import { StakesService } from './stakes/stakes.service';
 
 const CREATOR = '11111111-1111-4111-8111-111111111111';
@@ -88,6 +89,7 @@ describe('GamesService cross-stable joins', () => {
       {} as ChromaMatchService,
       { getOrCreate: jest.fn() } as unknown as LudoMatchService,
       {} as RpsMatchService,
+      {} as SalvoMatchService,
       stakes as unknown as StakesService,
     );
   });

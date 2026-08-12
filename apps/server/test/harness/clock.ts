@@ -46,11 +46,25 @@ type CachedMatch = {
   timeouts: Record<string, number>;
 };
 
+/** Each game keys its match state and its turn deadlines differently. */
+type Game = 'battleship' | 'ludo';
+
+const MATCH_KEY: Record<Game, (roomId: string) => string> = {
+  battleship: CacheKeys.battleshipMatch,
+  ludo: CacheKeys.ludoMatch,
+};
+
+const TURN_KIND: Record<Game, DeadlineKind> = {
+  battleship: 'turn',
+  ludo: 'ludo-turn',
+};
+
 export function readMatch(
   testApp: TestApp,
   roomId: string,
+  game: Game = 'battleship',
 ): Promise<CachedMatch | null> {
-  return testApp.cache.getJson<CachedMatch>(CacheKeys.battleshipMatch(roomId));
+  return testApp.cache.getJson<CachedMatch>(MATCH_KEY[game](roomId));
 }
 
 /** Expire whichever turn the match is actually sitting on. The sweeper drops a
@@ -58,10 +72,11 @@ export function readMatch(
 export async function expireCurrentTurn(
   testApp: TestApp,
   roomId: string,
+  game: Game = 'battleship',
 ): Promise<void> {
-  const match = await readMatch(testApp, roomId);
+  const match = await readMatch(testApp, roomId, game);
   if (!match) {
     throw new Error(`No cached match for room ${roomId}`);
   }
-  await expireDeadline(testApp, roomId, 'turn', match.turnSeq);
+  await expireDeadline(testApp, roomId, TURN_KIND[game], match.turnSeq);
 }
