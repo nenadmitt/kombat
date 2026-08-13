@@ -52,6 +52,11 @@ export class Orchestrator {
     const feed = this.bots[0]!.socket;
     this.lobby.attach(feed);
     joinChannel(feed, LOBBY_CHANNEL);
+    // Channel membership is server-side; a reconnect silently leaves the feed.
+    feed.on('connect', () => {
+      joinChannel(feed, LOBBY_CHANNEL);
+      void this.lobby.reconcile();
+    });
     await this.lobby.reconcile();
 
     this.joinPolicy = new JoinPolicy(this.lobby, this.bots, this.config, this.log);

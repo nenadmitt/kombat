@@ -34,6 +34,7 @@ export class BotRuntime {
   hostedUntil = 0;
 
   readonly log: Logger;
+  private reconnectHook: (() => void) | null = null;
   api!: ApiClient;
   socket!: Socket;
   userId!: string;
@@ -59,6 +60,11 @@ export class BotRuntime {
     this.userId = session.userId;
     this.socket = connect(this.config.serverUrl, session.accessToken);
     await waitForConnect(this.socket);
+    this.socket.on('connect', () => {
+      if (!this.reconnectHook) return;
+      this.log.info('reconnected, re-entering');
+      this.reconnectHook();
+    });
     this.log.info('online');
     await this.recover();
   }
@@ -107,6 +113,9 @@ export class BotRuntime {
         config: this.config,
         log: this.log,
         signal: controller.signal,
+        onReconnect: redo => {
+          this.reconnectHook = redo;
+        },
       });
       this.log.info(
         result.winnerUserId === this.userId
@@ -117,6 +126,7 @@ export class BotRuntime {
       this.log.error(`match ${room.id} failed`, error);
     } finally {
       controller.abort();
+      this.reconnectHook = null;
       leaveChannel(this.socket, gameChannel(room.id));
       this.reset();
     }

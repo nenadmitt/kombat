@@ -26,7 +26,8 @@ type Local = {
 };
 
 export async function playLudo(ctx: DriverContext): Promise<DriverResult> {
-  const { api, socket, roomId, myUserId, config, log, signal } = ctx;
+  const { api, socket, roomId, myUserId, config, log, signal, onReconnect } =
+    ctx;
 
   // The first turn clock is already running when the match starts, so enter
   // and read the snapshot immediately rather than waiting for an event.
@@ -89,6 +90,11 @@ export async function playLudo(ctx: DriverContext): Promise<DriverResult> {
   });
 
   let resyncWanted = false;
+  onReconnect(() => {
+    joinChannel(socket, gameChannel(roomId));
+    socket.emit(LUDO_EVENTS.enter, { roomId });
+    resyncWanted = true;
+  });
   socket.on(LUDO_EVENTS.error, (payload: unknown) => {
     log.debug(`ludo error, resyncing: ${JSON.stringify(payload)}`);
     resyncWanted = true;

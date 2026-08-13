@@ -35,6 +35,7 @@ describe('GamesService cross-stable joins', () => {
     findCompletedGameRoomsForUser: jest.Mock;
     findMatchSettlementByRoomId: jest.Mock;
     findUserById: jest.Mock;
+    findOpenGameRoomForUser: jest.Mock;
   };
   let stakes: { assertSufficientBalance: jest.Mock; beginFunding: jest.Mock };
 
@@ -67,6 +68,8 @@ describe('GamesService cross-stable joins', () => {
       findCompletedGameRoomsForUser: jest.fn().mockResolvedValue([]),
       findMatchSettlementByRoomId: jest.fn().mockResolvedValue(null),
       findUserById: jest.fn().mockResolvedValue({ username: 'someone' }),
+      // The joiner has no room of their own to give up.
+      findOpenGameRoomForUser: jest.fn().mockResolvedValue(null),
     };
     db.findGameRoomByIdFresh.mockImplementation((id: string) =>
       db.findGameRoomById(id),

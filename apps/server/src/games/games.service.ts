@@ -201,7 +201,9 @@ export class GamesService {
     const chosen = joinToken !== room.stakeToken ? joinToken : null;
 
     if (isMultiSeatGame(room.gameType)) {
-      return this.joinMultiSeatRoom(userId, room, chosen);
+      const seat = await this.joinMultiSeatRoom(userId, room, chosen);
+      await this.releaseOwnRoom(userId, roomId);
+      return seat;
     }
 
     // Conditional seat-taking: if another joiner won the race between the
@@ -223,6 +225,8 @@ export class GamesService {
           }
         : {}),
     });
+    await this.releaseOwnRoom(userId, roomId);
+
     // Tell the creator before the lobby delta: a client that tracks its own
     // room by the lobby list would otherwise drop it and miss this.
     if (room.stakeToken !== null) {
@@ -238,6 +242,23 @@ export class GamesService {
     this.emitLobbyRemoved(joined);
 
     return toGameRoomSummary(joined);
+  }
+
+  /**
+   * A player holds one room. Taking a seat in someone else's gives up the one
+   * they were hosting: two rooms both read as theirs, and only one of them can
+   * be resumed, so the other would strand whoever was waiting in it.
+   */
+  private async releaseOwnRoom(
+    userId: string,
+    joinedRoomId: string,
+  ): Promise<void> {
+    const own = await this.dbService.findOpenGameRoomForUser(userId);
+    if (!own || own.id === joinedRoomId) return;
+    // A match already under way is not theirs to walk out of silently.
+    if (own.status !== GameRoomStatus.Pending) return;
+    await this.dbService.deleteGameRoom(own.id);
+    this.emitLobbyRemoved(own);
   }
 
   /**

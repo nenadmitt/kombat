@@ -12,6 +12,12 @@ export type DriverContext = {
   config: Config;
   log: Logger;
   signal: AbortSignal;
+  /**
+   * Register what to redo after a reconnect. socket.io room membership lives
+   * in the server's memory, so a reconnected socket is in no channel and
+   * hears nothing until it re-enters - it just looks offline to everyone else.
+   */
+  onReconnect: (redo: () => void) => void;
 };
 
 export type DriverResult = { winnerUserId: string | null };
