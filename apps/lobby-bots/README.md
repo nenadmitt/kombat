@@ -34,7 +34,14 @@ not a master key: presenting it for a real player's username is refused, and
 so is a roster name that was never seeded. The runner additionally checks the
 username it gets back matches the account it asked for.
 
-**3. Run it**, either on the host:
+**3. Run it.** The whole stack (databases, server, webgames, bots) comes up
+with one command from the repo root:
+
+```bash
+docker compose up -d --build
+```
+
+Or run just this service, on the host:
 
 ```bash
 npm run bots
