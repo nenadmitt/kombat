@@ -820,7 +820,7 @@ function FeaturedRoom({
           gap: 'var(--s-2)',
         }}
       >
-        <span className="dot" style={{ animation: 'kpulse 1.7s infinite' }} />
+        <span className="dot" />
         <span
           style={{
             fontWeight: 700,
