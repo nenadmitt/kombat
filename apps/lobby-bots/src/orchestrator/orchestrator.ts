@@ -9,12 +9,16 @@ import { BotRuntime } from '../bot/bot-runtime';
 import type { Config } from '../config';
 import { createLogger } from '../logger';
 import { joinChannel } from '../net/socket';
+import { ConcedePolicy } from './concede-policy';
 import { CreatePolicy } from './create-policy';
+import { FillPolicy } from './fill-policy';
 import { JoinPolicy } from './join-policy';
 import { LobbyModel } from './lobby-model';
 
 const JOIN_TICK_MS = 2_000;
 const CREATE_TICK_MS = 5_000;
+const FILL_TICK_MS = 2_000;
+const CONCEDE_TICK_MS = 5_000;
 const RECONCILE_MS = 20_000;
 const HEARTBEAT_MS = 60_000;
 
@@ -24,6 +28,8 @@ export class Orchestrator {
   private lobby!: LobbyModel;
   private joinPolicy!: JoinPolicy;
   private createPolicy!: CreatePolicy;
+  private fillPolicy!: FillPolicy;
+  private concedePolicy!: ConcedePolicy;
   private timers: NodeJS.Timeout[] = [];
   private stopping = false;
 
@@ -56,7 +62,12 @@ export class Orchestrator {
       this.log,
     );
 
+    this.fillPolicy = new FillPolicy(this.bots, this.config, this.log);
+    this.concedePolicy = new ConcedePolicy(this.bots, this.config, this.log);
+
     this.every(JOIN_TICK_MS, () => this.joinPolicy.tick());
+    this.every(FILL_TICK_MS, () => this.fillPolicy.tick());
+    this.every(CONCEDE_TICK_MS, () => this.concedePolicy.tick());
     this.every(CREATE_TICK_MS, () => this.createPolicy.tick());
     this.every(RECONCILE_MS, () => this.lobby.reconcile());
     this.every(HEARTBEAT_MS, async () => this.heartbeat());
@@ -82,10 +93,16 @@ export class Orchestrator {
     bot.socket.on(ROOM_EVENTS.started, (p: { roomId: string }) =>
       void enter(p.roomId),
     );
-    // A seat filled in a room this bot hosts, but it is not full yet.
-    bot.socket.on(ROOM_EVENTS.playerJoined, (p: { roomId: string }) => {
-      if (bot.room?.id === p.roomId) bot.hostedUntil = Date.now() + 60_000;
-    });
+    // A seat filled in a room this bot is sitting in. The count drives the
+    // fill schedule, so it has to track the server's, not our own sends.
+    bot.socket.on(
+      ROOM_EVENTS.playerJoined,
+      (p: { roomId: string; joinedCount: number }) => {
+        if (bot.room?.id !== p.roomId) return;
+        bot.room = { ...bot.room, joinedCount: p.joinedCount };
+        if (bot.state === 'hosting') bot.hostedUntil = Date.now() + 60_000;
+      },
+    );
   }
 
   private every(ms: number, task: () => Promise<unknown>): void {

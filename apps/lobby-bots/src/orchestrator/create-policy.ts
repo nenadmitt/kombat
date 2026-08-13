@@ -15,14 +15,25 @@ export class CreatePolicy {
     private readonly log: Logger,
   ) {}
 
-  private pickGameType(): GameType {
-    const total = this.config.gameMix.reduce((sum, e) => sum + e.weight, 0);
+  /**
+   * Weighted pick, but only among types under the per-game cap - otherwise a
+   * 0.6-weighted game fills every slot and the lobby reads as one game.
+   * Null when every type is at its cap.
+   */
+  private pickGameType(): GameType | null {
+    const open = this.lobby.openRoomsByGame();
+    const eligible = this.config.gameMix.filter(
+      entry => (open.get(entry.gameType) ?? 0) < this.config.maxRoomsPerGame,
+    );
+    if (eligible.length === 0) return null;
+
+    const total = eligible.reduce((sum, e) => sum + e.weight, 0);
     let roll = Math.random() * total;
-    for (const entry of this.config.gameMix) {
+    for (const entry of eligible) {
       roll -= entry.weight;
       if (roll <= 0) return entry.gameType;
     }
-    return this.config.gameMix[0]!.gameType;
+    return eligible[0]!.gameType;
   }
 
   async tick(): Promise<void> {
@@ -37,6 +48,7 @@ export class CreatePolicy {
     if (!bot) return;
 
     const gameType = this.pickGameType();
+    if (gameType === null) return;
     bot.state = 'hosting';
     try {
       // Bot-hosted rooms are always free: a bot should never put treasury at

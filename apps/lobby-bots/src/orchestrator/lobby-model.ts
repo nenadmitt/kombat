@@ -107,6 +107,15 @@ export class LobbyModel {
       );
   }
 
+  /** Open rooms of each game type, bot- and human-hosted alike. */
+  openRoomsByGame(): Map<number, number> {
+    const counts = new Map<number, number>();
+    for (const room of this.openRooms()) {
+      counts.set(room.gameType, (counts.get(room.gameType) ?? 0) + 1);
+    }
+    return counts;
+  }
+
   botHostedRooms(): GameRoomSummary[] {
     return this.openRooms().filter(room => this.isBotRoom(room));
   }

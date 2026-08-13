@@ -40,6 +40,11 @@ export class JoinPolicy {
     const candidates = this.lobby
       .humanRooms()
       .filter(({ room }) => !this.claimed.has(room.id))
+      // One seat per room from this policy. A multi-seat room stays Pending
+      // after a join, so without this every tick sent another bot in and a
+      // 4-seat table filled in seconds. Further seats are the fill policy's,
+      // on its slow schedule.
+      .filter(({ room }) => !this.bots.some(bot => bot.room?.id === room.id))
       .filter(({ room }) => !this.blacklisted.has(room.id))
       .filter(({ room }) => hasDriver(room.gameType))
       .filter(({ room, ageMs }) => ageMs >= this.delayFor(room.id));

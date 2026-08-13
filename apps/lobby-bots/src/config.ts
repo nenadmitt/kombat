@@ -11,6 +11,18 @@ export type Config = {
   joinDelayMs: Range;
   minOpenRooms: number;
   maxHostedRooms: number;
+  /** Open rooms of any one game type, so the lobby never looks single-game. */
+  maxRoomsPerGame: number;
+  /** How long a bot-hosted multi-seat room waits before a bot takes a seat. */
+  seatFillFirstMs: Range;
+  /** And between each seat after that. */
+  seatFillNextMs: Range;
+  /** Chance a host that *may* start early decides to, rather than wait for a full room. */
+  earlyStartChance: number;
+  /** How long such a host sits on a startable room before starting it. */
+  earlyStartMs: Range;
+  /** Before conceding a match that turned out to be bots only. */
+  concedeDelayMs: Range;
   hostedRoomTtlMs: Range;
   gameMix: { gameType: GameType; weight: number }[];
   stakesEnabled: boolean;
@@ -113,6 +125,12 @@ export function loadConfig(): Config {
     joinDelayMs: range('BOTS_JOIN_DELAY_MS', 20_000, 30_000),
     minOpenRooms: num('BOTS_MIN_OPEN_ROOMS', 4),
     maxHostedRooms: num('BOTS_MAX_HOSTED_ROOMS', 4),
+    maxRoomsPerGame: num('BOTS_MAX_ROOMS_PER_GAME', 2),
+    seatFillFirstMs: range('BOTS_SEAT_FILL_FIRST_MS', 5_000, 10_000),
+    seatFillNextMs: range('BOTS_SEAT_FILL_NEXT_MS', 15_000, 20_000),
+    earlyStartChance: num('BOTS_EARLY_START_CHANCE', 0.5),
+    earlyStartMs: range('BOTS_EARLY_START_MS', 20_000, 45_000),
+    concedeDelayMs: range('BOTS_CONCEDE_DELAY_MS', 5_000, 15_000),
     hostedRoomTtlMs: range('BOTS_HOSTED_ROOM_TTL_MS', 180_000, 480_000),
     gameMix: parseGameMix(
       process.env.BOTS_GAME_MIX ?? 'NavalBattle:0.6,Ludo:0.4',
