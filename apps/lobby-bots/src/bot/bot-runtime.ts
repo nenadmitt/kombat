@@ -7,7 +7,7 @@ import {
 } from '@gaming-platform/core';
 import type { Socket } from 'socket.io-client';
 
-import { loginTestOtp } from '../auth/login';
+import { loginBot } from '../auth/login';
 import type { Config } from '../config';
 import { playBattleship } from '../drivers/battleship.driver';
 import { playLudo } from '../drivers/ludo.driver';
@@ -46,7 +46,7 @@ export class BotRuntime {
   }
 
   async start(): Promise<void> {
-    const session = await loginTestOtp(this.config, this.account.email);
+    const session = await loginBot(this.config, this.account.username);
     // Signing in creates the account if it is missing, so a roster that was
     // never seeded would quietly fill the lobby with nameless, unflagged
     // users. The username is the one thing seeding sets that login cannot.

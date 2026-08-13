@@ -35,8 +35,9 @@ COPY --from=builder /repo/apps/lobby-bots/dist apps/lobby-bots/dist
 USER node
 WORKDIR /repo/apps/lobby-bots
 
-# Every knob is an env var; the image ships no .env. On Docker Desktop the
-# API on the host is reachable at host.docker.internal.
+# Every knob is an env var; the image ships no .env, and BOTS_SECRET has to be
+# supplied at run time. On Docker Desktop the API on the host is reachable at
+# host.docker.internal.
 ENV BOTS_SERVER_URL=http://host.docker.internal:3000
 
 CMD ["node", "dist/main.js"]

@@ -25,6 +25,8 @@ export class ConfigurationService {
   public readonly RESEND_API_KEY: string | undefined;
   /** Optional — when unset, the /admin endpoints reject every request. */
   public readonly ADMIN_TOKEN: string | undefined;
+  /** Shared secret the lobby-bot runner signs in with. */
+  public readonly BOT_SECRET: string | undefined;
   public readonly EMAIL_FROM: string;
   public readonly IS_PRODUCTION: boolean;
 
@@ -112,6 +114,7 @@ export class ConfigurationService {
     this.REDIS_URL = this.configService.get('REDIS_URL');
     this.RESEND_API_KEY = this.configService.get('RESEND_API_KEY');
     this.ADMIN_TOKEN = this.configService.get('ADMIN_TOKEN');
+    this.BOT_SECRET = this.configService.get('BOT_SECRET');
     this.EMAIL_FROM =
       this.configService.get('EMAIL_FROM') ?? 'login@gaming-platform.local';
     this.IS_PRODUCTION = isProductionEnv(this.configService.get('NODE_ENV'));

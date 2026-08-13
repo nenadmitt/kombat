@@ -23,12 +23,16 @@ Idempotent: re-running adds nothing. Each account gets an email, a username,
 renames anyone - a username already held by someone else comes back as
 `skipped`.
 
-**2. The server needs `NODE_ENV=development`.** Bots sign in through the
-test-token route, which 404s on anything the server considers production
-(`NODE_ENV` unset counts as production). Signing in also *creates* an account
-when one is missing, so the runner refuses to start if a username does not
-match the roster - an unseeded roster would otherwise fill the lobby with
-nameless, unflagged users.
+**2. Set the shared secret.** The runner signs in at
+`POST /authentication/bot-login` with a roster username and `BOTS_SECRET`,
+which must match the server's `BOT_SECRET` (16 chars minimum, or the route is
+refused as unsecured). This works in production - there is no `NODE_ENV`
+requirement.
+
+The route reaches `is_bot` accounts only and creates nothing, so the secret is
+not a master key: presenting it for a real player's username is refused, and
+so is a roster name that was never seeded. The runner additionally checks the
+username it gets back matches the account it asked for.
 
 **3. Run it**, either on the host:
 
@@ -42,7 +46,7 @@ the runner consumes `@gaming-platform/core` from its build):
 ```bash
 docker build -f apps/lobby-bots/Dockerfile -t kombat-lobby-bots .
 docker run --rm --add-host=host.docker.internal:host-gateway \
-  -e BOTS_COUNT=20 kombat-lobby-bots
+  -e BOTS_COUNT=20 -e BOTS_SECRET="$BOT_SECRET" kombat-lobby-bots
 ```
 
 The image ships no `.env`; every knob is an environment variable, and
@@ -59,6 +63,7 @@ See `.env.example`. The ones worth knowing:
 | Key | Default | |
 | --- | --- | --- |
 | `BOTS_SERVER_URL` | `http://localhost:3000` | API and socket origin |
+| `BOTS_SECRET` | - | must equal the server's `BOT_SECRET` |
 | `BOTS_COUNT` | 10 | how many of the roster to run |
 | `BOTS_JOIN_DELAY_MS_MIN/MAX` | 20000 / 30000 | how long a room must sit unanswered |
 | `BOTS_MIN_OPEN_ROOMS` | 4 | the lobby floor bots defend |

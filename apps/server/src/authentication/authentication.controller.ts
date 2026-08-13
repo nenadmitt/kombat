@@ -16,6 +16,7 @@ import { CallerPlatform } from './decorators/caller-platform.decorator';
 import { SecurityContext } from './decorators/security-context.decorator';
 import { ExchangeTokenDto } from './dto/exchange-token.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { BotLoginDto } from './dto/bot-login.dto';
 import { RequestTokenDto } from './dto/request-token.dto';
 import { SiweVerifyDto } from './dto/siwe-verify.dto';
 import { JwtTokenGuard } from './guards/jwt-token.guard';
@@ -66,6 +67,13 @@ export class AuthenticationController {
   }
 
   @Throttle({ default: { ttl: seconds(60), limit: 20 } })
+  /** The lobby-bot runner. Unlike request-token/test this exists in production;
+   *  it reaches is_bot accounts only. */
+  @Post('bot-login')
+  async botLogin(@Body() dto: BotLoginDto): Promise<AuthSession> {
+    return this.authenticationService.signInAsBot(dto.username, dto.secret);
+  }
+
   @Post('siwe/nonce')
   @HttpCode(HttpStatus.OK)
   async siweNonce(): Promise<{ nonce: string }> {

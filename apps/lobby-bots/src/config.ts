@@ -3,13 +3,11 @@ import { join } from 'node:path';
 
 import { GameType, StakeAsset } from '@gaming-platform/core';
 
-export type AuthMode = 'test-otp' | 'siwe';
-
 export type Config = {
   serverUrl: string;
   botCount: number;
-  authMode: AuthMode;
-  adminToken: string | null;
+  /** Shared with the server's BOT_SECRET; the only credential the runner holds. */
+  secret: string | null;
   joinDelayMs: Range;
   minOpenRooms: number;
   maxHostedRooms: number;
@@ -105,21 +103,13 @@ export function loadConfig(): Config {
     process.loadEnvFile(ENV_FILE);
   }
 
-  const authMode = (process.env.BOTS_AUTH_MODE ?? 'test-otp') as AuthMode;
-  if (authMode !== 'test-otp' && authMode !== 'siwe') {
-    throw new Error(`BOTS_AUTH_MODE must be test-otp or siwe, got "${authMode}"`);
-  }
-
-  const adminToken = process.env.BOTS_ADMIN_TOKEN?.trim() || null;
-
   return {
     serverUrl: (process.env.BOTS_SERVER_URL ?? 'http://localhost:3000').replace(
       /\/+$/,
       '',
     ),
     botCount: num('BOTS_COUNT', 10),
-    authMode,
-    adminToken,
+    secret: process.env.BOTS_SECRET?.trim() || null,
     joinDelayMs: range('BOTS_JOIN_DELAY_MS', 20_000, 30_000),
     minOpenRooms: num('BOTS_MIN_OPEN_ROOMS', 4),
     maxHostedRooms: num('BOTS_MAX_HOSTED_ROOMS', 4),
