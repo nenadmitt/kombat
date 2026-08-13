@@ -10,7 +10,6 @@ export type Config = {
   botCount: number;
   authMode: AuthMode;
   adminToken: string | null;
-  stateFile: string;
   joinDelayMs: Range;
   minOpenRooms: number;
   maxHostedRooms: number;
@@ -121,8 +120,6 @@ export function loadConfig(): Config {
     botCount: num('BOTS_COUNT', 10),
     authMode,
     adminToken,
-    stateFile:
-      process.env.BOTS_STATE_FILE ?? join(__dirname, '..', 'state', 'bots.json'),
     joinDelayMs: range('BOTS_JOIN_DELAY_MS', 20_000, 30_000),
     minOpenRooms: num('BOTS_MIN_OPEN_ROOMS', 4),
     maxHostedRooms: num('BOTS_MAX_HOSTED_ROOMS', 4),
