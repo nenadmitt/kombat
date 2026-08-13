@@ -1,190 +1,189 @@
 # Lobby Bots — external bot runner (`apps/lobby-bots`)
 
-## Context
+## What it does
 
-The lobby often looks empty, so real players create a room, see no action, and leave. This adds a pool of **~100 provisioned bot accounts** with human-looking usernames, of which **5-10 are active at any moment** (rotated so regulars keep seeing different names). Active bots **join human rooms that sit unanswered for 10-25s**, **create rooms when the lobby is thin**, and **play matches to completion** (Battleship + Ludo) using the bot policies already in `packages/core`. Staked play is **KOMBAT-only behind a config flag, default off**.
+The lobby often looks empty, so real players create a room, see no action, and
+leave. This runs **10 provisioned bot accounts**, all live at once, that:
 
-Decisions already made by the user: ~100 real accounts (not renaming), separate runner process (not in-server), staked KOMBAT allowed behind config, join-after-10-15s + create-when-thin behavior, and **bot accounts are marked `is_bot` in the database so they can be kept out of rankings and out of any online-players list** (Step 0b). Prior investigation: `bugs-and-improvements/bot-accounts-lobby-fill.md` (its join-race concern is since fixed via conditional UPDATE; its build-list item 1 is exactly the `is_bot` column, now in scope).
+1. Watch the lobby for rooms created by real players — free, or staked in
+   **KOMBAT** when the bot's pot balance covers the stake.
+2. **Join a human room that nobody has joined for 20-30 seconds.** Never join a
+   room hosted by another bot.
+3. **Keep at least 4 open rooms in the lobby.** When fewer are open, an idle bot
+   hosts a new one.
+4. **Play the match to the end** using the bot policies already in
+   `packages/core`.
 
-**One one-line core change, plus the `is_bot` column and its two exclusions on the server.** Match play itself still runs entirely through existing public endpoints as a real client: the framework-free `ApiClient` (`packages/core/src/api/api-client.ts`) + `socket.io-client`, patterned on the e2e harness (`apps/server/test/harness/actor.ts`). The runner never touches the database — provisioning sets the flag through an admin-token endpoint.
+Everything runs through the existing public API and sockets as a real client:
+the framework-free `ApiClient` (`packages/core/src/api/api-client.ts`) plus
+`socket.io-client`, patterned on the e2e harness
+(`apps/server/test/harness/actor.ts`). The runner never touches the database.
+
+Bot accounts are marked `is_bot` on the server so they stay out of the
+rankings — done, see "Server prerequisite" below.
 
 ## Architecture
 
-One Node process (new workspace `@gaming-platform/lobby-bots`; root `workspaces: ["apps/*"]` picks it up automatically). Each active bot = one ApiClient + one socket + a state machine (`activating → idle → hosting|joining → playing → cooldown → idle`, honoring `retiring`). A central orchestrator owns the shared lobby model, rotation, and join/create policies; per-game drivers play matches.
+One Node process, new workspace `@gaming-platform/lobby-bots` (root
+`workspaces: ["apps/*"]` picks it up automatically). Each bot is one ApiClient +
+one socket + a small state machine (`idle → hosting|joining → playing → idle`).
+A central orchestrator owns the shared lobby view and the two policies.
 
 ```
-main.ts ─ config ─ bot store (state/bots.json, gitignored, chmod 600)
+main.ts ─ config ─ bot store (state/bots.json, gitignored)
    │
 Orchestrator
-   ├─ Rotation (which 5-10 of ~100 are live; staggered 30-90min sessions, LRU pick)
-   ├─ LobbyModel (lobby socket events + 20-30s REST poll reconcile; room ages;
-   │              bot rooms classified by creatorUserId ∈ own-account set)
-   ├─ JoinPolicy (human Pending room aged past its sampled 10-25s delay →
-   │              in-memory claim map → one idle bot joins; 409 = release+blacklist)
-   ├─ CreatePolicy (humanPendingRooms < floor && botHosted < cap → idle bot hosts;
-   │                hosted-room TTL 3-8min then closeGameRoom)
-   └─ BotRuntime × N ─ GameDriver (battleship / ludo) + pacing (jitter, deadline-clamped)
+   ├─ LobbyModel   (lobby socket events + periodic REST reconcile; room ages;
+   │                bot-hosted rooms classified by creatorUserId ∈ own accounts)
+   ├─ JoinPolicy   (human room older than its sampled 20-30s delay → one idle
+   │                bot joins; in-memory claim stops pile-ons)
+   ├─ CreatePolicy (open human+bot rooms < 4 → an idle bot hosts one)
+   └─ BotRuntime × 10 ─ GameDriver (battleship | ludo) + human-ish pacing
 ```
 
-## Step 0 — Core prerequisite (verified)
+## Server prerequisite (done)
 
-`packages/core/src/games/battleship/battleship.bot.ts:54` — export `chooseAim(fleet, shots)` and the `Aim` type (line 20); both are currently module-private. `chooseAim` is pure hunt/target aiming; the networked bot feeds it a **synthetic fleet** built only from `revealedOpponentShips` (from `ShotPayload.sunkShips` / room state), which gives exactly-right behavior (unsunk hits stay "active"). Rebuild core after (`npm run build --workspace @gaming-platform/core` — core is consumed via `dist/`).
-
-## Step 0b — Server prerequisite: mark bot accounts (`is_bot`)
-
-The runner can classify its own accounts in memory, but the *server* cannot — so
-rankings and presence need a persisted flag.
-
-- **Entity**: `apps/server/src/db/entities/user.entity.ts` — add `isBot` after
-  `platform`, matching the repo's only boolean column style
-  (`game-room.entity.ts:40`): `@Column({ name: 'is_bot', type: 'boolean', default: false })`.
-  Columns here carry an explicit snake_case `name` — there is no global naming
-  strategy.
-- **Migration**: new `apps/server/src/db/migrations/1786200000000-UserIsBot.ts`,
-  `class UserIsBot1786200000000` with an explicit `name` field. Timestamps in
-  this directory are hand-picked and sequential, not `Date.now()`; the current
-  head is `1786100000000-CrossStableStakes.ts`. Body is a single
-  `ALTER TABLE "users" ADD COLUMN "is_bot" boolean NOT NULL DEFAULT false`
-  plus its `down`. Migrations are picked up by a glob
-  (`db.module.ts:63`), so nothing needs registering.
-- **Rankings exclusion**: `apps/server/src/db/db.service.ts` — `findRankings`
-  is raw SQL and already `LEFT JOIN users u ON u.id = participant` (line 446).
-  Add `AND COALESCE(u.is_bot, false) = false` to the `WHERE` at line 447-449.
-  `COALESCE` because the join is a LEFT JOIN. This is the only ranking query in
-  the codebase; `rankings.service.ts:12` only numbers the rows afterwards, and
-  its 1-based ranks stay correct because the filter happens before `LIMIT`.
-- **Presence exclusion**: `WebsocketsService.getOnlineUserIds()`
-  (`websockets/websockets.service.ts:67`) returns an in-memory per-instance
-  `Map` of userId → socket count. **There is no player-facing online-users
-  endpoint today** — every consumer is admin-only (`GET /admin/users/active`,
-  and the `users.online` counts in `admin.service.ts:145,169,200`). So:
-  operators should keep seeing bots, with `isBot` surfaced on `AdminUserView`
-  (`admin.service.ts:246`) and `AdminUserStatsRow` so they are
-  distinguishable; the exclusion belongs on whatever first exposes presence to
-  players. Add it now as a filtered accessor so that surface cannot forget.
-- **Setting the flag**: `apps/server/src/admin/admin.controller.ts` is
-  `AdminTokenGuard`-guarded and already carries mutations (`DELETE users/:id`,
-  `POST maintenance`). Add `PATCH admin/users/:id/bot` taking `{isBot: boolean}`;
-  the provisioning CLI calls it with `BOTS_ADMIN_TOKEN` right after each
-  account is created. Keeps the runner off the database and makes mislabelling
-  reversible by hand.
-- **Do not** expose `isBot` on `PublicUserProfile`
-  (`packages/core/src/authentication/authentication.types.ts:32`) or on
-  `RankingEntry` — that is a product decision about disclosure, separate from
-  keeping bots out of the leaderboard, and shipping it silently would change
-  what opponents see mid-match.
-
-Runtime classification inside the runner (Step 5) stays as it is: it uses its
-own account-id set, which needs no round trip and works before the flag is read
-back.
+- `users.is_bot` + migration `1786200000000-UserIsBot`, defaulting false.
+- `findRankings` drops flagged accounts.
+- `PATCH /admin/users/:id/bot` (admin-token guarded) — how provisioning marks
+  each account. Keeps the runner off the database.
+- Presence is deliberately untouched: every `getOnlineUserIds` consumer is
+  operator-facing, so `AdminUserView` carries `isBot` instead. The exclusion
+  belongs on whatever first shows presence to players.
+- `chooseAim` + the `Aim` type are exported from core for the battleship driver.
 
 ## Step 1 — Workspace
 
 ```
 apps/lobby-bots/
-  package.json   deps: @gaming-platform/core, socket.io-client ^4.8.3, viem ^2.55.10 (match webgames versions)
-                 devDeps: typescript, tsx, @types/node
-                 scripts: build(tsc), typecheck(tsc --noEmit), start(node dist/main.js),
-                          dev(tsx src/main.ts), provision(tsx src/provision/provision.ts)
-  tsconfig.json  .gitignore (state/)  state/
+  package.json    deps: @gaming-platform/core, socket.io-client
+                  scripts: build, typecheck, start, dev, provision, test
+  tsconfig.json   .gitignore (state/)   .env.example
   src/
     main.ts  config.ts  logger.ts
-    state/bot-store.ts        provision/name-pool.ts  provision/provision.ts
+    state/bot-store.ts        provision/{name-pool,provision}.ts
     auth/login.ts             net/socket.ts
-    orchestrator/{orchestrator,rotation,lobby-model,join-policy,create-policy}.ts
-    bot/{bot-runtime,pacing}.ts   stakes/staking.ts
+    orchestrator/{orchestrator,lobby-model,join-policy,create-policy}.ts
+    bot/{bot-runtime,pacing}.ts    stakes/staking.ts
     drivers/{driver,battleship.driver,ludo.driver}.ts
-  test/                       node:test unit tests
+  test/           node:test unit tests
 ```
 
-Root `package.json` scripts (existing style): `"bots": "npm run dev --workspace @gaming-platform/lobby-bots"`, `"bots:provision": "npm run provision --workspace @gaming-platform/lobby-bots --"`. `turbo.json` unchanged.
+Root scripts: `bots` (dev) and `bots:provision`.
 
-## Step 2 — Config (`src/config.ts`)
+## Step 2 — Config
 
-Env-first (`process.loadEnvFile()` on `apps/lobby-bots/.env`, no dotenv dep) + optional `BOTS_CONFIG_FILE` JSON overlay; defaults for everything. Keys: `BOTS_SERVER_URL` (localhost:3000), `BOTS_STATE_FILE`, `BOTS_AUTH_MODE` (siwe|test-otp), `BOTS_SIWE_DOMAIN/URI` + `BOTS_CHAIN_ID`, `BOTS_ACTIVE_MIN/MAX` (5/10), `BOTS_SESSION_MIN/MAX_MIN` (30/90), `BOTS_JOIN_DELAY_MS_MIN/MAX` (10000/25000), `BOTS_MIN_LOBBY_ROOMS` (2), `BOTS_MAX_HOSTED_ROOMS` (2), `BOTS_HOSTED_ROOM_TTL_MS_MIN/MAX` (3-8min), `BOTS_GAME_MIX` (NavalBattle:0.6,Ludo:0.4), `BOTS_STAKES_ENABLED` (false), `BOTS_STAKE_AMOUNTS` (1,5 — validated ⊂ `STAKE_PRESETS`), `BOTS_STAKED_SHARE` (0.2), pacing min/max pairs (bship setup 5-15s, shot 2.5-6s; ludo roll 1.3-3s, move 0.9-2.5s), `BOTS_SHUTDOWN_MODE` (forfeit|drain), `BOTS_LOG_LEVEL`, `BOTS_ADMIN_TOKEN` (provisioning only, for the `is_bot` call — never read by the runtime). Ship an `.env.example`.
+Env-first via `process.loadEnvFile()` on `apps/lobby-bots/.env`, no dotenv
+dependency, defaults for everything:
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `BOTS_SERVER_URL` | `http://localhost:3000` | API + socket origin |
+| `BOTS_COUNT` | 10 | accounts to provision and run |
+| `BOTS_JOIN_DELAY_MS_MIN/MAX` | 20000 / 30000 | how long a human room must sit unanswered |
+| `BOTS_MIN_OPEN_ROOMS` | 4 | lobby floor the create policy defends |
+| `BOTS_MAX_HOSTED_ROOMS` | 4 | cap on rooms bots host at once |
+| `BOTS_HOSTED_ROOM_TTL_MS_MIN/MAX` | 180000 / 480000 | close an unjoined hosted room after this |
+| `BOTS_GAME_MIX` | `NavalBattle:0.6,Ludo:0.4` | what bots host |
+| `BOTS_STAKES_ENABLED` | true | allow joining staked rooms |
+| `BOTS_STAKE_ASSETS` | `Kombat` | the only asset bots will stake |
+| `BOTS_ADMIN_TOKEN` | — | provisioning only, for the `is_bot` call |
+| `BOTS_AUTH_MODE` | `test-otp` | `test-otp` (local) or `siwe` (prod) |
 
 ## Step 3 — Identity store + provisioning
 
-- **Store**: JSON array `{botId, username, userId, privateKey?, email?, provisionedAt, welcomeBonusClaimedAt?}`; atomic write (tmp+rename), never logged. Prod: this file is a secret (SIWE keys grant the accounts); back it up with other prod secrets.
-- **Name pool** (`provision/name-pool.ts`): ~120 checked-in human-looking handles matching `^[a-zA-Z0-9_]{3,20}$` (mixed styles: `mike_p`, `Jenna94`, `oldwolf77`…). No faker dep.
-- **CLI** `npm run bots:provision -- --count 100` — idempotent (skips names already in store), sequential with 250-500ms jitter, persists after each account:
-  1. **siwe mode** (prod-capable, needs server `SIWE_DOMAINS`): viem `generatePrivateKey()` → `requestSiweNonce()` → `createSiweMessage` (viem/siwe) → sign → `verifySiwe()` (creates user + Imported wallet row in one tx).
-     **test-otp mode** (non-prod): `POST authentication/request-token/test` with `bot-<name>@bots.local` → `exchangeLoginToken`.
-  2. `updateUsername(name)`; on 409 take the next pool name. ENS-mint side effect is harmless.
-  2b. `PATCH admin/users/:id/bot {isBot: true}` with `BOTS_ADMIN_TOKEN` (Step 0b).
-     Persist `markedBotAt` in the store and re-attempt on the next idempotent
-     run if it failed, so a half-provisioned account cannot sit unflagged in
-     the rankings. Fail loudly if the token is missing — an unflagged bot pool
-     is the whole problem this was meant to avoid.
-  3. `--claim-bonus` flag: `getWelcomeBonus()`/`claimWelcomeBonus()` per bot, tolerate 4xx (needs server `FAUCET_KEY`). Only run when staked mode is planned — it's real treasury float.
-- **Every ApiClient** uses `appPlatform: 'web'` (avoids the Mobile platform pin AND bypasses `SupportedVersionGuard`). Set once in `auth/login.ts`.
-- **Runtime sessions**: fresh login per bot activation, tokens in memory only (2d access token ≫ session length, so refresh-token replay hazards never arise). `onSessionExpired` → re-login → recovery.
+- **Store**: `state/bots.json`, `{botId, username, email, userId, privateKey?,
+  provisionedAt, markedBotAt}`; atomic write (tmp + rename), never logged.
+  In production this file is a secret.
+- **Name pool**: checked-in human-looking handles matching
+  `^[a-zA-Z0-9_]{3,20}$`, mixed styles (`mike_p`, `Jenna94`, `oldwolf77`).
+- **CLI** `npm run bots:provision -- --count 10`, idempotent (skips names
+  already in the store), sequential with jitter, persists after each account:
+  1. `test-otp`: `POST authentication/request-token/test` with
+     `bot-<name>@bots.local` → `exchangeLoginToken`.
+     `siwe`: viem `generatePrivateKey` → nonce → `createSiweMessage` → sign →
+     `verifySiwe`.
+  2. `updateUsername(name)`; on 409 take the next pool name.
+  3. `PATCH admin/users/:id/bot {isBot:true}` with `BOTS_ADMIN_TOKEN`, recorded
+     as `markedBotAt` and retried on the next run if it failed. Fail loudly
+     when the token is missing — an unflagged bot pool is the thing this is
+     meant to prevent.
+- Every ApiClient uses `appPlatform: 'web'` (bypasses the mobile version gate).
+- Runtime logins are fresh per start, tokens in memory only.
 
-## Step 4 — Sockets (`net/socket.ts`)
+## Step 4 — Sockets
 
-Pattern from `test/harness/actor.ts:90`: `io(url, {auth: {token}, transports: ['websocket'], forceNew: true})` — `forceNew` is mandatory (socket.io multiplexes otherwise) and strictly **one socket per account** (the gateway kills the previous one). Enable reconnection with backoff; on (re)connect, re-`channel:join` whatever the state machine says (`lobby`, `game:<roomId>`) and resync via REST. **30s gotcha**: a hosting bot whose socket drops loses its Pending room after 30s (`room-abandon.service.ts`) — after reconnect `getMyActiveGameRoom()` is the source of truth; room gone → back to idle.
+`io(url, {auth: {token}, transports: ['websocket'], forceNew: true})`.
+`forceNew` is mandatory (socket.io multiplexes otherwise) and it is strictly one
+socket per account — the gateway kills an account's previous socket. On
+reconnect, re-join the channels the state machine expects and resync over REST.
+A hosting bot that drops loses its Pending room after 30s
+(`room-abandon.service.ts`), so after a reconnect `getMyActiveGameRoom()` is the
+source of truth.
 
-## Step 5 — Orchestrator specifics
+## Step 5 — Orchestrator
 
-- **LobbyModel**: `Map<roomId, {summary, seenAt}>` fed by `lobby:room-added/updated/removed` from idle bots' sockets (≥1 idle bot always subscribed to the lobby channel; dedupe by roomId), reconciled by `listPendingGameRooms()` every 20-30s. Age = `summary.createdAt` floored by `seenAt`. **Never join bot rooms; exclude them from the human-room count** (classified via the runner's own-account userId set — cheaper than reading `is_bot` back, and `GameRoomSummary` carries `creatorUserId` already).
-- **Rotation**: target count re-sampled in [min,max] every ~30min; activations pick least-recently-active (shuffled) with 0-2min stagger; random session lengths keep expiries staggered; retiring bot finishes its match first, replacement activates immediately.
-- **JoinPolicy** (2s tick): candidates = human, public, Pending, has-driver gameType, stake acceptable. Per-room delay sampled once (10-25s); on ripeness claim in-memory (prevents pile-ons; a lost race 409 is safe — release + blacklist roomId). NavalBattle: 2xx join = match starting (stakes already held) → driver. Ludo joiner: wait for `game:started`; if not started in ~10min → `leaveGameRoom` + release. One match per bot (design invariant; server only enforces one *created* room).
-- **CreatePolicy** (5s tick): under-floor + under-cap → jittered pause → idle bot `createGameRoom` (public, gameType from mix, stake per Step 6). Hosting NavalBattle: `game:opponent-joined` → play. Hosting Ludo: on `game:player-joined` wait a jittered 20-45s for stragglers then `startGameRoom` (min 2); full room auto-starts. TTL 3-8min with no joiner → `closeGameRoom` → idle.
-- **Pacing**: `jitter(min,max)` clamped to `(turnDeadline - now) - 8000ms` — thinking pauses can never cause a timeout (turn clock is 30s, 3 timeouts = loss/elimination).
+- **LobbyModel**: `Map<roomId, {summary, seenAt}>` fed by
+  `lobby:room-added/updated/removed` from one subscribed socket, reconciled by
+  `listPendingGameRooms()` every 20s. Room age is `max(createdAt, seenAt)`.
+  Rooms whose `creatorUserId` is one of ours are bot rooms: never joined, but
+  they do count toward the open-room floor.
+- **JoinPolicy** (2s tick): candidates are public, Pending, human-hosted, a game
+  we have a driver for, and stake-acceptable. Each room gets one sampled delay
+  in [20s, 30s]; once it is older than that, an idle bot claims it in memory and
+  joins. A lost race (409) releases the claim and blacklists the room id.
+- **CreatePolicy** (5s tick): while open rooms < 4 and bot-hosted < cap, an idle
+  bot creates one (free, game type from the mix) after a short jitter. A hosted
+  room nobody joins is closed after its TTL and the bot goes idle.
+- **Pacing**: every "thinking" pause is clamped to
+  `(turnDeadline - now) - 8000ms`, so a pause can never cause a timeout.
 
-## Step 6 — Staking (`stakes/staking.ts`)
+## Step 6 — Staking
 
-Flag off → free rooms only. Enabled: `StakeAsset.Kombat` only, amounts from the whitelist (⊂ `STAKE_PRESETS`, base units via 18 decimals); before any staked action check `getStakePotBalances()` KOMBAT ledger ≥ stake, else fall back to free; `BOTS_STAKED_SHARE` dice-roll keeps most activity free. Recommended guardrail: per-bot daily net-loss cap (`BOTS_STAKE_DAILY_LOSS_CAP`, in-memory, resets UTC midnight) → free-only when exceeded (mitigates bot-farming: skilled players milking beatable bots for KOMBAT).
+Bots stake **KOMBAT only**. Before joining a staked room, check
+`getStakePotBalances()` — join only when `available[Kombat]` covers the stake,
+otherwise skip the room. Bot-hosted rooms are always free, so bots never put
+treasury at risk on their own initiative.
 
 ## Step 7 — Match drivers
 
-Interface: `play(ctx: {api, socket, roomId, myUserId, pacing, log, abort}): Promise<{winnerUserId: string|null}>`. Event-loops with REST-resync escape hatch (doubles as crash recovery).
+`play(ctx): Promise<{winnerUserId: string | null}>`, event loops with a REST
+resync escape hatch that doubles as crash recovery.
 
-**Battleship** (`battleship.protocol.ts` events):
-1. `channel:join game:<id>` → `battleship:enter`.
-2. Jittered setup pause (clamped vs `setupDeadline`; hard window 90s) → `battleship:ready` with `randomFleet()`/`randomMines()` (`battleship.rules.ts:297,278`, exactly 2 mines).
-3. Local model (`myShots`, `revealedOpponentShips`, turn/deadline) from `battleship:start`, `battleship:shot`, `battleship:turn-timeout`.
-4. My turn → pause → `battleship:fire {kind:'single', row, col}` aimed by `chooseAim(syntheticFleet, myShots)`. Single shots only (no torpedo/bomb — simpler and keeps bots beatable). Hits keep the turn.
-5. `battleship:error` (no acks!) → `getBattleshipRoomState()` → rebuild → re-act. Same resync on reconnect.
-6. Done on `winnerUserId != null` / `battleship:ended`.
+**Battleship**: `channel:join game:<id>` → `battleship:enter` → jittered setup
+pause → `battleship:ready` with `randomFleet()`/`randomMines()` → on each of my
+turns, `battleship:fire {kind:'single'}` aimed by `chooseAim` over a **synthetic
+fleet built from `revealedOpponentShips`** (which makes unsunk hits stay
+"active", exactly the behavior wanted). Single shots only — no power-ups, which
+keeps bots beatable. `battleship:error` → refetch state → re-act.
 
-**Ludo** (`ludo.protocol.ts` events):
-1. Cue is room-level `game:started` (**no `ludo:start` exists**); first 30s clock arms at match creation, so enter **immediately**: `channel:join` → `ludo:enter` → `getLudoRoomState()` for seats/color/tokens/stage/turn.
-2. Maintain state from `ludo:rolled`/`ludo:moved` (authoritative `tokens` — replace, don't replay), `ludo:turn-timeout`, `ludo:eliminated`, `ludo:ended`.
-3. My turn stage `roll` → pause → `ludo:roll`; on my `ludo:rolled` with `stage:'move'` → pause → `ludo:move` with `chooseBotMove(tokens, myColor, die)` (`ludo.bot.ts:16`); null/invalid → `movableTokens[0]`. Follow `stage`/`nextTurnUserId` for extra-roll/third-six.
-4. `ludo:error` → refetch state, re-act. Resolve on `ludo:ended` or own elimination.
-
-**Boot/crash recovery** (activation path): `getMyActiveGameRoom()` → InProgress: attach driver (re-submit fleet if still in setup with no fleet); Pending-as-creator: adopt as hosting with fresh TTL; Pending-as-joiner: wait-for-start or leave. Covers restarts mid-anything.
+**Ludo**: the cue is room-level `game:started` (there is no `ludo:start`), and
+the first turn clock is already running, so enter immediately: `channel:join` →
+`ludo:enter` → `getLudoRoomState()`. Then `ludo:roll` on my turn, and
+`ludo:move` with `chooseBotMove(...)` when `stage === 'move'`, following
+`stage`/`nextTurnUserId` for extra rolls and the third six. No abilities.
 
 ## Step 8 — Ops
 
-- Dev: `npm run bots` against local stack (server :3000, `SIWE_DOMAINS=localhost:5173` already in `.env.example`). Prod: `turbo run build` + `npm run start --workspace @gaming-platform/lobby-bots`.
-- Graceful shutdown (SIGINT/SIGTERM): stop policies; hosting → `closeGameRoom`; Ludo joiner Pending → `leaveGameRoom`; playing → default `forfeit` (reads as "player left"); `drain` mode finishes matches (10min cap). Second signal = immediate exit.
-- Logging: one line per state transition / policy decision, `[username]` prefix, orchestrator heartbeat (active bots, human/bot room counts, matches). Never log keys.
-
-## Implementation order
-
-1. Core `chooseAim` export + core rebuild.
-1b. `is_bot` column, migration, rankings filter, admin flag endpoint (Step 0b) —
-   before provisioning, so no bot account ever exists unflagged.
-2. Scaffold + config + logger + store + name pool.
-3. `auth/login.ts` + provisioning CLI (including the flag call); verify against dev server.
-4. `net/socket.ts` + smoke command (one bot: login, connect, lobby events).
-5. Drivers (battleship first), tested by manually inviting a single hardcoded bot.
-6. BotRuntime + recovery.
-7. Orchestrator: LobbyModel → JoinPolicy → CreatePolicy → Rotation.
-8. Staking (flagged) + shutdown + root scripts.
-9. Tests + E2E pass.
+- Dev: `npm run bots` against the local stack.
+- Graceful shutdown (SIGINT/SIGTERM): stop the policies, close hosted rooms,
+  leave Pending rooms, forfeit live matches so they read as "player left".
+  A second signal exits immediately.
+- Logging: one line per state transition and policy decision, `[username]`
+  prefixed, plus an orchestrator heartbeat. Never log keys.
 
 ## Verification
 
-- **Unit** (node:test, no new deps): pacing clamp; claim map (no double-claim); bot/human room classification; synthetic-fleet + `chooseAim` behavior on scripted histories; `chooseBotMove` fallback; config validation.
-- **Server** (existing jest e2e suite): a completed match between a flagged bot and a human leaves the human in `GET /rankings` and the bot absent, at both the first page and an offset; the migration is idempotent on an already-populated `users` table; `PATCH admin/users/:id/bot` rejects a missing or wrong admin token.
-- **E2E (local)**: provision 5 twice (idempotent); fast config (3 active, 5-8s delay, floor 1, TTL 60-90s); webgames on :5173 → bot room appears when lobby empty and closes after TTL; human NavalBattle room → different-named bot joins after delay → full match both outcomes (incl. letting the bot win via idle timeouts); Ludo room → bot joins → early start → full match, no missed 30s windows; kill runner mid-match → restart → recovery finishes it; brief server outage while hosting → resync or clean idle; staked smoke (dev): flag on + faucet + `--claim-bonus`, preset-1 staked match, free-fallback when pot drained.
+- **Unit** (node:test): pacing clamp; claim map rejects a double claim; bot vs
+  human room classification; the synthetic fleet + `chooseAim` on scripted shot
+  histories; config parsing.
+- **Manual E2E** against the local stack: provision 10 twice (idempotent);
+  bots fill the lobby to 4 rooms; a human room gets joined after the delay and
+  played to a result; a bot room is never joined by another bot.
 
-## Risks / accepted defaults (flag to user, overridable)
+## Accepted defaults
 
-- **Bots appear in match history/leaderboards** under human names — accepted (consistent with the "reads as human" intent); excluding them would need the `is_bot` migration + rankings change (out of scope, can follow up).
-- **Staked mode = treasury exposure**: default off; KOMBAT-only, small presets, staked-share dial, daily loss cap. Do not enable in prod without a budget decision. Staked play vs undisclosed bots is the riskiest combination (fairness/ToS) — product call, recorded.
-- **Defaults chosen**: shutdown = forfeit; bot-hosted Ludo starts early with 1 human after 20-45s; prod SIWE uses an existing `SIWE_DOMAINS` entry.
-- Other game types (TripleCut/ChromaClash/Salvo) are ignored — no drivers.
+- Bots appear in match history under human names; they are out of the rankings.
+- Bot-hosted rooms are free. Staked play is join-only, KOMBAT-only, and gated on
+  the pot balance.
+- Games without a driver (TripleCut, ChromaClash, Salvo, Rps) are ignored.
