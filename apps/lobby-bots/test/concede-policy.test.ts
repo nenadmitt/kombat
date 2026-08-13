@@ -126,3 +126,28 @@ test('a room is only decided once', async () => {
     assert.ok(b.forfeited.length <= 1, `${b.userId} conceded twice`);
   }
 });
+
+test('a room started short-handed still concedes', async () => {
+  // Three bots in a 4-seat room the host started early: capacity says 4, but
+  // there is no fourth player and nobody is coming.
+  const seat = room({ joinedCount: 3 });
+  const bots = ['u1', 'u2', 'u3'].map(id => bot(id, seat));
+  const policy = new ConcedePolicy(bots, config(), silent);
+
+  await policy.tick();
+  await settle();
+
+  assert.equal(bots.filter(b => b.forfeited.length > 0).length, 2);
+});
+
+test('a short-handed room with a human in it is played out', async () => {
+  // Two bots, but three players took seats - the third is a real player.
+  const seat = room({ joinedCount: 3 });
+  const bots = ['u1', 'u2'].map(id => bot(id, seat));
+  const policy = new ConcedePolicy(bots, config(), silent);
+
+  await policy.tick();
+  await settle();
+
+  assert.deepEqual(bots.flatMap(b => b.forfeited), []);
+});

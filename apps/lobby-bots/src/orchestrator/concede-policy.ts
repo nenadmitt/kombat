@@ -36,8 +36,15 @@ export class ConcedePolicy {
     }
 
     for (const [roomId, seats] of rooms) {
-      const room = seats[0]!.room!;
-      if (seats.length < room.playerCount) continue;
+      // Seats taken, not seats available: a room started short-handed has
+      // fewer players than capacity, and comparing against capacity left
+      // exactly those matches - the ones bots start early - running for their
+      // full length.
+      const taken = Math.max(
+        ...seats.map(bot => bot.room!.joinedCount),
+        seats.length,
+      );
+      if (seats.length < taken) continue;
       if (this.decided.has(roomId)) continue;
 
       const winner = this.pickWinner(
