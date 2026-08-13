@@ -32,6 +32,7 @@ describe('GamesService room lifecycle', () => {
   let service: GamesService;
   let db: {
     findOpenGameRoomForUser: jest.Mock;
+    findActiveGameRoomForParticipant: jest.Mock;
     findGameRoomById: jest.Mock;
     findGameRoomByIdFresh: jest.Mock;
     createGameRoom: jest.Mock;
@@ -67,6 +68,7 @@ describe('GamesService room lifecycle', () => {
     sent = [];
     db = {
       findOpenGameRoomForUser: jest.fn().mockResolvedValue(null),
+      findActiveGameRoomForParticipant: jest.fn().mockResolvedValue(null),
       findGameRoomById: jest.fn().mockResolvedValue(null),
       createGameRoom: jest
         .fn()
@@ -119,7 +121,7 @@ describe('GamesService room lifecycle', () => {
     });
 
     it('allows one open room per user', async () => {
-      db.findOpenGameRoomForUser.mockResolvedValue(baseRoom());
+      db.findActiveGameRoomForParticipant.mockResolvedValue(baseRoom());
       await expect(
         service.createRoom(CREATOR, GameType.NavalBattle),
       ).rejects.toThrow(ConflictException);

@@ -93,6 +93,57 @@ describe('joining releases your own room (e2e)', () => {
     });
   });
 
+  it('refuses a room I create while sitting in someone else\'s', async () => {
+    const me = await actor('me');
+    const host = await actor('host');
+    const { body: theirs } = await createRoom(host, GameType.Ludo);
+    await me.post(`/games/rooms/${theirs.id}/join`);
+
+    const { status } = await createRoom(me);
+
+    expect(status).toBe(409);
+    const rows = await testApp.dataSource.query(
+      `SELECT id FROM game_rooms WHERE user_id = $1`,
+      [me.userId],
+    );
+    expect(rows).toHaveLength(0);
+  });
+
+  it('gives up a seat I held when I take another one', async () => {
+    const me = await actor('me');
+    const first = await actor('first');
+    const second = await actor('second');
+    const { body: roomA } = await createRoom(first, GameType.Ludo);
+    const { body: roomB } = await createRoom(second, GameType.Ludo);
+
+    await me.post(`/games/rooms/${roomA.id}/join`);
+    await me.post(`/games/rooms/${roomB.id}/join`);
+
+    const [a] = await testApp.dataSource.query(
+      `SELECT opponent_ids FROM game_rooms WHERE id = $1`,
+      [roomA.id],
+    );
+    const [b] = await testApp.dataSource.query(
+      `SELECT opponent_ids FROM game_rooms WHERE id = $1`,
+      [roomB.id],
+    );
+    expect(a.opponent_ids).not.toContain(me.userId);
+    expect(b.opponent_ids).toContain(me.userId);
+  });
+
+  it('refuses a join while I am in a live match', async () => {
+    const me = await actor('me');
+    const opponent = await actor('opponent');
+    const third = await actor('third');
+    const { body: mine } = await createRoom(me);
+    await opponent.post(`/games/rooms/${mine.id}/join`);
+
+    const { body: theirs } = await createRoom(third, GameType.Ludo);
+    const { status } = await me.post(`/games/rooms/${theirs.id}/join`);
+
+    expect(status).toBe(409);
+  });
+
   it('does not touch a match I am already playing', async () => {
     const me = await actor('me');
     const opponent = await actor('opponent');
@@ -100,7 +151,7 @@ describe('joining releases your own room (e2e)', () => {
     const { body: mine } = await createRoom(me);
     await opponent.post(`/games/rooms/${mine.id}/join`);
 
-    // My room is InProgress now; joining anything else must not delete it.
+    // My room is InProgress now; the refused join must not delete it either.
     const { body: theirs } = await createRoom(third, GameType.Ludo);
     await me.post(`/games/rooms/${theirs.id}/join`);
 

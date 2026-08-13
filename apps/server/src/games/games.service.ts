@@ -74,7 +74,11 @@ export class GamesService {
         'That game is not available for online rooms yet.',
       );
     }
-    const existing = await this.dbService.findOpenGameRoomForUser(userId);
+    // Any room they take part in, not just ones they created: a player seated
+    // in someone else's room could otherwise open one of their own and hold
+    // two at once.
+    const existing =
+      await this.dbService.findActiveGameRoomForParticipant(userId);
     if (existing) {
       throw new ConflictException(
         'You already have an active game room. Close it before creating another.',
@@ -184,6 +188,14 @@ export class GamesService {
       );
     }
 
+    const prior =
+      await this.dbService.findActiveGameRoomForParticipant(userId);
+    if (prior && prior.id !== roomId && prior.status !== GameRoomStatus.Pending) {
+      throw new ConflictException(
+        'Finish or forfeit your current match before joining another.',
+      );
+    }
+
     const joinToken = resolveJoinToken(room, stakeToken);
 
     // Check the joiner's balance BEFORE flipping the room — a broke joiner
@@ -253,12 +265,36 @@ export class GamesService {
     userId: string,
     joinedRoomId: string,
   ): Promise<void> {
-    const own = await this.dbService.findOpenGameRoomForUser(userId);
-    if (!own || own.id === joinedRoomId) return;
-    // A match already under way is not theirs to walk out of silently.
-    if (own.status !== GameRoomStatus.Pending) return;
-    await this.dbService.deleteGameRoom(own.id);
-    this.emitLobbyRemoved(own);
+    const prior =
+      await this.dbService.findActiveGameRoomForParticipant(userId);
+    if (!prior || prior.id === joinedRoomId) return;
+    // A match already under way is not theirs to walk out of silently; the
+    // guard in joinRoom refuses the join before it gets this far.
+    if (prior.status !== GameRoomStatus.Pending) return;
+
+    if (prior.userId === userId) {
+      await this.dbService.deleteGameRoom(prior.id);
+      this.emitLobbyRemoved(prior);
+      return;
+    }
+    await this.vacateSeat(userId, prior.id);
+  }
+
+  /** Give up a seat held in someone else's still-waiting room. */
+  private async vacateSeat(userId: string, roomId: string): Promise<void> {
+    if (!(await this.dbService.removeGameRoomOpponent(roomId, userId))) return;
+    const updated = await this.dbService.findGameRoomById(roomId);
+    if (!updated) return;
+    const joinedCount = participantsOf(updated).length;
+    for (const participant of participantsOf(updated)) {
+      this.websocketsService.sendToUser(participant, ROOM_EVENTS.playerLeft, {
+        roomId,
+        userId,
+        joinedCount,
+        playerCount: updated.playerCount,
+      });
+    }
+    this.emitLobbyUpdated(updated);
   }
 
   /**
