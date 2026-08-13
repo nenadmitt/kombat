@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -21,6 +22,7 @@ import {
   type DeleteUserResult,
 } from './admin.service';
 import { SetAppVersionDto } from './dto/set-app-version.dto';
+import { SetUserBotDto } from './dto/set-user-bot.dto';
 import { SetMaintenanceDto } from './dto/set-maintenance.dto';
 
 /**
@@ -61,6 +63,15 @@ export class AdminController {
   @Get('users/active')
   listActiveUsers(): Promise<AdminUserView[]> {
     return this.adminService.listActiveUsers();
+  }
+
+  /** Provisioning marks lobby-bot accounts here; nothing else may set it. */
+  @Patch('users/:id/bot')
+  setUserBot(
+    @Param('id') id: string,
+    @Body() dto: SetUserBotDto,
+  ): Promise<AdminUserView> {
+    return this.adminService.setUserBot(id, dto.isBot);
   }
 
   @Delete('users/:id')

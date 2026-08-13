@@ -17,7 +17,7 @@ import type {
 /** How the bot decided to aim: chasing a wounded ship vs. searching. */
 type AimMode = 'hunt' | 'target';
 
-type Aim = { row: number; col: number; mode: AimMode };
+export type Aim = { row: number; col: number; mode: AimMode };
 
 /** A resolved bot move: the aim, the weapon, and the cells it newly struck. */
 export type BotMove = {
@@ -51,7 +51,7 @@ function pickRandom<T>(items: T[]): T {
  * checkerboard (the smallest ship spans two cells, so every ship must touch a
  * parity cell). Returns null only when the board is exhausted.
  */
-function chooseAim(fleet: FleetPlacements, shots: Shot[]): Aim | null {
+export function chooseAim(fleet: FleetPlacements, shots: Shot[]): Aim | null {
   const fired = new Set(shots.map(s => `${s.row},${s.col}`));
   const isOpen = (row: number, col: number) =>
     inBounds(row, col) && !fired.has(`${row},${col}`);

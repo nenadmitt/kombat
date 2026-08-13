@@ -170,6 +170,10 @@ export class DbService {
     await this.userRepository.update({ id: userId }, { ensName: null });
   }
 
+  async setUserIsBot(userId: string, isBot: boolean): Promise<void> {
+    await this.userRepository.update({ id: userId }, { isBot });
+  }
+
   countReferralsFor(userId: string): Promise<number> {
     return this.userRepository.countBy({ referredByUserId: userId });
   }
@@ -446,6 +450,7 @@ export class DbService {
              LEFT JOIN users u ON u.id = participant
             WHERE room.status = $1
               AND room.winner_user_id IS NOT NULL
+              AND COALESCE(u.is_bot, false) = false
               ${gameTypeClause}
             GROUP BY participant, u.username, u.ens_name
          ) ranked

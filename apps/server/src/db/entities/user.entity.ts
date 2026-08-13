@@ -32,6 +32,10 @@ export class UserEntity extends BaseEntity {
   @Column({ name: 'platform', type: 'smallint', default: UserPlatform.Mobile })
   platform: UserPlatform;
 
+  /** Lobby-filler account: kept out of rankings and player-facing presence. */
+  @Column({ name: 'is_bot', type: 'boolean', default: false })
+  isBot: boolean;
+
   /** Who referred them, recorded once at sign-up and never reassigned. */
   @Column({ name: 'referred_by_user_id', type: 'uuid', nullable: true })
   referredByUserId: string | null;
