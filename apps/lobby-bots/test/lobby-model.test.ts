@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+  BOT_ACCOUNTS,
   GameRoomStatus,
   GameType,
   type ApiClient,
@@ -30,19 +31,25 @@ function room(over: Partial<GameRoomSummary> = {}): GameRoomSummary {
   };
 }
 
-function modelWith(rooms: GameRoomSummary[]): LobbyModel {
+function modelWith(
+  rooms: GameRoomSummary[],
+  profiles: { id: string; username: string }[] = [],
+): LobbyModel {
   const api = {
     listPendingGameRooms: async () => rooms,
+    getUserProfiles: async (ids: string[]) =>
+      profiles.filter(profile => ids.includes(profile.id)),
   } as unknown as ApiClient;
   return new LobbyModel(api, new Set([BOT]));
 }
 
 test('a room hosted by one of our accounts is a bot room', async () => {
-  const model = modelWith([
-    room({ id: 'mine', creatorUserId: BOT }),
-    room({ id: 'theirs', creatorUserId: HUMAN }),
-  ]);
+  const model = modelWith(
+    [room({ id: 'mine', creatorUserId: BOT }), room({ id: 'theirs', creatorUserId: HUMAN })],
+    [{ id: HUMAN, username: 'a_real_player' }],
+  );
   await model.reconcile();
+  await model.classifyHosts();
 
   assert.deepEqual(
     model.botHostedRooms().map(r => r.id),
@@ -74,8 +81,12 @@ test('private rooms are not lobby rooms', async () => {
 
 test('age is floored by when we first saw the room', async () => {
   const old = new Date(Date.now() - 600_000).toISOString();
-  const model = modelWith([room({ id: 'stale', createdAt: old })]);
+  const model = modelWith(
+    [room({ id: 'stale', createdAt: old })],
+    [{ id: HUMAN, username: 'a_real_player' }],
+  );
   await model.reconcile();
+  await model.classifyHosts();
 
   const [entry] = model.humanRooms();
   // Created ten minutes ago but only just seen: it does not instantly qualify.
@@ -98,4 +109,44 @@ test('reconcile drops rooms the server no longer lists', async () => {
     model.openRooms().map(r => r.id),
     ['a'],
   );
+});
+
+test('a bot from another roster is recognised by its username, not our ids', async () => {
+  const OTHER_BOT = 'bot-user-run-by-someone-else';
+  const model = modelWith(
+    [
+      room({ id: 'other-bot-room', creatorUserId: OTHER_BOT }),
+      room({ id: 'human-room', creatorUserId: HUMAN }),
+    ],
+    [
+      { id: OTHER_BOT, username: BOT_ACCOUNTS[0]!.username },
+      { id: HUMAN, username: 'a_real_player' },
+    ],
+  );
+  await model.reconcile();
+  await model.classifyHosts();
+
+  assert.deepEqual(
+    model.humanRooms().map(entry => entry.room.id),
+    ['human-room'],
+  );
+});
+
+test('a host the profile lookup cannot resolve is never treated as human', async () => {
+  const model = modelWith([room({ id: 'mystery', creatorUserId: 'ghost' })], []);
+  await model.reconcile();
+  await model.classifyHosts();
+
+  assert.equal(model.humanRooms().length, 0);
+});
+
+test('username matching ignores case', async () => {
+  const model = modelWith(
+    [room({ id: 'shouty', creatorUserId: 'other' })],
+    [{ id: 'other', username: BOT_ACCOUNTS[1]!.username.toUpperCase() }],
+  );
+  await model.reconcile();
+  await model.classifyHosts();
+
+  assert.equal(model.humanRooms().length, 0);
 });

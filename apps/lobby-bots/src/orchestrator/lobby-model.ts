@@ -1,4 +1,5 @@
 import {
+  BOT_ACCOUNTS,
   GameRoomStatus,
   LOBBY_EVENTS,
   type ApiClient,
@@ -13,18 +14,55 @@ export type TrackedRoom = {
   seenAt: number;
 };
 
+const BOT_USERNAMES = new Set(
+  BOT_ACCOUNTS.map(account => account.username.toLowerCase()),
+);
+
 /**
  * The shared view of the lobby: socket deltas for freshness, a periodic REST
  * reconcile so a missed event cannot strand the model.
  */
 export class LobbyModel {
   private rooms = new Map<string, TrackedRoom>();
+  /** creatorUserId -> is that account on the bot roster. */
+  private creatorIsBot = new Map<string, boolean>();
 
   constructor(
     private readonly api: ApiClient,
-    /** Our own account ids - a room hosted by one of these is a bot room. */
+    /** The accounts this process runs; always bots, no lookup needed. */
     private readonly ownUserIds: Set<string>,
   ) {}
+
+  /**
+   * Own-account ids only cover the bots *this* process runs. Another runner,
+   * a smaller BOTS_COUNT, or a leftover room from an earlier roster would all
+   * look like a real player, and bots would end up playing each other. The
+   * roster in core is the shared answer, so unknown hosts get resolved by
+   * username before any of them can be joined.
+   */
+  async classifyHosts(): Promise<void> {
+    const unknown = [
+      ...new Set(
+        [...this.rooms.values()]
+          .map(tracked => tracked.summary.creatorUserId)
+          .filter(id => !this.ownUserIds.has(id) && !this.creatorIsBot.has(id)),
+      ),
+    ];
+    if (unknown.length === 0) return;
+
+    const profiles = await this.api.getUserProfiles(unknown);
+    for (const profile of profiles) {
+      this.creatorIsBot.set(
+        profile.id,
+        BOT_USERNAMES.has((profile.username ?? '').toLowerCase()),
+      );
+    }
+    // A host the profile lookup did not return stays unknown, and unknown
+    // hosts are never joined.
+    for (const id of unknown) {
+      if (!this.creatorIsBot.has(id)) this.creatorIsBot.set(id, true);
+    }
+  }
 
   attach(socket: Socket): void {
     socket.on(LOBBY_EVENTS.roomAdded, (payload: GameRoomSummary) =>
@@ -56,7 +94,8 @@ export class LobbyModel {
   }
 
   isBotRoom(room: GameRoomSummary): boolean {
-    return this.ownUserIds.has(room.creatorUserId);
+    if (this.ownUserIds.has(room.creatorUserId)) return true;
+    return this.creatorIsBot.get(room.creatorUserId) ?? true;
   }
 
   /** Every open room, ours and theirs - what the lobby floor is measured on. */

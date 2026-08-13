@@ -2,6 +2,7 @@ import {
   GameRoomStatus,
   GameType,
   type ApiClient,
+  type BotAccount,
   type GameRoomSummary,
 } from '@gaming-platform/core';
 import type { Socket } from 'socket.io-client';
@@ -13,7 +14,6 @@ import { playLudo } from '../drivers/ludo.driver';
 import { gameChannel, type GameDriver } from '../drivers/driver';
 import { createLogger, type Logger } from '../logger';
 import { connect, leaveChannel, waitForConnect } from '../net/socket';
-import type { BotRecord } from '../state/bot-store';
 
 export type BotState = 'idle' | 'hosting' | 'joining' | 'playing';
 
@@ -39,14 +39,22 @@ export class BotRuntime {
   userId!: string;
 
   constructor(
-    readonly record: BotRecord,
+    readonly account: BotAccount,
     private readonly config: Config,
   ) {
-    this.log = createLogger(record.username);
+    this.log = createLogger(account.username);
   }
 
   async start(): Promise<void> {
-    const session = await loginTestOtp(this.config, this.record.email!);
+    const session = await loginTestOtp(this.config, this.account.email);
+    // Signing in creates the account if it is missing, so a roster that was
+    // never seeded would quietly fill the lobby with nameless, unflagged
+    // users. The username is the one thing seeding sets that login cannot.
+    if (session.username !== this.account.username) {
+      throw new Error(
+        `${this.account.username} is not seeded (signed in as ${session.username ?? 'a nameless account'}). Run POST /admin/bots/seed first.`,
+      );
+    }
     this.api = session.api;
     this.userId = session.userId;
     this.socket = connect(this.config.serverUrl, session.accessToken);

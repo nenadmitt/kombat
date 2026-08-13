@@ -1,6 +1,7 @@
 import {
   LOBBY_CHANNEL,
   ROOM_EVENTS,
+  type BotAccount,
   type GameRoomSummary,
 } from '@gaming-platform/core';
 
@@ -11,7 +12,6 @@ import { joinChannel } from '../net/socket';
 import { CreatePolicy } from './create-policy';
 import { JoinPolicy } from './join-policy';
 import { LobbyModel } from './lobby-model';
-import type { BotRecord } from '../state/bot-store';
 
 const JOIN_TICK_MS = 2_000;
 const CREATE_TICK_MS = 5_000;
@@ -28,10 +28,10 @@ export class Orchestrator {
   private stopping = false;
 
   constructor(
-    records: BotRecord[],
+    accounts: BotAccount[],
     private readonly config: Config,
   ) {
-    this.bots = records.map(record => new BotRuntime(record, config));
+    this.bots = accounts.map(account => new BotRuntime(account, config));
   }
 
   async start(): Promise<void> {
@@ -115,7 +115,7 @@ export class Orchestrator {
   /** Exposed for the smoke test. */
   get roster(): { username: string; state: string; room: GameRoomSummary | null }[] {
     return this.bots.map(bot => ({
-      username: bot.record.username,
+      username: bot.account.username,
       state: bot.state,
       room: bot.room,
     }));

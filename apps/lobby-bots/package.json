@@ -9,7 +9,6 @@
     "typecheck": "tsc --noEmit",
     "start": "node dist/main.js",
     "dev": "tsx src/main.ts",
-    "provision": "tsx src/provision/provision.ts",
     "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {

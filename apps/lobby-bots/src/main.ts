@@ -1,7 +1,8 @@
+import { BOT_ACCOUNTS } from '@gaming-platform/core';
+
 import { loadConfig } from './config';
 import { createLogger, setLogLevel } from './logger';
 import { Orchestrator } from './orchestrator/orchestrator';
-import { BotStore } from './state/bot-store';
 
 const log = createLogger('main');
 
@@ -9,20 +10,9 @@ async function main(): Promise<void> {
   const config = loadConfig();
   setLogLevel(config.logLevel);
 
-  const store = new BotStore(config.stateFile);
-  const records = store.load();
-  if (records.length === 0) {
-    throw new Error(
-      `No bots in ${config.stateFile}. Run: npm run bots:provision -- --count ${config.botCount}`,
-    );
-  }
-
-  const roster = records.slice(0, config.botCount);
-  const unflagged = roster.filter(record => record.markedBotAt === null);
-  if (unflagged.length > 0) {
-    throw new Error(
-      `${unflagged.length} bot(s) are not marked is_bot and would appear in the rankings. Re-run provisioning.`,
-    );
+  const roster = BOT_ACCOUNTS.slice(0, config.botCount);
+  if (roster.length === 0) {
+    throw new Error('BOTS_COUNT resolved to no accounts');
   }
 
   const orchestrator = new Orchestrator(roster, config);

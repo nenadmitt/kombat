@@ -45,10 +45,10 @@ export class CreatePolicy {
       bot.room = room;
       bot.hostedUntil = Date.now() + jitter(this.config.hostedRoomTtlMs);
       this.log.info(
-        `${bot.record.username} hosting ${GameType[gameType]} ${room.id} (${open + 1}/${this.config.minOpenRooms} open)`,
+        `${bot.account.username} hosting ${GameType[gameType]} ${room.id} (${open + 1}/${this.config.minOpenRooms} open)`,
       );
     } catch (error) {
-      this.log.error(`${bot.record.username} could not create a room`, error);
+      this.log.error(`${bot.account.username} could not create a room`, error);
       bot.reset();
     }
   }
@@ -61,7 +61,7 @@ export class CreatePolicy {
       if (bot.hostedUntil > now) continue;
       try {
         await bot.api.closeGameRoom(bot.room.id);
-        this.log.info(`${bot.record.username} closed idle room ${bot.room.id}`);
+        this.log.info(`${bot.account.username} closed idle room ${bot.room.id}`);
       } catch {
         // Already gone (joined, started, or reaped) - the room events decide
         // what happens next either way.

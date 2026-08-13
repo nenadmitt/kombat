@@ -6,6 +6,7 @@ export type Session = {
   api: ApiClient;
   accessToken: string;
   userId: string;
+  username: string | null;
 };
 
 /**
@@ -31,7 +32,12 @@ export async function sessionFrom(
 ): Promise<Session> {
   const api = clientFor(config, { value: session.accessToken });
   const profile = await api.getCurrentUser();
-  return { api, accessToken: session.accessToken, userId: profile.id };
+  return {
+    api,
+    accessToken: session.accessToken,
+    userId: profile.id,
+    username: profile.username,
+  };
 }
 
 /**

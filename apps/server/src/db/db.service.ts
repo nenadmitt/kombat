@@ -174,6 +174,17 @@ export class DbService {
     await this.userRepository.update({ id: userId }, { isBot });
   }
 
+  /** Seeded lobby bot: named at creation, so no username update ever runs. */
+  createBotUser(
+    email: string,
+    username: string,
+    platform: UserPlatform,
+  ): Promise<UserEntity> {
+    return this.userRepository.save(
+      this.userRepository.create({ email, username, platform, isBot: true }),
+    );
+  }
+
   countReferralsFor(userId: string): Promise<number> {
     return this.userRepository.countBy({ referredByUserId: userId });
   }

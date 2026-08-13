@@ -36,6 +36,7 @@ export class JoinPolicy {
   }
 
   async tick(): Promise<void> {
+    await this.lobby.classifyHosts();
     const candidates = this.lobby
       .humanRooms()
       .filter(({ room }) => !this.claimed.has(room.id))
@@ -60,7 +61,7 @@ export class JoinPolicy {
         return;
       }
       const joined = await bot.api.joinGameRoom(room.id, joinTokenFor(room));
-      this.log.info(`${bot.record.username} joined ${room.id}`);
+      this.log.info(`${bot.account.username} joined ${room.id}`);
       if (joined.status === GameRoomStatus.InProgress) {
         void bot.play(joined);
       } else {
@@ -72,7 +73,7 @@ export class JoinPolicy {
       if (error instanceof ApiError && error.status === 409) {
         this.blacklisted.add(room.id);
       } else {
-        this.log.error(`${bot.record.username} could not join ${room.id}`, error);
+        this.log.error(`${bot.account.username} could not join ${room.id}`, error);
       }
       bot.reset();
     } finally {
