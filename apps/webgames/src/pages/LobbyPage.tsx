@@ -185,6 +185,24 @@ export function LobbyPage() {
     setActiveRoom,
   ]);
 
+  // /mine returns any room the player sits in, either role - so the owner
+  // card (with Close) must check who created it. A joined seat otherwise
+  // rendered twice: once as itself and once dressed as an owned room whose
+  // Close the server rightly refuses.
+  const hostedRoom =
+    activeRoom &&
+    (activeRoom.creatorUserId === myUserId ||
+      activeRoom.status !== GameRoomStatus.Pending)
+      ? activeRoom
+      : null;
+  const seatRoom =
+    joinedRoom ??
+    (activeRoom &&
+    activeRoom.status === GameRoomStatus.Pending &&
+    activeRoom.creatorUserId !== myUserId
+      ? activeRoom
+      : null);
+
   // The lobby keeps moving under an open confirmation, so the sheet reads the
   // live room. A room joined by code is never listed, hence the fallback.
   const pendingRoom = pendingJoin
@@ -474,7 +492,7 @@ export function LobbyPage() {
         <aside
           style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-4)' }}
         >
-          {activeRoom && (
+          {hostedRoom && (
             <div className="card">
               <div
                 style={{
@@ -483,7 +501,11 @@ export function LobbyPage() {
                   justifyContent: 'space-between',
                 }}
               >
-                <span className="card-label">YOUR OPEN ROOM</span>
+                <span className="card-label">
+                  {hostedRoom.creatorUserId === myUserId
+                    ? 'YOUR OPEN ROOM'
+                    : 'YOUR MATCH'}
+                </span>
                 <span
                   style={{
                     fontWeight: 700,
@@ -492,7 +514,7 @@ export function LobbyPage() {
                     color: 'var(--lime)',
                   }}
                 >
-                  {activeRoom.joinedCount} / {activeRoom.playerCount}
+                  {hostedRoom.joinedCount} / {hostedRoom.playerCount}
                 </span>
               </div>
               <div
@@ -503,10 +525,10 @@ export function LobbyPage() {
                   marginTop: 'var(--s-4)',
                 }}
               >
-                <GameIcon gameType={activeRoom.gameType} size={38} />
+                <GameIcon gameType={hostedRoom.gameType} size={38} />
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 13.5 }}>
-                    {GAME_LABELS[activeRoom.gameType]}
+                    {GAME_LABELS[hostedRoom.gameType]}
                   </div>
                   <div
                     className="mono"
@@ -516,17 +538,17 @@ export function LobbyPage() {
                       color: 'var(--text-3)',
                     }}
                   >
-                    {activeRoom.code ?? ''}
+                    {hostedRoom.code ?? ''}
                   </div>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 'var(--s-3)', marginTop: 'var(--s-4)' }}>
-                {activeRoom.status === GameRoomStatus.Pending ? (
+                {hostedRoom.status === GameRoomStatus.Pending ? (
                   <>
                     <button
                       type="button"
                       className="btn btn-surface btn-block"
-                      onClick={() => void closeRoom(activeRoom)}
+                      onClick={() => void closeRoom(hostedRoom)}
                       disabled={closingRoom}
                     >
                       {closingRoom ? <span className="spinner" /> : 'Close room'}
@@ -543,7 +565,7 @@ export function LobbyPage() {
                   <button
                     type="button"
                     className="btn btn-lime btn-block"
-                    onClick={() => navigate(`/game/${activeRoom.gameType}/${activeRoom.id}`)}
+                    onClick={() => navigate(`/game/${hostedRoom.gameType}/${hostedRoom.id}`)}
                   >
                     Resume
                   </button>
@@ -552,7 +574,7 @@ export function LobbyPage() {
             </div>
           )}
 
-          {joinedRoom && (
+          {seatRoom && (
             <div className="card">
               <div
                 style={{
@@ -570,7 +592,7 @@ export function LobbyPage() {
                     color: 'var(--lime)',
                   }}
                 >
-                  {joinedRoom.joinedCount} / {joinedRoom.playerCount}
+                  {seatRoom.joinedCount} / {seatRoom.playerCount}
                 </span>
               </div>
               <div
@@ -581,10 +603,10 @@ export function LobbyPage() {
                   marginTop: 'var(--s-4)',
                 }}
               >
-                <GameIcon gameType={joinedRoom.gameType} size={38} />
+                <GameIcon gameType={seatRoom.gameType} size={38} />
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 13.5 }}>
-                    {GAME_LABELS[joinedRoom.gameType]}
+                    {GAME_LABELS[seatRoom.gameType]}
                   </div>
                   <div
                     style={{
@@ -603,7 +625,7 @@ export function LobbyPage() {
                 <button
                   type="button"
                   className="btn btn-surface btn-block"
-                  onClick={() => void leaveRoom(joinedRoom)}
+                  onClick={() => void leaveRoom(seatRoom)}
                   disabled={leaving}
                 >
                   {leaving ? <span className="spinner" /> : 'Leave'}
