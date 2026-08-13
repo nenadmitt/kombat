@@ -13,6 +13,7 @@ import {
 } from '@gaming-platform/core';
 
 import { CacheService, parseDeadlineMember } from '../cache';
+import { DbService } from '../db';
 import { gameChannel } from '../websockets/rooms.util';
 import { WebsocketsService } from '../websockets';
 import { BattleshipMatchService } from './battleships/battleship-match.service';
@@ -54,6 +55,7 @@ export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
     private readonly websocketsService: WebsocketsService,
     private readonly stakesService: StakesService,
     private readonly roomAbandonService: RoomAbandonService,
+    private readonly dbService: DbService,
   ) {}
 
   onModuleInit(): void {
@@ -175,6 +177,9 @@ export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
     if (!payload) {
       return; // Stale — the turn advanced or the match ended/expired.
     }
+    if (payload.eliminatedColor !== null) {
+      await this.dbService.recordEliminatedUser(roomId, payload.timedOutUserId);
+    }
     this.websocketsService.sendToChannel(
       gameChannel(roomId),
       LUDO_EVENTS.turnTimeout,
@@ -235,6 +240,12 @@ export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
       return; // Stale — the turn advanced or the match ended/expired.
     }
     const { payload, changedHands } = mutation;
+    if (payload.eliminatedUserId) {
+      await this.dbService.recordEliminatedUser(
+        roomId,
+        payload.eliminatedUserId,
+      );
+    }
     this.websocketsService.sendToChannel(
       gameChannel(roomId),
       CHROMA_EVENTS.turnTimeout,

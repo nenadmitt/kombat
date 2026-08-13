@@ -873,6 +873,10 @@ export class DbService {
         statuses: [GameRoomStatus.Pending, GameRoomStatus.InProgress],
       })
       .andWhere(PLAYED_IN_ROOM, { userId })
+      // Knocked out is out: the room is no longer theirs to resume.
+      .andWhere('NOT (room.eliminated_user_ids @> ARRAY[:userId]::uuid[])', {
+        userId,
+      })
       .getOne();
   }
 
@@ -1094,6 +1098,17 @@ export class DbService {
       .take(limit)
       .skip(offset)
       .getMany();
+  }
+
+  async recordEliminatedUser(roomId: string, userId: string): Promise<void> {
+    await this.gameRoomRepository.query(
+      `UPDATE "game_rooms"
+         SET "eliminated_user_ids" = array_append("eliminated_user_ids", $2)
+       WHERE "id" = $1
+         AND NOT ("eliminated_user_ids" @> ARRAY[$2]::uuid[])`,
+      [roomId, userId],
+    );
+    await this.cacheService.del(CacheKeys.gameRoom(roomId));
   }
 
   async deleteGameRoom(id: string): Promise<void> {

@@ -595,6 +595,12 @@ export class GamesService {
       throw new ConflictException('Only an in-progress match can be forfeited.');
     }
 
+    // Already knocked out: nothing left to give up, and falling through
+    // would hit the no-live-match catch and void a match others are playing.
+    if ((room.eliminatedUserIds ?? []).includes(userId)) {
+      throw new ConflictException('You are already out of this match.');
+    }
+
     if (room.gameType === GameType.Ludo) {
       return this.forfeitLudoRoom(userId, room);
     }
@@ -651,6 +657,7 @@ export class GamesService {
   ): Promise<{ winnerUserId: string | null }> {
     try {
       const payload = await this.ludoMatchService.forfeit(room.id, userId);
+      await this.dbService.recordEliminatedUser(room.id, userId);
       this.websocketsService.sendToChannel(
         gameChannel(room.id),
         LUDO_EVENTS.eliminated,
@@ -686,6 +693,7 @@ export class GamesService {
         room.id,
         userId,
       );
+      await this.dbService.recordEliminatedUser(room.id, userId);
       this.websocketsService.sendToChannel(
         gameChannel(room.id),
         CHROMA_EVENTS.eliminated,

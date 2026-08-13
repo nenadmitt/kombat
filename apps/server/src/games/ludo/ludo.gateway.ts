@@ -279,6 +279,7 @@ export class LudoGateway {
     try {
       await this.loadParticipantRoom(dto.roomId, userId);
       const payload = await this.matchService.forfeit(dto.roomId, userId);
+      await this.dbService.recordEliminatedUser(dto.roomId, userId);
       this.websocketsService.sendToChannel(
         gameChannel(dto.roomId),
         LUDO_EVENTS.eliminated,
