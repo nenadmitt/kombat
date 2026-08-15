@@ -61,10 +61,13 @@ export async function loginBot(
     },
   );
   if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    // The server keeps a wrong secret and an unseeded name indistinguishable
+    // on purpose, so both are named here; its own log tells them apart.
     throw new Error(
       response.status === 401
-        ? `Bot sign-in refused for ${username}: check BOTS_SECRET matches the server BOT_SECRET, and that the roster is seeded.`
-        : `Bot sign-in failed for ${username} (${response.status})`,
+        ? `Bot sign-in refused for ${username} (401 ${body}). Either BOTS_SECRET != server BOT_SECRET, or the roster is not seeded (POST /admin/bots/seed). The server log says which: "Bot sign-in is disabled" = server secret unset/short, "Invalid bot credentials" = mismatch or unseeded.`
+        : `Bot sign-in failed for ${username}: ${response.status} ${body} at ${config.serverUrl}`,
     );
   }
   return sessionFrom(config, (await response.json()) as AuthSession);
