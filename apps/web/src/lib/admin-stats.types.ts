@@ -9,7 +9,10 @@ export interface TypeCount {
 
 export interface StatsOverview {
   users: {
+    /** Real players; bots are counted separately. */
     total: number;
+    bots: number;
+    /** Real players connected right now - bots are never counted. */
     online: number;
     /** null until the platform API's users.platform column exists. */
     byPlatform: { platform: number; label: string; users: number }[] | null;
@@ -19,6 +22,10 @@ export interface StatsOverview {
     pending: number;
     inProgress: number;
     completed: number;
+    /** Completed with a winner - matches that were actually played out. */
+    played: number;
+    /** Completed with no winner: forfeits before a result, voided matches. */
+    voided: number;
     staked: number;
     free: number;
     byType: TypeCount[];
@@ -31,6 +38,7 @@ export interface UserStatsRow {
   username: string | null;
   createdAt: string;
   online: boolean;
+  isBot: boolean;
   platform: number | null;
   platformLabel: string | null;
   games: number;
@@ -47,6 +55,7 @@ export interface UserStats {
   referredByUserId: string | null;
   createdAt: string;
   online: boolean;
+  isBot: boolean;
   platform: number | null;
   platformLabel: string | null;
   totals: {
@@ -54,6 +63,8 @@ export interface UserStats {
     pending: number;
     inProgress: number;
     completed: number;
+    played: number;
+    voided: number;
     staked: number;
     free: number;
     wins: number;

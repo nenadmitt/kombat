@@ -77,13 +77,15 @@ export default function AdminUserStatsPage({
 
 function UserDetail({ user }: { user: UserStats }) {
   const { totals } = user;
-  const stakedShare = totals.total ? (totals.staked / totals.total) * 100 : 0;
+  const stakedShare = totals.played ? (totals.staked / totals.played) * 100 : 0;
 
   return (
     <>
       <h1 className={styles.title}>{user.username ?? "Unnamed player"}</h1>
       <div className={styles.detailHead}>
-        {user.online ? (
+        {user.isBot ? (
+          <span className={styles.pillAmber}>BOT</span>
+        ) : user.online ? (
           <span className={styles.pillGreen}>
             <span className={styles.onlineDot} />
             Online
@@ -102,9 +104,10 @@ function UserDetail({ user }: { user: UserStats }) {
       <div className={styles.cards}>
         <div className={styles.card}>
           <div className={styles.cardLabel}>Games played</div>
-          <div className={styles.cardValue}>{totals.total}</div>
+          <div className={styles.cardValue}>{totals.played}</div>
           <div className={styles.cardNote}>
-            {totals.created} created · {totals.total - totals.created} joined
+            {totals.voided} voided and {totals.pending + totals.inProgress}{" "}
+            unfinished not counted
           </div>
         </div>
 
@@ -141,8 +144,7 @@ function UserDetail({ user }: { user: UserStats }) {
             {totals.wins}
           </div>
           <div className={styles.cardNote}>
-            {totals.losses} lost · {totals.voids} voided · {totals.completed}{" "}
-            finished
+            {totals.losses} lost · of {totals.played} played
           </div>
         </div>
 

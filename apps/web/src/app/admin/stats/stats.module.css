@@ -155,10 +155,40 @@
   letter-spacing: -0.02em;
 }
 
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 100px;
+  background: var(--surface);
+}
+
+.segment,
+.segmentOn {
+  padding: 9px 14px;
+  border: 0;
+  border-radius: 100px;
+  background: transparent;
+  color: var(--text-55);
+  font: 700 12px/1 var(--font-heading);
+  cursor: pointer;
+}
+
+.segmentOn {
+  background: rgba(142, 224, 90, 0.14);
+  color: var(--green);
+}
+
 .search {
   width: 100%;
   max-width: 340px;
-  margin-top: 18px;
   padding: 13px 16px;
   border: 0;
   border-radius: 13px;
