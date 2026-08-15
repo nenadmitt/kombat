@@ -62,6 +62,10 @@ export class GameRoomEntity extends BaseEntity {
   @Column({ name: 'opponent_ids', type: 'uuid', array: true, default: () => "'{}'" })
   opponentIds: string[];
 
+  /** Multi-seat players knocked out (forfeit or timeouts) before the end. */
+  @Column({ name: 'eliminated_user_ids', type: 'uuid', array: true, default: () => "'{}'" })
+  eliminatedUserIds: string[];
+
   // ---- staking (null on all three = free game) ---------------------------
 
   /** Stake asset, or null for a free game. */

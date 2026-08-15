@@ -26,6 +26,7 @@ import type {
 import type { BattleshipRoomState } from '../games/battleship/battleship.protocol';
 import type { LudoRoomState } from '../games/ludo/ludo.protocol';
 import type { RpsRoomState } from '../games/rps/rps.protocol';
+import type { SalvoRoomState } from '../games/salvo/salvo.protocol';
 import type { ChromaRoomState } from '../games/chroma/chroma.protocol';
 import type {
   CreateWalletResponse,
@@ -391,6 +392,11 @@ export class ApiClient {
   }
 
   /** The Triple Cut match snapshot (same endpoint, RPS-shaped) — mount/resume. */
+  /** The Salvo match snapshot (same endpoint, Salvo-shaped) — mount/resume. */
+  getSalvoRoomState(roomId: string): Promise<SalvoRoomState> {
+    return this.request('GET', `/games/rooms/${roomId}/state`, undefined, true);
+  }
+
   getRpsRoomState(roomId: string): Promise<RpsRoomState> {
     return this.request('GET', `/games/rooms/${roomId}/state`, undefined, true);
   }

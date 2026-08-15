@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { createHash, randomBytes } from 'crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import { UserPlatform, type AuthSession } from '@gaming-platform/core';
 
 import { ConfigurationService } from '../configuration/configuration.service';
@@ -19,6 +19,9 @@ const TOKEN_TTL_MS = 15 * 60 * 1000;
 
 /** 256 bits of entropy, hex-encoded - guessing is not a threat model. */
 const REFRESH_TOKEN_BYTES = 32;
+
+/** A BOT_SECRET shorter than this is refused as unsecured. */
+const MIN_BOT_SECRET_LENGTH = 16;
 
 @Injectable()
 export class AuthenticationService {
@@ -56,6 +59,37 @@ export class AuthenticationService {
     }
     const created = await this.dbService.createWalletUser(address, platform);
     return this.issueSession(created.id);
+  }
+
+  /**
+   * The lobby-bot runner's sign-in: a username from the roster plus the shared
+   * BOT_SECRET. Only accounts already marked is_bot are reachable, so the
+   * secret is not a master key to the platform, and nothing is created here -
+   * seeding does that.
+   */
+  async signInAsBot(username: string, secret: string): Promise<AuthSession> {
+    const expected = this.configService.BOT_SECRET;
+    if (!expected || expected.length < MIN_BOT_SECRET_LENGTH) {
+      throw new UnauthorizedException(
+        `Bot sign-in is disabled: BOT_SECRET is unset or under ${MIN_BOT_SECRET_LENGTH} characters`,
+      );
+    }
+    const provided = Buffer.from(secret);
+    const wanted = Buffer.from(expected);
+    if (
+      provided.length !== wanted.length ||
+      !timingSafeEqual(provided, wanted)
+    ) {
+      throw new UnauthorizedException('Invalid bot credentials');
+    }
+
+    const user = await this.dbService.findUserByUsername(username);
+    // Same answer either way: a caller holding the secret should not be able
+    // to probe which usernames exist or which of them are bots.
+    if (!user || !user.isBot) {
+      throw new UnauthorizedException('Invalid bot credentials');
+    }
+    return this.issueSession(user.id);
   }
 
   /**

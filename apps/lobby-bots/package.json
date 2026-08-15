@@ -1,0 +1,23 @@
+{
+  "name": "@gaming-platform/lobby-bots",
+  "version": "0.0.1",
+  "private": true,
+  "description": "External bot runner: provisioned accounts that fill the lobby and play matches through the public API.",
+  "main": "./dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/main.js",
+    "dev": "tsx src/main.ts",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@gaming-platform/core": "*",
+    "socket.io-client": "^4.8.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.8.3"
+  }
+}

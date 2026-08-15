@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -21,6 +22,9 @@ import {
   type DeleteUserResult,
 } from './admin.service';
 import { SetAppVersionDto } from './dto/set-app-version.dto';
+import { SetUserBotDto } from './dto/set-user-bot.dto';
+import { SeedBotsDto } from './dto/seed-bots.dto';
+import { BotSeedService, type BotSeedResult } from '../bots/bot-seed.service';
 import { SetMaintenanceDto } from './dto/set-maintenance.dto';
 
 /**
@@ -35,6 +39,7 @@ export class AdminController {
   constructor(
     private readonly adminService: AdminService,
     private readonly maintenanceService: MaintenanceService,
+    private readonly botSeedService: BotSeedService,
   ) {}
 
   @Get('stats')
@@ -61,6 +66,21 @@ export class AdminController {
   @Get('users/active')
   listActiveUsers(): Promise<AdminUserView[]> {
     return this.adminService.listActiveUsers();
+  }
+
+  /** Creates the lobby-bot roster from core: email, username, wallet, is_bot. */
+  @Post('bots/seed')
+  seedBots(@Body() dto: SeedBotsDto): Promise<BotSeedResult> {
+    return this.botSeedService.seed(dto.count);
+  }
+
+  /** Provisioning marks lobby-bot accounts here; nothing else may set it. */
+  @Patch('users/:id/bot')
+  setUserBot(
+    @Param('id') id: string,
+    @Body() dto: SetUserBotDto,
+  ): Promise<AdminUserView> {
+    return this.adminService.setUserBot(id, dto.isBot);
   }
 
   @Delete('users/:id')

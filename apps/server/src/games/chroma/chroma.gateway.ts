@@ -175,6 +175,7 @@ export class ChromaGateway {
     try {
       await this.loadParticipantRoom(dto.roomId, userId);
       const { payload } = await this.matchService.forfeit(dto.roomId, userId);
+      await this.dbService.recordEliminatedUser(dto.roomId, userId);
       this.broadcast(dto.roomId, CHROMA_EVENTS.eliminated, payload, {});
       if (payload.winnerUserId) {
         this.websocketsService.sendToChannel(

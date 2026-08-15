@@ -66,6 +66,7 @@ export interface AdminUserView {
   createdAt: string;
   /** Has at least one open socket on this instance right now. */
   online: boolean;
+  isBot: boolean;
 }
 
 export interface AdminGameRoomView {
@@ -230,6 +231,16 @@ export class AdminService {
     return { deleted, walletsDeleted };
   }
 
+  async setUserBot(id: string, isBot: boolean): Promise<AdminUserView> {
+    const user = await this.dbService.findUserById(id);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    await this.dbService.setUserIsBot(id, isBot);
+    const online = new Set(this.websocketsService.getOnlineUserIds());
+    return this.toUserView({ ...user, isBot }, online);
+  }
+
   private toTypeCount(row: {
     gameType: number;
     total: number;
@@ -250,6 +261,7 @@ export class AdminService {
       username: user.username,
       createdAt: user.createdAt.toISOString(),
       online: online.has(user.id),
+      isBot: user.isBot,
     };
   }
 

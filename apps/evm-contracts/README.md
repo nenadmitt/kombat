@@ -28,7 +28,10 @@ payouts, platform fees), built with [Foundry](https://book.getfoundry.sh/).
 Roles: owner (admin + fee withdrawal) is the platform cold key
 `0x0aB34352B087a107302aFF5d155e23a11637Caa1`; operator (creates/funds/
 settles — the game server's hot signer) is `0x4b9801173b21cBb3f290eaDED98D8f5AdE8D90e5`.
-Allowlisted stake assets: native ETH, KombatCoin, USDC.
+Allowlisted stake assets on the live pot: native ETH (10/day), KombatCoin
+(500,000/day), USDC (100,000/day) and DAI (uncapped — see
+`bugs-and-inconsistencies/CONTRACTS.BAI.md`). USDC was allowlisted on
+2026-08-09, after deployment.
 
 KombatCoin was redeployed on 2026-07-30 (block 11378578) together with
 StakePot (block 11378580). KC has no mint function, so a fresh deployment was

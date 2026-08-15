@@ -56,28 +56,6 @@ fix. Remove an entry in the same change that fixes it.
   `UserPlatform` instead of `PLATFORM_LABELS`. Left alone for now because the
   file belongs to the admin-stats work, not the branch that added the column.
 
-## 2026-07-17 - In-memory cache fallback is unsafe once multiple instances run
-
-- **Where:** `apps/server/src/cache/cache.module.ts` (Redis-unreachable
-  branch falls back to `InMemoryCacheStore` with only a warning).
-- **Why it's wrong:** match state, room locks, and the deadline schedule all
-  live in the cache. With more than one instance, an instance that silently
-  fell back to memory disagrees with the others about the same match (split
-  boards, double timeouts, phantom locks). The same applies to the socket.io
-  Redis adapter fallback in `main.ts`: it degrades to single-instance
-  delivery. Fine for one instance; a correctness bug the moment a second one
-  starts.
-- **Suggested fix:** add an env flag (e.g. `REQUIRE_REDIS=true`, set in any
-  multi-instance deployment) that turns both fallbacks into hard boot
-  failures instead of warnings.
-- **2026-08-03:** decided to keep the fallback as-is - running without Redis
-  is a supported deployment. Revisit before ever scaling past one instance.
-  Note the rate limiter (`ThrottlerModule`) also counts per instance.
-- **2026-08-04:** the health probes no longer hide this - `/health` and
-  `/healthcheck` now report `instance` and `socketAdapter` alongside the
-  cache driver, so an adapter sitting on the memory fallback is visible
-  without reading boot logs.
-
 ## 2026-08-03 - No fee bump or cancel for a stuck operator transaction
 
 - **Where:** `apps/server/src/chain/chain.service.ts` /
@@ -124,3 +102,32 @@ fix. Remove an entry in the same change that fixes it.
 - **Suggested fix:** destructure - `const [rows] = await ...` and test
   `rows.length > 0` (this is what `joinGameRoom`'s new choice-carrying branch
   does).
+## 2026-08-13 - A player can hold a created room and a seat in another at once
+
+- **Where:** `apps/server/src/games/games.service.ts` - `createRoom` rejects a
+  second room via `findOpenGameRoomForUser`, but `joinRoom` has no equivalent
+  check.
+- **Why it's wrong:** creating a room and then joining someone else's leaves
+  the player in two live rooms. The webgames lobby renders both ("YOUR OPEN
+  ROOM" and "YOUR SEAT"), which is what surfaced it, and if both start the
+  player owes two matches at once while `getMyActiveGameRoom` can only name
+  one - so the client resumes into an arbitrary half of it.
+- **Suggested fix:** refuse a join while the caller still has an open room of
+  their own, mirroring the createRoom guard, or close their pending room as
+  part of the join.
+
+## 2026-08-13 - A replaced socket is terminal, and nothing tells the player why
+
+- **Where:** `apps/server/src/websockets/websockets.gateway.ts:96-103` - a new
+  connection for an account disconnects the previous ones, and the comment at
+  :99 notes this arrives as `io server disconnect`, which socket.io will not
+  auto-reconnect from.
+- **Why it's wrong:** any second connection for the same account (a second
+  tab, a stale socket the client has not noticed) leaves the first tab dead
+  with only the manual "Reconnect" banner, mid-match. Reported after a Ludo
+  forfeit, where the player was already eliminated and the banner read as the
+  forfeit having failed. The server's log shows the same account connecting
+  five times in one session.
+- **Suggested fix:** send the kicked socket a reason before disconnecting it
+  (e.g. `session:replaced`) so the client can say "opened elsewhere" instead
+  of offering a reconnect that will kick the other tab straight back.

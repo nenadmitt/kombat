@@ -1,0 +1,105 @@
+# The whole local stack. Same project name as apps/server/docker-compose.yaml
+# (which brings up the databases alone), so both address the same containers
+# and the same postgres volume - switching between them keeps the data.
+#
+#   docker compose up -d --build
+#
+# The server's secrets come from apps/server/.env. BOT_SECRET is also needed
+# at the repo root, where Compose reads it for substitution - see
+# .env.example here. Both files are gitignored.
+name: kombat-server
+
+services:
+  postgres:
+    image: postgres:18
+    container_name: gaming-platform-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: gaming_platform
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    ports:
+      - '5433:5432'
+    volumes:
+      # Postgres 18's image expects a single mount at /var/lib/postgresql
+      # (it manages the version-specific subdirectory itself) rather than
+      # the old .../data mount point.
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U admin -d gaming_platform']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: gaming-platform-redis
+    restart: always
+    ports:
+      - '6380:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    container_name: kombat-server
+    restart: unless-stopped
+    env_file:
+      - apps/server/.env
+    environment:
+      # Inside the network the databases answer to their service names, not
+      # to the host ports the .env file points at.
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: '5432'
+      REDIS_URL: redis://redis:6379
+    ports:
+      - '3000:3000'
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  webgames:
+    build:
+      context: .
+      dockerfile: apps/webgames/Dockerfile
+      args:
+        # Baked into the bundle at build time, and read by a browser on the
+        # host - so it is the published port, not the service name.
+        VITE_API_URL: http://localhost:3000
+    container_name: kombat-webgames
+    restart: unless-stopped
+    ports:
+      - '5173:8080'
+    depends_on:
+      - server
+
+  lobby-bots:
+    build:
+      context: .
+      dockerfile: apps/lobby-bots/Dockerfile
+    container_name: lobby-bots
+    restart: unless-stopped
+    environment:
+      BOTS_SERVER_URL: http://server:3000
+      BOTS_COUNT: '10'
+      # Compose substitutes this from the repo-root .env; it has to equal the
+      # server's BOT_SECRET or every bot is refused at sign-in.
+      BOTS_SECRET: ${BOT_SECRET:?set BOT_SECRET in .env at the repo root}
+    depends_on:
+      server:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

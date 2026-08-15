@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { MaintenanceModule } from '../maintenance';
 import { WebsocketsModule } from '../websockets';
+import { BotSeedService } from '../bots/bot-seed.service';
 import { AdminTokenGuard } from './admin-token.guard';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
@@ -15,7 +16,7 @@ import { AdminService } from './admin.service';
 @Module({
   imports: [WebsocketsModule, MaintenanceModule],
   controllers: [AdminController],
-  providers: [AdminService, AdminTokenGuard],
+  providers: [AdminService, AdminTokenGuard, BotSeedService],
   // The guard is exported so other modules can put their own operator-only
   // endpoints behind the same token (e.g. the stake pot's reconciliation read).
   exports: [AdminTokenGuard],

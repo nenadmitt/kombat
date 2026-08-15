@@ -74,7 +74,11 @@ export class GamesService {
         'That game is not available for online rooms yet.',
       );
     }
-    const existing = await this.dbService.findOpenGameRoomForUser(userId);
+    // Any room they take part in, not just ones they created: a player seated
+    // in someone else's room could otherwise open one of their own and hold
+    // two at once.
+    const existing =
+      await this.dbService.findActiveGameRoomForParticipant(userId);
     if (existing) {
       throw new ConflictException(
         'You already have an active game room. Close it before creating another.',
@@ -184,6 +188,14 @@ export class GamesService {
       );
     }
 
+    const prior =
+      await this.dbService.findActiveGameRoomForParticipant(userId);
+    if (prior && prior.id !== roomId && prior.status !== GameRoomStatus.Pending) {
+      throw new ConflictException(
+        'Finish or forfeit your current match before joining another.',
+      );
+    }
+
     const joinToken = resolveJoinToken(room, stakeToken);
 
     // Check the joiner's balance BEFORE flipping the room — a broke joiner
@@ -201,7 +213,9 @@ export class GamesService {
     const chosen = joinToken !== room.stakeToken ? joinToken : null;
 
     if (isMultiSeatGame(room.gameType)) {
-      return this.joinMultiSeatRoom(userId, room, chosen);
+      const seat = await this.joinMultiSeatRoom(userId, room, chosen);
+      await this.releaseOwnRoom(userId, roomId);
+      return seat;
     }
 
     // Conditional seat-taking: if another joiner won the race between the
@@ -223,6 +237,8 @@ export class GamesService {
           }
         : {}),
     });
+    await this.releaseOwnRoom(userId, roomId);
+
     // Tell the creator before the lobby delta: a client that tracks its own
     // room by the lobby list would otherwise drop it and miss this.
     if (room.stakeToken !== null) {
@@ -238,6 +254,47 @@ export class GamesService {
     this.emitLobbyRemoved(joined);
 
     return toGameRoomSummary(joined);
+  }
+
+  /**
+   * A player holds one room. Taking a seat in someone else's gives up the one
+   * they were hosting: two rooms both read as theirs, and only one of them can
+   * be resumed, so the other would strand whoever was waiting in it.
+   */
+  private async releaseOwnRoom(
+    userId: string,
+    joinedRoomId: string,
+  ): Promise<void> {
+    const prior =
+      await this.dbService.findActiveGameRoomForParticipant(userId);
+    if (!prior || prior.id === joinedRoomId) return;
+    // A match already under way is not theirs to walk out of silently; the
+    // guard in joinRoom refuses the join before it gets this far.
+    if (prior.status !== GameRoomStatus.Pending) return;
+
+    if (prior.userId === userId) {
+      await this.dbService.deleteGameRoom(prior.id);
+      this.emitLobbyRemoved(prior);
+      return;
+    }
+    await this.vacateSeat(userId, prior.id);
+  }
+
+  /** Give up a seat held in someone else's still-waiting room. */
+  private async vacateSeat(userId: string, roomId: string): Promise<void> {
+    if (!(await this.dbService.removeGameRoomOpponent(roomId, userId))) return;
+    const updated = await this.dbService.findGameRoomById(roomId);
+    if (!updated) return;
+    const joinedCount = participantsOf(updated).length;
+    for (const participant of participantsOf(updated)) {
+      this.websocketsService.sendToUser(participant, ROOM_EVENTS.playerLeft, {
+        roomId,
+        userId,
+        joinedCount,
+        playerCount: updated.playerCount,
+      });
+    }
+    this.emitLobbyUpdated(updated);
   }
 
   /**
@@ -538,6 +595,12 @@ export class GamesService {
       throw new ConflictException('Only an in-progress match can be forfeited.');
     }
 
+    // Already knocked out: nothing left to give up, and falling through
+    // would hit the no-live-match catch and void a match others are playing.
+    if ((room.eliminatedUserIds ?? []).includes(userId)) {
+      throw new ConflictException('You are already out of this match.');
+    }
+
     if (room.gameType === GameType.Ludo) {
       return this.forfeitLudoRoom(userId, room);
     }
@@ -594,6 +657,7 @@ export class GamesService {
   ): Promise<{ winnerUserId: string | null }> {
     try {
       const payload = await this.ludoMatchService.forfeit(room.id, userId);
+      await this.dbService.recordEliminatedUser(room.id, userId);
       this.websocketsService.sendToChannel(
         gameChannel(room.id),
         LUDO_EVENTS.eliminated,
@@ -629,6 +693,7 @@ export class GamesService {
         room.id,
         userId,
       );
+      await this.dbService.recordEliminatedUser(room.id, userId);
       this.websocketsService.sendToChannel(
         gameChannel(room.id),
         CHROMA_EVENTS.eliminated,

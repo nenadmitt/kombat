@@ -170,6 +170,21 @@ export class DbService {
     await this.userRepository.update({ id: userId }, { ensName: null });
   }
 
+  async setUserIsBot(userId: string, isBot: boolean): Promise<void> {
+    await this.userRepository.update({ id: userId }, { isBot });
+  }
+
+  /** Seeded lobby bot: named at creation, so no username update ever runs. */
+  createBotUser(
+    email: string,
+    username: string,
+    platform: UserPlatform,
+  ): Promise<UserEntity> {
+    return this.userRepository.save(
+      this.userRepository.create({ email, username, platform, isBot: true }),
+    );
+  }
+
   countReferralsFor(userId: string): Promise<number> {
     return this.userRepository.countBy({ referredByUserId: userId });
   }
@@ -446,6 +461,7 @@ export class DbService {
              LEFT JOIN users u ON u.id = participant
             WHERE room.status = $1
               AND room.winner_user_id IS NOT NULL
+              AND COALESCE(u.is_bot, false) = false
               ${gameTypeClause}
             GROUP BY participant, u.username, u.ens_name
          ) ranked
@@ -857,6 +873,10 @@ export class DbService {
         statuses: [GameRoomStatus.Pending, GameRoomStatus.InProgress],
       })
       .andWhere(PLAYED_IN_ROOM, { userId })
+      // Knocked out is out: the room is no longer theirs to resume.
+      .andWhere('NOT (room.eliminated_user_ids @> ARRAY[:userId]::uuid[])', {
+        userId,
+      })
       .getOne();
   }
 
@@ -1078,6 +1098,17 @@ export class DbService {
       .take(limit)
       .skip(offset)
       .getMany();
+  }
+
+  async recordEliminatedUser(roomId: string, userId: string): Promise<void> {
+    await this.gameRoomRepository.query(
+      `UPDATE "game_rooms"
+         SET "eliminated_user_ids" = array_append("eliminated_user_ids", $2)
+       WHERE "id" = $1
+         AND NOT ("eliminated_user_ids" @> ARRAY[$2]::uuid[])`,
+      [roomId, userId],
+    );
+    await this.cacheService.del(CacheKeys.gameRoom(roomId));
   }
 
   async deleteGameRoom(id: string): Promise<void> {

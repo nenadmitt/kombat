@@ -11,6 +11,7 @@ import { BattleshipMatchService } from './battleships/battleship-match.service';
 import { ChromaMatchService } from './chroma/chroma-match.service';
 import { GameDeadlineSweeper } from './game-deadline.sweeper';
 import { LudoMatchService } from './ludo/ludo-match.service';
+import { DbService } from '../db';
 import { RoomAbandonService } from './room-abandon.service';
 import { RpsMatchService } from './rps/rps-match.service';
 import { SalvoMatchService } from './salvo/salvo-match.service';
@@ -38,6 +39,7 @@ describe('GameDeadlineSweeper', () => {
   let chroma: { timeoutTurn: jest.Mock };
   let salvo: { timeoutTurn: jest.Mock };
   let roomAbandon: { enforce: jest.Mock };
+  let db: { recordEliminatedUser: jest.Mock };
   let sweeper: GameDeadlineSweeper;
 
   const sweep = () =>
@@ -90,6 +92,7 @@ describe('GameDeadlineSweeper', () => {
     chroma = { timeoutTurn: jest.fn().mockResolvedValue(null) };
     salvo = { timeoutTurn: jest.fn().mockResolvedValue(null) };
     roomAbandon = { enforce: jest.fn().mockResolvedValue(undefined) };
+    db = { recordEliminatedUser: jest.fn().mockResolvedValue(undefined) };
 
     sweeper = new GameDeadlineSweeper(
       cache,
@@ -101,6 +104,7 @@ describe('GameDeadlineSweeper', () => {
       websockets,
       stakes,
       roomAbandon as unknown as RoomAbandonService,
+      db as unknown as DbService,
     );
   });
 

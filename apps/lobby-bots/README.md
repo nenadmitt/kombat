@@ -1,0 +1,91 @@
+# @gaming-platform/lobby-bots
+
+Bot accounts that keep the lobby from looking empty. They hold it at
+`BOTS_MIN_OPEN_ROOMS` open rooms, join a room a real player has been sitting in
+for 20-30 seconds, and play the match out. They talk to the server as ordinary
+clients over the public API and sockets - the only server-side support is the
+`is_bot` mark that keeps them out of the rankings.
+
+## Running it locally
+
+**1. The accounts have to exist first.** The roster lives in
+`packages/core/src/players/bot-accounts.ts` and the server creates it:
+
+```bash
+curl -X POST http://localhost:3000/api/v1/admin/bots/seed \
+  -H "content-type: application/json" \
+  -H "x-admin-token: $ADMIN_TOKEN" \
+  -d '{"count":20}'
+```
+
+Idempotent: re-running adds nothing. Each account gets an email, a username,
+`is_bot`, and one custodial wallet. It never mints an ENS name and never
+renames anyone - a username already held by someone else comes back as
+`skipped`.
+
+**2. Set the shared secret.** The runner signs in at
+`POST /authentication/bot-login` with a roster username and `BOTS_SECRET`,
+which must match the server's `BOT_SECRET` (16 chars minimum, or the route is
+refused as unsecured). This works in production - there is no `NODE_ENV`
+requirement.
+
+The route reaches `is_bot` accounts only and creates nothing, so the secret is
+not a master key: presenting it for a real player's username is refused, and
+so is a roster name that was never seeded. The runner additionally checks the
+username it gets back matches the account it asked for.
+
+**3. Run it.** The whole stack (databases, server, webgames, bots) comes up
+with one command from the repo root:
+
+```bash
+docker compose up -d --build
+```
+
+Or run just this service, on the host:
+
+```bash
+npm run bots
+```
+
+or in Docker, from the repo root (the image needs the whole workspace, since
+the runner consumes `@gaming-platform/core` from its build):
+
+```bash
+docker build -f apps/lobby-bots/Dockerfile -t kombat-lobby-bots .
+docker run --rm --add-host=host.docker.internal:host-gateway \
+  -e BOTS_COUNT=20 -e BOTS_SECRET="$BOT_SECRET" kombat-lobby-bots
+```
+
+The image ships no `.env`; every knob is an environment variable, and
+`BOTS_SERVER_URL` defaults to `http://host.docker.internal:3000` so the
+container reaches an API running on the host.
+
+Stop a host runner with `pkill -f "tsx src/main.ts"` - the process name is
+`tsx`, not something matching "lobby-bots".
+
+## Configuration
+
+See `.env.example`. The ones worth knowing:
+
+| Key | Default | |
+| --- | --- | --- |
+| `BOTS_SERVER_URL` | `http://localhost:3000` | API and socket origin |
+| `BOTS_SECRET` | - | must equal the server's `BOT_SECRET` |
+| `BOTS_COUNT` | 10 | how many of the roster to run |
+| `BOTS_JOIN_DELAY_MS_MIN/MAX` | 20000 / 30000 | how long a room must sit unanswered |
+| `BOTS_MIN_OPEN_ROOMS` | 4 | the lobby floor bots defend |
+| `BOTS_GAME_MIX` | `NavalBattle:0.3,Ludo:0.3,TripleCut:0.2,Salvo:0.2` | what they host |
+| `BOTS_STAKES_ENABLED` | true | may join staked rooms |
+| `BOTS_STAKE_ASSETS` | `Kombat` | the only asset they will stake |
+
+## What they will not do
+
+- **Join another bot's room.** Hosts are matched against the roster in core,
+  not just this process's own account ids, so a second runner or an older
+  roster is still recognised. A host that cannot be resolved is never joined.
+- **Create a staked room.** Bots only ever match a stake a player chose, and
+  only after checking their settled pot balance covers it.
+- **Lose on the clock while "thinking".** Every pause is clamped to leave eight
+  seconds before the turn deadline.
+- **Play anything without a driver.** Only Battleship and Ludo have bot
+  policies in core; a room of any other type is left alone.
