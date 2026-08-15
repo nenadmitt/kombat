@@ -55,6 +55,10 @@ export interface RoomTotals {
   pending: number;
   inProgress: number;
   completed: number;
+  /** Completed with a winner - a match that was actually played out. */
+  played: number;
+  /** Completed with no winner: forfeits before a result, voided matches. */
+  voided: number;
   staked: number;
   free: number;
 }
@@ -488,6 +492,18 @@ export class DbService {
     return this.userRepository.count();
   }
 
+  countBots(): Promise<number> {
+    return this.userRepository.countBy({ isBot: true });
+  }
+
+  async findBotUserIds(): Promise<Set<string>> {
+    const rows = await this.userRepository.find({
+      select: ['id'],
+      where: { isBot: true },
+    });
+    return new Set(rows.map(row => row.id));
+  }
+
   /** Every room, split by lifecycle and by whether a stake was posted. */
   async findRoomTotals(): Promise<RoomTotals> {
     const row = await this.gameRoomRepository
@@ -499,6 +515,14 @@ export class DbService {
         'inProgress',
       )
       .addSelect(`COUNT(*) FILTER (WHERE room.status = :completed)`, 'completed')
+      .addSelect(
+        `COUNT(*) FILTER (WHERE room.status = :completed AND room.winner_user_id IS NOT NULL)`,
+        'played',
+      )
+      .addSelect(
+        `COUNT(*) FILTER (WHERE room.status = :completed AND room.winner_user_id IS NULL)`,
+        'voided',
+      )
       .addSelect(`COUNT(*) FILTER (WHERE room.stake_token IS NOT NULL)`, 'staked')
       .addSelect(`COUNT(*) FILTER (WHERE room.stake_token IS NULL)`, 'free')
       .setParameters({
@@ -512,6 +536,8 @@ export class DbService {
       pending: Number(row?.pending ?? 0),
       inProgress: Number(row?.inProgress ?? 0),
       completed: Number(row?.completed ?? 0),
+      played: Number(row?.played ?? 0),
+      voided: Number(row?.voided ?? 0),
       staked: Number(row?.staked ?? 0),
       free: Number(row?.free ?? 0),
     };
@@ -526,6 +552,10 @@ export class DbService {
       .select('room.game_type', 'gameType')
       .addSelect('COUNT(*)', 'total')
       .addSelect(`COUNT(*) FILTER (WHERE room.stake_token IS NOT NULL)`, 'staked')
+      // A room that never produced a result is not a game of that type.
+      .where('room.status = :completed AND room.winner_user_id IS NOT NULL', {
+        completed: GameRoomStatus.Completed,
+      })
       .groupBy('room.game_type')
       .orderBy('COUNT(*)', 'DESC')
       .addOrderBy('room.game_type', 'ASC')
@@ -559,7 +589,9 @@ export class DbService {
                   NULL
                 )
               ) AS participant
+        WHERE room.status = $1 AND room.winner_user_id IS NOT NULL
         GROUP BY participant`,
+      [GameRoomStatus.Completed],
     );
     return new Map(
       rows.map(row => [
@@ -599,20 +631,24 @@ export class DbService {
         completed: GameRoomStatus.Completed,
       })
       .getRawOne<Record<keyof UserRoomTotals, string>>();
+    const completed = Number(row?.completed ?? 0);
+    const voids = Number(row?.voids ?? 0);
     return {
       total: Number(row?.total ?? 0),
       pending: Number(row?.pending ?? 0),
       inProgress: Number(row?.inProgress ?? 0),
-      completed: Number(row?.completed ?? 0),
+      completed,
+      played: completed - voids,
+      voided: voids,
       staked: Number(row?.staked ?? 0),
       free: Number(row?.free ?? 0),
       wins: Number(row?.wins ?? 0),
-      voids: Number(row?.voids ?? 0),
+      voids,
       created: Number(row?.created ?? 0),
     };
   }
 
-  /** One player's rooms per game type, most-played first. */
+  /** One player's played matches per game type, most-played first. */
   async findRoomCountsByTypeForUser(
     userId: string,
   ): Promise<{ gameType: number; total: number; staked: number }[]> {
@@ -622,6 +658,9 @@ export class DbService {
       .addSelect('COUNT(*)', 'total')
       .addSelect(`COUNT(*) FILTER (WHERE room.stake_token IS NOT NULL)`, 'staked')
       .where(PLAYED_IN_ROOM, { userId })
+      .andWhere('room.status = :completed AND room.winner_user_id IS NOT NULL', {
+        completed: GameRoomStatus.Completed,
+      })
       .groupBy('room.game_type')
       .orderBy('COUNT(*)', 'DESC')
       .addOrderBy('room.game_type', 'ASC')

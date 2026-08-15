@@ -19,6 +19,7 @@ export default function AdminStatsPage() {
   const router = useRouter();
   const [state, setState] = useState<State>({ status: "checking" });
   const [query, setQuery] = useState("");
+  const [who, setWho] = useState<"real" | "bots" | "all">("real");
 
   const load = useCallback(async () => {
     const [overview, users] = await Promise.all([
@@ -52,13 +53,15 @@ export default function AdminStatsPage() {
   const filtered = useMemo(() => {
     if (state.status !== "ready") return [];
     const needle = query.trim().toLowerCase();
-    if (!needle) return state.users;
-    return state.users.filter((user) =>
-      [user.username, user.email, user.id].some((field) =>
+    return state.users.filter((user) => {
+      if (who === "real" && user.isBot) return false;
+      if (who === "bots" && !user.isBot) return false;
+      if (!needle) return true;
+      return [user.username, user.email, user.id].some((field) =>
         field?.toLowerCase().includes(needle),
-      ),
-    );
-  }, [state, query]);
+      );
+    });
+  }, [state, query, who]);
 
   if (state.status === "denied") {
     notFound();
@@ -87,13 +90,35 @@ export default function AdminStatsPage() {
             <Overview overview={state.overview} />
 
             <h2 className={styles.sectionTitle}>Users</h2>
-            <input
-              className={styles.search}
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Filter by username, email or id"
-              aria-label="Filter users"
-            />
+            <div className={styles.toolbar}>
+              <input
+                className={styles.search}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Filter by username, email or id"
+                aria-label="Filter users"
+              />
+              <div className={styles.segmented} role="group" aria-label="Show">
+                {(
+                  [
+                    ["real", "Players"],
+                    ["bots", "Bots"],
+                    ["all", "All"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={
+                      who === value ? styles.segmentOn : styles.segment
+                    }
+                    onClick={() => setWho(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {filtered.length === 0 ? (
               <div className={styles.empty}>No users match that.</div>
@@ -121,6 +146,9 @@ export default function AdminStatsPage() {
                       >
                         <td className={styles.username}>
                           {user.username ?? <span className={styles.unknown}>-</span>}
+                          {user.isBot && (
+                            <span className={styles.pillAmber}>BOT</span>
+                          )}
                         </td>
                         <td className={styles.email}>
                           {user.email ?? (
@@ -141,7 +169,9 @@ export default function AdminStatsPage() {
                           {new Date(user.createdAt).toLocaleDateString()}
                         </td>
                         <td>
-                          {user.online ? (
+                          {user.isBot ? (
+                            <span className={styles.pillMuted}>Bot</span>
+                          ) : user.online ? (
                             <span className={styles.pillGreen}>
                               <span className={styles.onlineDot} />
                               Online
@@ -165,7 +195,7 @@ export default function AdminStatsPage() {
 
 function Overview({ overview }: { overview: StatsOverview }) {
   const { users, games } = overview;
-  const stakedShare = games.total ? (games.staked / games.total) * 100 : 0;
+  const stakedShare = games.played ? (games.staked / games.played) * 100 : 0;
   const mobile = users.byPlatform?.find((row) => row.label === "mobile")?.users;
   const web = users.byPlatform?.find((row) => row.label === "web")?.users;
 
@@ -173,12 +203,13 @@ function Overview({ overview }: { overview: StatsOverview }) {
     <>
       <div className={styles.cards}>
         <div className={styles.card}>
-          <div className={styles.cardLabel}>Total users</div>
+          <div className={styles.cardLabel}>Players</div>
           <div className={styles.cardValue}>{users.total}</div>
           <div className={styles.cardNote}>
             {users.byPlatform
               ? `${mobile ?? 0} mobile · ${web ?? 0} web`
               : "Signup platform not recorded yet"}
+            {users.bots > 0 && ` · ${users.bots} bots not counted`}
           </div>
         </div>
 
@@ -187,15 +218,15 @@ function Overview({ overview }: { overview: StatsOverview }) {
           <div className={`${styles.cardValue} ${styles.cardValueGreen}`}>
             {users.online}
           </div>
-          <div className={styles.cardNote}>Connected to this API instance</div>
+          <div className={styles.cardNote}>Real players on this API instance</div>
         </div>
 
         <div className={styles.card}>
-          <div className={styles.cardLabel}>Total games</div>
-          <div className={styles.cardValue}>{games.total}</div>
+          <div className={styles.cardLabel}>Games played</div>
+          <div className={styles.cardValue}>{games.played}</div>
           <div className={styles.cardNote}>
-            {games.completed} completed · {games.inProgress} running ·{" "}
-            {games.pending} waiting
+            {games.inProgress} running · {games.pending} waiting ·{" "}
+            {games.voided} voided - not counted
           </div>
         </div>
 

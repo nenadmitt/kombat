@@ -23,12 +23,20 @@ interface TypeCount {
 
 export interface AdminStatsOverview {
   users: {
+    /** Real players; bot accounts are counted separately in `bots`. */
     total: number;
+    bots: number;
+    /** Real players with an open socket - bots are never "online" here. */
     online: number;
     /** null until the users.platform column exists. */
     byPlatform: { platform: number; label: string; users: number }[] | null;
   };
-  games: RoomTotals & { byType: TypeCount[] };
+  /**
+   * Matches that were actually played: `total` counts Completed rooms with a
+   * winner. Rooms still waiting, still running, or voided are reported on
+   * their own lines and never inflate the headline.
+   */
+  games: RoomTotals & { played: number; voided: number; byType: TypeCount[] };
 }
 
 export interface AdminUserStatsRow {
@@ -37,6 +45,7 @@ export interface AdminUserStatsRow {
   username: string | null;
   createdAt: string;
   online: boolean;
+  isBot: boolean;
   platform: number | null;
   platformLabel: string | null;
   games: number;
@@ -53,6 +62,7 @@ export interface AdminUserStats {
   referredByUserId: string | null;
   createdAt: string;
   online: boolean;
+  isBot: boolean;
   platform: number | null;
   platformLabel: string | null;
   totals: UserRoomTotals & { losses: number };
@@ -113,7 +123,9 @@ export class AdminService {
       return [];
     }
     const users = await this.dbService.findUsersByIds([...online]);
-    return users.map(user => this.toUserView(user, online));
+    return users
+      .filter(user => !user.isBot)
+      .map(user => this.toUserView(user, online));
   }
 
   /** Platform-wide counters for the admin dashboard. */
@@ -123,7 +135,14 @@ export class AdminService {
       this.dbService.findRoomCountsByType(),
       this.dbService.findUserPlatforms(),
     ]);
-    const users = await this.dbService.countUsers();
+    const [users, bots, botIds] = await Promise.all([
+      this.dbService.countUsers(),
+      this.dbService.countBots(),
+      this.dbService.findBotUserIds(),
+    ]);
+    const online = this.websocketsService
+      .getOnlineUserIds()
+      .filter(id => !botIds.has(id)).length;
 
     let byPlatform: AdminStatsOverview['users']['byPlatform'] = null;
     if (platforms) {
@@ -142,11 +161,15 @@ export class AdminService {
 
     return {
       users: {
-        total: users,
-        online: this.websocketsService.getOnlineUserIds().length,
+        total: users - bots,
+        bots,
+        online,
         byPlatform,
       },
-      games: { ...totals, byType: byType.map(row => this.toTypeCount(row)) },
+      games: {
+        ...totals,
+        byType: byType.map(row => this.toTypeCount(row)),
+      },
     };
   }
 
@@ -167,7 +190,8 @@ export class AdminService {
         email: user.email,
         username: user.username,
         createdAt: user.createdAt.toISOString(),
-        online: online.has(user.id),
+        online: !user.isBot && online.has(user.id),
+        isBot: user.isBot,
         platform,
         platformLabel: platformLabel(platform),
         games: counts.games,
@@ -198,7 +222,8 @@ export class AdminService {
       referralCode: user.referralCode,
       referredByUserId: user.referredByUserId,
       createdAt: user.createdAt.toISOString(),
-      online: this.websocketsService.getOnlineUserIds().includes(id),
+      online: !user.isBot && this.websocketsService.getOnlineUserIds().includes(id),
+      isBot: user.isBot,
       platform,
       platformLabel: platformLabel(platform),
       totals: {
