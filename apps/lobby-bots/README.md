@@ -74,7 +74,7 @@ See `.env.example`. The ones worth knowing:
 | `BOTS_COUNT` | 10 | how many of the roster to run |
 | `BOTS_JOIN_DELAY_MS_MIN/MAX` | 20000 / 30000 | how long a room must sit unanswered |
 | `BOTS_MIN_OPEN_ROOMS` | 4 | the lobby floor bots defend |
-| `BOTS_GAME_MIX` | `NavalBattle:0.6,Ludo:0.4` | what they host |
+| `BOTS_GAME_MIX` | `NavalBattle:0.3,Ludo:0.3,TripleCut:0.2,Salvo:0.2` | what they host |
 | `BOTS_STAKES_ENABLED` | true | may join staked rooms |
 | `BOTS_STAKE_ASSETS` | `Kombat` | the only asset they will stake |
 

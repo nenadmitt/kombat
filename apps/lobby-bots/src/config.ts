@@ -32,6 +32,8 @@ export type Config = {
     battleshipShotMs: Range;
     ludoRollMs: Range;
     ludoMoveMs: Range;
+    rpsLockMs: Range;
+    salvoShotMs: Range;
   };
   logLevel: 'debug' | 'info';
 };
@@ -39,7 +41,12 @@ export type Config = {
 export type Range = { min: number; max: number };
 
 /** Games the runner has a driver for; anything else is ignored in the lobby. */
-export const DRIVEABLE_GAMES: GameType[] = [GameType.NavalBattle, GameType.Ludo];
+export const DRIVEABLE_GAMES: GameType[] = [
+  GameType.NavalBattle,
+  GameType.Ludo,
+  GameType.TripleCut,
+  GameType.Salvo,
+];
 
 const ENV_FILE = join(__dirname, '..', '.env');
 
@@ -133,7 +140,8 @@ export function loadConfig(): Config {
     concedeDelayMs: range('BOTS_CONCEDE_DELAY_MS', 5_000, 15_000),
     hostedRoomTtlMs: range('BOTS_HOSTED_ROOM_TTL_MS', 180_000, 480_000),
     gameMix: parseGameMix(
-      process.env.BOTS_GAME_MIX ?? 'NavalBattle:0.6,Ludo:0.4',
+      process.env.BOTS_GAME_MIX ??
+        'NavalBattle:0.3,Ludo:0.3,TripleCut:0.2,Salvo:0.2',
     ),
     stakesEnabled: bool('BOTS_STAKES_ENABLED', true),
     stakeAssets: parseStakeAssets(process.env.BOTS_STAKE_ASSETS ?? 'Kombat'),
@@ -142,6 +150,8 @@ export function loadConfig(): Config {
       battleshipShotMs: range('BOTS_BSHIP_SHOT_MS', 2_500, 6_000),
       ludoRollMs: range('BOTS_LUDO_ROLL_MS', 1_300, 3_000),
       ludoMoveMs: range('BOTS_LUDO_MOVE_MS', 900, 2_500),
+      rpsLockMs: range('BOTS_RPS_LOCK_MS', 1_500, 5_000),
+      salvoShotMs: range('BOTS_SALVO_SHOT_MS', 3_000, 8_000),
     },
     logLevel: process.env.BOTS_LOG_LEVEL === 'debug' ? 'debug' : 'info',
   };

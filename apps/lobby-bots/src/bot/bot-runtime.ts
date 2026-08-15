@@ -11,6 +11,8 @@ import { loginBot } from '../auth/login';
 import type { Config } from '../config';
 import { playBattleship } from '../drivers/battleship.driver';
 import { playLudo } from '../drivers/ludo.driver';
+import { playRps } from '../drivers/rps.driver';
+import { playSalvo } from '../drivers/salvo.driver';
 import { gameChannel, type GameDriver } from '../drivers/driver';
 import { createLogger, type Logger } from '../logger';
 import { connect, leaveChannel, waitForConnect } from '../net/socket';
@@ -20,6 +22,8 @@ export type BotState = 'idle' | 'hosting' | 'joining' | 'playing';
 const DRIVERS: Partial<Record<GameType, GameDriver>> = {
   [GameType.NavalBattle]: playBattleship,
   [GameType.Ludo]: playLudo,
+  [GameType.TripleCut]: playRps,
+  [GameType.Salvo]: playSalvo,
 };
 
 export function hasDriver(gameType: GameType): boolean {
