@@ -30,7 +30,7 @@ type Props = {
 const FEE_BPS = 500n;
 const BPS = 10_000n;
 
-/** Confirms a staked seat, and picks which stablecoin pays for it. */
+/** Confirms a seat: for a staked room, which stablecoin pays for it. */
 export function JoinRoomModal({
   room,
   hostName,
@@ -51,7 +51,16 @@ export function JoinRoomModal({
   }, [refresh]);
 
   if (roomToken === null || room.stakeAmount === null) {
-    return null;
+    return (
+      <FreeJoinSheet
+        room={room}
+        hostName={hostName}
+        busy={busy}
+        error={error}
+        onClose={onClose}
+        onConfirm={() => onConfirm()}
+      />
+    );
   }
 
   const swappable = isStableAsset(roomToken);
@@ -205,6 +214,70 @@ export function JoinRoomModal({
           {STAKE_ASSET_SYMBOLS[token]}. Add funds or pick a token you can cover.
         </div>
       )}
+      {error && <div className="banner">{error}</div>}
+    </Sheet>
+  );
+}
+
+/**
+ * A free room has nothing to price, but a 1v1 join starts the match on the
+ * spot - so a click that read as "have a look" would put the player on a
+ * board with a running turn clock. Every join confirms; the copy says what
+ * the click will actually do.
+ */
+function FreeJoinSheet({
+  room,
+  hostName,
+  busy,
+  error,
+  onClose,
+  onConfirm,
+}: {
+  room: GameRoomSummary;
+  hostName: string;
+  busy: boolean;
+  error: string | null;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const startsNow = room.joinedCount + 1 >= room.playerCount;
+  return (
+    <Sheet
+      open
+      onOpenChange={next => !next && onClose()}
+      title="Join this room"
+      subtitle={
+        startsNow
+          ? 'Your seat fills the table, so the match starts as soon as you join.'
+          : 'You take a seat and wait for the host to start.'
+      }
+      footer={
+        <button
+          type="button"
+          className="btn btn-lime btn-block btn-lg"
+          onClick={onConfirm}
+          disabled={busy}
+        >
+          {busy ? (
+            <span className="spinner" />
+          ) : startsNow ? (
+            'Join and play now'
+          ) : (
+            'Take a seat'
+          )}
+        </button>
+      }
+    >
+      <div className="picker-row">
+        <GameIcon gameType={room.gameType} size={34} />
+        <span className="picker-text">
+          <span className="picker-name">{GAME_LABELS[room.gameType]}</span>
+          <span className="picker-blurb">
+            Hosted by {hostName} · {room.joinedCount} / {room.playerCount}{' '}
+            seated · Free
+          </span>
+        </span>
+      </div>
       {error && <div className="banner">{error}</div>}
     </Sheet>
   );

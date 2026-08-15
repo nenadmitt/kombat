@@ -222,13 +222,10 @@ export function LobbyPage() {
     setJoinError('That room is no longer open.');
   }, [rooms, pendingJoin, joiningId]);
 
-  /** Every join funnels through here; a staked room confirms first. */
+  /** Every join funnels through here and confirms first - a 1v1 room starts
+   *  the match on the spot, so a bare click must not be enough. */
   function requestJoin(room: GameRoomSummary) {
     setJoinError(null);
-    if (room.stakeToken === null) {
-      void confirmJoin(room);
-      return;
-    }
     pendingListedRef.current = false;
     setPendingJoin(room);
   }
