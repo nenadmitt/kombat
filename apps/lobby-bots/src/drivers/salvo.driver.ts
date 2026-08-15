@@ -1,6 +1,8 @@
 import {
+  clampTankX,
   fireShot,
   SALVO_EVENTS,
+  SALVO_MOVE_RANGE,
   SALVO_FIELD_HEIGHT,
   SALVO_FIELD_WIDTH,
   SALVO_MAX_ANGLE,
@@ -22,16 +24,43 @@ import { joinChannel } from '../net/socket';
 /** How far off the true solution the bot deliberately aims, in degrees/power. */
 const AIM_WOBBLE = { angle: 4, power: 6 };
 
+/** Chance an unhurt bot repositions anyway - so movement is not itself a tell. */
+const IDLE_MOVE_CHANCE = 0.2;
+
 type Local = {
   terrain: SalvoTerrain;
   me: SalvoTank | null;
   them: SalvoTank | null;
   wind: number;
+  /** Set when the opponent's last shot took HP off us. */
+  hitLastRound: boolean;
   turnUserId: string | null;
   turnDeadline: number | null;
   winnerUserId: string | null;
   over: boolean;
 };
+
+/**
+ * Where to drive after taking a hit. The opponent has our range dialled in,
+ * so the whole point is to be somewhere else: the full move budget, away
+ * from where the shell landed when that is legal, otherwise the other way.
+ * A tank that never moves is the easiest tell there is.
+ */
+export function chooseMove(
+  me: SalvoTank,
+  them: SalvoTank,
+  lastImpactX: number | null,
+): number | null {
+  const awayFromImpact =
+    lastImpactX === null ? (Math.random() < 0.5 ? 1 : -1) : me.x >= lastImpactX ? 1 : -1;
+  const wanted = SALVO_MOVE_RANGE * awayFromImpact;
+  let target = clampTankX(me.x, wanted, me.side, them.x);
+  // Pinned against an edge or the separation line: go the other way instead.
+  if (Math.abs(target - me.x) < SALVO_MOVE_RANGE / 2) {
+    target = clampTankX(me.x, -wanted, me.side, them.x);
+  }
+  return Math.abs(target - me.x) < 4 ? null : Math.round(target);
+}
 
 /**
  * Pick an aim by simulating candidates with the same fireShot the server
@@ -79,6 +108,7 @@ export async function playSalvo(ctx: DriverContext): Promise<DriverResult> {
     me: null,
     them: null,
     wind: state.wind,
+    hitLastRound: false,
     turnUserId: state.turnUserId,
     turnDeadline: state.turnDeadline,
     winnerUserId: state.winnerUserId,
@@ -110,7 +140,13 @@ export async function playSalvo(ctx: DriverContext): Promise<DriverResult> {
     local.over = snapshot.phase === 'over';
   };
 
+  let lastImpactX: number | null = null;
   socket.on(SALVO_EVENTS.shot, (payload: SalvoShotPayload) => {
+    if (payload.byUserId !== myUserId) {
+      lastImpactX = payload.impact.x;
+      // Only their shot can hurt us; a self-hit is not something to run from.
+      local.hitLastRound = payload.damage > 0;
+    }
     if (payload.crater) {
       // The server sends the crater point, not the new heightmap; a resync
       // is the honest way to see the ground as it now is.
@@ -178,7 +214,26 @@ export async function playSalvo(ctx: DriverContext): Promise<DriverResult> {
       applyState(await api.getSalvoRoomState(roomId));
       continue;
     }
-    // No driving: staying put keeps the bot readable and beatable.
+    // Took a hit: relocate before shooting, so the opponent has to find us
+    // again. Sometimes move unhurt too, so moving is not itself a signal.
+    const shouldMove =
+      local.hitLastRound || Math.random() < IDLE_MOVE_CHANCE;
+    if (shouldMove) {
+      const toX = chooseMove(local.me, local.them, lastImpactX);
+      if (toX !== null) {
+        socket.emit(SALVO_EVENTS.move, { roomId, toX });
+        // The moved listener updates local.me.x, so the aim below is taken
+        // from where we actually ended up, not where we asked to go.
+        await Promise.race([
+          once(socket, SALVO_EVENTS.moved, signal, 4_000),
+          once(socket, SALVO_EVENTS.error, signal, 4_000),
+        ]);
+        await sleep(jitter({ min: 600, max: 1_400 }), signal);
+        if (signal.aborted || local.over) break;
+      }
+    }
+    local.hitLastRound = false;
+
     const aim = chooseAim(local.terrain, local.me, local.them, local.wind);
     socket.emit(SALVO_EVENTS.fire, { roomId, ...aim });
     await sleep(jitter({ min: 200, max: 600 }), signal);
