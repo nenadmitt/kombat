@@ -37,6 +37,19 @@ import { WalletNetwork, WalletOrigin } from './types/wallet';
 const PLAYED_IN_ROOM =
   '(room.user_id = :userId OR room.opponent_id = :userId OR room.opponent_ids @> ARRAY[:userId]::uuid[])';
 
+/**
+ * A room that counts as a game: it finished with a winner, and at least one
+ * seat was a real player. Bots filling and conceding each other's tables
+ * produce hundreds of "completed" rooms a day that nobody played.
+ */
+const REAL_GAME =
+  `room.status = :completed AND room.winner_user_id IS NOT NULL
+   AND EXISTS (
+     SELECT 1 FROM users u
+      WHERE u.id = ANY (array_remove(ARRAY[room.user_id, room.opponent_id] || room.opponent_ids, NULL))
+        AND NOT u.is_bot
+   )`;
+
 /** Where a user signed up. Added by the web-accounts work; read-only here. */
 const USER_PLATFORM_COLUMN = 'platform';
 
@@ -515,10 +528,7 @@ export class DbService {
         'inProgress',
       )
       .addSelect(`COUNT(*) FILTER (WHERE room.status = :completed)`, 'completed')
-      .addSelect(
-        `COUNT(*) FILTER (WHERE room.status = :completed AND room.winner_user_id IS NOT NULL)`,
-        'played',
-      )
+      .addSelect(`COUNT(*) FILTER (WHERE ${REAL_GAME})`, 'played')
       .addSelect(
         `COUNT(*) FILTER (WHERE room.status = :completed AND room.winner_user_id IS NULL)`,
         'voided',
@@ -552,10 +562,7 @@ export class DbService {
       .select('room.game_type', 'gameType')
       .addSelect('COUNT(*)', 'total')
       .addSelect(`COUNT(*) FILTER (WHERE room.stake_token IS NOT NULL)`, 'staked')
-      // A room that never produced a result is not a game of that type.
-      .where('room.status = :completed AND room.winner_user_id IS NOT NULL', {
-        completed: GameRoomStatus.Completed,
-      })
+      .where(REAL_GAME, { completed: GameRoomStatus.Completed })
       .groupBy('room.game_type')
       .orderBy('COUNT(*)', 'DESC')
       .addOrderBy('room.game_type', 'ASC')
@@ -590,6 +597,11 @@ export class DbService {
                 )
               ) AS participant
         WHERE room.status = $1 AND room.winner_user_id IS NOT NULL
+          AND EXISTS (
+            SELECT 1 FROM users u
+             WHERE u.id = ANY (array_remove(ARRAY[room.user_id, room.opponent_id] || room.opponent_ids, NULL))
+               AND NOT u.is_bot
+          )
         GROUP BY participant`,
       [GameRoomStatus.Completed],
     );

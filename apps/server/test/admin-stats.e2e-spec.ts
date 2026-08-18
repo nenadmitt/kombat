@@ -130,6 +130,32 @@ describeWithToken('admin stats (e2e)', () => {
     expect(me).toMatchObject({ isBot: false, online: true });
   });
 
+  it('a match between two bots is not a game anyone played', async () => {
+    await seedBots(2);
+    const [b1, b2] = await testApp.dataSource.query(
+      `SELECT id FROM users WHERE is_bot ORDER BY username LIMIT 2`,
+    );
+    const human = await actor('human');
+    const other = await actor('other');
+    // Two bots finish a room between themselves; a human finishes one too.
+    await testApp.dataSource.query(
+      `INSERT INTO game_rooms (user_id, opponent_id, game_type, status, player_count, winner_user_id, is_private, code)
+       VALUES ($1, $2, $3, $4, 2, $1, false, 'BOTBOT')`,
+      [b1.id, b2.id, GameType.Ludo, GameRoomStatus.Completed],
+    );
+    await room(human, other, GameRoomStatus.Completed, human);
+
+    const { games } = await admin<{
+      games: { played: number; byType: { gameType: number; total: number }[] };
+    }>('stats');
+    expect(games.played).toBe(1);
+    expect(games.byType.find(t => t.gameType === GameType.Ludo)).toBeUndefined();
+
+    // And the bots' own rows do not claim it either.
+    const users = await admin<{ id: string; games: number }[]>('stats/users');
+    expect(users.find(u => u.id === b1.id)?.games).toBe(0);
+  });
+
   it('the active-users list has no bots in it', async () => {
     await seedBots(1);
     await actor('human');
