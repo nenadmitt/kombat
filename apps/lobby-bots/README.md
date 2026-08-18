@@ -80,9 +80,14 @@ See `.env.example`. The ones worth knowing:
 
 ## What they will not do
 
-- **Join another bot's room.** Hosts are matched against the roster in core,
-  not just this process's own account ids, so a second runner or an older
-  roster is still recognised. A host that cannot be resolved is never joined.
+- **Join another bot's room, or fill one.** Hosts are matched against the
+  roster in core, not just this process's own account ids, so a second runner
+  or an older roster is still recognised. A host that cannot be resolved is
+  never joined. Bots also never seat themselves at a bot-hosted table: a room
+  a bot opens stays at 1/4 until a real player sits down, and only then do
+  other bots fill the remaining seats. A match with no human in it is never
+  played on purpose - if one arises anyway (a player leaves a table bots had
+  filled), all but one bot concede rather than play it out.
 - **Create a staked room.** Bots only ever match a stake a player chose, and
   only after checking their settled pot balance covers it.
 - **Lose on the clock while "thinking".** Every pause is clamped to leave eight

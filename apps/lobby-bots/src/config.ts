@@ -17,10 +17,6 @@ export type Config = {
   seatFillFirstMs: Range;
   /** And between each seat after that. */
   seatFillNextMs: Range;
-  /** Chance a host that *may* start early decides to, rather than wait for a full room. */
-  earlyStartChance: number;
-  /** How long such a host sits on a startable room before starting it. */
-  earlyStartMs: Range;
   /** Before conceding a match that turned out to be bots only. */
   concedeDelayMs: Range;
   hostedRoomTtlMs: Range;
@@ -135,8 +131,6 @@ export function loadConfig(): Config {
     maxRoomsPerGame: num('BOTS_MAX_ROOMS_PER_GAME', 2),
     seatFillFirstMs: range('BOTS_SEAT_FILL_FIRST_MS', 5_000, 10_000),
     seatFillNextMs: range('BOTS_SEAT_FILL_NEXT_MS', 15_000, 20_000),
-    earlyStartChance: num('BOTS_EARLY_START_CHANCE', 0.5),
-    earlyStartMs: range('BOTS_EARLY_START_MS', 20_000, 45_000),
     concedeDelayMs: range('BOTS_CONCEDE_DELAY_MS', 5_000, 15_000),
     hostedRoomTtlMs: range('BOTS_HOSTED_ROOM_TTL_MS', 180_000, 480_000),
     gameMix: parseGameMix(

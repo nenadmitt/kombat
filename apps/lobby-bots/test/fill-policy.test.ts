@@ -20,8 +20,8 @@ function ludoRoom(over: Partial<GameRoomSummary> = {}): GameRoomSummary {
     gameType: GameType.Ludo,
     status: GameRoomStatus.Pending,
     playerCount: 4,
-    joinedCount: 1,
-    creatorUserId: 'host-user',
+    joinedCount: 2,
+    creatorUserId: 'human-host',
     stakeToken: null,
     stakeAmount: null,
     code: 'ABC123',
@@ -54,7 +54,7 @@ function bot(name: string, over: Partial<BotRuntime> = {}): FakeBot {
     api: {
       joinGameRoom: async (id: string) => {
         joined.push(id);
-        return ludoRoom({ id, joinedCount: 2 });
+        return ludoRoom({ id, joinedCount: 3 });
       },
       startGameRoom: async (id: string) => {
         started.push(id);
@@ -73,12 +73,15 @@ function config(over: Record<string, unknown> = {}) {
 const ZERO = { min: 0, max: 0 };
 const NEVER = { min: 1_000_000, max: 1_000_000 };
 
-test('a bot takes a seat in a bot-hosted room once the wait elapses', async () => {
-  const host = bot('host', { state: 'hosting', room: ludoRoom() });
+// A bot that "joined" is sitting at a human's table; a bot that is "hosting"
+// has a room with nobody real in it.
+
+test('a table a human hosts gets filled once a bot is seated there', async () => {
+  const seated = bot('seated', { state: 'joining', room: ludoRoom() });
   const filler = bot('filler');
   const policy = new FillPolicy(
-    [host, filler],
-    config({ seatFillFirstMs: ZERO, seatFillNextMs: NEVER, earlyStartChance: 0 }),
+    [seated, filler],
+    config({ seatFillFirstMs: ZERO, seatFillNextMs: NEVER }),
     silent,
   );
 
@@ -88,12 +91,49 @@ test('a bot takes a seat in a bot-hosted room once the wait elapses', async () =
   assert.equal(filler.state, 'joining');
 });
 
-test('seats are taken one at a time, not all at once', async () => {
-  const host = bot('host', { state: 'hosting', room: ludoRoom() });
+test('a bot-hosted table with no human in it is never filled', async () => {
+  const host = bot('host', {
+    state: 'hosting',
+    room: ludoRoom({ creatorUserId: 'bot-host', joinedCount: 1 }),
+  });
   const fillers = [bot('a'), bot('b'), bot('c')];
   const policy = new FillPolicy(
     [host, ...fillers],
-    config({ seatFillFirstMs: ZERO, seatFillNextMs: NEVER, earlyStartChance: 0 }),
+    config({ seatFillFirstMs: ZERO, seatFillNextMs: ZERO }),
+    silent,
+  );
+
+  await policy.tick();
+  await policy.tick();
+  await policy.tick();
+
+  assert.deepEqual(
+    fillers.flatMap(f => f.joined),
+    [],
+    'bots must not seat themselves at a bot-only table',
+  );
+});
+
+test('a bot never starts a table short-handed - that is the host\'s call', async () => {
+  const seated = bot('seated', { state: 'joining', room: ludoRoom({ joinedCount: 3 }) });
+  const policy = new FillPolicy(
+    [seated],
+    config({ seatFillFirstMs: NEVER, seatFillNextMs: NEVER }),
+    silent,
+  );
+
+  await policy.tick();
+  await policy.tick();
+
+  assert.deepEqual(seated.started, []);
+});
+
+test('seats are taken one at a time, not all at once', async () => {
+  const seated = bot('seated', { state: 'joining', room: ludoRoom() });
+  const fillers = [bot('a'), bot('b'), bot('c')];
+  const policy = new FillPolicy(
+    [seated, ...fillers],
+    config({ seatFillFirstMs: ZERO, seatFillNextMs: NEVER }),
     silent,
   );
 
@@ -106,147 +146,44 @@ test('seats are taken one at a time, not all at once', async () => {
 });
 
 test('a two-player room is never self-filled', async () => {
-  const host = bot('host', {
-    state: 'hosting',
-    room: ludoRoom({ gameType: GameType.NavalBattle, playerCount: 2 }),
+  const seated = bot('seated', {
+    state: 'joining',
+    room: ludoRoom({ gameType: GameType.NavalBattle, playerCount: 2, joinedCount: 2 }),
   });
-  const filler = bot('filler');
-  const policy = new FillPolicy(
-    [host, filler],
-    config({ seatFillFirstMs: ZERO, earlyStartChance: 0 }),
-    silent,
-  );
-
-  await policy.tick();
-
-  assert.deepEqual(filler.joined, []);
-});
-
-test('a full room is left to the server to start', async () => {
-  const host = bot('host', {
-    state: 'hosting',
-    room: ludoRoom({ joinedCount: 4 }),
-  });
-  const filler = bot('filler');
-  const policy = new FillPolicy(
-    [host, filler],
-    config({ seatFillFirstMs: ZERO, earlyStartChance: 1 }),
-    silent,
-  );
-
-  await policy.tick();
-
-  assert.deepEqual(filler.joined, []);
-  assert.deepEqual(host.started, []);
-});
-
-test('an early-starting host starts a startable room after its delay', async () => {
-  const host = bot('host', { state: 'hosting', room: ludoRoom({ joinedCount: 3 }) });
-  const policy = new FillPolicy(
-    [host],
-    config({
-      earlyStartChance: 1,
-      earlyStartMs: ZERO,
-      seatFillFirstMs: NEVER,
-    }),
-    silent,
-  );
-
-  await policy.tick(); // schedules the start
-  await policy.tick(); // deadline already passed
-
-  assert.deepEqual(host.started, ['ludo-1']);
-});
-
-test('a waiting host never starts short-handed', async () => {
-  const host = bot('host', { state: 'hosting', room: ludoRoom({ joinedCount: 3 }) });
-  const policy = new FillPolicy(
-    [host],
-    config({ earlyStartChance: 0, earlyStartMs: ZERO, seatFillFirstMs: NEVER }),
-    silent,
-  );
-
-  await policy.tick();
-  await policy.tick();
-
-  assert.deepEqual(host.started, []);
-});
-
-test('a room below the minimum is not startable, however keen the host', async () => {
-  const host = bot('host', { state: 'hosting', room: ludoRoom({ joinedCount: 1 }) });
-  const policy = new FillPolicy(
-    [host],
-    config({ earlyStartChance: 1, earlyStartMs: ZERO, seatFillFirstMs: NEVER }),
-    silent,
-  );
-
-  await policy.tick();
-  await policy.tick();
-
-  assert.deepEqual(host.started, []);
-});
-
-test('an early-starting host stops filling once it has its target', async () => {
-  const host = bot('host', { state: 'hosting', room: ludoRoom({ joinedCount: 3 }) });
-  const filler = bot('filler');
-  const policy = new FillPolicy(
-    [host, filler],
-    config({
-      earlyStartChance: 1,
-      earlyStartMs: NEVER,
-      seatFillFirstMs: ZERO,
-      seatFillNextMs: ZERO,
-    }),
-    silent,
-  );
-
-  await policy.tick();
-  await policy.tick();
-
-  // Target is 2 or 3 and the room already has 3, so filling to a full table
-  // would race the start timer - which is how early starts got starved.
-  assert.deepEqual(filler.joined, []);
-});
-
-test('a waiting host fills all the way to a full table', async () => {
-  const host = bot('host', { state: 'hosting', room: ludoRoom({ joinedCount: 3 }) });
-  const filler = bot('filler');
-  const policy = new FillPolicy(
-    [host, filler],
-    config({ earlyStartChance: 0, seatFillFirstMs: ZERO, seatFillNextMs: ZERO }),
-    silent,
-  );
-
-  await policy.tick();
-
-  assert.deepEqual(filler.joined, ['ludo-1']);
-});
-
-test('a human-hosted room is filled on the same slow schedule', async () => {
-  // The seated bot is a joiner, not a host: it fills, but never starts.
-  const seated = bot('seated', { state: 'joining', room: ludoRoom({ joinedCount: 2 }) });
   const filler = bot('filler');
   const policy = new FillPolicy(
     [seated, filler],
-    config({ seatFillFirstMs: ZERO, seatFillNextMs: NEVER, earlyStartChance: 1, earlyStartMs: ZERO }),
+    config({ seatFillFirstMs: ZERO }),
     silent,
   );
 
   await policy.tick();
-  await policy.tick();
 
-  assert.deepEqual(filler.joined, ['ludo-1'], 'should still fill');
-  assert.deepEqual(seated.started, [], 'a joiner may not start the room');
+  assert.deepEqual(filler.joined, []);
 });
 
-test('two bots in one room do not double-fill it', async () => {
-  const room = ludoRoom({ joinedCount: 2 });
-  const host = bot('host', { state: 'hosting', room });
-  const seated = bot('seated', { state: 'joining', room });
-  const fillers = [bot('a'), bot('b')];
+test('a full table is left alone', async () => {
+  const seated = bot('seated', { state: 'joining', room: ludoRoom({ joinedCount: 4 }) });
+  const filler = bot('filler');
   const policy = new FillPolicy(
-    [host, seated, ...fillers],
-    config({ seatFillFirstMs: ZERO, seatFillNextMs: NEVER, earlyStartChance: 0 }),
+    [seated, filler],
+    config({ seatFillFirstMs: ZERO }),
+    silent,
+  );
+
+  await policy.tick();
+
+  assert.deepEqual(filler.joined, []);
+});
+
+test('two bots at one human table do not double-fill it', async () => {
+  const room = ludoRoom({ joinedCount: 3 });
+  const seatedA = bot('a', { state: 'joining', room });
+  const seatedB = bot('b', { state: 'joining', room });
+  const fillers = [bot('c'), bot('d')];
+  const policy = new FillPolicy(
+    [seatedA, seatedB, ...fillers],
+    config({ seatFillFirstMs: ZERO, seatFillNextMs: NEVER }),
     silent,
   );
 
