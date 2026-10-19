@@ -1,12 +1,9 @@
 # apps/mobile — conventions
 
-## 00. **THE DEFAULT IS NO COMMENT. DO NOT NARRATE YOUR WORK.**
+## Comments
 
-See the Comments section in the root `CLAUDE.md`. It applies here and it is the
-most repeated piece of feedback in this repo. **Never write a comment that
-justifies your change to a reviewer, and never leave a paragraph-long docstring
-explaining your reasoning** - that belongs in the commit message. One short
-"why" line on a genuinely tricky seam, or nothing.
+The Comments section in the root `CLAUDE.md` applies here: the default is no
+comment.
 
 ## 0. **ALWAYS USE THE SPACING SCALE. ALWAYS VERIFY IT.**
 

@@ -5,17 +5,10 @@ same JWT as HTTP, TypeORM/Postgres entities, a Redis-backed cache for live
 match state, one `GameDeadlineSweeper` for every game's turn clocks, and the
 staking chain service.
 
-## 0. **THE DEFAULT IS NO COMMENT. DO NOT NARRATE YOUR WORK.**
+## Comments
 
-See the Comments section in the root `CLAUDE.md` - it applies here and it is
-the most repeated piece of feedback in this repo.
-
-**Services, entities and migrations in this app attract the worst of it.** A
-migration does not need a rationale essay; an entity does not need a threat
-model above the class; a service method does not need to explain to a reviewer
-why it is correct. **Never write a comment that justifies your change** - that
-is what the commit message is for. If a docstring runs to paragraphs, cut it to
-the one line a future reader needs, or delete it.
+The Comments section in the root `CLAUDE.md` applies here: the default is no
+comment.
 
 ## Adding a new game
 
