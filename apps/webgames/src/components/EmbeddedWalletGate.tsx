@@ -35,5 +35,3 @@ export function EmbeddedWalletGate() {
 
   return null;
 }
-
-export { EMBEDDED_CONNECTOR_ID };

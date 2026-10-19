@@ -58,14 +58,6 @@ export function derivesTo(privateKey: string, address: string): boolean {
   }
 }
 
-export async function clearWalletSecret(userId: string): Promise<void> {
-  await Keychain.resetGenericPassword({ service: serviceFor(userId) });
-}
-
-export async function readLegacyWalletSecret(): Promise<StoredWalletSecret | null> {
-  return read(WALLET_KEYCHAIN_SERVICE);
-}
-
 export async function clearLegacyWalletSecret(): Promise<void> {
   await Keychain.resetGenericPassword({ service: WALLET_KEYCHAIN_SERVICE });
 }

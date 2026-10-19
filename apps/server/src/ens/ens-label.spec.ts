@@ -6,16 +6,16 @@ import {
 
 describe('toEnsLabel', () => {
   it.each([
-    ['arti', 'arti'],
-    ['Arti', 'arti'],
-    ['ARTI', 'arti'],
+    ['alice', 'alice'],
+    ['Alice', 'alice'],
+    ['ALICE', 'alice'],
     ['my_name', 'my-name'],
     ['My_Name_2', 'my-name-2'],
     ['a__b', 'a-b'],
     ['a___________b', 'a-b'],
-    ['_arti', 'arti'],
-    ['arti_', 'arti'],
-    ['_arti_', 'arti'],
+    ['_alice', 'alice'],
+    ['alice_', 'alice'],
+    ['_alice_', 'alice'],
     ['___a___', 'a'],
     ['123', '123'],
     ['a1_2b', 'a1-2b'],
@@ -52,16 +52,16 @@ describe('toEnsLabel', () => {
 
   it('collides exactly where the username charset makes it unavoidable', () => {
     // Distinct usernames today: Postgres UNIQUE is case-sensitive.
-    expect(toEnsLabel('Arti')).toBe(toEnsLabel('arti'));
+    expect(toEnsLabel('Alice')).toBe(toEnsLabel('alice'));
     expect(toEnsLabel('a_b')).toBe(toEnsLabel('a__b'));
   });
 });
 
 describe('ensLabelCandidate', () => {
   it('returns the bare label first, then numbered', () => {
-    expect(ensLabelCandidate('arti', 1)).toBe('arti');
-    expect(ensLabelCandidate('arti', 2)).toBe('arti-2');
-    expect(ensLabelCandidate('arti', 3)).toBe('arti-3');
+    expect(ensLabelCandidate('alice', 1)).toBe('alice');
+    expect(ensLabelCandidate('alice', 2)).toBe('alice-2');
+    expect(ensLabelCandidate('alice', 3)).toBe('alice-3');
   });
 
   it('keeps a suffixed label inside the length limit', () => {

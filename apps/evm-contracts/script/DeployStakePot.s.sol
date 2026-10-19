@@ -7,7 +7,7 @@ import { StakePot } from "../src/StakePot.sol";
 contract DeployStakePot is Script {
     address internal constant PLATFORM_OWNER = 0x0aB34352B087a107302aFF5d155e23a11637Caa1;
 
-    address internal constant DEFAULT_KOMBAT = 0xFE25C2b2400144c6536b9F707F06b751D6eeF943;
+    address internal constant DEFAULT_KOMBAT = 0x01a659Df789D3E433D7cdFf4CAc70596C56B03c0;
 
     /// @dev Reused so fauceted balances stay valid.
     address internal constant DEFAULT_USDC = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;

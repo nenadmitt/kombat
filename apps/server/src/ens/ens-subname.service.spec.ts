@@ -77,57 +77,57 @@ describe('EnsSubnameService', () => {
 
   describe('minting', () => {
     it('mints the plain label and points it at the wallet', async () => {
-      const name = await service.mintForUsername(USER, 'Arti', ADDRESS);
+      const name = await service.mintForUsername(USER, 'Alice', ADDRESS);
 
-      expect(name).toBe(`arti.${PARENT}`);
+      expect(name).toBe(`alice.${PARENT}`);
       expect(created).toHaveLength(1);
       expect(created[0]).toMatchObject({
-        label: 'arti',
+        label: 'alice',
         parentName: PARENT,
         owner: ADDRESS,
       });
       expect(created[0].addresses?.[0]?.value).toBe(ADDRESS);
-      expect(created[0].texts).toEqual([{ key: 'name', value: 'Arti' }]);
+      expect(created[0].texts).toEqual([{ key: 'name', value: 'Alice' }]);
     });
 
     it('suffixes past a label already taken on the API', async () => {
-      taken.add(`arti.${PARENT}`);
+      taken.add(`alice.${PARENT}`);
 
-      expect(await service.mintForUsername(USER, 'arti', ADDRESS)).toBe(
-        `arti-2.${PARENT}`,
+      expect(await service.mintForUsername(USER, 'alice', ADDRESS)).toBe(
+        `alice-2.${PARENT}`,
       );
-      expect(created[0].label).toBe('arti-2');
+      expect(created[0].label).toBe('alice-2');
     });
 
     it('suffixes past a label another user claimed first', async () => {
-      claims.set('someone-else', `arti.${PARENT}`);
+      claims.set('someone-else', `alice.${PARENT}`);
 
-      expect(await service.mintForUsername(USER, 'arti', ADDRESS)).toBe(
-        `arti-2.${PARENT}`,
+      expect(await service.mintForUsername(USER, 'alice', ADDRESS)).toBe(
+        `alice-2.${PARENT}`,
       );
     });
 
     it('keeps walking when it loses the claim race repeatedly', async () => {
       claimFails = 2;
 
-      expect(await service.mintForUsername(USER, 'arti', ADDRESS)).toBe(
-        `arti-3.${PARENT}`,
+      expect(await service.mintForUsername(USER, 'alice', ADDRESS)).toBe(
+        `alice-3.${PARENT}`,
       );
     });
 
     it('gives up rather than looping forever on a contested label', async () => {
       for (let i = 1; i <= 9; i++) {
-        taken.add(`${i === 1 ? 'arti' : `arti-${i}`}.${PARENT}`);
+        taken.add(`${i === 1 ? 'alice' : `alice-${i}`}.${PARENT}`);
       }
 
-      expect(await service.mintForUsername(USER, 'arti', ADDRESS)).toBeNull();
+      expect(await service.mintForUsername(USER, 'alice', ADDRESS)).toBeNull();
       expect(created).toHaveLength(0);
     });
 
     it('resolves on every EVM chain we settle on, not just mainnet', async () => {
-      const name = await service.mintForUsername(USER, 'arti', ADDRESS);
+      const name = await service.mintForUsername(USER, 'alice', ADDRESS);
 
-      expect(name).toBe(`arti.${PARENT}`);
+      expect(name).toBe(`alice.${PARENT}`);
       expect(created[0]?.owner).toBe(ADDRESS);
       expect(created[0]?.addresses?.map(a => a.chain)).toEqual([
         'eth',
@@ -147,7 +147,7 @@ describe('EnsSubnameService', () => {
       const disabled = build(null);
 
       expect(disabled.enabled).toBe(false);
-      expect(await disabled.mintForUsername(USER, 'arti', ADDRESS)).toBeNull();
+      expect(await disabled.mintForUsername(USER, 'alice', ADDRESS)).toBeNull();
       expect(created).toHaveLength(0);
     });
 
@@ -160,14 +160,14 @@ describe('EnsSubnameService', () => {
     it('releases the claim when the API rejects the create', async () => {
       createThrows = new Error('namespace 503');
 
-      expect(await service.mintForUsername(USER, 'arti', ADDRESS)).toBeNull();
+      expect(await service.mintForUsername(USER, 'alice', ADDRESS)).toBeNull();
       expect(claims.has(USER)).toBe(false);
     });
 
     it('never throws, whatever the API does', async () => {
       createThrows = new Error('boom');
       await expect(
-        service.mintForUsername(USER, 'arti', ADDRESS),
+        service.mintForUsername(USER, 'alice', ADDRESS),
       ).resolves.toBeNull();
     });
   });

@@ -84,7 +84,7 @@ yarn-error.log
 .turbo/
 **/dist/
 **/lib/
-# forge-std is vendored (not a git submodule) in the contracts app — keep it.
+# forge-std is vendored (not a git submodule) in the contracts app - keep it.
 !apps/evm-contracts/lib/
 !apps/evm-contracts/lib/**
 # apps/web/src/lib is source, not build output.

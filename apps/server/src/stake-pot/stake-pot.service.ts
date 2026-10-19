@@ -7,7 +7,6 @@ import {
   StakeAsset,
   StakeLedgerKind,
   StakeWithdrawalStatus,
-  type StakePotAmounts,
   type StakePotBalances,
   type StakePotFeeSummary,
   type StakePotHistoryEntry,
@@ -731,9 +730,5 @@ export class StakePotService {
 
   get assets(): StakeAsset[] {
     return ALL_ASSETS;
-  }
-
-  static emptyAmounts(): StakePotAmounts {
-    return emptyStakePotAmounts();
   }
 }

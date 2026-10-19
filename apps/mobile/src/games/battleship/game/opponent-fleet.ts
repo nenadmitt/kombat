@@ -1,7 +1,5 @@
 import type { FleetPlacements, MinePlacement } from '@gaming-platform/core';
 
-export { resolveShot, shipAt, sunkShipIds } from '@gaming-platform/core';
-
 export const OPPONENT_FLEET: FleetPlacements = {
   carrier: { row: 0, col: 0, orientation: 'h' },
   battleship: { row: 2, col: 1, orientation: 'h' },

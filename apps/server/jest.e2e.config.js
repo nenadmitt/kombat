@@ -9,7 +9,6 @@ module.exports = {
       { tsconfig: { ...require('./tsconfig.json').compilerOptions, allowJs: true } },
     ],
   },
-  transformIgnorePatterns: ['node_modules/(?!(uuid)/)'],
   moduleFileExtensions: ['ts', 'js', 'json'],
   // One app, one database: parallel workers would truncate each other's rows.
   maxWorkers: 1,

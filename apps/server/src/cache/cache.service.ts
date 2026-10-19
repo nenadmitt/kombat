@@ -72,7 +72,7 @@ export class CacheService {
       }
       if (attempt >= LOCK_RETRIES) {
         throw new ConflictException(
-          'The game is busy processing another action — try again.',
+          'The game is busy processing another action - try again.',
         );
       }
       const jitter =

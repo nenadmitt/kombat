@@ -85,13 +85,6 @@ export function tokensForChain(chainId: number): TokenInfo[] {
   return CHAIN_TOKENS[chainId] ?? [];
 }
 
-export function findToken(
-  chainId: number,
-  symbol: TokenSymbol,
-): TokenInfo | undefined {
-  return tokensForChain(chainId).find(token => token.symbol === symbol);
-}
-
 export function stakeAssetAddresses(
   chainId: number,
 ): Partial<Record<StakeAsset, string>> {

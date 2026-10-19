@@ -724,10 +724,6 @@ export class DbService {
     });
   }
 
-  findWalletWithKeyForUser(userId: string): Promise<WalletEntity | null> {
-    return this.walletRepository.findOneBy({ userId });
-  }
-
   // Case-insensitive: decoded log args aren't reliably checksummed. Served by IDX_wallets_address_lower.
   async findWalletByAddress(
     address: string,

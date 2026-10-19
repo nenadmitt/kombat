@@ -82,7 +82,7 @@ export class WebsocketsService {
 
   broadcast(event: string, payload?: unknown): void {
     if (!this.server) {
-      this.logger.warn(`Dropped broadcast "${event}" — gateway not initialized yet.`);
+      this.logger.warn(`Dropped broadcast "${event}" - gateway not initialized yet.`);
       return;
     }
     this.server.emit(event, payload);
@@ -91,7 +91,7 @@ export class WebsocketsService {
   private emit(room: string, event: string, payload?: unknown): void {
     if (!this.server) {
       this.logger.warn(
-        `Dropped "${event}" to "${room}" — gateway not initialized yet.`,
+        `Dropped "${event}" to "${room}" - gateway not initialized yet.`,
       );
       return;
     }

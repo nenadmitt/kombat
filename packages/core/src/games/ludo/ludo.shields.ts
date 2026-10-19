@@ -3,10 +3,6 @@ import type { LudoColor, LudoTokens } from './ludo.types';
 
 export type LudoShields = Partial<Record<LudoColor, number[]>>;
 
-export function shieldsFor(shields: LudoShields, color: LudoColor): number[] {
-  return shields[color] ?? [];
-}
-
 export function hasShield(
   shields: LudoShields | undefined,
   color: LudoColor,

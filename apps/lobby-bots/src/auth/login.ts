@@ -18,10 +18,6 @@ function clientFor(config: Config, tokenRef: { value: string | null }): ApiClien
   });
 }
 
-export function anonymousClient(config: Config): ApiClient {
-  return clientFor(config, { value: null });
-}
-
 export async function sessionFrom(
   config: Config,
   session: AuthSession,

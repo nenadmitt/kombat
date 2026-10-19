@@ -1,12 +1,5 @@
 import type { LudoAbilityKind, LudoColor } from '@gaming-platform/core';
 
-export const LUDO_COLOR_VAR: Record<LudoColor, string> = {
-  red: 'var(--ludo-red)',
-  green: 'var(--ludo-green)',
-  yellow: 'var(--ludo-yellow)',
-  blue: 'var(--ludo-blue)',
-};
-
 /** SVG fills need a concrete colour, so the channel triples live here once. */
 const RGB: Record<LudoColor, [number, number, number]> = {
   red: [255, 90, 110],

@@ -30,9 +30,6 @@ export const BACK_RIDGES = [
 export const FRONT_RIDGE =
   'M0,308 C40,300 70,316 108,312 C150,308 172,286 210,296 C254,308 290,318 328,310';
 
-export const RIDGE_WIDTH = 328;
-export const RIDGE_HEIGHT = 340;
-
 export const STARS = [
   { x: 44, y: 34, o: 0.45 },
   { x: 206, y: 22, o: 0.3 },

@@ -38,7 +38,3 @@ export const BOT_ACCOUNTS: BotAccount[] = HANDLES.map(username => ({
   username,
   email: botEmailFor(username),
 }));
-
-export function isBotEmail(email: string | null): boolean {
-  return email !== null && email.endsWith(`@${BOT_EMAIL_DOMAIN}`);
-}

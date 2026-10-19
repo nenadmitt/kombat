@@ -47,17 +47,6 @@ export function levelForGames(games: number): number {
   return level;
 }
 
-export function gamesToNextLevel(games: number): number {
-  const level = levelForGames(games);
-  let total = 0;
-  let cost = 3;
-  for (let i = 0; i <= level; i++) {
-    total += cost;
-    cost = Math.ceil(cost * 1.25);
-  }
-  return Math.max(0, total - games);
-}
-
 export type AchievementId = 'first-blood' | 'top-gun' | 'veteran' | 'whale';
 
 export type Achievement = {

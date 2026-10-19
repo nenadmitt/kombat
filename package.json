@@ -13,7 +13,6 @@
     "web": "npm run dev --workspace @gaming-platform/web",
     "webgames": "npm run dev --workspace @gaming-platform/webgames",
     "bots": "npm run dev --workspace @gaming-platform/lobby-bots",
-    "bots:provision": "npm run provision --workspace @gaming-platform/lobby-bots --",
     "mobile:ios": "npm run ios --workspace @gaming-platform/mobile",
     "mobile:android": "npm run android --workspace @gaming-platform/mobile",
     "server": "npm run start:dev --workspace @gaming-platform/server",

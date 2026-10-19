@@ -247,14 +247,6 @@ export class StakePotChainService {
     });
   }
 
-  isPaused(): Promise<boolean> {
-    return this.publicClient.readContract({
-      address: this.pot,
-      abi: STAKE_POT_ABI,
-      functionName: 'paused',
-    });
-  }
-
   async getTransactionStatus(
     hash: Hex,
   ): Promise<'success' | 'reverted' | null> {

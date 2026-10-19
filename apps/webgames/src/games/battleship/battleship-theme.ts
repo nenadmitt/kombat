@@ -1,7 +1,5 @@
 import { FLEET, GRID, type ShipSpec } from '@gaming-platform/core';
 
-export { GRID };
-
 export type ShipDef = ShipSpec & { color: string };
 
 export const COLUMN_LABELS = Array.from({ length: GRID }, (_, i) =>
@@ -34,7 +32,6 @@ export const CELL_BORDER = 'rgba(233, 233, 237, 0.09)';
 export const ACTIVE_CELL_BORDER = 'rgba(142, 224, 90, 0.55)';
 
 export const CELL = 32;
-export const CELL_GAP = 4;
 export const CELL_RADIUS = 6;
 export const HULL_PAD = 3;
 export const BOARD_SIZE = GRID * CELL;
@@ -43,4 +40,3 @@ export const BOARD_SIZE = GRID * CELL;
 export const ENTRY_MS = 300;
 export const MINE_BLAST_MS = 900;
 export const TORPEDO_PER_CELL_MS = 90;
-export const SINK_PER_CELL_MS = 150;

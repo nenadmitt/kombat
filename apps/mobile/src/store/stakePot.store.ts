@@ -1,8 +1,4 @@
-import {
-  STAKE_ASSETS,
-  emptyStakePotBalances,
-  type StakePotBalances,
-} from '@gaming-platform/core';
+import { emptyStakePotBalances, type StakePotBalances } from '@gaming-platform/core';
 import { create } from 'zustand';
 
 import { apiClient } from '../api/client';
@@ -62,12 +58,3 @@ export const useStakePotStore = create<StakePotState>((set, get) => ({
       updatedAt: Date.now(),
     }),
 }));
-
-export function isStakePotEmpty(balances: StakePotBalances): boolean {
-  return STAKE_ASSETS.every(
-    asset =>
-      balances.available[asset] === '0' &&
-      balances.locked[asset] === '0' &&
-      balances.pendingWithdrawals[asset] === '0',
-  );
-}

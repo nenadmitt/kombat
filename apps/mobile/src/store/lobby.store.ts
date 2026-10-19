@@ -39,14 +39,6 @@ export function roomMatchesFilters(
   return true;
 }
 
-export function hasActiveFilters(filters: LobbyRoomFilters): boolean {
-  return (
-    !!filters.gameTypes?.length ||
-    (filters.stake ?? 'all') !== 'all' ||
-    !!filters.stakeTokens?.length
-  );
-}
-
 type LobbyState = {
   rooms: GameRoomSummary[];
   status: LobbyStatus;
