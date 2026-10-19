@@ -17,7 +17,7 @@ on-chain stakes. npm workspaces + turbo.
   contract players deposit into, plus the KombatCoin token;
   `apps/server/src/stake-pot/stake-pot.abi.ts` is the hand-kept ABI mirror and
   must stay in sync with it. There is no escrow contract - `MatchEscrow` and
-  `escrow.abi.ts` were deleted at the pot cutover (see `STAKEPOT_CLEANUP.md`).
+  `escrow.abi.ts` were deleted at the pot cutover.
   The surviving `stake_escrows` table is a per-room **settlement-state** row,
   not an escrow: matches settle in the off-chain ledger.
 - `packages/core` - platform-agnostic shared domain code: game rules
