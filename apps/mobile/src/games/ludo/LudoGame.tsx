@@ -15,11 +15,6 @@ import type { LudoEngine } from './ludo-engine';
 import { useDemoLudo } from './useDemoLudo';
 import { useMultiplayerLudo } from './useMultiplayerLudo';
 
-/**
- * Ludo container - same pattern as BattleshipGame: the `Ludo` route carries a
- * roomId (socket multiplayer), the demo `LudoSetup` route has none (local
- * bots). There is no setup phase; both engines go straight to the board.
- */
 export default function LudoGame() {
   const route = useRoute();
   const params = route.params as
@@ -91,8 +86,6 @@ function LudoGameFlow({
   const confirm = useConfirm();
   const exitConfirmed = useRef(false);
 
-  // Leaving an unfinished multiplayer match eliminates you (forfeit); the
-  // demo exits freely - there's nothing at stake against bots.
   const guardExit = isMultiplayer && engine.playProps.result === null;
 
   usePreventRemove(guardExit, ({ data }) => {
@@ -120,12 +113,7 @@ function LudoGameFlow({
     return (
       <MatchLoading
         error={engine.waitingError}
-        // Always tell the server, and let it decide. forfeit() is rejected
-        // server-side when the match does not exist, has not started, or the
-        // caller is not in it - so a genuinely stuck player is not penalised,
-        // while anyone who did reach a live match still forfeits it. Only the
-        // confirmation dialog is skipped: it is UX, not enforcement, and a
-        // client can always just close the app instead.
+        // Always forfeit: the server rejects it unless the caller is in a live match. Only the dialog is skipped.
         onLeave={() => {
           exitConfirmed.current = true;
           engine.forfeit();

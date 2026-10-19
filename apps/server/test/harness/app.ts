@@ -21,13 +21,7 @@ export type TestApp = {
   close(): Promise<void>;
 };
 
-/**
- * Mirrors `main.ts` — the global prefix and the ValidationPipe are what make
- * routes resolve and DTOs actually validate, so a test app without them
- * passes for the wrong reasons. No RedisIoAdapter: the suite is single
- * instance by construction. The one provider swapped out is the Ludo die:
- * a dice game nothing can script is a game nothing can assert on.
- */
+// Mirrors main.ts: without the prefix and ValidationPipe, tests pass for the wrong reasons.
 export async function startTestApp(): Promise<TestApp> {
   await ensureE2eDatabase();
 
@@ -47,12 +41,7 @@ export async function startTestApp(): Promise<TestApp> {
   const dataSource = app.get(DataSource);
   const cache = app.get(CacheService);
 
-  /**
-   * Truncating the rows leaves the cache holding matches and deadlines for
-   * rooms that no longer exist, and the sweeper goes on enforcing those into
-   * whatever test is running by then. Popping with a score past every
-   * schedule is what empties the set.
-   */
+  // Truncating rows leaves cached deadlines the sweeper would enforce into later tests.
   const truncate = async (): Promise<void> => {
     const rooms: { id: string }[] = await dataSource.query(
       'SELECT id FROM game_rooms',

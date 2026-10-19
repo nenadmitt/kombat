@@ -1,11 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-/**
- * @dev USDT-style ERC20: `transfer` / `transferFrom` / `approve` return
- *      nothing, which breaks naive IERC20 callers. Exercises the escrow's
- *      SafeERC20 handling and the allowance (non-permit) funding path.
- */
+/// @dev Like USDT, transfer/transferFrom/approve return nothing, to exercise SafeERC20.
 contract MockUSDT {
     string public constant name = "Tether USD";
     string public constant symbol = "USDT";

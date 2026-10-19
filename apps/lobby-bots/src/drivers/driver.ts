@@ -12,11 +12,7 @@ export type DriverContext = {
   config: Config;
   log: Logger;
   signal: AbortSignal;
-  /**
-   * Register what to redo after a reconnect. socket.io room membership lives
-   * in the server's memory, so a reconnected socket is in no channel and
-   * hears nothing until it re-enters - it just looks offline to everyone else.
-   */
+  /** socket.io room membership is server-side, so a reconnected socket must re-join its channels. */
   onReconnect: (redo: () => void) => void;
 };
 
@@ -28,11 +24,6 @@ export function gameChannel(roomId: string): string {
   return `game:${roomId}`;
 }
 
-/**
- * Resolves on the first matching event, or when the match is abandoned. The
- * drivers are event loops, so every wait needs an abort path or a shutdown
- * would hang on a socket that has stopped talking.
- */
 export function once<T>(
   socket: Socket,
   event: string,

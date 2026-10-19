@@ -29,8 +29,7 @@ export async function playLudo(ctx: DriverContext): Promise<DriverResult> {
   const { api, socket, roomId, myUserId, config, log, signal, onReconnect } =
     ctx;
 
-  // The first turn clock is already running when the match starts, so enter
-  // and read the snapshot immediately rather than waiting for an event.
+  // The first turn clock is already running, so read the snapshot now instead of waiting for an event.
   joinChannel(socket, gameChannel(roomId));
   socket.emit(LUDO_EVENTS.enter, { roomId });
 
@@ -128,7 +127,6 @@ export async function playLudo(ctx: DriverContext): Promise<DriverResult> {
       continue;
     }
 
-    // stage === 'move': a die is pending and it is ours to spend.
     await sleep(pauseFor(config.pacing.ludoMoveMs, local.turnDeadline), signal);
     if (signal.aborted || local.over) break;
     if (local.turnUserId !== myUserId || local.stage !== 'move') continue;

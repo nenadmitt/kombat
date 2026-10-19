@@ -4,7 +4,6 @@ import { create } from 'zustand';
 import { apiClient } from '../lib/api';
 
 type ActiveRoomState = {
-  /** The caller's own open room (waiting or live), or null when they have none. */
   room: GameRoomSummary | null;
   forfeiting: boolean;
   refresh: () => Promise<void>;
@@ -38,8 +37,7 @@ export const useActiveRoomStore = create<ActiveRoomState>((set, get) => ({
     try {
       await apiClient.forfeitGameRoom(room.id);
     } catch {
-      // The match may already be over (lost on the turn clock while away);
-      // drop it either way so the prompt does not come back for a dead room.
+      // The match may already be over; drop it either way so the prompt never returns for a dead room.
     } finally {
       set({ room: null, forfeiting: false });
     }

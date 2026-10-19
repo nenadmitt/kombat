@@ -1,97 +1,59 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# apps/mobile
 
-# Getting Started
+The Kombat mobile app: bare React Native 0.86 with the New Architecture,
+native `ios/` and `android/` projects (no Expo). All five games, the lobby,
+match history, profile and a wallet with stake pot deposits.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## Running it
 
-## Step 1: Start Metro
+Complete the [React Native environment setup](https://reactnative.dev/docs/set-up-your-environment)
+first. Then, from the repo root:
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+```bash
+npm install
+npm run build --workspace @gaming-platform/core
+cp apps/mobile/.env.example apps/mobile/.env
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+cd apps/mobile && bundle install && npm run pods && cd ../..   # iOS, first time and after native dependency changes
 
-```sh
-# Using npm
-npm start
-
-# OR using Yarn
-yarn start
+npm run mobile            # Metro
+npm run mobile:ios        # build and run on the iOS simulator
+npm run mobile:android    # build and run on an Android emulator or device
 ```
 
-## Step 2: Build and run your app
+Other workspace scripts: `ios-one` and `ios-two` (two named simulators, handy
+for playing yourself), `typecheck`, `version:sync`, `version:bump`.
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+## Environment
 
-### Android
+Read through `react-native-config` and bundled into the app, so nothing here
+may be secret beyond a client-side RPC token.
 
-```sh
-# Using npm
-npm run android
+| Variable | |
+| --- | --- |
+| `API_BASE_URL` | Required. Server origin. `localhost` works from the iOS simulator; use the machine's LAN IP on a device, or `10.0.2.2` on the Android emulator. |
+| `ALCHEMY_TOKEN` | Required. Alchemy key for the RPC endpoints the wallet uses. |
+| `MAINTENANCE_DETAILS_URL` | Optional. Status page linked from the maintenance banner. |
+| `STAKE_POT_ADDRESS_PIN` | Optional. If set, a server-supplied deposit target that differs is refused. |
 
-# OR using Yarn
-yarn android
-```
+## Design points
 
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
-bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+- **Rules from core.** Game logic comes from `@gaming-platform/core`, the
+  same code the server runs. Each game has a local engine (demo games against
+  a bot, fully offline) and a multiplayer engine driven by socket.io, behind
+  the same interface, so the board components are shared.
+- **Boards in Skia and Reanimated.** Battleships, Ludo and Salvo draw with
+  `@shopify/react-native-skia` and animate on the UI thread. Salvo replays the
+  projectile path the server computed rather than simulating it on the device.
+- **Wallet.** Login is an emailed one-time code. The server creates the
+  account's wallet and returns the recovery phrase once; the app stores it in
+  the device keychain (one slot per account) and signs locally with viem,
+  including EIP-2612 permits for single-transaction `stakeWithPermit`
+  deposits into the stake pot.
+- **Session.** Refresh tokens live in the keychain; the API client refreshes
+  access tokens and replays the request.
+- **Operations.** Every request carries the app version; the server can
+  require an update or switch on maintenance mode, which the app shows as a
+  blocking screen or a banner.
+- **UI conventions** (spacing and radius scale, typography) are documented in
+  [`CLAUDE.md`](CLAUDE.md) in this directory.

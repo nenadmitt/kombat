@@ -30,26 +30,19 @@ import {
   terrainRim,
 } from './salvo-theme';
 
-/** How long a blast plays out. */
 const BLAST_MS = 620;
 
 type Props = {
   terrain: SalvoTerrain;
   seats: SalvoSeatView[];
-  /** Rendered width; the height follows the field's aspect. */
   width: number;
-  /** The arc still on screen from the last resolved shot. */
   trajectory: SalvoPoint[] | null;
   trajectorySide: SalvoSide | null;
-  /** Where the last shot landed, and a key that bumps per shot. */
   impact: SalvoPoint | null;
   impactId: number | null;
-  /** The shell in the air right now. */
   shell: SalvoPoint | null;
-  /** Whose barrel shows aim ticks. */
   aiming: SalvoSide | null;
   destroyed: SalvoSide | null;
-  /** The side whose barrel may be dragged, or null when it is not my turn. */
   draggableSide: SalvoSide | null;
   onAimAngle: (angle: number) => void;
 };
@@ -71,8 +64,7 @@ export function SalvoBattlefield({
   const svgRef = useRef<SVGSVGElement>(null);
   const height = (width * SALVO_FIELD_HEIGHT) / SALVO_FIELD_WIDTH;
 
-  // Gameplay scales uniformly, so a 45 degree barrel throws a 45 degree arc.
-  // The parallax backdrop is decorative and simply stretches to fill.
+  // Gameplay scales uniformly; the decorative parallax backdrop just stretches.
   const sx = width / SALVO_FIELD_WIDTH;
   const sy = height / SALVO_FIELD_HEIGHT;
   const px = (x: number) => x * sx;
@@ -107,10 +99,6 @@ export function SalvoBattlefield({
       })
     : null;
 
-  /**
-   * Drag anywhere on the field to elevate the barrel: the angle is the
-   * bearing from the muzzle to the pointer, mirrored for the right tank.
-   */
   function aimAt(event: React.PointerEvent) {
     if (!draggable || !dragMuzzle || !svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
@@ -167,7 +155,6 @@ export function SalvoBattlefield({
         />
       ))}
 
-      {/* Parallax ridges, drawn in the design's own coordinate space. */}
       <g transform={`scale(${sx}, ${sy})`}>
         {BACK_RIDGES.map(ridge => (
           <path
@@ -182,7 +169,6 @@ export function SalvoBattlefield({
       <path d={ground} fill={TERRAIN_FILL} />
       <path d={rim} fill="none" stroke="var(--lime)" strokeWidth={1.6} opacity={0.75} />
 
-      {/* Foreground ridge sits in front of the ground, per the design. */}
       <g transform={`scale(${sx}, ${sy})`}>
         <path d={closedRidge(FRONT_RIDGE)} fill="#080910" opacity={0.55} />
       </g>
@@ -280,10 +266,6 @@ export function SalvoBattlefield({
   );
 }
 
-/**
- * Run 0 to 1 over `duration` whenever `key` changes to a new non-null value,
- * then settle. Null while there is nothing to draw.
- */
 function useBlastProgress(key: number | null, duration: number): number | null {
   const [progress, setProgress] = useState<number | null>(null);
 

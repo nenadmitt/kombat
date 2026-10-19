@@ -27,7 +27,6 @@ export class WalletsController {
     private readonly chainService: ChainService,
   ) {}
 
-  /** On-chain balances (ETH / KOMBAT / USDC) for the user's wallet. */
   @Get('balances')
   async getBalances(
     @SecurityContext() securityContext: ISecurityContext,
@@ -61,7 +60,6 @@ export class WalletsController {
     );
   }
 
-  /** Key material: throttled hard, and only ever the caller's own. */
   @Throttle({ default: { ttl: seconds(60), limit: 10 } })
   @Get('embedded-key')
   async embeddedKey(

@@ -65,8 +65,6 @@ export default function AdminPage() {
       window.localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, token);
       const body = (await response.json()) as { signups: Signup[] };
       setState({ status: "ready", signups: body.signups });
-      // Drop ids that no longer exist rather than leaving a selection that
-      // silently acts on nothing.
       setSelected((prev) => {
         const alive = new Set(body.signups.map((s) => s.id));
         return new Set([...prev].filter((id) => alive.has(id)));

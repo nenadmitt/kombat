@@ -11,11 +11,7 @@ import { mono, type } from '../theme/typography';
 const DEFAULT_MESSAGE =
   'This build can no longer connect to the platform. Update to keep playing - your pot and history are unaffected.';
 
-/**
- * Hard update wall, mounted above the navigator when the server's version
- * floor rises past this build. Deliberately has no dismiss: the only way
- * forward is the update (matches never see this - see UpdateRequiredGate).
- */
+/** Deliberately has no dismiss: the only way forward is the update. */
 export default function UpdateRequiredScreen() {
   const update = useServerStore(s => s.update);
 

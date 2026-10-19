@@ -19,17 +19,7 @@ import { StakePotController } from './stake-pot.controller';
 import { StakePotService } from './stake-pot.service';
 import { WithdrawalSweeper } from './withdrawal.sweeper';
 
-/**
- * Pooled staking: the balance ledger, its chain access, and the jobs that move
- * money in (PotEventWatcher) and out (WithdrawalSweeper).
- *
- * Self-contained so it can be lifted into its own service later: it owns its
- * four tables and registers their repositories here instead of going through
- * DbService. It borrows only user/address lookups and the socket fan-out - the
- * two seams that become RPC calls if this moves out.
- *
- * Nothing here may import from `games/`; the dependency runs the other way.
- */
+// Nothing here may import from games/; the dependency runs the other way.
 @Module({
   imports: [
     ConfigurationModule,

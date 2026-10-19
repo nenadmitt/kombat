@@ -1,7 +1,5 @@
 import { Circle, Group, Oval, Path, Skia } from '@shopify/react-native-skia';
 
-/** The pawn silhouette from the design (LudoPawn asset, 26x34 viewBox):
- *  shadow ellipse, flared body, collar, head with a specular dot. */
 const BODY = Skia.Path.MakeFromSVGString(
   'M5 16 Q13 20 21 16 L24 28.5 Q13 31.5 2 28.5 Z',
 )!;
@@ -13,16 +11,13 @@ const VIEW_W = 26;
 const VIEW_H = 34;
 
 type Props = {
-  /** Top-left of the pawn's box. */
   x: number;
   y: number;
-  /** Target box; the 26x34 artwork scales to fit (width-driven). */
   width: number;
   color: string;
   opacity?: number;
 };
 
-/** Skia pawn, drawn inside a Canvas. */
 export default function LudoPawn({ x, y, width, color, opacity }: Props) {
   const scale = width / VIEW_W;
   return (
@@ -48,7 +43,6 @@ export default function LudoPawn({ x, y, width, color, opacity }: Props) {
   );
 }
 
-/** Height the pawn renders at for a given width (keeps the 26x34 ratio). */
 export function pawnHeightFor(width: number): number {
   return (width / VIEW_W) * VIEW_H;
 }

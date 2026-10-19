@@ -25,7 +25,6 @@ import { JwtTokenGuard } from './guards/jwt-token.guard';
 export class AuthenticationController {
   constructor(private readonly authenticationService: AuthenticationService) {}
 
-  // Sends an email per call - throttled well below the global default.
   @Throttle({ default: { ttl: seconds(60), limit: 5 } })
   @Post('request-token')
   async requestToken(
@@ -36,10 +35,6 @@ export class AuthenticationController {
     return { success: true };
   }
 
-  /**
-   * Dev/test-only: same as request-token, but returns the token directly
-   * instead of emailing it. 404s outside development.
-   */
   @Post('request-token/test')
   async requestTestToken(
     @Body() dto: RequestTokenDto,
@@ -52,7 +47,6 @@ export class AuthenticationController {
     return { token };
   }
 
-  // The login-code brute-force surface.
   @Throttle({ default: { ttl: seconds(60), limit: 10 } })
   @Post('exchange-token')
   async exchangeToken(
@@ -67,8 +61,7 @@ export class AuthenticationController {
   }
 
   @Throttle({ default: { ttl: seconds(60), limit: 20 } })
-  /** The lobby-bot runner. Unlike request-token/test this exists in production;
-   *  it reaches is_bot accounts only. */
+  // Exists in production, unlike request-token/test; it reaches is_bot accounts only.
   @Post('bot-login')
   async botLogin(@Body() dto: BotLoginDto): Promise<AuthSession> {
     return this.authenticationService.signInAsBot(dto.username, dto.secret);
@@ -94,11 +87,7 @@ export class AuthenticationController {
     );
   }
 
-  /**
-   * Trade a refresh token for a new access/refresh pair. Deliberately
-   * unguarded: the refresh token *is* the credential, and the access token it
-   * replaces has usually expired by the time a client gets here.
-   */
+  // Unguarded on purpose: the refresh token is the credential, and the access token has usually expired.
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refresh(
@@ -108,14 +97,13 @@ export class AuthenticationController {
     return this.authenticationService.refreshSession(dto.refreshToken, platform);
   }
 
-  /** Revoke one session. Always 204, so it can't be used to probe tokens. */
+  // Always 204, so it can't be used to probe tokens.
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   async logout(@Body() dto: RefreshTokenDto): Promise<void> {
     await this.authenticationService.logout(dto.refreshToken);
   }
 
-  /** Example of a guarded route using JwtTokenGuard + @SecurityContext(). */
   @Get('me')
   @UseGuards(JwtTokenGuard)
   me(@SecurityContext() securityContext: ISecurityContext): ISecurityContext {

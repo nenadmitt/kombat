@@ -38,53 +38,37 @@ import { ErrorCode } from './error-codes';
 
 export type ApiClientOptions = {
   baseUrl: string;
-  /** Injected by the consumer — core stays platform-agnostic (no AsyncStorage/Keychain here). */
   getAccessToken?: () => Promise<string | null>;
-  /** The stored refresh token. Without it, an expired access token is fatal. */
   getRefreshToken?: () => Promise<string | null>;
-  /** Persist a rotated pair. Called before the original request is retried. */
   onSessionRefreshed?: (session: AuthSession) => Promise<void>;
-  /** The refresh token is gone or rejected: the user has to log in again. */
   onSessionExpired?: () => Promise<void>;
-  /** Request timeout in ms before it's treated as a network failure. Defaults to 10000. */
   timeoutMs?: number;
-  /** Client build version, sent as X-App-Version so the server can gate old builds. */
   appVersion?: string;
-  /** Sent as X-App-Platform. `web` is exempt from the store-build version
-   *  floor, and the server pins new accounts to the app that created them. */
+  /** `web` is exempt from the server's store-build version floor. */
   appPlatform?: AppPlatform;
 };
 
 export class ApiError extends Error {
   constructor(
-    /** HTTP status, or 0 for a network failure/timeout (no response was received at all). */
+    /** 0 when no response was received (network failure or timeout). */
     public readonly status: number,
     message: string,
-    /** Backend-provided error code, or ErrorCode.Unknown/.NetworkFailed when none applies. */
     public readonly code: string = ErrorCode.Unknown,
   ) {
     super(message);
     this.name = 'ApiError';
   }
 
-  /** True when the request never reached the server (offline, unreachable, timed out). */
   get isNetworkError(): boolean {
     return this.status === 0;
   }
 }
 
-/** Thin fetch wrapper for the gaming-platform server API, shared between mobile and (later) web. */
 export class ApiClient {
-  /** All server routes are versioned under this prefix except `/health`. */
   private static readonly API_PREFIX = '/api/v1';
 
   constructor(private readonly options: ApiClientOptions) {}
 
-  /**
-   * Public platform status (maintenance flag). Unversioned like `/health`.
-   * Doubles as the offline-recovery probe: any response proves the server is
-   * reachable again, and carries the maintenance state in the same trip.
-   */
   getPlatformStatus(): Promise<PlatformStatus> {
     return this.request('GET', '/status', undefined, false, false);
   }
@@ -103,12 +87,10 @@ export class ApiClient {
     });
   }
 
-  /** Nonce to embed in the SIWE message. Single-use, expires in minutes. */
   requestSiweNonce(): Promise<{ nonce: string }> {
     return this.request('POST', '/authentication/siwe/nonce', {});
   }
 
-  /** Exchange a signed EIP-4361 message for a session. */
   verifySiwe(message: string, signature: string): Promise<AuthSession> {
     return this.request('POST', '/authentication/siwe/verify', {
       message,
@@ -116,21 +98,15 @@ export class ApiClient {
     });
   }
 
-  /**
-   * Trade a refresh token for a new pair. Callers rarely need this directly -
-   * `request` drives it automatically when an access token has expired.
-   */
   refreshSession(refreshToken: string): Promise<AuthSession> {
     return this.request('POST', '/authentication/refresh', { refreshToken });
   }
 
-  /** Revoke a session server-side. Never throws - logout must always finish. */
   async logout(refreshToken: string): Promise<void> {
     try {
       await this.request('POST', '/authentication/logout', { refreshToken });
     } catch {
-      // The local session is being cleared regardless; a failed revoke just
-      // leaves a row that expires on its own.
+      // Best effort: the local session is cleared regardless.
     }
   }
 
@@ -138,7 +114,6 @@ export class ApiClient {
     return this.request('POST', '/wallets', { network }, true);
   }
 
-  /** The embedded wallet's key, so the browser can sign with it directly. */
   getEmbeddedWalletKey(): Promise<{ address: string; privateKey: string }> {
     return this.request('GET', '/wallets/embedded-key', undefined, true);
   }
@@ -151,8 +126,7 @@ export class ApiClient {
     return this.request('GET', '/users/me', undefined, true);
   }
 
-  /** `referredByCode` is only honoured the first time; attribution is
-   *  write-once server-side. */
+  /** `referredByCode` is honoured only once; attribution is write-once server-side. */
   updateUsername(
     username: string,
     referredByCode?: string,
@@ -165,13 +139,10 @@ export class ApiClient {
     );
   }
 
-  /** Lifetime record (games, wins, staked net, referrals) for the profile. */
   getMyStats(): Promise<PlayerStats> {
     return this.request('GET', '/users/me/stats', undefined, true);
   }
 
-  /** Batch-resolve public profiles (username/avatar) for a set of user ids.
-   *  Unknown ids are simply omitted from the result. */
   getUserProfiles(ids: string[]): Promise<PublicUserProfile[]> {
     if (ids.length === 0) {
       return Promise.resolve([]);
@@ -184,7 +155,6 @@ export class ApiClient {
     );
   }
 
-  /** Leaderboard page, general or per game. Public - no session required. */
   getRankings(query?: RankingsQuery): Promise<RankingEntry[]> {
     const params = new URLSearchParams();
     if (query?.gameType !== undefined) {
@@ -207,9 +177,8 @@ export class ApiClient {
 
   createGameRoom(
     gameType: GameType,
-    /** Omit for a free game. Amount is base units (see parseStakeAmount). */
+    /** Base units; omit for a free game. */
     stake?: { token: StakeAsset; amount: string },
-    /** Private rooms are hidden from the lobby; joinable only via their code. */
     isPrivate = false,
   ): Promise<GameRoomSummary> {
     return this.request(
@@ -224,11 +193,6 @@ export class ApiClient {
     );
   }
 
-  /**
-   * Resolve a shareable room code to its (still-joinable) room. Throws
-   * ApiError 404 when no pending room has that code. The caller then joins via
-   * the normal joinGameRoom(id) path, so staked-room confirmation still runs.
-   */
   getGameRoomByCode(code: string): Promise<GameRoomSummary> {
     return this.request(
       'GET',
@@ -238,11 +202,6 @@ export class ApiClient {
     );
   }
 
-  /**
-   * Completed matches (result, stake, prize) for the History screen, newest
-   * first. Paginated: pass a `limit` and `offset` to page through the feed
-   * (the History screen loads a first page then appends on scroll).
-   */
   getMatchHistory(options?: {
     limit?: number;
     offset?: number;
@@ -263,14 +222,10 @@ export class ApiClient {
     );
   }
 
-  /** On-chain balances for the user's wallet. */
   getWalletBalances(): Promise<WalletBalances> {
     return this.request('GET', '/wallets/balances', undefined, true);
   }
 
-  // ---- stake pot -----------------------------------------------------------
-
-  /** Pooled stake balance: spendable, locked by live matches, withdrawing. */
   getStakePotBalances(): Promise<StakePotBalances> {
     return this.request('GET', '/stake-pot/balances', undefined, true);
   }
@@ -284,10 +239,6 @@ export class ApiClient {
     );
   }
 
-  /**
-   * Queue a withdrawal from the pot. The destination is always the caller's
-   * own wallet, resolved server-side, so there is nothing to pass.
-   */
   withdrawFromStakePot(
     asset: StakeAsset,
     amount: string,
@@ -295,15 +246,11 @@ export class ApiClient {
     return this.request('POST', '/stake-pot/withdraw', { asset, amount }, true);
   }
 
-  /** Where deposits go: the pot contract, its chain, and the token addresses. */
   getStakePotDepositTarget(): Promise<StakePotDepositTarget> {
     return this.request('GET', '/stake-pot/deposit-target', undefined, true);
   }
 
-  /**
-   * Whether the welcome bonus is still on the table for this user, and how
-   * much it is worth. `amount` is base units, unlike the claim response.
-   */
+  /** `amount` is base units, unlike the claim response. */
   getWelcomeBonus(): Promise<{
     available: boolean;
     amount: string;
@@ -312,7 +259,6 @@ export class ApiClient {
     return this.request('GET', '/stake-pot/welcome-bonus', undefined, true);
   }
 
-  /** One-time welcome bonus into the caller's stake pot. 409 once claimed. */
   claimWelcomeBonus(): Promise<{
     txHash: string;
     amount: string;
@@ -322,9 +268,7 @@ export class ApiClient {
   }
 
   listPendingGameRooms(options?: {
-    /** Leave out rooms created by the requesting user. */
     excludeOwn?: boolean;
-    /** Server-side lobby filters (game types, stake, tokens). */
     filters?: LobbyRoomFilters;
   }): Promise<GameRoomSummary[]> {
     const params: string[] = [];
@@ -349,14 +293,11 @@ export class ApiClient {
     return this.request('DELETE', `/games/rooms/${id}`, undefined, true);
   }
 
-  /** Forfeit an in-progress match. In Ludo the leaver is eliminated and the
-   *  winner is set only once a single player remains. */
   forfeitGameRoom(id: string): Promise<{ winnerUserId: string | null }> {
     return this.request('POST', `/games/rooms/${id}/forfeit`, undefined, true);
   }
 
-  /** A stable-staked room accepts any stablecoin 1:1; omit `stakeToken` to
-   *  stake whatever the room was opened in. */
+  /** A stable-staked room accepts any stablecoin 1:1. */
   joinGameRoom(id: string, stakeToken?: StakeAsset): Promise<GameRoomSummary> {
     return this.request(
       'POST',
@@ -366,33 +307,26 @@ export class ApiClient {
     );
   }
 
-  /** Creator-only early start for a multi-player (Ludo) room. */
   startGameRoom(id: string): Promise<GameRoomSummary> {
     return this.request('POST', `/games/rooms/${id}/start`, undefined, true);
   }
 
-  /** Back out of a still-waiting multi-player (Ludo) room (joiners only). */
   leaveGameRoom(id: string): Promise<{ success: true }> {
     return this.request('POST', `/games/rooms/${id}/leave`, undefined, true);
   }
 
-  /** The current user's own open room, if any — null when they don't have one. */
   getMyActiveGameRoom(): Promise<GameRoomSummary | null> {
     return this.request('GET', '/games/rooms/mine', undefined, true);
   }
 
-  /** The requester's personalized Battleship match state — used to mount/resume. */
   getBattleshipRoomState(roomId: string): Promise<BattleshipRoomState> {
     return this.request('GET', `/games/rooms/${roomId}/state`, undefined, true);
   }
 
-  /** The Ludo match snapshot (same endpoint, Ludo-shaped) — mount/resume. */
   getLudoRoomState(roomId: string): Promise<LudoRoomState> {
     return this.request('GET', `/games/rooms/${roomId}/state`, undefined, true);
   }
 
-  /** The Triple Cut match snapshot (same endpoint, RPS-shaped) — mount/resume. */
-  /** The Salvo match snapshot (same endpoint, Salvo-shaped) — mount/resume. */
   getSalvoRoomState(roomId: string): Promise<SalvoRoomState> {
     return this.request('GET', `/games/rooms/${roomId}/state`, undefined, true);
   }
@@ -401,19 +335,11 @@ export class ApiClient {
     return this.request('GET', `/games/rooms/${roomId}/state`, undefined, true);
   }
 
-  /** The Chroma Clash snapshot (same endpoint, chroma-shaped) — mount/resume. */
   getChromaRoomState(roomId: string): Promise<ChromaRoomState> {
     return this.request('GET', `/games/rooms/${roomId}/state`, undefined, true);
   }
 
-  /**
-   * In-flight refresh, shared by every caller that hits a 401 at once.
-   *
-   * On a cold start half a dozen screens fire at the same moment; without this
-   * they would each spend the refresh token, and rotation means only the first
-   * would succeed - the rest would look like a stolen token and log the user
-   * out. One refresh, everyone awaits it.
-   */
+  // Shared so concurrent 401s spend the rotating refresh token only once.
   private refreshInFlight: Promise<boolean> | null = null;
 
   private async request<T>(
@@ -421,9 +347,7 @@ export class ApiClient {
     path: string,
     body?: unknown,
     authenticated = false,
-    /** Probe endpoints (`/status`) live outside the /api/v1 prefix. */
     versioned = true,
-    /** Set on the one retry after a refresh, so a failure can't loop. */
     isRetry = false,
   ): Promise<T> {
     const headers: Record<string, string> = {};
@@ -460,8 +384,6 @@ export class ApiClient {
         signal: controller.signal,
       });
     } catch (err) {
-      // Connection refused/unreachable (thrown by fetch itself) and our own
-      // abort-on-timeout both land here — neither ever got a response.
       const timedOut = err instanceof Error && err.name === 'AbortError';
       throw new ApiError(
         0,
@@ -480,9 +402,6 @@ export class ApiClient {
     const data: unknown = isJson ? await response.json() : undefined;
 
     if (!response.ok) {
-      // An expired access token is recoverable: rotate the session once and
-      // replay. `isRetry` bounds it to a single attempt, so a server that 401s
-      // for any other reason fails instead of looping.
       if (
         response.status === 401 &&
         authenticated &&
@@ -507,7 +426,6 @@ export class ApiClient {
         errorBody?.message?.toString() ??
         errorBody?.error?.toString() ??
         response.statusText;
-      // Backend doesn't send `code` yet — falls back to Unknown until it does.
       const code = errorBody?.code?.toString() ?? ErrorCode.Unknown;
       throw new ApiError(response.status, message, code);
     }
@@ -515,11 +433,6 @@ export class ApiClient {
     return data as T;
   }
 
-  /**
-   * Rotate the session, coalescing concurrent callers onto one attempt.
-   * Resolves true when a fresh access token is stored and the caller should
-   * retry, false when the user has to log in again.
-   */
   private refreshSessionOnce(): Promise<boolean> {
     this.refreshInFlight ??= this.doRefresh().finally(() => {
       this.refreshInFlight = null;
@@ -538,8 +451,7 @@ export class ApiClient {
       await this.options.onSessionRefreshed?.(session);
       return true;
     } catch (error) {
-      // A network blip must not sign the user out - only the server actually
-      // rejecting the refresh token means the session is really gone.
+      // A network blip must not sign the user out.
       if (error instanceof ApiError && error.status === 0) {
         return false;
       }

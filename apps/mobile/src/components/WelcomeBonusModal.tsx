@@ -24,17 +24,13 @@ type Step = 'offer' | 'confirmClose' | 'sent';
 
 type Props = {
   visible: boolean;
-  /** The claim tx was sent - persist so the offer never shows again. */
   onClaimed: () => void;
-  /** Dismissed for good - the bonus is forfeited. */
   onDismissed: () => void;
-  /** Fully done (or backgrounded after claiming). */
   onClose: () => void;
 };
 
 const BONUS_LABEL = '500';
 
-/** Gold coin pile with a star, traced from the design comp. */
 function CoinPile() {
   return (
     <Svg viewBox="0 0 120 78" width={184} height={120} fill="none">
@@ -75,8 +71,6 @@ export default function WelcomeBonusModal({
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
 
-  // The watcher credits the pot when the grant's Staked event lands, and the
-  // balance socket push updates this store - that is the confirmation signal.
   const potKombat = useStakePotStore(
     s => s.balances.available[StakeAsset.Kombat],
   );
@@ -94,7 +88,7 @@ export default function WelcomeBonusModal({
       setStep('sent');
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
-        onClaimed(); // Nothing left to offer - never show this again.
+        onClaimed();
       }
       setError(err instanceof Error ? err.message : 'The claim failed. Try again.');
     } finally {
@@ -102,8 +96,6 @@ export default function WelcomeBonusModal({
     }
   };
 
-  // After a failed claim there is nothing to forfeit, so closing needs no
-  // "lose the free coins" detour.
   const requestClose = () => {
     if (error) {
       onClose();

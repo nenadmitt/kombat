@@ -15,12 +15,6 @@ import { expireAbandon } from './harness/clock';
 
 const SWEEP_SETTLE_MS = 2_000;
 
-/**
- * A dropped socket must cost a player their not-yet-started room, and nothing
- * else. Each case rewrites the grace deadline into the past and lets the real
- * GameDeadlineSweeper run it, so the production path is what is exercised -
- * including its refusal to act on a room that reconnected or started.
- */
 describe('abandoned pending rooms (e2e)', () => {
   let testApp: TestApp;
   let actors: Actor[];
@@ -35,8 +29,7 @@ describe('abandoned pending rooms (e2e)', () => {
   const roomRow = (id: string): Promise<GameRoomEntity | null> =>
     testApp.dataSource.getRepository(GameRoomEntity).findOneBy({ id });
 
-  /** The disconnect handler may not have scheduled yet, so keep pushing the
-   *  member into the past until the sweeper has acted on it. */
+  // The disconnect handler may not have scheduled yet, so keep pushing until the sweeper acts.
   const forceAbandon = (
     roomId: string,
     userId: string,

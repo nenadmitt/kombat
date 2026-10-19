@@ -69,7 +69,6 @@ export class GamesController {
     );
   }
 
-  /** Resolve a shareable invite code to a still-joinable room (private or public). */
   @Get('by-code/:code')
   async getRoomByCode(
     @Param('code') code: string,
@@ -77,7 +76,6 @@ export class GamesController {
     return this.gamesService.getRoomByCode(code);
   }
 
-  /** Completed matches (result, stake, prize) — the History screen's feed. */
   @Get('history')
   async getHistory(
     @SecurityContext() securityContext: ISecurityContext,
@@ -104,7 +102,6 @@ export class GamesController {
     );
   }
 
-  /** Creator-only early start for a multi-player (Ludo) room. */
   @Post(':id/start')
   @UseGuards(SupportedVersionGuard)
   async startRoom(
@@ -114,7 +111,6 @@ export class GamesController {
     return this.gamesService.startRoom(securityContext.userId, id);
   }
 
-  /** A joiner backs out of a still-waiting multi-player (Ludo) room. */
   @Post(':id/leave')
   async leaveRoom(
     @Param('id') id: string,
@@ -133,8 +129,6 @@ export class GamesController {
     return { success: true };
   }
 
-  /** Forfeit an in-progress match — e.g. from the resume prompt. In Ludo the
-   *  leaver is eliminated; the winner is set only once one player remains. */
   @Post(':id/forfeit')
   async forfeitRoom(
     @Param('id') id: string,
@@ -143,7 +137,6 @@ export class GamesController {
     return this.gamesService.forfeitRoom(securityContext.userId, id);
   }
 
-  /** Pending rooms, visible to any authenticated user (joining comes later). */
   @Get()
   async listPendingRooms(
     @Query() query: ListGameRoomsDto,
@@ -159,7 +152,6 @@ export class GamesController {
     });
   }
 
-  /** The requesting user's own open room, if any — lets the client resume a "waiting" state on app start. */
   @Get('mine')
   async getMyRoom(
     @SecurityContext() securityContext: ISecurityContext,
@@ -167,11 +159,6 @@ export class GamesController {
     return this.gamesService.getMyActiveRoom(securityContext.userId);
   }
 
-  /**
-   * The requester's snapshot of a match — the mount/resume source of truth,
-   * shaped per game type. Participants only; Battleship personalizes (the
-   * opponent's fleet is revealed only as sunk ships), Ludo hides nothing.
-   */
   @Get(':id/state')
   async getRoomState(
     @Param('id') id: string,
@@ -183,9 +170,7 @@ export class GamesController {
     | ChromaRoomState
     | SalvoRoomState
   > {
-    // Fresh read: this decides whether the match may start, and a stale
-    // cached copy (possible on another instance when running without Redis)
-    // would strand every player in the room on a loading spinner.
+    // Fresh read: this decides whether the match may start.
     const room = await this.dbService.findGameRoomByIdFresh(id);
     if (!room) {
       throw new NotFoundException('Game room not found');
@@ -209,9 +194,7 @@ export class GamesController {
       await this.salvoMatchService.getOrCreate(room);
       return this.salvoMatchService.stateFor(id);
     }
-    // Battleship is the fall-through, so every new game type must be
-    // dispatched above - otherwise it silently gets a Battleship match
-    // created against its room id.
+    // Battleship is the fall-through: every new game type must be dispatched above.
     await this.battleshipMatchService.getOrCreate(room);
     return this.battleshipMatchService.stateFor(id, securityContext.userId);
   }

@@ -13,12 +13,10 @@ import { usePotStore } from '../store/pot.store';
 /** Winner's cut of the two stakes, matching the server's settlement. */
 const FEE_RATE = 0.05;
 
-/** What every game's result screen needs on top of its own match state. */
 export type ResultExtras = {
   onBack: () => void;
   onPlayAgain?: () => void;
   settlement?: ResultSettlement | null;
-  /** Lifetime win rate, for the comparison bar. Null until it loads. */
   winRate?: number | null;
 };
 
@@ -26,20 +24,14 @@ export type ResultSettlementRow = { label: string; value: string };
 
 export type ResultSettlement = {
   eyebrow: string;
-  /** Signed headline, e.g. "+228". */
   delta: string;
   symbol: string;
   rows: ResultSettlementRow[];
   potNow: string | null;
-  /** Per-player stake, for the "Play again" button's label. */
   stakeLabel: string;
 };
 
-/**
- * The settled history row for a finished match. The server writes it after the
- * match ends, so it is not there the moment the result screen mounts - poll a
- * few times, backing off, before giving up and rendering without it.
- */
+// The server writes this after the match ends, so poll with backoff before giving up.
 export function useMatchSettlement(
   roomId: string | null,
   over: boolean,
@@ -62,7 +54,6 @@ export function useMatchSettlement(
           return;
         }
       } catch {
-        // A transient failure must not end the poll; the retry below covers it.
       }
       attempt += 1;
       if (!alive || attempt >= 6) return;
@@ -79,11 +70,6 @@ export function useMatchSettlement(
   return entry;
 }
 
-/**
- * Everything the result screen needs that does not come from the game itself:
- * the settled money panel and the lifetime win rate. A free match, a practice
- * match (no room) or an unsettled one simply gets no settlement.
- */
 export function useResultExtras(
   roomId: string | null,
   over: boolean,
@@ -98,7 +84,6 @@ export function useResultExtras(
   };
 }
 
-/** The player's lifetime win rate, for the result screen's comparison bar. */
 export function useWinRate(over: boolean): number | null {
   const [rate, setRate] = useState<number | null>(null);
 
@@ -119,7 +104,6 @@ export function useWinRate(over: boolean): number | null {
   return rate;
 }
 
-/** The pot balance to show as "POT NOW", once the settlement has landed. */
 export function usePotBalance(token: StakeAsset | null): string | null {
   const { balances, enabled } = usePotStore();
   if (token === null || !enabled) return null;
@@ -133,10 +117,6 @@ const signed = (amount: bigint, token: StakeAsset): string => {
   return amount > 0n ? `+${magnitude}` : amount < 0n ? `-${magnitude}` : magnitude;
 };
 
-/**
- * Turn a settled history row into the result screen's money panel. Null for a
- * free match, which has no settlement to show.
- */
 export function buildSettlement(
   entry: MatchHistoryEntry | null,
   opponentName: string,

@@ -45,17 +45,6 @@ type AuthenticatedSocket = Socket<
   SocketData
 >;
 
-/**
- * Single gateway for all realtime traffic. Connections authenticate with the
- * same JWT used for HTTP, passed as `auth: { token }` in the socket.io
- * handshake (falls back to an `Authorization: Bearer` header). Unauthenticated
- * sockets are disconnected immediately rather than left connected.
- *
- * Every authenticated socket auto-joins a per-user room, which sendToUser
- * targets. An account gets one live socket: a new connection disconnects the
- * previous ones, so the room holds at most one member. Channels are plain
- * socket.io rooms that clients opt into via `channel:join` / `channel:leave`.
- */
 @WebSocketGateway({ cors: true })
 export class WebsocketsGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
@@ -92,11 +81,7 @@ export class WebsocketsGateway
         token,
       );
       client.data.userId = payload.sub;
-      // `except` the new socket, not call order: under the Redis adapter
-      // disconnectSockets only publishes a REMOTE_DISCONNECT and applies it
-      // when the message loops back, by which point the new socket has
-      // joined and would kick itself. The kicked client sees
-      // 'io server disconnect', which socket.io does not auto-reconnect from.
+      // `except`, not call order: under the Redis adapter the disconnect applies after the new socket has joined.
       this.server
         .in(userRoom(payload.sub))
         .except(client.id)
@@ -126,8 +111,7 @@ export class WebsocketsGateway
     );
   }
 
-  /** Returns an ack so a caller can await the subscription; a refusal also
-   *  emits `channel:error` for clients that fire-and-forget. */
+  // A refusal also emits channel:error for clients that fire-and-forget.
   @UsePipes(new ValidationPipe({ whitelist: true }))
   @SubscribeMessage('channel:join')
   async handleJoinChannel(
@@ -147,12 +131,7 @@ export class WebsocketsGateway
     return { ok: true, channel };
   }
 
-  /**
-   * A game channel carries one match's live broadcasts, so only its seated
-   * players may subscribe - the channel name is client-supplied, and without
-   * this any signed-in user could name someone else's room and watch it.
-   * Non-game channels (the lobby) stay open to every authenticated socket.
-   */
+  // The channel name is client-supplied, so only seated players may subscribe to a game channel.
   private async mayJoin(
     client: AuthenticatedSocket,
     channel: string,
@@ -172,8 +151,7 @@ export class WebsocketsGateway
     roomId: string,
     userId: string,
   ): Promise<boolean> {
-    // Room ids are uuids; a malformed one would make Postgres throw rather
-    // than simply miss.
+    // A malformed uuid would make Postgres throw rather than miss.
     if (!UUID_PATTERN.test(roomId)) {
       return false;
     }
@@ -196,12 +174,6 @@ export class WebsocketsGateway
     await client.leave(channelRoom(channel));
   }
 
-  /**
-   * Throwaway message relay for the placeholder Battleship screen — appends
-   * to that room's cached log (attributed to the authenticated socket's own
-   * userId, not anything client-supplied) and broadcasts the full, updated
-   * log to everyone subscribed to the room's channel.
-   */
   @UsePipes(new ValidationPipe({ whitelist: true }))
   @SubscribeMessage('game:message')
   async handleGameMessage(
@@ -212,8 +184,7 @@ export class WebsocketsGateway
     if (!userId || !(await this.isParticipant(roomId, userId))) {
       return;
     }
-    // Unlocked read-append-write: two simultaneous messages may drop one.
-    // Acceptable for this placeholder feature — not worth a lock.
+    // Unlocked read-append-write may drop a simultaneous message; acceptable for a placeholder chat.
     const key = CacheKeys.battleshipChat(roomId);
     const messages =
       (await this.cacheService.getJson<string[]>(key)) ?? [];

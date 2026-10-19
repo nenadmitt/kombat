@@ -9,8 +9,6 @@ import type { Socket } from 'socket.io-client';
 
 export type TrackedRoom = {
   summary: GameRoomSummary;
-  /** First time this runner saw the room; floors the age for rooms that
-   *  predate the connection. */
   seenAt: number;
 };
 
@@ -18,28 +16,16 @@ const BOT_USERNAMES = new Set(
   BOT_ACCOUNTS.map(account => account.username.toLowerCase()),
 );
 
-/**
- * The shared view of the lobby: socket deltas for freshness, a periodic REST
- * reconcile so a missed event cannot strand the model.
- */
 export class LobbyModel {
   private rooms = new Map<string, TrackedRoom>();
-  /** creatorUserId -> is that account on the bot roster. */
   private creatorIsBot = new Map<string, boolean>();
 
   constructor(
     private readonly api: ApiClient,
-    /** The accounts this process runs; always bots, no lookup needed. */
     private readonly ownUserIds: Set<string>,
   ) {}
 
-  /**
-   * Own-account ids only cover the bots *this* process runs. Another runner,
-   * a smaller BOTS_COUNT, or a leftover room from an earlier roster would all
-   * look like a real player, and bots would end up playing each other. The
-   * roster in core is the shared answer, so unknown hosts get resolved by
-   * username before any of them can be joined.
-   */
+  // Other runners or older rosters host rooms too, so unknown hosts are resolved by username before any join.
   async classifyHosts(): Promise<void> {
     const unknown = [
       ...new Set(
@@ -57,8 +43,7 @@ export class LobbyModel {
         BOT_USERNAMES.has((profile.username ?? '').toLowerCase()),
       );
     }
-    // A host the profile lookup did not return stays unknown, and unknown
-    // hosts are never joined.
+    // Unresolved hosts are treated as bots so they are never joined.
     for (const id of unknown) {
       if (!this.creatorIsBot.has(id)) this.creatorIsBot.set(id, true);
     }
@@ -98,7 +83,6 @@ export class LobbyModel {
     return this.creatorIsBot.get(room.creatorUserId) ?? true;
   }
 
-  /** Every open room, ours and theirs - what the lobby floor is measured on. */
   openRooms(): GameRoomSummary[] {
     return [...this.rooms.values()]
       .map(tracked => tracked.summary)
@@ -107,7 +91,6 @@ export class LobbyModel {
       );
   }
 
-  /** Open rooms of each game type, bot- and human-hosted alike. */
   openRoomsByGame(): Map<number, number> {
     const counts = new Map<number, number>();
     for (const room of this.openRooms()) {
@@ -120,7 +103,6 @@ export class LobbyModel {
     return this.openRooms().filter(room => this.isBotRoom(room));
   }
 
-  /** Open rooms hosted by real players, with how long they have been waiting. */
   humanRooms(now = Date.now()): { room: GameRoomSummary; ageMs: number }[] {
     return [...this.rooms.values()]
       .filter(

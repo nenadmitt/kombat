@@ -21,8 +21,6 @@ type Props = {
 
 type PreferenceKey = 'notifications' | 'sound' | 'hideBalances';
 
-/** Rows that only report state. None of these subsystems is settable yet, so
- *  they carry no chevron - a tap target that goes nowhere is worse than none. */
 type InfoRow = { key: string; icon: IconName; label: string; value?: string };
 
 const ACTIVE_CHAIN = CHAINS.find(chain => chain.enabled) ?? CHAINS[0];
@@ -57,8 +55,6 @@ const PREFERENCE_ROWS: readonly { key: PreferenceKey; icon: IconName; label: str
 export default function SettingsSheet({ visible, onClose, username, onLogout }: Props) {
   const confirm = useConfirm();
   const userId = useCurrentUserStore(state => state.userId);
-  // Placeholder state: nothing reads these yet, they persist for the session
-  // only so the switches are not dead to the touch.
   const [preferences, setPreferences] = useState<Record<PreferenceKey, boolean>>({
     notifications: true,
     sound: true,
@@ -70,8 +66,7 @@ export default function SettingsSheet({ visible, onClose, username, onLogout }: 
   const [keyError, setKeyError] = useState<string | null>(null);
   const [keyCopied, setKeyCopied] = useState(false);
 
-  // The sheet stays mounted while hidden - never leave the key sitting in
-  // state after it goes off screen.
+  // The sheet stays mounted while hidden, so never leave the key in state once it is off screen.
   useEffect(() => {
     if (!visible) {
       setKeyPanelOpen(false);
@@ -107,8 +102,7 @@ export default function SettingsSheet({ visible, onClose, username, onLogout }: 
     { key: 'recovery', icon: 'key', label: 'Recovery phrase', value: 'On this device' },
   ];
 
-  // The confirm sheet is a second native Modal, so this one has to be off
-  // screen before it opens (CLAUDE.md rule 5).
+  // The confirm sheet is a second native Modal, so this one has to be off screen before it opens.
   const handleLogoutPress = () => {
     onClose();
     setTimeout(() => {
@@ -253,7 +247,6 @@ function Row({ row }: { row: InfoRow }) {
 
 const styles = StyleSheet.create({
   scroll: {
-    // Keeps the sheet off the status bar on a small screen; the list scrolls.
     maxHeight: 420,
   },
   group: {

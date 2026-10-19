@@ -13,26 +13,14 @@ import { WebsocketsService } from '../websockets';
 import { GamesService } from './games.service';
 import { participantsOf } from './room.util';
 
-/** Grace window a disconnected player gets before their not-yet-started room
- *  is given up on. Long enough to cover a tab reload or a tunnel change. */
+// Long enough to cover a tab reload or a tunnel change.
 export const PENDING_ROOM_ABANDON_SECONDS = 30;
 
-/** A Pending room is reaped once its creator has been offline this long,
- *  counted from creation or from the last sweep that saw them online. */
+// Counted from creation or from the last sweep that saw the creator online.
 export const STALE_LOBBY_IDLE_MS = 15 * 60 * 1000;
 const STALE_SWEEP_INTERVAL_MS = 60_000;
 const CREATOR_SEEN_TTL_SECONDS = (2 * STALE_LOBBY_IDLE_MS) / 1000;
 
-/**
- * A player whose socket drops while their room is still Pending has the room
- * closed (creator) or their seat freed (joiner) after the grace window, via
- * the same GamesService calls the manual endpoints use. Started matches are
- * left to the turn clock, which already hands a vanished player the loss.
- *
- * A periodic DB sweep backstops the disconnect path: it reaps Pending rooms
- * whose creator has been offline for STALE_LOBBY_IDLE_MS, catching rooms
- * whose disconnect was never observed (deploy, restart, lost deadline).
- */
 @Injectable()
 export class RoomAbandonService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RoomAbandonService.name);
@@ -86,11 +74,7 @@ export class RoomAbandonService implements OnModuleInit, OnModuleDestroy {
     );
   }
 
-  /**
-   * The member outlives reconnects and restarts, so every precondition is
-   * re-checked here - a stale one must never delete a live room. Coming back
-   * online is what cancels the cleanup; nothing is unscheduled.
-   */
+  // The member outlives reconnects and restarts, so every precondition is re-checked; nothing is ever unscheduled.
   async enforce(roomId: string, userId: string): Promise<void> {
     if (await this.websocketsService.isUserOnline(userId)) {
       return;
@@ -106,7 +90,7 @@ export class RoomAbandonService implements OnModuleInit, OnModuleDestroy {
         await this.gamesService.leaveRoom(userId, roomId);
       }
     } catch (error) {
-      // Raced a join/start/close between the checks above and the write.
+      // Raced a join/start/close between the checks and the write.
       this.logger.log(
         `Abandon cleanup for room ${roomId} skipped: ${
           error instanceof Error ? error.message : String(error)

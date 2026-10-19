@@ -16,8 +16,6 @@ type Game = {
   description: string;
   matchLength: string;
   screenshots?: [string, string];
-  /** Looping gameplay recordings; when set, play inside the art cards with the
-   *  screenshots as posters. See public/recordings/README.md. */
   videos?: [string | undefined, string | undefined];
 };
 

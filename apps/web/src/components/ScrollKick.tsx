@@ -7,11 +7,7 @@ const SPRING = 0.16;
 const FRICTION = 0.86;
 const LIMIT = 30;
 
-/**
- * Publishes scroll speed as --kick on its subtree, so the collage can lean
- * into a scroll and spring back. Kept out of HeroCollage itself to leave that
- * markup on the server.
- */
+// Kept out of HeroCollage so that markup stays server-rendered.
 export function ScrollKick({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
 

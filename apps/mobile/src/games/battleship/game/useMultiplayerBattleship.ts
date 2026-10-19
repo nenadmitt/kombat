@@ -26,12 +26,7 @@ import type { GridAction } from '../BattleshipGrid';
 import type { BattleshipEngine, EnginePhase } from './battleship-engine';
 import { revealedToPlaced, toPlacedShips } from './battleship-view';
 
-/**
- * Multiplayer engine: everything flows through the single app websocket. The
- * board updates only when the server echoes a shot back. There are exactly two
- * players, so "not the opponent" means "me" - which avoids needing our own
- * userId on the client.
- */
+/** Exactly two players, so "not the opponent" means "me" without needing our own userId. */
 export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
   const joinChannel = useWebsocketStore(s => s.joinChannel);
   const leaveChannel = useWebsocketStore(s => s.leaveChannel);
@@ -39,7 +34,6 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
   const emit = useWebsocketStore(s => s.emit);
 
   const [phase, setPhase] = useState<EnginePhase>('setup');
-  /** True once the REST snapshot has landed at least once. */
   const [synced, setSynced] = useState(false);
   const [waitingError, setWaitingError] = useState<string | null>(null);
   const [myPlacements, setMyPlacements] = useState<FleetPlacements | null>(null);
@@ -66,18 +60,13 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
 
   const status = useWebsocketStore(s => s.status);
 
-  // The opponent's real username via the shared cache; placeholder until
-  // resolved (or if they never picked one).
   const usernames = useUsernames(opponentUserId ? [opponentUserId] : []);
   const opponentName =
     (opponentUserId ? usernames[opponentUserId] : null) ?? 'Opponent';
 
-  // The delayed socket handlers read the opponent id via a ref.
   const opponentIdRef = useRef(opponentUserId);
   opponentIdRef.current = opponentUserId;
 
-  // Flipped on unmount/room-change so in-flight snapshot fetches don't write
-  // into a dead (or different room's) hook instance.
   const mountedRef = useRef(true);
   useEffect(() => {
     mountedRef.current = true;
@@ -86,10 +75,6 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
     };
   }, [roomId]);
 
-  /** Pull the authoritative snapshot and replace local state wholesale. Used
-   *  on mount and again after every socket reconnect - any events broadcast
-   *  while we were disconnected (shots, turn changes, a finished match) are
-   *  covered by the snapshot instead of being lost. */
   const syncState = useCallback(async () => {
     try {
       const state = await apiClient.getBattleshipRoomState(roomId);
@@ -106,8 +91,7 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
       setVolleysMap(state.volleys ?? {});
       setTurnUserId(state.turnUserId);
       setTurnDeadline(state.turnDeadline);
-      // Normalize a missing field (older server build) to null so the
-      // waiting modal hides the countdown instead of rendering 0:00.
+      // Older servers omit the deadline; null hides the countdown instead of rendering 0:00.
       setSetupDeadline(state.setupDeadline ?? null);
       setWinnerUserId(state.winnerUserId);
       setEndReason(state.endReason);
@@ -123,9 +107,6 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
       setWaitingError(null);
       setSynced(true);
     } catch (err) {
-      // A failed fetch used to silently leave the player in 'setup' - which,
-      // on a resume into a live match, is the setup screen of a match already
-      // in play. Keep retrying (useMatchSyncRetry) and say why meanwhile.
       const message =
         err instanceof ApiError ? err.message : 'Could not reach the server.';
       console.warn('[match-sync] snapshot fetch failed:', message);
@@ -136,13 +117,8 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
   useEffect(() => {
     const channel = `game:${roomId}`;
     joinChannel(channel);
-    // Announce presence immediately (before fleet submission) so the opponent
-    // shows as connected as soon as they open the match, not only once they've
-    // placed their ships.
     emit(BATTLESHIP_EVENTS.enter, { roomId });
 
-    // Gateway failures (enter, fire, ready) surface here; ignoring them is
-    // how silent hangs happen.
     const offError = on(BATTLESHIP_EVENTS.error, raw => {
       const message =
         (raw as { message?: string }).message ?? 'Something went wrong.';
@@ -150,8 +126,7 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
       setWaitingError(message);
     });
 
-    // The server pushes the setup countdown on enter - more reliable than the
-    // REST snapshot, which can be fetched before the match exists.
+    // The server pushes the setup countdown on enter; the REST snapshot can be fetched before the match exists.
     const offSetupState = on(BATTLESHIP_EVENTS.setupState, payload => {
       setSetupDeadline((payload as SetupStatePayload).setupDeadline);
     });
@@ -177,7 +152,6 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
       }
       if (p.byUserId === opponentIdRef.current) {
         setOpponentShots(prev => [...prev, ...p.cells]);
-        // Replay the incoming shot on my fleet view (bomb/torpedo animations).
         opponentActionId.current += 1;
         setOpponentAction({
           id: opponentActionId.current,
@@ -185,9 +159,6 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
           cells: p.cells,
         });
         if (mineBlasts.length > 0) {
-          // The opponent struck MY mine(s): each blast tears into their own
-          // board - free damage (and reveals) on my attack view - and the
-          // struck mines are spent.
           setMyShots(prev => [...prev, ...blastCells]);
           const blastSunk = mineBlasts.flatMap(b => b.sunkShips);
           if (blastSunk.length > 0) {
@@ -205,7 +176,6 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
           setAction({ id: actionId.current, kind: 'mine', cells: blastCells });
         }
       } else {
-        // My shot echoed back - replay animation + reveal any sinks.
         setMyShots(prev => [...prev, ...p.cells]);
         actionId.current += 1;
         setAction({ id: actionId.current, kind: p.kind, cells: p.cells });
@@ -213,8 +183,6 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
           setRevealed(prev => [...prev, ...p.sunkShips]);
         }
         if (mineBlasts.length > 0) {
-          // I struck the opponent's mine(s): each blast tears into MY board,
-          // arriving as opponent shots on my fleet view.
           setOpponentShots(prev => [...prev, ...blastCells]);
           opponentActionId.current += 1;
           setOpponentAction({
@@ -242,7 +210,6 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
     });
     const offEnded = on(BATTLESHIP_EVENTS.ended, payload => {
       const { winnerUserId: winner, reason } = payload as EndedPayload;
-      // Winner is null only when neither fleet was deployed in time.
       setWinnerUserId(winner);
       setEndReason(reason);
     });
@@ -259,11 +226,7 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
     };
   }, [roomId, joinChannel, leaveChannel, on, emit, syncState]);
 
-  // Resync after a socket reconnect (network blip or server redeploy). The
-  // store re-joins the game channel on `connect`; here we re-announce
-  // presence (`enter`) and replace local state with the server snapshot to
-  // cover any broadcasts missed while disconnected. The initial connection is
-  // excluded ('connecting' → 'connected'): the mount effect already did this.
+  // Resync after a reconnect; the initial connect is skipped because the mount effect already did it.
   const prevStatusRef = useRef(status);
   useEffect(() => {
     const was = prevStatusRef.current;
@@ -280,7 +243,6 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
       setMyPlacements(placements);
       setMyMines(mines);
       emit(BATTLESHIP_EVENTS.ready, { roomId, placements, mines });
-      // The authoritative flip to "play" (with turn info) comes from `start`.
       setPhase('waiting');
     },
     [roomId, emit],
@@ -332,7 +294,7 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
     ? winnerUserId === opponentUserId
       ? 'lose'
       : 'win'
-    : // A voided match (nobody deployed) still ends as a loss for both sides.
+    :
       endReason === 'setup-timeout'
       ? 'lose'
       : null;
@@ -342,13 +304,9 @@ export function useMultiplayerBattleship(roomId: string): BattleshipEngine {
     turnUserId !== null &&
     turnUserId !== opponentUserId;
 
-  // The snapshot must eventually land: without it a resumed match renders
-  // the wrong phase and a joiner has no turn state.
   useMatchSyncRetry(syncState, synced);
 
   return {
-    // A match can end during setup/waiting (forfeit or setup timeout) - jump
-    // to the play phase so the result screen renders.
     phase: result ? 'play' : phase,
     waitingError,
     submitFleet,

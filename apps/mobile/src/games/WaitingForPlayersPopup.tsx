@@ -11,11 +11,6 @@ import { display, mono, type } from '../theme/typography';
 import { GAME_TYPE_LABELS } from './game-type-labels';
 import { formatRoomCode } from './room-code';
 
-/**
- * Full "Waiting for Players" modal. Mounted once above the tab navigator
- * (see MainTabsWithGameOverlay) and driven entirely by game.store, so it
- * shows up regardless of which tab is active.
- */
 export default function WaitingForPlayersPopup() {
   const waitingRoom = useGameStore(state => state.waitingRoom);
   const waitingJoinedCount = useGameStore(state => state.waitingJoinedCount);
@@ -28,8 +23,6 @@ export default function WaitingForPlayersPopup() {
   const startWaitingRoom = useGameStore(state => state.startWaitingRoom);
   const [copied, setCopied] = useState(false);
 
-  // Multi-seat rooms (Ludo, ChromaClash) fill gradually: show the roster
-  // count, and give the CREATOR a start-early action once enough are in.
   const isMultiSeat = waitingRoom ? isMultiSeatGame(waitingRoom.gameType) : false;
   const canStartEarly =
     isMultiSeat &&
@@ -37,8 +30,7 @@ export default function WaitingForPlayersPopup() {
     waitingJoinedCount >= MULTI_SEAT_MIN_PLAYERS;
 
   const visible = waitingRoom !== null && !isMinimized;
-  // Prefer the real, shareable code; fall back to the derived one for any
-  // legacy room that predates stored codes.
+  // Legacy rooms predate stored codes.
   const roomCode = waitingRoom
     ? waitingRoom.code ?? formatRoomCode(waitingRoom.id)
     : '';
@@ -55,7 +47,6 @@ export default function WaitingForPlayersPopup() {
     Share.share({
       message: `Join my KryptoKombat match - room code ${roomCode}`,
     }).catch(() => {
-      // User dismissed the share sheet; nothing to do.
     });
   };
 
@@ -77,7 +68,6 @@ export default function WaitingForPlayersPopup() {
               <Icon type="chevron-down" color={colors.textMuted} size={18} />
             </Pressable>
 
-            {/* Spinner ring */}
             <View style={styles.spinnerRing}>
               <ActivityIndicator color={colors.accent} size="large" />
             </View>
@@ -137,8 +127,6 @@ export default function WaitingForPlayersPopup() {
                 disabled={isStarting || isCancelling}
                 onPress={() =>
                   startWaitingRoom().catch(() => {
-                    // Room may have filled/closed meanwhile - the pushes
-                    // (started / player events) reconcile the popup.
                   })
                 }
                 style={styles.startButton}

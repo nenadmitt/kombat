@@ -84,7 +84,7 @@ yarn-error.log
 .turbo/
 **/dist/
 **/lib/
-# forge-std is vendored (not a git submodule) in the contracts app — keep it.
+# forge-std is vendored (not a git submodule) in the contracts app - keep it.
 !apps/evm-contracts/lib/
 !apps/evm-contracts/lib/**
 # apps/web/src/lib is source, not build output.
@@ -112,3 +112,30 @@ apps/evm-contracts/broadcast/*/31337-fork/
 !.yarn/versions
 .claude/worktrees/
 *.tsbuildinfo
+
+# Internal working docs, kept locally only
+/*_PLAN.md
+/STAKEPOT_CLEANUP.md
+/staking_improvement.md
+/SECURITY_AUDIT_AND_CODE_REVIEW.md
+/audits/
+/bugs-and-improvements/
+/bugs-and-inconsistencies/
+/features/
+/prompts/
+/games/
+/apps/mobile/plan.md
+/apps/mobile/claude/
+/apps/server/E2E_TEST_PLAN.md
+/.claude/settings.json
+/apps/evm-contracts/broadcast/
+/apps/mobile/BATTLESHIP_GAME.md
+/apps/mobile/GAME_FUNCTIONALITY.md
+/apps/mobile/GAME_ROOMS_VIEW.md
+/apps/mobile/LOGIN_AND_WALLET.md
+/apps/mobile/WEBSOCKETS.md
+/apps/server/GAME_ROOMS.md
+/apps/server/LOGIN_WITH_TOKEN.md
+/apps/server/WALLETS.md
+/apps/server/WEBSOCKETS.md
+/apps/server/claude/

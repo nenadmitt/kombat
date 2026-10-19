@@ -6,7 +6,6 @@ import { DbService } from './db';
 import { INSTANCE_ID } from './instance-id';
 import { adapterState } from './websockets/redis-io.adapter';
 
-/** Cap a dependency probe so a hung connection can't stall the endpoint. */
 const PROBE_TIMEOUT_MS = 2_000;
 
 type DependencyStatus = 'up' | 'down' | 'not-configured';
@@ -28,7 +27,6 @@ export class AppController {
     private readonly configurationService: ConfigurationService,
   ) {}
 
-  /** Cheap liveness: the process is up and which cache backend it chose. */
   @Get('health')
   health() {
     return {
@@ -39,15 +37,7 @@ export class AppController {
     };
   }
 
-  /**
-   * Readiness with dependency round-trips: Postgres (SELECT 1) and Redis
-   * (PING). 200 only when every configured dependency answers; 503 with the
-   * per-dependency verdict otherwise, so orchestrators can gate traffic on
-   * it. Redis is optional by design - unset REDIS_URL reports
-   * `not-configured` and stays healthy (in-memory single-instance mode);
-   * a configured REDIS_URL running on the memory fallback means the boot
-   * connection failed and reports `down`.
-   */
+  // Unset REDIS_URL reports not-configured and stays healthy; a configured one on the memory fallback reports down.
   @Get('healthcheck')
   async healthcheck() {
     let postgres: DependencyStatus = 'up';

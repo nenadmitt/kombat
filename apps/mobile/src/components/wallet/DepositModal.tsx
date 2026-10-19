@@ -11,13 +11,11 @@ import { BottomSheet, Button, Card } from '../ui';
 type Props = {
   visible: boolean;
   onClose: () => void;
-  /** Opens the Receive (QR) sheet for the same address. */
   onShowQr?: () => void;
   chain: Chain;
   address: string;
 };
 
-// Provider brand tints (not theme tokens - they're external brands).
 const PROVIDERS = [
   {
     key: 'moonpay',
@@ -37,7 +35,6 @@ const PROVIDERS = [
   },
 ] as const;
 
-/** Direct card/bank deposits aren't wired up - points the user at their address. */
 export default function DepositModal({
   visible,
   onClose,
@@ -66,7 +63,6 @@ export default function DepositModal({
       showClose
       gap={spacing.md}
     >
-      {/* The one wired-up path: transfer to your own address. */}
       <Card accent style={styles.transferCard}>
         <View style={styles.transferHead}>
           <View style={styles.transferIcon}>
@@ -110,7 +106,6 @@ export default function DepositModal({
         </View>
       </Card>
 
-      {/* Coming soon */}
       <View style={styles.dividerRow}>
         <View style={styles.dividerLine} />
         <Text style={styles.dividerText}>Coming soon</Text>

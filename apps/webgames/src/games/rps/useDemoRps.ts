@@ -16,11 +16,6 @@ const BOT_NAME = 'Kraken';
 
 type RevealInfo = NonNullable<RpsPlayProps['reveal']>;
 
-/**
- * Local best-of-five against a bot that plays a uniformly random move. No
- * room, no socket, no stake: the rules come from core, everything else is
- * this hook.
- */
 export function useDemoRps(): RpsEngine {
   const [round, setRound] = useState(1);
   const [myScore, setMyScore] = useState(0);

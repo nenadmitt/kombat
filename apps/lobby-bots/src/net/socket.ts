@@ -1,10 +1,6 @@
 import { io, type Socket } from 'socket.io-client';
 
-/**
- * One socket per account: the gateway disconnects an account's previous
- * socket, and socket.io multiplexes connections to the same origin unless
- * forceNew is set, so both flags matter.
- */
+// The gateway drops an account's previous socket, and socket.io multiplexes same-origin connections unless forceNew.
 export function connect(serverUrl: string, token: string): Socket {
   return io(serverUrl, {
     auth: { token },

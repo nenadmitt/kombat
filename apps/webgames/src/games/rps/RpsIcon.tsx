@@ -1,11 +1,6 @@
 import type { RpsMove } from '@gaming-platform/core';
 
-/**
- * The same traced hand glyphs the mobile app uses (apps/mobile/src/games/rps/
- * RpsIcon.tsx) - identical path data, so a move looks the same on both
- * clients. 64x64 viewBox; `color` tints the hand and the line-work stays a
- * translucent dark so it reads on any tint.
- */
+// Same path data as the mobile RpsIcon so a move looks identical on both clients.
 
 const OUTLINE = 'rgba(0, 0, 0, 0.35)';
 

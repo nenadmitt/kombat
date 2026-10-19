@@ -3,15 +3,9 @@ import type { NextResponse } from "next/server";
 
 export const VISITOR_COOKIE = "kmbt_v";
 
-/** Long enough that clearing it is a deliberate act, not a session artifact. */
 const MAX_AGE_SECONDS = 400 * 24 * 60 * 60;
 
-/**
- * A per-browser id used only as a second throttle key. An IP alone is both too
- * broad (a whole office shares one) and too easy to change (phone data, VPN);
- * pairing it with a cookie makes each limit cost the other side something to
- * evade. It identifies a browser, never a person, and is not stored anywhere.
- */
+// A second throttle key beside the IP; identifies a browser, never a person, and is not stored.
 export function visitorId(request: Request): string {
   const cookies = request.headers.get("cookie");
   if (cookies) {

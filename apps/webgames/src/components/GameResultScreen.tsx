@@ -7,40 +7,30 @@ export type ResultVariant = 'win' | 'lose';
 export type ResultStat = {
   value: string;
   label: string;
-  /** Render the value in the variant's accent, e.g. hits or ships sunk. */
   highlight?: boolean;
 };
 
-/** A labelled percentage bar under the stats, e.g. this match's accuracy. */
 export type ResultMeter = {
   label: string;
   percent: number;
-  /** Fill and value in the variant's accent rather than neutral. */
   accent?: boolean;
 };
 
 type Props = {
   variant: ResultVariant;
   icon?: Icon;
-  /** Small uppercase kicker, e.g. "FLEET DESTROYED". */
   eyebrow: string;
-  /** Big title, e.g. "Victory". */
   title: string;
   message: string;
   opponent?: { initial: string; label: string; name: string };
   stats: ResultStat[];
   meters?: ResultMeter[];
-  /** The money panel. Absent for a free match, which settles nothing. */
   settlement?: ResultSettlement | null;
   onBack: () => void;
   backLabel?: string;
   onPlayAgain?: () => void;
 };
 
-/**
- * End-of-match screen, shared by every game. The caller supplies the copy,
- * stats and settlement; this owns the layout and the win/lose theming.
- */
 export function GameResultScreen({
   variant,
   icon,

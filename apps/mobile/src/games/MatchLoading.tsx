@@ -6,20 +6,10 @@ import { colors, radius, spacing } from '../theme/colors';
 import { display, fonts } from '../theme/typography';
 
 type Props = {
-  /** Why the snapshot has not landed. Null while it is merely still loading. */
   error?: string | null;
-  /** Leave the match. Always rendered - a load that never completes must
-   *  never trap the player on this screen. */
   onLeave: () => void;
 };
 
-/**
- * The shared "waiting for the match snapshot" screen.
- *
- * Two rules it exists to enforce, both learned the hard way:
- * a stuck load always says why, and it always offers a way out. A bare
- * spinner with neither is unreportable by the player and undebuggable by us.
- */
 export default function MatchLoading({ error, onLeave }: Props) {
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>

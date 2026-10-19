@@ -1,19 +1,12 @@
-/**
- * Staking (game payments) — shared between server and clients.
- * Amounts cross the wire as base-unit ("wei") decimal strings; clients format
- * them via STAKE_ASSET_DECIMALS.
- */
-
-/** Which asset a match is staked in. Stored server-side as smallint. */
+/** Stored server-side as smallint: never renumber. */
 export enum StakeAsset {
-  Native = 0, // ETH - wallet/gas only, not stakeable
+  Native = 0, // wallet/gas only, never stakeable
   Kombat = 1,
   Usdc = 2,
   Usdt = 3,
   Dai = 4,
 }
 
-/** Every asset, for iterating balance records. */
 export const STAKE_ASSETS: StakeAsset[] = [
   StakeAsset.Native,
   StakeAsset.Kombat,
@@ -22,7 +15,6 @@ export const STAKE_ASSETS: StakeAsset[] = [
   StakeAsset.Dai,
 ];
 
-/** Assets a match may be staked in: stablecoins + KOMBAT, never ETH. */
 export const STAKEABLE_ASSETS: StakeAsset[] = [
   StakeAsset.Kombat,
   StakeAsset.Usdc,
@@ -45,7 +37,6 @@ export function isStableAsset(asset: StakeAsset): boolean {
   return STABLE_ASSETS.includes(asset);
 }
 
-/** The only stake sizes a room may be created with, in human units. */
 export const STAKE_PRESETS = [1, 5, 10, 25, 50, 100, 250, 500] as const;
 
 export const STAKE_ASSET_DECIMALS: Record<StakeAsset, number> = {
@@ -64,7 +55,6 @@ export const STAKE_ASSET_SYMBOLS: Record<StakeAsset, string> = {
   [StakeAsset.Dai]: 'DAI',
 };
 
-/** Whether a base-unit amount is exactly one of STAKE_PRESETS. */
 export function isPresetStakeAmount(asset: StakeAsset, amount: string): boolean {
   if (!/^\d+$/.test(amount)) {
     return false;
@@ -82,11 +72,9 @@ export enum SettlementStatus {
   Settled = 3,
   VoidPending = 4,
   Voided = 5,
-  /** Terminal failure - needs manual attention. */
   Failed = 6,
 }
 
-/** Minimum stake per player, in base units (1 unit of each asset). */
 export const STAKE_ASSET_MIN: Record<StakeAsset, string> = {
   [StakeAsset.Native]: '1000000000000000', // 0.001 ETH
   [StakeAsset.Kombat]: '1000000000000000000', // 1 KOMBAT
@@ -95,17 +83,12 @@ export const STAKE_ASSET_MIN: Record<StakeAsset, string> = {
   [StakeAsset.Dai]: '1000000000000000000', // 1 DAI
 };
 
-/** Socket events broadcast to a room's game channel during staking. */
 export const STAKE_EVENTS = {
-  /** Both players joined a staked room; stakes are being held. */
   funding: 'stake:funding',
-  /** Stakes confirmed on-chain — the match may start. */
   funded: 'stake:funded',
-  /** Funding failed — the room is voided and anything pulled is refunded. */
   failed: 'stake:failed',
 } as const;
 
-/** Format a base-unit amount string for display (trims trailing zeros). */
 export function formatStakeAmount(amount: string, asset: StakeAsset): string {
   const decimals = STAKE_ASSET_DECIMALS[asset];
   const negative = amount.startsWith('-');
@@ -115,7 +98,6 @@ export function formatStakeAmount(amount: string, asset: StakeAsset): string {
   return `${negative ? '-' : ''}${whole}${frac ? `.${frac}` : ''}`;
 }
 
-/** Parse a human decimal string ("10.5") into base units, validating shape. */
 export function parseStakeAmount(value: string, asset: StakeAsset): string {
   const decimals = STAKE_ASSET_DECIMALS[asset];
   const match = /^(\d+)(?:\.(\d+))?$/.exec(value.trim());
@@ -131,11 +113,7 @@ export function parseStakeAmount(value: string, asset: StakeAsset): string {
   return base.toString();
 }
 
-/**
- * The same human value expressed in another asset's base units - a 10 USDC
- * stake is 10 DAI. Throws rather than truncate when the target asset cannot
- * represent the value (preset stakes are whole units, so it never fires).
- */
+/** Throws rather than truncate when the target asset can't represent the value. */
 export function convertStakeAmount(
   amount: string,
   from: StakeAsset,
@@ -161,28 +139,23 @@ export function convertStakeAmount(
   return (value / divisor).toString();
 }
 
-/** GET /wallets/balances response. */
 export type WalletBalances = {
   address: string;
-  /** Base-unit balances keyed by asset. */
   balances: Record<StakeAsset, string>;
 };
 
-/** How a completed match ended, from the viewing player's perspective. */
 export type MatchHistoryResult = 'win' | 'loss' | 'void';
 
 export type MatchHistoryEntry = {
   roomId: string;
   gameType: number;
-  /** First opponent - kept for older clients; prefer `opponentUsernames`. */
+  /** Kept for older clients; prefer `opponentUsernames`. */
   opponentUsername: string | null;
-  /** Every opponent in seat order (multi-seat games have up to three). */
   opponentUsernames: string[];
   result: MatchHistoryResult;
-  /** Base-unit stake per player; null for free games. */
   stakeAmount: string | null;
   stakeToken: StakeAsset | null;
-  /** Signed base-unit net change for this player (payout − stake, −stake, or 0). */
+  /** Signed net change: payout - stake, -stake, or 0. */
   prizeDelta: string | null;
   endReason: string | null;
   completedAt: string;

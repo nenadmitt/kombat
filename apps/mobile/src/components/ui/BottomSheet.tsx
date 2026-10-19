@@ -20,18 +20,13 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   title?: string;
-  /** Optional one-liner under the title. */
   subtitle?: string;
-  /** Show a round X in the title row. */
   showClose?: boolean;
-  /** When set, children are laid out with this uniform vertical gap. */
   gap?: number;
-  /** Fired once the sheet has fully animated away (iOS Modal onDismiss). */
   onDismissed?: () => void;
   children: ReactNode;
 };
 
-/** Slide-up sheet chrome (dim overlay, drag handle, optional title/subtitle). */
 export default function BottomSheet({
   visible,
   onClose,
@@ -42,8 +37,7 @@ export default function BottomSheet({
   onDismissed,
   children,
 }: Props) {
-  // Per-sheet accessory id: a shared one lets a dismissing sheet steal the
-  // Done bar from the one being presented (iOS resolves the id globally).
+  // Per-sheet id: iOS resolves inputAccessoryViewID globally, so a shared one lets a dismissing sheet steal the Done bar.
   const doneId = `keyboard-done-${useId()}`;
   return (
     <Modal

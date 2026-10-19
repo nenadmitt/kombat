@@ -7,10 +7,6 @@ import { colors, radius, spacing } from '../theme/colors';
 import { display, mono } from '../theme/typography';
 import { formatRoomCode } from './room-code';
 
-/**
- * Slim bar shown instead of the full popup once minimized. Pinned near the
- * top, above whatever tab is currently active (see MainTabsWithGameOverlay).
- */
 export default function WaitingForPlayersMinimizedBar() {
   const insets = useSafeAreaInsets();
   const waitingRoom = useGameStore(state => state.waitingRoom);

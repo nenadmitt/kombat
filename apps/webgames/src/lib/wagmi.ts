@@ -19,13 +19,10 @@ export const wagmiConfig = createConfig(
     appName: 'Kombat',
     appDescription: 'Realtime mini-games with on-chain stakes.',
     appUrl: 'https://playkombat.xyz',
-    // Wallets and ConnectKit's own sign-in step show this; without it they
-    // fall back to a generic placeholder glyph.
     appIcon: '/app-icon.svg',
     chains: [chain],
     transports: { [chain.id]: http() },
-    // A mobile browser has no injected provider, so WalletConnect's deep link
-    // is the only connector that works there.
+    // A mobile browser has no injected provider, so WalletConnect is the only connector there.
     walletConnectProjectId: env.walletConnectProjectId,
   }),
 );

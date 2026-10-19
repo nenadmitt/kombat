@@ -4,23 +4,18 @@ import {
   toEnsLabel,
 } from '@gaming-platform/core';
 
-/**
- * Usernames are `[a-zA-Z0-9_]{3,20}`; ENS labels are lowercase `[a-z0-9-]`
- * and reject a leading, trailing or doubled hyphen. Everything below is a
- * username the DTO would accept today.
- */
 describe('toEnsLabel', () => {
   it.each([
-    ['arti', 'arti'],
-    ['Arti', 'arti'],
-    ['ARTI', 'arti'],
+    ['alice', 'alice'],
+    ['Alice', 'alice'],
+    ['ALICE', 'alice'],
     ['my_name', 'my-name'],
     ['My_Name_2', 'my-name-2'],
     ['a__b', 'a-b'],
     ['a___________b', 'a-b'],
-    ['_arti', 'arti'],
-    ['arti_', 'arti'],
-    ['_arti_', 'arti'],
+    ['_alice', 'alice'],
+    ['alice_', 'alice'],
+    ['_alice_', 'alice'],
     ['___a___', 'a'],
     ['123', '123'],
     ['a1_2b', 'a1-2b'],
@@ -48,8 +43,7 @@ describe('toEnsLabel', () => {
   });
 
   it('truncates an over-long label without leaving a trailing hyphen', () => {
-    // 63 chars of 'a' then '_b' would slice to '...a' - but a username whose
-    // 63rd char is the hyphen must not end on it.
+    // A username whose 63rd char maps to the hyphen must not end on it.
     const username = `${'a'.repeat(ENS_LABEL_MAX_LENGTH - 1)}_bcd`;
     const label = toEnsLabel(username)!;
     expect(label.length).toBeLessThanOrEqual(ENS_LABEL_MAX_LENGTH);
@@ -57,18 +51,17 @@ describe('toEnsLabel', () => {
   });
 
   it('collides exactly where the username charset makes it unavoidable', () => {
-    // Both are valid, distinct usernames today: Postgres UNIQUE is
-    // case-sensitive. The suffix path exists for this.
-    expect(toEnsLabel('Arti')).toBe(toEnsLabel('arti'));
+    // Distinct usernames today: Postgres UNIQUE is case-sensitive.
+    expect(toEnsLabel('Alice')).toBe(toEnsLabel('alice'));
     expect(toEnsLabel('a_b')).toBe(toEnsLabel('a__b'));
   });
 });
 
 describe('ensLabelCandidate', () => {
   it('returns the bare label first, then numbered', () => {
-    expect(ensLabelCandidate('arti', 1)).toBe('arti');
-    expect(ensLabelCandidate('arti', 2)).toBe('arti-2');
-    expect(ensLabelCandidate('arti', 3)).toBe('arti-3');
+    expect(ensLabelCandidate('alice', 1)).toBe('alice');
+    expect(ensLabelCandidate('alice', 2)).toBe('alice-2');
+    expect(ensLabelCandidate('alice', 3)).toBe('alice-3');
   });
 
   it('keeps a suffixed label inside the length limit', () => {

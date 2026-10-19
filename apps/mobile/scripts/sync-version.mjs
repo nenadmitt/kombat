@@ -1,17 +1,4 @@
 #!/usr/bin/env node
-/**
- * Copies `version` and `buildNumber` from package.json into the iOS project.
- *
- * Xcode cannot read JSON, so the numbers have to be written into
- * project.pbxproj. Run this instead of editing them by hand:
- *
- *   npm run version:sync --workspace @gaming-platform/mobile
- *
- * Android needs no step here - its build.gradle parses package.json directly.
- *
- * `buildNumber` is what the App Store dedupes uploads on, so it must increase
- * for every submission even when `version` does not change.
- */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

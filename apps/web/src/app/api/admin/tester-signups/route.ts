@@ -9,7 +9,6 @@ import {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** One row or a whole selection - the admin UI sends the same shape either way. */
 const MAX_IDS = 1000;
 
 function readIds(body: unknown): string[] | null {

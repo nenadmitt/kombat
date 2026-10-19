@@ -20,20 +20,8 @@ import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-/** Grace period before a load failure turns into a full error screen - avoids
- *  flashing an alarming UI for a request that's simply a little slow. */
 const ERROR_SCREEN_DELAY_MS = 6000;
 
-/**
- * Auth-gated navigation:
- * - Auth still loading (reading the persisted JWT) -> spinner.
- * - Logged out -> Login only.
- * - Logged in -> load profile + ensure a wallet exist together (spinner
- *   while either is in flight); if either fails, keep spinning for a short
- *   grace period, then show a full error screen with a retry button.
- * - Once both are ready, route to Onboarding (username not set yet) or the
- *   main tabs.
- */
 export default function RootNavigator() {
   const authStatus = useCurrentUserStore(state => state.authStatus);
   const loadAuth = useCurrentUserStore(state => state.load);
@@ -56,8 +44,6 @@ export default function RootNavigator() {
 
   useEffect(() => {
     loadAuth();
-    // Pick up maintenance mode (or unreachability) once at boot; afterwards
-    // the socket broadcast and the offline recovery poll keep it fresh.
     void useServerStore.getState().refresh();
   }, [loadAuth]);
 
@@ -73,8 +59,6 @@ export default function RootNavigator() {
     }
   }, [authStatus, profileStatus, walletStatus, loadProfile, ensureWallet]);
 
-  // One socket connection per logged-in session, reused everywhere (games
-  // etc.) - connect once authenticated, tear down on logout.
   useEffect(() => {
     if (authStatus === 'authenticated') {
       connectSocket();
@@ -143,10 +127,7 @@ export default function RootNavigator() {
       ) : (
         <>
           <Stack.Screen name="MainTabs" component={MainTabsWithGameOverlay} />
-          {/* Multiplayer (carries a roomId) and the demo both use BattleshipGame,
-              which picks its engine from the presence of a roomId route param.
-              The iOS edge-swipe is disabled so leaving always goes through the
-              in-game guard (leaving an active match forfeits it). */}
+          {/* iOS edge-swipe is off so leaving always goes through the in-game forfeit guard. */}
           <Stack.Screen
             name="Battleship"
             component={BattleshipGame}
@@ -157,7 +138,6 @@ export default function RootNavigator() {
             component={BattleshipGame}
             options={{ gestureEnabled: false }}
           />
-          {/* Ludo mirrors the same multiplayer/demo split. */}
           <Stack.Screen
             name="Ludo"
             component={LudoGame}
@@ -168,7 +148,6 @@ export default function RootNavigator() {
             component={LudoGame}
             options={{ gestureEnabled: false }}
           />
-          {/* Triple Cut, same pattern. */}
           <Stack.Screen
             name="TripleCut"
             component={RpsGame}
@@ -179,7 +158,6 @@ export default function RootNavigator() {
             component={RpsGame}
             options={{ gestureEnabled: false }}
           />
-          {/* Chroma Clash, same pattern. */}
           <Stack.Screen
             name="ChromaClash"
             component={ChromaGame}
@@ -190,8 +168,6 @@ export default function RootNavigator() {
             component={ChromaGame}
             options={{ gestureEnabled: false }}
           />
-          {/* Salvo, same pattern - both routes run the local duel until the
-              game gets a socket gateway. */}
           <Stack.Screen
             name="Salvo"
             component={SalvoGame}

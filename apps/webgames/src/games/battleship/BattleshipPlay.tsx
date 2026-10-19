@@ -22,7 +22,6 @@ import { Countdown } from './Countdown';
 
 type View = 'attack' | 'fleet';
 
-/** Result copy per outcome and end reason, matching the app. */
 const RESULT_COPY: Record<
   'win' | 'lose',
   Record<
@@ -115,7 +114,6 @@ export function BattleshipPlay(props: BattleshipPlayProps & ResultExtras) {
   const [selected, setSelected] = useState<{ row: number; col: number } | null>(null);
   const [armed, setArmed] = useState<PowerupKind | null>(null);
 
-  // A turn that is no longer mine cannot keep a target locked in.
   useEffect(() => {
     if (!myTurn) {
       setSelected(null);
@@ -123,9 +121,7 @@ export function BattleshipPlay(props: BattleshipPlayProps & ResultExtras) {
     }
   }, [myTurn]);
 
-  // Follow the action: my turn shows enemy waters, theirs shows my fleet. The
-  // switch lags a beat so the shot that ended the turn is still visible, and
-  // the manual toggle keeps working in between.
+  // The switch lags a beat so the shot that ended the turn is still visible.
   useEffect(() => {
     const timer = setTimeout(
       () => setView(myTurn ? 'attack' : 'fleet'),
@@ -134,8 +130,6 @@ export function BattleshipPlay(props: BattleshipPlayProps & ResultExtras) {
     return () => clearTimeout(timer);
   }, [myTurn]);
 
-  // A mine blast yanks attention straight to the board it tore up, which the
-  // delayed switch above would reach only after the explosion had finished.
   const opponentActionId = opponentAction?.id;
   const opponentActionKind = opponentAction?.kind;
   useEffect(() => {
@@ -165,10 +159,7 @@ export function BattleshipPlay(props: BattleshipPlayProps & ResultExtras) {
     [revealedEnemyShips],
   );
 
-  /**
-   * The torpedo preview deliberately shows the whole row rather than where it
-   * would stop: stopping early would leak the enemy's position.
-   */
+  // Shows the whole row: stopping where it would hit leaks the enemy's position.
   const highlight = useMemo(() => {
     if (!selected || !armed) return [];
     if (armed === 'torpedo') {
@@ -187,7 +178,6 @@ export function BattleshipPlay(props: BattleshipPlayProps & ResultExtras) {
     setArmed(null);
   }
 
-  // Space fires, as the key hint on the button promises.
   const canFire = Boolean(myTurn && selected);
   useEffect(() => {
     if (!canFire || !selected) return;
@@ -479,8 +469,7 @@ function BattleshipResult({
   winRate,
 }: BattleshipPlayProps & ResultExtras) {
   const won = result === 'win';
-  // Accuracy is per fire action: a volley counts as a hit when at least one of
-  // its cells struck a ship, so a bomb's splash misses don't drag it down.
+  // A volley counts as a hit when any cell struck a ship, so splash misses don't drag accuracy down.
   const accuracy = volleys.fired
     ? Math.round((volleys.hit / volleys.fired) * 100)
     : 0;

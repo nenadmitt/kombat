@@ -9,7 +9,6 @@ import { useNavigate } from 'react-router-dom';
 
 import { usePotStore } from '../store/pot.store';
 
-/** The rail's stake-pot summary: headline asset plus the two money actions. */
 export function PotCard() {
   const navigate = useNavigate();
   const { balances, enabled } = usePotStore();
@@ -46,8 +45,7 @@ export function PotCard() {
           {STAKE_ASSET_SYMBOLS[headline]}
         </span>
       </div>
-      {/* Stacked: side by side, "Withdraw" cannot shrink below its label and
-          spills out of the rail. */}
+      {/* Stacked: side by side, "Withdraw" cannot shrink below its label. */}
       <div
         style={{
           display: 'flex',

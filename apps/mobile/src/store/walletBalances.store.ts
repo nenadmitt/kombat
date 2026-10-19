@@ -17,7 +17,6 @@ export type TokenBalance = { raw: bigint | null; formatted: string };
 type ChainBalances = {
   status: BalanceStatus;
   balances: Partial<Record<TokenSymbol, TokenBalance>>;
-  /** ETH/USD price (8 decimals) captured with this refresh; null if unavailable. */
   ethUsdPrice: bigint | null;
   error: string | null;
   updatedAt: number | null;
@@ -35,7 +34,7 @@ type WalletBalancesState = {
 
 const UNAVAILABLE = '-';
 
-/** Thousand-separated amount without relying on Intl (limited under Hermes). */
+/** Avoids Intl, which is limited under Hermes. */
 function formatAmount(raw: bigint, decimals: number): string {
   if (raw === 0n) {
     return '0.00';
@@ -83,7 +82,6 @@ export const useWalletBalancesStore = create<WalletBalancesState>((set, get) => 
       const { balances: raw, ethUsdPrice } = await fetchBalances(chainId, address);
       const balances: Partial<Record<TokenSymbol, TokenBalance>> = {};
       for (const token of CHAIN_TOKENS[chainId]) {
-        // No address on this chain → treat as no funds.
         if (!token.native && !token.address) {
           balances[token.symbol] = { raw: 0n, formatted: '0.00' };
           continue;

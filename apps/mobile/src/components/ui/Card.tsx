@@ -12,7 +12,6 @@ import { colors, radius, spacing } from '../../theme/colors';
 
 type Point = { x: number; y: number };
 
-/** A linear gradient fill for the card (via Skia GradientView). */
 export type CardGradient = {
   colors: readonly string[];
   positions?: readonly number[];
@@ -20,7 +19,6 @@ export type CardGradient = {
   end?: Point;
 };
 
-/** A soft radial glow blob, positioned within the (clipped) card bounds. */
 export type CardGlow = {
   color: string;
   size: number;
@@ -34,20 +32,14 @@ export type CardGlow = {
 
 type Props = {
   children: React.ReactNode;
-  /** Renders as a pressable when provided. */
   onPress?: () => void;
-  /** Accent-tinted variant (ramp dark-step fill + accent border). */
   accent?: boolean;
-  /** Removes inner padding (for cards with edge-to-edge rows/media). */
   flush?: boolean;
-  /** Optional diagonal gradient fill painted behind the content. */
   gradient?: CardGradient;
-  /** Optional radial glow painted behind the content (clipped to the card). */
   glow?: CardGlow;
   style?: StyleProp<ViewStyle>;
 };
 
-/** Elevated surface with the standard hairline border and radius. */
 export default function Card({
   children,
   onPress,
@@ -67,7 +59,6 @@ export default function Card({
     style,
   ];
 
-  // Absolute fill/glow render first so the flow children paint on top of them.
   const inner = (
     <>
       {gradient ? (
@@ -124,8 +115,6 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   accent: {
-    // Tinted card: the accent ramp's darkest step as a solid fill with an
-    // accent-tinted hairline - the redesign's featured / highlight surface.
     backgroundColor: colors.accent900,
     borderColor: colors.accentBorder,
   },

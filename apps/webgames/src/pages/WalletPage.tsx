@@ -44,7 +44,6 @@ import { useSessionStore } from '../store/session.store';
 
 type Mode = 'deposit' | 'withdraw';
 
-/** Trim a formatted amount to something readable without losing dust. */
 function trim(value: string): string {
   if (!value.includes('.')) return value;
   const [whole, fraction = ''] = value.split('.');
@@ -52,11 +51,6 @@ function trim(value: string): string {
   return short ? `${whole}.${short}` : whole!;
 }
 
-/**
- * What the connected wallet actually holds on-chain, as opposed to what has
- * been deposited into the pot. Both matter, and conflating them is why this
- * table used to show the pot twice.
- */
 function useWalletBalances(address: Address | undefined) {
   const erc20s = TOKENS.filter(token => !token.native);
   const native = useBalance({ address, query: { enabled: Boolean(address) } });
@@ -86,9 +80,7 @@ function useWalletBalances(address: Address | undefined) {
 export function WalletPage() {
   const user = useSessionStore(s => s.user);
   const { address: connectedAddress, chainId } = useAccount();
-  // A custodial account has no wagmi connection: its address lives on the
-  // server, so reading only the connector shows "disconnected" to someone
-  // whose wallet plainly exists.
+  // A custodial account has no wagmi connection; its address lives on the server.
   const [custodial, setCustodial] = useState<WalletSummary | null>(null);
   const address = connectedAddress ?? (custodial?.address as Address | undefined);
   const { balances, enabled, refresh } = usePotStore();
@@ -537,7 +529,6 @@ export function WalletPage() {
   );
 }
 
-/** The pot illustration from the Kombat design. */
 function CoinPile() {
   return (
     <svg

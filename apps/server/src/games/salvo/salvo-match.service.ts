@@ -44,28 +44,20 @@ import { GameRoomEntity } from '../../db/entities/game-room.entity';
 import { participantsOf } from '../room.util';
 import { GameRoomStatus } from '../../db/types/game';
 
-/**
- * Authoritative Salvo match. The server is the only simulator: it owns the
- * terrain, both tank positions, the wind, and every trajectory. Clients send
- * the aim and the column they want, never an outcome.
- */
 export type SalvoMatchState = {
   roomId: string;
-  /** [creatorId, opponentId] - the creator holds the left ridge and fires first. */
   players: [string, string];
-  /** Destructible heightmap; the only truth about the battlefield. */
   terrain: number[];
   hp: Record<string, number>;
   x: Record<string, number>;
-  /** Aim each player last *fired* - never their live, undisclosed dial. */
+  // Each player's last fired aim, never their live undisclosed dial.
   angle: Record<string, number>;
   power: Record<string, number>;
   stats: Record<string, SalvoPlayerStats>;
   turnUserId: string;
-  /** Terrain units of driving left to the player on turn. */
   movesLeft: number;
   wind: number;
-  /** 1-based index of the shot about to be taken. */
+  // 1-based.
   shotNumber: number;
   timeouts: Record<string, number>;
   online: Record<string, boolean>;
@@ -73,11 +65,10 @@ export type SalvoMatchState = {
   winnerUserId: string | null;
   endReason: SalvoEndReason | null;
   turnStartedAt: number;
-  /** Bumped on every turn-clock restart; stale deadlines carry an old seq. */
   turnSeq: number;
 };
 
-/** Crypto-backed uniform in [0,1), matching how Chroma seeds its shuffle. */
+// randomInt caps its range at 2^48 - 1.
 const cryptoRand = () => randomInt(0, 281474976710655) / 281474976710655;
 
 const roundOf = (shotNumber: number) => Math.ceil(shotNumber / 2);
@@ -86,17 +77,13 @@ const roundOf = (shotNumber: number) => Math.ceil(shotNumber / 2);
 export class SalvoMatchService {
   constructor(private readonly cacheService: CacheService) {}
 
-  /** Fetch (or lazily create) the match for a filled, in-progress room. */
   getOrCreate(room: GameRoomEntity): Promise<SalvoMatchState> {
     return this.locked(room.id, async () => {
       const existing = await this.load(room.id);
       if (existing) {
         return existing;
       }
-      // Salvo is not a multi-seat game, so a joiner is seated in
-      // `opponent_id` and `opponent_ids` stays empty. Read the roster through
-      // participantsOf rather than either column directly, so this cannot
-      // drift again if the seating ever changes.
+      // Salvo seats its joiner in opponent_id, not opponent_ids: always read the roster via participantsOf.
       const roster = participantsOf(room);
       if (room.status !== GameRoomStatus.InProgress || roster.length !== 2) {
         throw new ConflictException('The room has not started yet.');
@@ -134,11 +121,7 @@ export class SalvoMatchService {
     });
   }
 
-  /**
-   * Drive toward `toX`. The reachable column is recomputed from the server's
-   * own positions and billed against the turn's budget, so a client asking to
-   * teleport simply gets clamped rather than rejected.
-   */
+  // Clamped to what is reachable from the server's positions rather than rejected.
   move(roomId: string, userId: string, toX: number): Promise<SalvoMovedPayload> {
     return this.locked(roomId, async () => {
       const match = await this.require(roomId);
@@ -167,11 +150,7 @@ export class SalvoMatchService {
     });
   }
 
-  /**
-   * Resolve a shot and hand the turn over. The trajectory is integrated here
-   * and shipped whole, because floating-point maths is not bit-identical
-   * across JS engines and a client-side re-simulation could disagree.
-   */
+  // Integrated here and shipped whole: float maths is not bit-identical across JS engines.
   fire(
     roomId: string,
     userId: string,
@@ -184,8 +163,7 @@ export class SalvoMatchService {
 
       const opponentId = this.opponentOf(match, userId);
       const aim = { angle: clampAngle(angle), power: clampPower(power) };
-      // The heights array is shared by reference, so carveCrater below mutates
-      // the match's own terrain rather than a copy.
+      // Shared by reference, so carveCrater mutates the match's own terrain.
       const terrain = {
         width: match.terrain.length,
         height: SALVO_FIELD_HEIGHT,
@@ -198,8 +176,7 @@ export class SalvoMatchService {
         match.wind,
       );
 
-      // A shell that finds a hull detonates on armour: only ground hits leave
-      // a crater, and clients carve the identical one from `crater`.
+      // Only ground hits leave a crater; clients carve the identical one from `crater`.
       if (shot.kind === 'terrain') {
         carveCrater(terrain, shot.impact);
       }
@@ -265,11 +242,6 @@ export class SalvoMatchService {
     });
   }
 
-  /**
-   * The turn ran out without a shot. The idle player accrues a timeout; on the
-   * MAX_TIMEOUTS-th they lose. `seq` guards against enforcing a turn that has
-   * already moved on (returns null).
-   */
   timeoutTurn(
     roomId: string,
     seq: number,
@@ -307,7 +279,6 @@ export class SalvoMatchService {
     });
   }
 
-  /** A player leaves mid-match: the opponent takes the field. */
   forfeit(roomId: string, userId: string): Promise<{ winnerUserId: string }> {
     return this.locked(roomId, async () => {
       const match = await this.require(roomId);
@@ -324,7 +295,6 @@ export class SalvoMatchService {
     });
   }
 
-  /** Update a player's socket presence. Returns whether the match is live. */
   setPresence(
     roomId: string,
     userId: string,
@@ -341,7 +311,6 @@ export class SalvoMatchService {
     });
   }
 
-  /** Full snapshot, including the live heightmap, for entry and reconnect. */
   async stateFor(roomId: string): Promise<SalvoRoomState> {
     const match = await this.require(roomId);
     return {
@@ -372,9 +341,6 @@ export class SalvoMatchService {
     await this.cacheService.del(CacheKeys.salvoMatch(roomId));
   }
 
-  // --- internals -------------------------------------------------------------
-
-  /** Hand over, re-rolling the wind whenever a new round opens. */
   private advanceTurn(match: SalvoMatchState): void {
     const next = this.opponentOf(match, match.turnUserId);
     const shotNumber = match.shotNumber + 1;

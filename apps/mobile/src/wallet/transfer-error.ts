@@ -1,11 +1,4 @@
-/**
- * viem reports a revert as a multi-paragraph dump with the ABI, args and a
- * docs link. None of that is readable on a phone, so known failures get their
- * own sentence and anything unrecognised is cut to its first line.
- */
-
-/** OpenZeppelin v5 custom errors. erc20Abi carries no error entries, so viem
- *  cannot decode these and prints the raw selector instead. */
+/** erc20Abi carries no error entries, so viem can't decode OpenZeppelin v5 custom errors. */
 const SELECTORS: Record<string, string> = {
   '0xe450d38c': 'insufficient-balance',
   '0xfb8f41b2': 'insufficient-allowance',

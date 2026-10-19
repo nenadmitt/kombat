@@ -31,7 +31,6 @@ export function MarkerDefs() {
   );
 }
 
-/** An armed sea mine: two arms, two diagonal nubs, a core and a glow. */
 export function MineMarker({
   row,
   col,
@@ -69,14 +68,9 @@ export function MineMarker({
   );
 }
 
-/**
- * A resolved shot. `sunk` is a hit whose ship went down, so it reads as a
- * solid block rather than a puncture.
- */
 export function ShotMarker({
   shot,
   sunk,
-  /** Position in the entrance sweep, or undefined for an already-settled shot. */
   enterIndex,
   stepMs = 0,
 }: {
@@ -161,7 +155,6 @@ export function ShotMarker({
   );
 }
 
-/** The expanding ring a struck mine throws out, one per blast centre. */
 export function MineExplosion({ row, col }: { row: number; col: number }) {
   const cx = col * CELL + CELL / 2;
   const cy = row * CELL + CELL / 2;
@@ -180,7 +173,6 @@ export function MineExplosion({ row, col }: { row: number; col: number }) {
   );
 }
 
-/** A bomb's glow, collapsing onto the 3x3 it just flattened. */
 export function BombBlast({ row, col }: { row: number; col: number }) {
   const cx = col * CELL + CELL / 2;
   const cy = row * CELL + CELL / 2;
@@ -191,7 +183,6 @@ export function BombBlast({ row, col }: { row: number; col: number }) {
   );
 }
 
-/** The torpedo running its row: a trail that stretches out behind the head. */
 export function TorpedoProjectile({
   row,
   fromCol,
@@ -208,8 +199,6 @@ export function TorpedoProjectile({
   const startX = fromCol * CELL + CELL / 2;
   const endX = toCol * CELL + CELL / 2;
 
-  // One moving element, so the Web Animations API is simpler than keyframes
-  // that would need the distance baked in.
   useEffect(() => {
     const head = headRef.current;
     if (!head) return;

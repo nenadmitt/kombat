@@ -1,15 +1,6 @@
 import Svg, { Path } from 'react-native-svg';
 import type { RpsMove } from '@gaming-platform/core';
 
-/**
- * Hand glyphs for the three moves, traced directly from the reference art
- * (prompts/rps_icons.png) - silhouette + line-work contours extracted from
- * the drawing itself, so the shapes match it exactly (the rock's arrow
- * annotation and the text captions were dropped). 64x64 viewBox; `color`
- * tints the hand, the line-work stays a translucent dark so it reads on any
- * tint. Regenerate by re-running the tracer against a new reference image.
- */
-
 const OUTLINE = 'rgba(0, 0, 0, 0.35)';
 
 type HandPaths = { silhouette: string; lines: string };

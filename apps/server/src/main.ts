@@ -6,8 +6,7 @@ import { INSTANCE_ID } from './instance-id';
 import { adapterState, RedisIoAdapter } from './websockets/redis-io.adapter';
 
 async function bootstrap() {
-  // Without these an adapter publish that rejects after its retries are spent
-  // terminates the process and drops every open socket.
+  // Otherwise an adapter publish that rejects after its retries kills the process and every open socket.
   process.on('unhandledRejection', (reason) => {
     new Logger('Process').error(
       `Unhandled rejection on instance ${INSTANCE_ID}: ${
@@ -23,16 +22,12 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
   app.enableCors();
-  // `transform: true` so query-string DTOs (e.g. ?excludeOwn=true) get coerced
-  // to their declared types instead of arriving as raw strings.
+  // `transform: true` so query-string DTOs are coerced to their declared types.
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-  // Probe endpoints stay unprefixed/unversioned - infra hits them directly.
+  // Probe endpoints stay unprefixed: infra hits them directly.
   app.setGlobalPrefix('api/v1', { exclude: ['health', 'healthcheck', 'status'] });
 
-  // With Redis configured, socket.io broadcasts go through Redis pub/sub so
-  // multiple instances behave as one socket server. A connection failure
-  // degrades to the in-memory adapter (single instance) instead of crashing,
-  // matching the cache module's fallback behavior.
+  // A Redis connection failure degrades to the in-memory adapter instead of crashing.
   const { REDIS_URL } = app.get(ConfigurationService);
   if (REDIS_URL) {
     const redisIoAdapter = new RedisIoAdapter(app);

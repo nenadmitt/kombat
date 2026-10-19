@@ -27,37 +27,24 @@ import { GameRoomStatus } from '../../db/types/game';
 
 export type RpsMatchState = {
   roomId: string;
-  /** [creatorId, opponentId]. */
   players: [string, string];
   phase: 'play' | 'over';
   round: number;
-  /** Round-win counts per user (first to WIN_TARGET wins the match). */
   scores: Record<string, number>;
-  /** This round's locked moves (null until locked). Hidden cross-player until
-   *  both are in or the round times out. */
+  // Hidden from the other player until both lock or the round times out.
   moves: Record<string, RpsMove | null>;
   timeouts: Record<string, number>;
   online: Record<string, boolean>;
-  /** Epoch ms the current round's lock-in window started. */
   roundStartedAt: number | null;
-  /** Bumped on every round (re)start; a stale deadline carries an old seq. */
   roundSeq: number;
   winnerUserId: string | null;
   endReason: RpsEndReason | null;
 };
 
-/**
- * Server-authoritative Triple Cut (RPS) match state. Both players lock a
- * secret move each round; the server reveals only once both are in (or the
- * round deadline forces it), scores the round, and starts the next - all
- * under a per-room lock, same as Battleship/Ludo. A player's move is never
- * broadcast before the reveal.
- */
 @Injectable()
 export class RpsMatchService {
   constructor(private readonly cacheService: CacheService) {}
 
-  /** Fetch (or lazily create) the match for a filled, in-progress room. */
   getOrCreate(room: GameRoomEntity): Promise<RpsMatchState> {
     return this.locked(room.id, async () => {
       const existing = await this.load(room.id);
@@ -89,10 +76,6 @@ export class RpsMatchService {
     });
   }
 
-  /**
-   * Lock in a move for the current round. Returns whether both players are now
-   * locked plus (when they are) the reveal payload to broadcast.
-   */
   lock(
     roomId: string,
     userId: string,
@@ -124,12 +107,6 @@ export class RpsMatchService {
     });
   }
 
-  /**
-   * The round's lock-in window ran out. Any player who never locked accrues a
-   * timeout; on the MAX_TIMEOUTS-th they lose the match. Otherwise the round
-   * resolves with whatever was locked (a no-show move counts as a loss).
-   * `seq` guards staleness - a mismatch means the round already advanced.
-   */
   timeoutRound(
     roomId: string,
     seq: number,
@@ -145,8 +122,7 @@ export class RpsMatchService {
         }
       }
       const reveal = this.resolveRound(match);
-      // A player who hit the timeout cap loses outright, overriding score.
-      // Both capped (a mutual no-show) voids: no seat may profit from it.
+      // The timeout cap overrides score; both capped voids so no seat profits from a mutual no-show.
       const capped = match.players.filter(
         p => match.timeouts[p]! >= MAX_TIMEOUTS,
       );
@@ -167,14 +143,11 @@ export class RpsMatchService {
     });
   }
 
-  /** A player leaves -> the opponent wins. Returns the winner. */
   forfeit(roomId: string, userId: string): Promise<{ winnerUserId: string }> {
     return this.locked(roomId, async () => {
       const match = await this.require(roomId);
       this.assertParticipant(match, userId);
-      // A finished match stays cached for its whole TTL so both players can
-      // still read the 'over' state - without this guard it stays forfeitable
-      // too, and every replay fires another settlement at the pot.
+      // Finished matches stay cached for the TTL; without this guard every replay would settle again.
       if (match.phase === 'over') {
         throw new ConflictException('The match is already over.');
       }
@@ -185,7 +158,6 @@ export class RpsMatchService {
     });
   }
 
-  /** Update a player's socket-connection state. Returns whether it's an active match. */
   setPresence(
     roomId: string,
     userId: string,
@@ -202,7 +174,6 @@ export class RpsMatchService {
     });
   }
 
-  /** Personalized snapshot: the requester sees only their own locked move. */
   async stateFor(roomId: string, userId: string): Promise<RpsRoomState> {
     const match = await this.require(roomId);
     this.assertParticipant(match, userId);
@@ -227,13 +198,7 @@ export class RpsMatchService {
     await this.cacheService.del(CacheKeys.rpsMatch(roomId));
   }
 
-  // --- round resolution --------------------------------------------------------
-
-  /**
-   * Score the current round from `match.moves`, advance (or end the match),
-   * and reset for the next round. Mutates `match`; returns the reveal payload
-   * (winner/deadline get overridden by timeout-cap handling in the caller).
-   */
+  // Mutates match; the caller overrides winner/deadline for timeout-cap handling.
   private resolveRound(match: RpsMatchState): RpsRevealPayload {
     const [a, b] = match.players;
     const result = resolveRound(match.moves[a]!, match.moves[b]!);
@@ -254,7 +219,6 @@ export class RpsMatchService {
       this.endMatch(match, roundWinnerUserId, 'complete');
       winnerUserId = roundWinnerUserId;
     } else {
-      // Decisive round advances the counter; a tie replays the same round.
       if (roundWinnerUserId) {
         match.round += 1;
       }
@@ -283,8 +247,6 @@ export class RpsMatchService {
     match.winnerUserId = winnerUserId;
     match.endReason = reason;
   }
-
-  // --- cache plumbing ----------------------------------------------------------
 
   private locked<T>(roomId: string, fn: () => Promise<T>): Promise<T> {
     return this.cacheService.withLock(

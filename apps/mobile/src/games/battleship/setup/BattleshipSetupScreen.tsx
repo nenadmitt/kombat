@@ -45,15 +45,12 @@ type Props = {
   onExit: () => void;
 };
 
-/** Pseudo-id for the mines tray card (ship ids come from the fleet spec). */
 const MINES_ID = 'mines';
 
-// colors.accent at reduced opacity, for the top glow behind the header.
 const GLOW_COLOR = 'rgba(142, 224, 90, 0.35)';
 const GLOW_TRANSPARENT = 'rgba(142, 224, 90, 0)';
 const GLOW_HEIGHT = 480;
 
-/** "Deploy Your Fleet" - select a ship, then tap the grid to place it. */
 export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
   const { width } = useWindowDimensions();
   const boardSize = Math.min(width - spacing.md * 2 - LABEL_GUTTER, 340);
@@ -61,11 +58,8 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
 
   const [placements, setPlacements] = useState<Record<string, Placement>>({});
   const [mines, setMines] = useState<MinePlacement[]>([]);
-  // A single orientation shared by every ship, toggled from the "Placing" row.
   const [orientation, setOrientation] = useState<Orientation>('h');
-  // A ship id, MINES_ID, or null (auto-advance to the next unplaced item).
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  // A fixed deadline for the setup countdown, computed once on mount.
   const setupDeadline = useRef(
     Date.now() + SETUP_DURATION_SECONDS * 1000,
   ).current;
@@ -77,7 +71,6 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
   const activeId = selectedId ?? nextId;
   const placingMine = activeId === MINES_ID;
 
-  // Ships and mines block each other, so placement checks span both.
   const occupiedAll = useMemo(() => {
     const set = buildOccupied(placements);
     for (const m of mines) {
@@ -111,7 +104,6 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
           return;
         }
         setMines(prev => [...prev, { row, col }]);
-        // Keep placing mines until the full set is armed.
         setSelectedId(mines.length + 1 < MINES_PER_PLAYER ? MINES_ID : null);
         return;
       }
@@ -143,9 +135,7 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
 
   const handleGridCommit = useCallback(
     (row: number, col: number, isTap: boolean) => {
-      // Only a deliberate tap removes a placed ship or mine - releasing a drag
-      // over an occupied cell is just an invalid drop and should do nothing,
-      // otherwise a missed drop silently deletes something already placed.
+      // Only a deliberate tap removes; a drag released over an occupied cell is just an invalid drop.
       if (isTap) {
         const mineIdx = mines.findIndex(m => m.row === row && m.col === col);
         if (mineIdx !== -1) {
@@ -167,8 +157,6 @@ export default function BattleshipSetupScreen({ onReady, onExit }: Props) {
     [placements, mines, handleRemove, handlePlaceActive],
   );
 
-  // A full reshuffle every tap - existing placements are thrown away so the
-  // player can keep rolling layouts until one looks right, then hit READY.
   const handleAutoPlace = () => {
     const next = randomFleet();
     setPlacements(next);

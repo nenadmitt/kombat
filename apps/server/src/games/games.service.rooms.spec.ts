@@ -22,12 +22,6 @@ const CREATOR = '11111111-1111-4111-8111-111111111111';
 const JOINER = '22222222-2222-4222-8222-222222222222';
 const ROOM = '33333333-3333-4333-8333-333333333333';
 
-/**
- * Room lifecycle guards. What matters here is the ordering the comments in
- * GamesService promise: a broke joiner is rejected before the seat flips, a
- * staked room holds nothing at creation, and a lost seat race never
- * overwrites the winner.
- */
 describe('GamesService room lifecycle', () => {
   let service: GamesService;
   let db: {
@@ -81,7 +75,6 @@ describe('GamesService room lifecycle', () => {
       startGameRoom: jest.fn().mockResolvedValue(true),
       findGameRoomByIdFresh: jest.fn(),
     };
-    // The start path reads fresh; every case here stubs one room either way.
     db.findGameRoomByIdFresh.mockImplementation((id: string) =>
       db.findGameRoomById(id),
     );
@@ -187,7 +180,6 @@ describe('GamesService room lifecycle', () => {
       );
 
       await expect(service.joinRoom(JOINER, ROOM)).rejects.toThrow('broke');
-      // The room never left the market.
       expect(db.joinGameRoom).not.toHaveBeenCalled();
     });
 
@@ -221,7 +213,6 @@ describe('GamesService room lifecycle', () => {
       expect(stakes.beginFunding).toHaveBeenCalledWith(
         expect.objectContaining({ id: ROOM, opponentId: JOINER }),
       );
-      // The one lifecycle event comes from the funding flow, never twice.
       expect(sent).toHaveLength(0);
     });
   });

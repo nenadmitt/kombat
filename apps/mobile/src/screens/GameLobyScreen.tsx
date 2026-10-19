@@ -42,7 +42,6 @@ import { useWebsocketStore } from '../store/websocket.store';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
 
-/** "10 USDC" / "0.01 ETH" / "FREE" for a room's per-player stake. */
 function stakeLabel(room: GameRoomSummary): string {
   if (room.stakeToken === null || room.stakeAmount === null) {
     return 'FREE';
@@ -50,9 +49,7 @@ function stakeLabel(room: GameRoomSummary): string {
   return `${formatStakeAmount(room.stakeAmount, room.stakeToken)} ${STAKE_ASSET_SYMBOLS[room.stakeToken]}`;
 }
 
-/** The inline multi-select game chips (stake + token live in the filter sheet).
- *  One entry per MULTIPLAYER_GAME_TYPES member - a missing one hides that
- *  game's rooms behind a filter nobody can select. */
+/** One entry per MULTIPLAYER_GAME_TYPES member: a missing one hides that game's rooms behind a filter nobody can select. */
 const GAME_FILTERS: { key: GameType; label: string }[] = [
   { key: GameType.NavalBattle, label: 'Battleships' },
   { key: GameType.Ludo, label: 'Ludo' },
@@ -61,10 +58,8 @@ const GAME_FILTERS: { key: GameType; label: string }[] = [
   { key: GameType.Salvo, label: 'Salvo' },
 ];
 
-/** No pool backend for the featured banner yet - visual parity with the design. */
 const FEATURED_POOL = '480';
 
-/** The featured banner's "live" dot. */
 const DOT_SIZE = 6;
 
 function timeAgo(iso: string): string {
@@ -77,9 +72,6 @@ function timeAgo(iso: string): string {
 }
 
 export default function GameLobyScreen() {
-  // Battleship is a root-level screen (reachable from the global
-  // "opponent joined" push too), not nested under this Games stack - cast
-  // needed since this screen's own nav type doesn't know about it.
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const confirm = useConfirm();
@@ -98,10 +90,6 @@ export default function GameLobyScreen() {
   const maintenanceMessage = useServerStore(s => s.message);
   const online = serverStatus === 'online';
 
-  // Live lobby: while focused, subscribe to the lobby channel and patch the
-  // store as rooms are created / started / cancelled. The store's fetch is
-  // TTL-guarded, so switching tabs doesn't re-hit the API. We leave the
-  // channel on blur, so nobody off the lobby receives room churn.
   useFocusEffect(
     useCallback(() => {
       if (useServerStore.getState().status !== 'online') {
@@ -130,14 +118,12 @@ export default function GameLobyScreen() {
     }, []),
   );
 
-  // When the multiplayer gate lifts, reconcile with a fresh fetch.
   useEffect(() => {
     if (online) {
       void useLobbyStore.getState().fetch({ force: true });
     }
   }, [online]);
 
-  // Anti-spam manual refresh: WS keeps the list live, this is the fallback.
   const cooldownRef = useRef(false);
   const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [refreshCooling, setRefreshCooling] = useState(false);
@@ -180,9 +166,7 @@ export default function GameLobyScreen() {
 
   const enterMatch = useCallback(
     (room: GameRoomSummary) => {
-      // navigate's params type is tied to a literal route name; the target
-      // is dynamic (per game type), so it can't line up with the specific
-      // overload - same pragmatic cast as elsewhere in this file's nav use.
+      // The route name is dynamic per game type, so it can't match navigate's literal-route overloads.
       (navigation.navigate as (screen: string, params: unknown) => void)(
         GAME_TYPE_SCREENS[room.gameType],
         {
@@ -199,26 +183,18 @@ export default function GameLobyScreen() {
     setJoiningRoomId(room.id);
     try {
       const joined = await apiClient.joinGameRoom(room.id);
-      // A multi-seat room can stay Pending after a join (waiting for more):
-      // the joiner parks in the waiting popup until game:started arrives.
-      // A join that fills the room comes back InProgress and flows on like
-      // any other match entry.
       if (
         isMultiSeatGame(room.gameType) &&
         joined.status === GameRoomStatus.Pending
       ) {
         useGameStore.getState().setWaitingRoom(joined, true);
       } else {
-        // A staked join only returns once the stakes are held, so there is
-        // nothing left to wait for. Waiting on stake:funded here would hang:
-        // the event fires before this response arrives.
+        // Don't wait on stake:funded: a staked join returns only once stakes are held, and the event fires before this response.
         enterMatch(room);
       }
     } catch (err) {
       const message =
         err instanceof ApiError ? err.message : 'Something went wrong.';
-      // An empty stake pot is the one join failure the user can fix right now,
-      // so offer the way there instead of a dead-end notice.
       const needsTopUp = /stake pot/i.test(message);
       void confirm({
         title: needsTopUp ? 'Not enough in your pot' : 'Could not join room',
@@ -245,7 +221,6 @@ export default function GameLobyScreen() {
       void joinRoom(room);
       return;
     }
-    // Staked rooms confirm before money moves.
     const ok = await confirm({
       title: `Join for ${stakeLabel(room)}?`,
       message:
@@ -262,10 +237,7 @@ export default function GameLobyScreen() {
 
   const handleJoinGame = () => setJoinCodeVisible(true);
 
-  // A code resolved to a room: close the sheet first, then run the normal join
-  // flow once it has dismissed. Presenting the staked-confirm sheet while this
-  // one is still animating away wedges iOS's modal stack (see the overlay
-  // report), so we serialize with a short delay.
+  // Close the sheet first: presenting the staked confirm while it animates away wedges iOS's modal stack.
   const handleCodeResolved = (room: GameRoomSummary) => {
     setJoinCodeVisible(false);
     setTimeout(() => void handleJoin(room), 350);
@@ -273,7 +245,6 @@ export default function GameLobyScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
-      {/* Fixed header */}
       <View style={styles.header}>
         <Text style={styles.title}>Lobby</Text>
       </View>
@@ -285,7 +256,6 @@ export default function GameLobyScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View style={styles.listHeader}>
-            {/* Featured game - diagonal ramp gradient + a corner accent bloom. */}
             <Card
               accent
               gradient={{
@@ -318,7 +288,6 @@ export default function GameLobyScreen() {
               />
             </Card>
 
-            {/* Primary actions */}
             <View style={styles.actionRow}>
               <Button
                 label="Create Room"
@@ -337,7 +306,6 @@ export default function GameLobyScreen() {
               />
             </View>
 
-            {/* Filters: multi-select games + a sheet for stake / token. */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -366,7 +334,6 @@ export default function GameLobyScreen() {
               </Pressable>
             </ScrollView>
 
-            {/* Section header */}
             <View style={styles.sectionHeader}>
               <Text style={[type.label, styles.sectionLabel]}>Open rooms</Text>
               {status === 'ready' ? (
@@ -541,7 +508,6 @@ const styles = StyleSheet.create({
     height: DOT_SIZE,
     borderRadius: radius.pill,
     backgroundColor: colors.accent,
-    // 0 0 8px accent glow (iOS).
     shadowColor: colors.accent,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.9,

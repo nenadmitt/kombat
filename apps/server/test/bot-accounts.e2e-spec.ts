@@ -16,7 +16,6 @@ describe('bot accounts (e2e)', () => {
     return created;
   };
 
-  /** A finished 2-player match, the only shape findRankings counts. */
   const completedMatch = async (winner: Actor, loser: Actor): Promise<void> => {
     await testApp.dataSource.query(
       `INSERT INTO game_rooms
@@ -82,8 +81,6 @@ describe('bot accounts (e2e)', () => {
     expect(row.is_bot).toBe(false);
   });
 
-  // The provisioning CLI is the only caller, so an unguarded route would let
-  // anyone hide themselves from the leaderboard.
   describe('PATCH admin/users/:id/bot', () => {
     const patch = (id: string, token: string | null, body: unknown) =>
       fetch(`${testApp.url}/api/v1/admin/users/${id}/bot`, {

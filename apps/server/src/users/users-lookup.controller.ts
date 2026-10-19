@@ -4,11 +4,7 @@ import { RecipientLookup } from '@gaming-platform/core';
 import { LookupRecipientDto } from './dto/lookup-recipient.dto';
 import { UsersService } from './users.service';
 
-/**
- * Deliberately unauthenticated (unlike UsersController): the web stake form
- * checks a beneficiary before the visitor has any session. Returns only what
- * the sender needs: username/ENS and the wallet the pot credits.
- */
+// Unauthenticated on purpose: the web stake form checks a beneficiary before the visitor has a session.
 @Controller('users')
 export class UsersLookupController {
   constructor(private readonly usersService: UsersService) {}

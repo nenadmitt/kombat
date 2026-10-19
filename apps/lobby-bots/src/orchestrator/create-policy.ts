@@ -6,7 +6,6 @@ import type { Config } from '../config';
 import type { Logger } from '../logger';
 import type { LobbyModel } from './lobby-model';
 
-/** Keeps the lobby from looking dead: at least BOTS_MIN_OPEN_ROOMS stay open. */
 export class CreatePolicy {
   constructor(
     private readonly lobby: LobbyModel,
@@ -15,11 +14,7 @@ export class CreatePolicy {
     private readonly log: Logger,
   ) {}
 
-  /**
-   * Weighted pick, but only among types under the per-game cap - otherwise a
-   * 0.6-weighted game fills every slot and the lobby reads as one game.
-   * Null when every type is at its cap.
-   */
+  // Only types under the per-game cap, or a heavily weighted game takes every slot.
   private pickGameType(): GameType | null {
     const open = this.lobby.openRoomsByGame();
     const eligible = this.config.gameMix.filter(
@@ -51,8 +46,7 @@ export class CreatePolicy {
     if (gameType === null) return;
     bot.state = 'hosting';
     try {
-      // Bot-hosted rooms are always free: a bot should never put treasury at
-      // risk on its own initiative, only match a stake a player chose.
+      // Bots never put treasury at risk on their own initiative, only match a player's stake.
       const room = await bot.api.createGameRoom(gameType);
       bot.room = room;
       bot.hostedUntil = Date.now() + jitter(this.config.hostedRoomTtlMs);
@@ -65,7 +59,6 @@ export class CreatePolicy {
     }
   }
 
-  /** A room nobody joined is noise after a while; close it and free the bot. */
   private async closeStaleRooms(): Promise<void> {
     const now = Date.now();
     for (const bot of this.bots) {
@@ -75,8 +68,7 @@ export class CreatePolicy {
         await bot.api.closeGameRoom(bot.room.id);
         this.log.info(`${bot.account.username} closed idle room ${bot.room.id}`);
       } catch {
-        // Already gone (joined, started, or reaped) - the room events decide
-        // what happens next either way.
+        // Already gone; the room events decide what happens next.
       }
       bot.reset();
     }

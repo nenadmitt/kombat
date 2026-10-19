@@ -15,15 +15,7 @@ import { StakePotChainService } from './stake-pot-chain.service';
 
 const GRANT_ASSET = StakeAsset.Kombat;
 
-/**
- * The welcome bonus: FAUCET_GRANT_KOMBAT into a player's stake pot, once,
- * when they claim it (POST /stake-pot/claim - no longer automatic on signup).
- *
- * Into the pot, not the wallet, because the pot balance is what staking
- * spends. That also keeps the faucet out of the ledger entirely: the watcher
- * credits it off the `Staked` event, the same path a player's own deposit
- * takes.
- */
+// Pays into the pot, not the wallet: the watcher credits it off the Staked event like any deposit.
 @Injectable()
 export class FaucetService {
   private readonly logger = new Logger(FaucetService.name);
@@ -46,7 +38,6 @@ export class FaucetService {
     return this.configurationService.FAUCET_GRANT_KOMBAT;
   }
 
-  /** The grant in base units, the form every other amount crosses the wire in. */
   get grantAmountBase(): string {
     return parseUnits(
       String(this.configurationService.FAUCET_GRANT_KOMBAT),
@@ -58,8 +49,6 @@ export class FaucetService {
     return (await this.grantRepository.countBy({ userId })) > 0;
   }
 
-  /** Pays exactly once per user; the tx hash is returned for the client to
-   *  watch. The pot balance itself arrives via the deposit watcher. */
   async claim(userId: string, address: Address): Promise<{ txHash: Hex }> {
     if (!this.enabled) {
       throw new ServiceUnavailableException(
@@ -71,8 +60,7 @@ export class FaucetService {
       STAKE_ASSET_DECIMALS[GRANT_ASSET],
     );
 
-    // A deposit has no on-chain idempotency key, so this row is the only thing
-    // between a retry and a double grant. Claim it before sending.
+    // A deposit has no on-chain idempotency key, so this row is the only guard against a double grant.
     const claim = await this.grantRepository
       .createQueryBuilder()
       .insert()
@@ -97,8 +85,7 @@ export class FaucetService {
       return { txHash: hash };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      // The claim row stays: re-sending risks paying twice, and a missing
-      // grant is the cheaper failure. Loud enough to re-grant by hand.
+      // The claim row stays: re-sending risks paying twice, and a missing grant is the cheaper failure.
       await this.grantRepository.update({ userId }, { error: message });
       this.logger.error(`Welcome bonus claim failed for ${userId}: ${message}`);
       await this.warnIfFaucetEmpty(amount);

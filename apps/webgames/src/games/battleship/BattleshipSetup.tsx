@@ -37,7 +37,6 @@ const TOTAL_PIECES = FLEET.length + MINES_PER_PLAYER;
 
 type Props = {
   onReady: (placements: FleetPlacements, mines: MinePlacement[]) => void;
-  /** Epoch ms the fleet must be in by, or null when nothing is racing. */
   deadline: number | null;
 };
 
@@ -50,7 +49,6 @@ export function BattleshipSetup({ onReady, deadline }: Props) {
   const placedCount = Object.keys(placements).length + mines.length;
   const ready = placedCount === TOTAL_PIECES;
 
-  // Auto-advance the tray: whatever the player has not placed yet is next.
   const activeId =
     selectedId ??
     SHIPS.find(ship => !placements[ship.id])?.id ??
@@ -58,7 +56,6 @@ export function BattleshipSetup({ onReady, deadline }: Props) {
 
   const activeShip = activeId && activeId !== MINES_ID ? SHIPS.find(s => s.id === activeId) : null;
 
-  // Ships and mines block each other, so one occupancy set covers both.
   const occupied = useMemo(() => {
     const set = buildOccupied(placements);
     for (const mine of mines) set.add(`${mine.row},${mine.col}`);
@@ -77,8 +74,7 @@ export function BattleshipSetup({ onReady, deadline }: Props) {
   }
 
   function commit(row: number, col: number, isTap: boolean) {
-    // A tap on an existing piece picks it back up. A drag-release never
-    // removes: a missed drop would silently delete a placed ship.
+    // A drag-release never removes: a missed drop would silently delete a placed ship.
     if (isTap) {
       const hitMine = mines.find(m => m.row === row && m.col === col);
       if (hitMine) {
@@ -133,7 +129,6 @@ export function BattleshipSetup({ onReady, deadline }: Props) {
     setSelectedId(null);
   }
 
-  // R rotates, as the hint under the orientation switch promises.
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null;

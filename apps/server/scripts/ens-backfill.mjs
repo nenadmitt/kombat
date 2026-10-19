@@ -1,5 +1,3 @@
-// Point every existing subname at its owner's wallet. Idempotent: names that
-// already resolve are left alone.
 import { readFileSync } from 'node:fs';
 import { createOffchainClient } from '@thenamespace/offchain-manager';
 import pg from 'pg';

@@ -6,12 +6,6 @@ import { useWebsocketStore } from '../store/websocket.store';
 /** socket.io retries on its own, so a blip should not flash a banner. */
 const GRACE_MS = 1200;
 
-/**
- * Tells the player their live connection is gone, mirroring the mobile
- * offline banner. Mounted once in the shell so it covers the lobby and the
- * boards alike, and in normal flow so it pushes the page down rather than
- * covering it.
- */
 export function ConnectionBanner() {
   const status = useWebsocketStore(s => s.status);
   const kicked = useWebsocketStore(s => s.kicked);
@@ -25,7 +19,6 @@ export function ConnectionBanner() {
       setShown(false);
       return;
     }
-    // A kick is terminal, so there is nothing to wait out.
     if (kicked) {
       setShown(true);
       return;

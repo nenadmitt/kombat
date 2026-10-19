@@ -20,10 +20,6 @@ const THIRD = testUserId('third');
 const USDC_10 = '10000000';
 const DAI_10 = '10000000000000000000';
 
-/**
- * The seat writes that carry a joiner's token choice, and the reporting that
- * has to read it back per seat instead of per room.
- */
 describe('DbService stake token choices', () => {
   let dataSource: DataSource;
   let service: DbService;
@@ -190,7 +186,6 @@ describe('DbService stake token choices', () => {
         },
       });
 
-      // The winner keeps every leg in the token it was staked in.
       expect(
         (await service.findStakeNetByTokenForUser(JOINER)).sort(
           (a, b) => a.stakeToken - b.stakeToken,
@@ -221,8 +216,6 @@ describe('DbService stake token choices', () => {
       const ranked = await service.findRankings({ limit: 10, offset: 0 });
       const winner = ranked.find(entry => entry.userId === JOINER)!;
       const loser = ranked.find(entry => entry.userId === CREATOR)!;
-      // 9.5 + 9.5 stablecoins won, 10 staked - the same 9 points a
-      // single-asset room of this size would score.
       expect(winner.coinPoints).toBe(9);
       expect(winner.playPoints).toBe(10);
       expect(loser.coinPoints).toBe(0);

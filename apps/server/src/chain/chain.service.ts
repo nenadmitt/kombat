@@ -18,32 +18,18 @@ import { DbService } from '../db';
 import { ERC20_ABI } from './erc20.abi';
 import { TOKEN_REGISTRY } from './token-registry';
 
-/**
- * Serializes every operator tx - one nonce stream, one sender. Exported because
- * the stake-pot module signs with the same operator key and must share the
- * lock, not just take a similar one.
- */
+// Shared with the stake-pot module: one operator key means one nonce stream and one lock.
 export const OPERATOR_LOCK_KEY = 'chain:operator';
-/** Receipt waits under the lock must time out before the lock expires, or a
- *  second operator tx can be sent on a colliding nonce. */
+// Must time out before the operator lock expires, or a second tx can collide on the nonce.
 export const OPERATOR_RECEIPT_TIMEOUT_MS = 180_000;
 export const OPERATOR_LOCK_TTL_MS = 240_000;
 
-/**
- * Wallet-facing chain reads and the operator's gas top-ups. Staking itself lives
- * in the stake-pot module; this is what is left over for the wallet screen.
- *
- * Note that nothing here decrypts a player's key. Deposits are signed on the
- * device and withdrawals by the operator, so the server no longer signs as a
- * user at all.
- */
 @Injectable()
 export class ChainService {
   private readonly logger = new Logger(ChainService.name);
 
   readonly enabled: boolean;
-  // Inferred client type - annotating viem's generic PublicClient directly
-  // trips its structural-generics mismatch.
+  // Inferred: annotating viem's PublicClient directly trips its structural-generics mismatch.
   private publicClient!: ReturnType<ChainService['makePublicClient']>;
   private operatorAccount!: PrivateKeyAccount;
   private tokens!: Record<StakeAsset, Address | null>;
@@ -88,8 +74,6 @@ export class ChainService {
     );
   }
 
-  // ---- balances -----------------------------------------------------------
-
   async getBalances(address: Address): Promise<Record<StakeAsset, string>> {
     const entries = await Promise.all(
       STAKE_ASSETS.map(async asset => {
@@ -117,7 +101,6 @@ export class ChainService {
     });
   }
 
-  /** The player's wallet address (no key material leaves the wallets module). */
   async playerAddress(userId: string): Promise<Address> {
     const [wallet] = await this.dbService.findWalletsForUser(userId);
     if (!wallet) {
@@ -126,13 +109,6 @@ export class ChainService {
     return wallet.address as Address;
   }
 
-  // ---- gas ----------------------------------------------------------------
-
-  /**
-   * Gas-dust a wallet so it can pay for a transaction of its own - the player's
-   * first pot deposit, which their device signs. Without dust a brand-new
-   * custodial wallet cannot fund its pot at all.
-   */
   async fundGasFor(userId: string): Promise<void> {
     if (!this.enabled) {
       return;
@@ -143,7 +119,6 @@ export class ChainService {
   private async ensureGasFor(address: Address): Promise<void> {
     const dust = parseEther(this.configurationService.WALLET_GAS_DUST_ETH);
     const balance = await this.publicClient.getBalance({ address });
-    // Half a dust unit is comfortably more than one transaction costs.
     if (balance >= dust / 2n) {
       return;
     }

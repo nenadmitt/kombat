@@ -8,8 +8,6 @@ import type { BalanceChainId, TokenSymbol } from '../wallet/tokens';
 
 export const REQUIRED_CONFIRMATIONS = 12;
 const POLL_MS = 3000;
-/** Give up polling this long after send; the tx may still land - the timeout
- *  state points the user at the explorer instead of spinning forever. */
 const POLL_DEADLINE_MS = 30 * 60_000;
 
 export type TxStatus = 'pending' | 'success' | 'failed' | 'timeout';
@@ -18,10 +16,8 @@ export type WalletTx = {
   hash: Hex;
   chainId: BalanceChainId;
   tokenSymbol: TokenSymbol;
-  /** Human amount, e.g. "250.00". */
   amount: string;
   to: Address;
-  /** ENS name, when the recipient was entered as one. */
   toLabel?: string;
   status: TxStatus;
   confirmations: number;
@@ -41,13 +37,10 @@ type TrackParams = {
 };
 
 type TransactionsState = {
-  /** Transactions grouped by chain, newest first. */
   byChain: Partial<Record<BalanceChainId, WalletTx[]>>;
-  /** Records a freshly-sent tx and starts polling it to completion. */
   track: (params: TrackParams) => void;
 };
 
-/** Guards against double-polling the same hash within a session. */
 const watching = new Set<string>();
 
 export const useTransactionsStore = create<TransactionsState>()(
@@ -84,8 +77,6 @@ export const useTransactionsStore = create<TransactionsState>()(
       name: 'wallet-transactions',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: state => ({ byChain: state.byChain }),
-      // On reload, re-check anything unresolved from a previous session. A
-      // timed-out tx gets one fresh look - it may have landed since.
       onRehydrateStorage: () => state => {
         if (!state) return;
         for (const [chainId, txs] of Object.entries(state.byChain)) {
@@ -120,9 +111,7 @@ async function poll(hash: Hex, chainId: BalanceChainId) {
 async function step(hash: Hex, chainId: BalanceChainId) {
   const client = getPublicClient(chainId);
   try {
-    // The receipt is the ground truth; getTransactionConfirmations returns 0
-    // for any tx the RPC hasn't indexed, which used to pin mined withdrawals
-    // on "pending" forever.
+    // The receipt is ground truth: getTransactionConfirmations returns 0 for any tx the RPC hasn't indexed.
     const receipt = await client
       .getTransactionReceipt({ hash })
       .catch(() => null);
@@ -145,7 +134,6 @@ async function step(hash: Hex, chainId: BalanceChainId) {
       patch(chainId, hash, { confirmations: Math.max(confirmations, 0) });
     }
   } catch {
-    // Transient RPC error - keep polling until the deadline below.
   }
   const tx = useTransactionsStore
     .getState()

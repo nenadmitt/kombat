@@ -18,7 +18,7 @@ on:
         default: '11155111'
       rpc_url:
         description: RPC endpoint for that chain
-        default: https://eth-sepolia.g.alchemy.com/v2/kSLvIkdb8hKaBbTvK_5txOVuSgawItyv
+        default: https://ethereum-sepolia-rpc.publicnode.com
       explorer_url:
         description: Block explorer for that chain
         default: https://sepolia.etherscan.io
@@ -64,6 +64,6 @@ jobs:
             VITE_CHAIN_ID=${{ inputs.chain_id }}
             VITE_RPC_URL=${{ inputs.rpc_url }}
             VITE_EXPLORER_URL=${{ inputs.explorer_url }}
-            VITE_WALLETCONNECT_PROJECT_ID=33f99a6011096e6aeaff9e4cc066e83e
+            VITE_WALLETCONNECT_PROJECT_ID=${{ secrets.WALLETCONNECT_PROJECT_ID }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

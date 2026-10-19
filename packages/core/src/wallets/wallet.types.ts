@@ -1,4 +1,4 @@
-/** Which chain the wallet is on. Stored server-side as smallint (0/1), not a Postgres enum. */
+/** Stored server-side as smallint: never renumber. */
 export enum WalletNetwork {
   Ethereum = 0,
   Solana = 1,
@@ -7,7 +7,6 @@ export enum WalletNetwork {
 export type WalletSummary = {
   address: string;
   network: WalletNetwork;
-  /** The platform holds this wallet's key, so the browser can load it. */
   custodial: boolean;
 };
 
@@ -16,13 +15,11 @@ export type CreateWalletResponse = {
   mnemonic: string;
 };
 
-/** GET /users/lookup: resolve an address, ENS name, or username to a player. */
 export type RecipientLookup =
   | { found: false }
   | {
       found: true;
       username: string | null;
       ensName: string | null;
-      /** The player's platform wallet, where staked funds are credited. */
       address: string;
     };

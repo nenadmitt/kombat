@@ -46,7 +46,6 @@ import {
   type LudoSeatView,
 } from './ludo-engine';
 
-/** Demo table: the player is red, three bots fill the other seats. */
 const BOT_NAMES: Record<LudoColor, string> = {
   red: 'You',
   green: 'Milo',
@@ -56,11 +55,8 @@ const BOT_NAMES: Record<LudoColor, string> = {
 const MY_COLOR: LudoColor = 'red';
 const SEAT_COLORS = [...LUDO_COLORS];
 
-// Bot pacing: slow enough that each roll (and its ~550ms dice animation) is
-// readable before the bot picks a pawn, and turns don't blur together.
 const BOT_ROLL_DELAY_MS = 1700;
 const BOT_MOVE_DELAY_MS = 1300;
-/** Beat between a bot casting an ability and the action it was going to take. */
 const BOT_ABILITY_PAUSE_MS = 1100;
 
 type DemoState = {
@@ -76,7 +72,6 @@ type DemoState = {
   winner: LudoColor | null;
   myTimeouts: number;
   turnStartedAt: number;
-  /** Charge in half-points per seat; bots spend from the same economy. */
   chargeHp: Record<LudoColor, number>;
   abilityUses: Record<LudoColor, Record<LudoAbilityKind, number>>;
   jumps: LudoJumps;
@@ -128,18 +123,10 @@ const freshState = (): DemoState => ({
 
 const rollDie = () => 1 + Math.floor(Math.random() * DIE_SIDES);
 
-/**
- * Single-player demo engine: the full turn state machine runs locally and
- * three bots (core's chooseBotMove policy) play the other seats on short
- * timers. The player has 30s per turn; three timeouts and they lose -
- * mirroring the multiplayer rules. Bots never time out.
- */
 export function useDemoLudo(): LudoEngine {
   const [state, setState] = useState<DemoState>(freshState);
   const [myCaptures, setMyCaptures] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // The bot's ability decision reads the live state without re-running its
-  // turn effect on every token change.
   const stateRef = useRef(state);
   stateRef.current = state;
 
@@ -163,7 +150,6 @@ export function useDemoLudo(): LudoEngine {
     turnStartedAt: Date.now(),
   });
 
-  /** Resolve a roll for whoever's turn it is (pure state transition). */
   const applyRoll = (prev: DemoState): DemoState => {
     if (prev.winner) {
       return prev;
@@ -237,7 +223,6 @@ export function useDemoLudo(): LudoEngine {
     };
   };
 
-  /** Resolve a chosen token move for whoever's turn it is. */
   const applyTokenMove = (prev: DemoState, tokenIndex: number): DemoState => {
     const die = prev.die!;
     const distance = jumpDistance(
@@ -287,10 +272,6 @@ export function useDemoLudo(): LudoEngine {
     };
   };
 
-  /**
-   * An ability cast with a die already pending can leave that die with no
-   * legal move, which hands the turn on exactly as a completed move would.
-   */
   const settleAbilityTurn = (next: DemoState, prev: DemoState): DemoState => {
     if (next.stage !== 'move') {
       return next;
@@ -313,7 +294,6 @@ export function useDemoLudo(): LudoEngine {
     };
   };
 
-  /** Cast a self ability for whoever's turn it is, at either stage. */
   const applyAbilityAction = (
     prev: DemoState,
     action: LudoAbilityAction,
@@ -421,13 +401,9 @@ export function useDemoLudo(): LudoEngine {
 
   const lost = state.myTimeouts >= MAX_TIMEOUTS;
 
-  // One ability per bot turn, six-chain re-rolls included: turnStartedAt only
-  // moves when the seat does.
+  // turnStartedAt only moves when the seat does: one ability per bot turn, six-chain re-rolls included.
   const botAbilityTurnRef = useRef<string | null>(null);
 
-  // Bot turns advance on their own clock; a roll that passed the turn (or a
-  // human roll with no moves) already advanced state, so this effect just
-  // watches whose turn/stage it is.
   useEffect(() => {
     if (state.winner || lost || state.turnColor === MY_COLOR) {
       return;

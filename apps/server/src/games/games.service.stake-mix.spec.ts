@@ -21,10 +21,6 @@ const ROOM = '33333333-3333-4333-8333-333333333333';
 const USDC_10 = '10000000';
 const DAI_10 = '10000000000000000000';
 
-/**
- * The joiner's token choice: what the server accepts, what it stores, and what
- * each player is then told they staked and won.
- */
 describe('GamesService cross-stable joins', () => {
   let service: GamesService;
   let db: {
@@ -69,7 +65,6 @@ describe('GamesService cross-stable joins', () => {
       findCompletedGameRoomsForUser: jest.fn().mockResolvedValue([]),
       findMatchSettlementByRoomId: jest.fn().mockResolvedValue(null),
       findUserById: jest.fn().mockResolvedValue({ username: 'someone' }),
-      // The joiner has no room of their own to give up.
       findOpenGameRoomForUser: jest.fn().mockResolvedValue(null),
       findActiveGameRoomForParticipant: jest.fn().mockResolvedValue(null),
     };

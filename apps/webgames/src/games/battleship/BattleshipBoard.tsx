@@ -30,10 +30,8 @@ import {
   TORPEDO_PER_CELL_MS,
 } from './battleship-theme';
 
-/** A drag that moves further than this is a placement, not a tap. */
 const TAP_SLOP = 8;
 
-/** The middle of a group of cells, which for a 3x3 blast is its true centre. */
 function midpointOf(cells: { row: number; col: number }[]) {
   const rows = cells.map(cell => cell.row);
   const cols = cells.map(cell => cell.col);
@@ -43,11 +41,7 @@ function midpointOf(cells: { row: number; col: number }[]) {
   };
 }
 
-/**
- * Where to draw a mine's blast. On the board that struck it the mine cell is
- * marked `mine`; on the victim's board the blast arrives as ordinary hits and
- * misses, so the footprint's midpoint is the only thing that names the centre.
- */
+// On the victim's board the blast arrives as plain hits and misses, so the footprint's midpoint names the centre.
 function mineCenters(cells: Shot[]) {
   const struck = cells.filter(cell => cell.result === 'mine');
   return struck.length > 0
@@ -65,24 +59,18 @@ type Props = {
   ships: PlacedShip[];
   mines?: MinePlacement[];
   shots: Shot[];
-  /** Ship ids already fully sunk, so their cells read as wreckage. */
   sunkShipIds?: Set<string>;
-  /** Cells to outline, e.g. a power-up's blast footprint. */
   highlight?: { row: number; col: number }[];
   selected?: { row: number; col: number } | null;
-  /** Ship following the pointer during fleet placement. */
   preview?: PreviewShip | null;
-  /** Whether a preview at the hovered cell would be legal. */
   isPreviewValid?: (row: number, col: number) => boolean;
   interactive?: boolean;
-  /** The newest resolved volley, replayed as an entrance animation. */
   action?: GridAction | null;
   /** `isTap` is false for a drag-release, which must never remove a piece. */
   onCommit?: (row: number, col: number, isTap: boolean) => void;
 };
 
 type Batch = {
-  /** Cell key to its slot in the sweep, so a torpedo reveals left to right. */
   order: Map<string, number>;
   kind: GridAction['kind'];
   stepMs: number;
@@ -107,7 +95,6 @@ export function BattleshipBoard({
   const [hover, setHover] = useState<{ row: number; col: number } | null>(null);
   const startRef = useRef<{ x: number; y: number } | null>(null);
 
-  // The newest volley animates once and is then just part of the board.
   const [batch, setBatch] = useState<Batch | null>(null);
   const actionId = action?.id;
   useEffect(() => {
@@ -167,7 +154,6 @@ export function BattleshipBoard({
     [highlight],
   );
 
-  /** Pointer position to a board cell, or null when outside the grid. */
   function cellFrom(event: React.PointerEvent): { row: number; col: number } | null {
     const svg = svgRef.current;
     if (!svg) return null;
@@ -334,7 +320,6 @@ function ShipSprite({
   const x = ship.placement.col * CELL + HULL_PAD;
   const y = ship.placement.row * CELL + HULL_PAD;
 
-  // A vertical ship is the same hull rotated about its stern.
   const transform =
     ship.placement.orientation === 'h'
       ? `translate(${x}, ${y})`

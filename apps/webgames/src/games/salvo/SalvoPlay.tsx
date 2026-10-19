@@ -24,13 +24,11 @@ import type { SalvoPlayProps } from './salvo-engine';
 import type { ResultExtras } from '../use-result-data';
 import { Countdown } from '../battleship/Countdown';
 
-/** One press of a dial. Angle is finer than power, as on mobile. */
+/** Angle is finer than power, as on mobile. */
 const STEP = { angle: 1, power: 2 };
 
-/** The battlefield renders at its native width and scales down to fit. */
 const FIELD_WIDTH = 560;
 
-/** Drive segments in the meter; the underlying range is continuous. */
 const DRIVE_PIPS = 5;
 
 const RESULT_COPY = {
@@ -100,7 +98,6 @@ export function SalvoPlay(
   const mine = seats.find(seat => seat.side === me);
   const foe = seats.find(seat => seat.side !== me);
 
-  // Keep the shell in view as it flies across a field wider than the panel.
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const box = scrollRef.current;
@@ -110,7 +107,6 @@ export function SalvoPlay(
     box.scrollLeft = Math.max(0, target);
   }, [flight, terrain.width]);
 
-  // Space fires, as the key hint on the button promises.
   useEffect(() => {
     if (!armed) return;
     function onKey(event: KeyboardEvent) {

@@ -7,7 +7,6 @@ import {
   StakeAsset,
   StakeLedgerKind,
   StakeWithdrawalStatus,
-  type StakePotAmounts,
   type StakePotBalances,
   type StakePotFeeSummary,
   type StakePotHistoryEntry,
@@ -22,35 +21,19 @@ import { StakePotWithdrawalEntity } from './entities/stake-pot-withdrawal.entity
 import { StakedBalanceEntity } from './entities/staked-balance.entity';
 import type { StakeLeg } from './stake-leg';
 
-/** What a settlement moved, per asset, in that asset's base units. */
 export type StakeSettlementTotals = {
   payoutByAsset: Record<string, string>;
   feeByAsset: Record<string, string>;
 };
 
-/** Fee income accrues here; sweeping it to the treasury is a withdrawal like
- *  any other. Fixed uuid outside the generated space, so it can never collide
- *  with a real user. */
+// Fixed uuid outside the generated space, so it can never collide with a real user.
 export const PLATFORM_ACCOUNT_ID = '00000000-0000-0000-0000-00000000fee5';
 
 const ALL_ASSETS: StakeAsset[] = STAKE_ASSETS;
 
 const BPS_DENOMINATOR = 10_000n;
 
-/**
- * The stake-pot ledger: the authority on what every player can stake, win and
- * withdraw.
- *
- * Every mutation runs in one Postgres transaction holding `FOR UPDATE` on the
- * balance rows it touches, locked in user-id order so multi-player rooms can't
- * deadlock. Not the Redis cache locks used for match state: those tolerate
- * being unavailable, and money can't.
- *
- * Every write is idempotent, because every caller can be replayed (the watcher
- * re-reads block ranges, the sweeper retries, match completion can be reached
- * twice). Idempotency comes from the journal, never an in-memory guard:
- * (tx_hash, log_index) for deposits, (room_id, kind) for match work.
- */
+// Postgres row locks, not the cache locks: money can't tolerate an unavailable lock. Idempotency lives in the journal.
 @Injectable()
 export class StakePotService {
   private readonly logger = new Logger(StakePotService.name);
@@ -67,9 +50,6 @@ export class StakePotService {
     private readonly websocketsService: WebsocketsService,
   ) {}
 
-  // ---- reads ---------------------------------------------------------------
-
-  /** Spendable balance for one asset; 0 when the user has no row yet. */
   async availableBalance(userId: string, asset: StakeAsset): Promise<bigint> {
     const row = await this.balanceRepository.findOneBy({ userId, asset });
     return BigInt(row?.available ?? 0);
@@ -78,8 +58,7 @@ export class StakePotService {
   async getBalances(userId: string): Promise<StakePotBalances> {
     const [rows, inFlight] = await Promise.all([
       this.balanceRepository.findBy({ userId }),
-      // Sent-but-unconfirmed counts as pending to the user too - the money has
-      // left `available` but hasn't arrived in their wallet.
+      // Sent-but-unconfirmed still counts as pending to the user.
       this.withdrawalRepository.findBy({
         userId,
         status: In([StakeWithdrawalStatus.Pending, StakeWithdrawalStatus.Sent]),
@@ -101,7 +80,6 @@ export class StakePotService {
     return { available, locked, pendingWithdrawals };
   }
 
-  /** Recent journal entries for the caller's own activity feed. */
   async getHistory(
     userId: string,
     limit: number,
@@ -122,7 +100,6 @@ export class StakePotService {
     }));
   }
 
-  /** Per-asset totals for the reconciliation job. */
   async getLedgerTotals(): Promise<Record<StakeAsset, bigint>> {
     const rows = await this.balanceRepository
       .createQueryBuilder('balance')
@@ -149,18 +126,13 @@ export class StakePotService {
       totals[Number(row.asset) as StakeAsset] +=
         this.toBigInt(row.available) + this.toBigInt(row.locked);
     }
-    // A requested withdrawal has already left `available` but has not left the
-    // contract yet, so it still counts towards on-chain holdings.
+    // A requested withdrawal has left `available` but not the contract.
     for (const row of inFlight) {
       totals[Number(row.asset) as StakeAsset] += this.toBigInt(row.amount);
     }
     return totals;
   }
 
-  // ---- deposits ------------------------------------------------------------
-
-  /** Credit a confirmed deposit. Idempotent on (txHash, logIndex), since
-   *  re-scanning a block range is routine. */
   async credit(
     userId: string,
     asset: StakeAsset,
@@ -201,17 +173,7 @@ export class StakePotService {
     }
   }
 
-  /**
-   * Record fees the owner swept straight out of the contract with
-   * `ownerWithdrawTo`. That call bypasses the server, so without this the
-   * ledger would keep claiming fees the pot no longer holds and reconciliation
-   * would report a permanent shortfall.
-   *
-   * Idempotent on (txHash, logIndex). A withdrawal larger than the accrued fee
-   * balance is not a fee sweep - it is the owner rescuing player funds - so it
-   * is logged and left for reconciliation to surface rather than forced onto
-   * the platform account.
-   */
+  // A withdrawal above the accrued fees is the owner rescuing player funds, so it is logged, not booked.
   async recordFeeSweep(
     asset: StakeAsset,
     amount: bigint,
@@ -255,7 +217,6 @@ export class StakePotService {
     });
   }
 
-  /** Fees taken, fees swept out, and what is still sitting in the pot. */
   async getFeeSummary(): Promise<StakePotFeeSummary[]> {
     const rows = await this.ledgerRepository
       .createQueryBuilder('entry')
@@ -287,22 +248,14 @@ export class StakePotService {
         asset,
         symbol: STAKE_ASSET_SYMBOLS[asset],
         accrued: of(StakeLedgerKind.Fee).toString(),
-        // FeeSweep amounts are stored negative; report the magnitude.
+        // FeeSweep amounts are stored negative.
         swept: (-of(StakeLedgerKind.FeeSweep)).toString(),
         claimable: claimable.toString(),
       };
     });
   }
 
-  // ---- match funding -------------------------------------------------------
-
-  /**
-   * Hold every participant's stake: available -> locked, all of it or none.
-   * Each leg is held in the asset that player chose. Throws ConflictException
-   * with nothing charged when someone can't cover it, so the caller can void
-   * the room. Participants who already hold for this room (a retried funding)
-   * are skipped, not charged twice.
-   */
+  // Participants who already hold for this room (a retried funding) are skipped, not charged twice.
   async holdForMatch(roomId: string, legs: StakeLeg[]): Promise<void> {
     const held = await this.dataSource.transaction(async manager => {
       const existing = await manager.find(StakeLedgerEntryEntity, {
@@ -318,8 +271,6 @@ export class StakePotService {
         const balance = await this.lockBalance(manager, leg.userId, leg.asset);
         const available = BigInt(balance.available);
         if (available < leg.amount) {
-          // Rolls the whole transaction back - nobody is charged for a match
-          // that can't be funded.
           throw new ConflictException(
             'Not enough in your stake pot for this match.',
           );
@@ -344,15 +295,7 @@ export class StakePotService {
     await this.pushBalances(held);
   }
 
-  /**
-   * Pay out a finished match: burn every hold, credit the winner pot - fee and
-   * the platform the fee, in one transaction so a crash can't leave the pot
-   * short or long. Idempotent per room via the Capture entries.
-   *
-   * Each asset the match was staked in settles on its own: no leg is ever
-   * converted, so the winner is paid one prize per asset and the fee is taken
-   * per asset.
-   */
+  // Each asset settles on its own: no leg is converted, so the winner gets one prize per asset.
   async settleMatch(
     roomId: string,
     winnerUserId: string,
@@ -363,17 +306,13 @@ export class StakePotService {
         return null;
       }
       if (await this.roomHasEntry(manager, roomId, StakeLedgerKind.Release)) {
-        // Already voided - refusing to also pay a prize out of thin air.
         this.logger.warn(
           `Refusing to settle room ${roomId}: its holds were already released`,
         );
         return null;
       }
 
-      // The holds decide what is captured, never the caller's view of the
-      // room: two callers reading different copies of it would otherwise write
-      // Captures in different assets, which the unique index treats as
-      // distinct rows. `expectedLegs` only covers a room that was never funded.
+      // The holds decide what is captured, never the caller's possibly stale copy of the room.
       const holds = await manager.find(StakeLedgerEntryEntity, {
         where: { roomId, kind: StakeLedgerKind.Hold },
       });
@@ -381,7 +320,6 @@ export class StakePotService {
         ? holds.map(hold => ({
             userId: hold.userId,
             asset: hold.asset,
-            // A Hold's amount is the negated stake.
             amount: -BigInt(hold.amount),
           }))
         : expectedLegs;
@@ -391,9 +329,7 @@ export class StakePotService {
         potByAsset.set(leg.asset, (potByAsset.get(leg.asset) ?? 0n) + leg.amount);
       }
 
-      // Capture every hold first (including the winner's own stake), then pay
-      // the whole pot back out - so the winner's row nets +payout−stake and
-      // the arithmetic is the same for every participant.
+      // Capture every hold first, the winner's included, so the arithmetic is the same for every participant.
       for (const leg of this.orderedLegs(settling)) {
         const balance = await this.lockBalance(manager, leg.userId, leg.asset);
         await this.writeBalance(manager, balance, {
@@ -475,8 +411,6 @@ export class StakePotService {
     };
   }
 
-  /** Return every hold to its owner. Idempotent, and a no-op for a room that
-   *  was already settled. */
   async releaseMatch(roomId: string): Promise<void> {
     const released = await this.dataSource.transaction(async manager => {
       if (await this.roomHasEntry(manager, roomId, StakeLedgerKind.Capture)) {
@@ -497,7 +431,7 @@ export class StakePotService {
       );
 
       for (const hold of this.orderedBy(outstanding, hold => hold.userId)) {
-        // A Hold's amount is the negated stake; give back exactly that.
+        // A Hold's amount is the negated stake.
         const stake = -BigInt(hold.amount);
         const balance = await this.lockBalance(manager, hold.userId, hold.asset);
         const available = BigInt(balance.available) + stake;
@@ -520,10 +454,6 @@ export class StakePotService {
     await this.pushBalances(released);
   }
 
-  // ---- withdrawals ---------------------------------------------------------
-
-  /** Debit `available` now, so the funds can't also be staked while the payout
-   *  is in flight; a terminal failure gives them back. */
   async requestWithdrawal(
     userId: string,
     asset: StakeAsset,
@@ -569,13 +499,7 @@ export class StakePotService {
     return withdrawal;
   }
 
-  /**
-   * Everything Pending, plus Sent rows old enough to be presumed lost.
-   *
-   * The cutoff is evaluated in SQL on purpose: comparing a timestamp column to
-   * `Date.now()` skews by the database/process timezone offset, which would
-   * make every in-flight withdrawal look abandoned and get resent.
-   */
+  // Cutoff in SQL: comparing to Date.now() skews by the timezone offset and would resend every withdrawal.
   findSweepableWithdrawals(
     sentStaleSeconds: number,
     limit: number,
@@ -617,8 +541,6 @@ export class StakePotService {
     await this.pushBalances([withdrawal.userId]);
   }
 
-  /** Record a failed attempt. The final one refunds in the same transaction
-   *  that marks the row Failed, so the money is never left in limbo. */
   async recordWithdrawalFailure(
     id: string,
     error: unknown,
@@ -679,10 +601,7 @@ export class StakePotService {
     }
   }
 
-  // ---- internals -----------------------------------------------------------
-
-  /** Lock (user, asset), creating the row on first touch. The insert is an
-   *  upsert so two concurrent first-touches can't race to a duplicate key. */
+  // Upsert, so two concurrent first-touches can't race to a duplicate key.
   private async lockBalance(
     manager: EntityManager,
     userId: string,
@@ -768,7 +687,7 @@ export class StakePotService {
     return count > 0;
   }
 
-  /** Deterministic lock order - the deadlock guard for multi-player rooms. */
+  // Deterministic lock order is the deadlock guard for multi-player rooms.
   private orderedLegs(legs: StakeLeg[]): StakeLeg[] {
     return [...legs].sort((a, b) =>
       a.userId < b.userId ? -1 : a.userId > b.userId ? 1 : a.asset - b.asset,
@@ -779,13 +698,12 @@ export class StakePotService {
     return [...items].sort((a, b) => key(a).localeCompare(key(b)));
   }
 
-  /** numeric() comes back as a string, sometimes with a fractional tail. */
+  // numeric() comes back as a string, sometimes with a fractional tail.
   private toBigInt(value: string | null): bigint {
     return BigInt(String(value ?? '0').split('.')[0] || '0');
   }
 
-  /** Best-effort, outside the transaction: the ledger is already durable, and a
-   *  dropped push just means the client's next refresh catches up. */
+  // Best-effort, outside the transaction: a dropped push is caught up on the client's next refresh.
   private async pushBalances(userIds: string[]): Promise<void> {
     const recipients = [...new Set(userIds)].filter(
       userId => userId !== PLATFORM_ACCOUNT_ID,
@@ -810,13 +728,7 @@ export class StakePotService {
     );
   }
 
-  /** Every asset the pot supports - used by the reconciliation job. */
   get assets(): StakeAsset[] {
     return ALL_ASSETS;
-  }
-
-  /** Zeroed amounts, exposed for callers assembling responses. */
-  static emptyAmounts(): StakePotAmounts {
-    return emptyStakePotAmounts();
   }
 }

@@ -20,12 +20,6 @@ import { StakesService } from './stakes/stakes.service';
 const ROOM = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const WINNER = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
-/**
- * The sweeper is the only thing that ends an abandoned match, and an abandoned
- * staked match is locked money - so what matters here is that every expired
- * deadline reaches its enforcer, that stale members die silently, and that one
- * failing room cannot stop the rest of the batch from resolving.
- */
 describe('GameDeadlineSweeper', () => {
   let due: string[];
   let popCalls: number;

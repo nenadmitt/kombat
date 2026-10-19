@@ -23,13 +23,8 @@ import {
 import { CacheKeys, CacheService } from '../cache';
 import { ConfigurationService } from '../configuration/configuration.service';
 
-/** Long enough to sign in a wallet popup, short enough to bound replay. */
 const NONCE_TTL_SECONDS = 5 * 60;
 
-/**
- * EIP-4361 sign-in. Owns the nonce lifecycle and the signature check; the
- * account it resolves to is the caller's problem.
- */
 @Injectable()
 export class SiweService {
   private readonly logger = new Logger(SiweService.name);
@@ -60,7 +55,6 @@ export class SiweService {
     return nonce;
   }
 
-  /** The address that signed, once message and signature both check out. */
   async verify(message: string, signature: string): Promise<Address> {
     this.assertEnabled();
 
@@ -69,8 +63,7 @@ export class SiweService {
       throw new UnauthorizedException('Malformed sign-in message');
     }
 
-    // Spend the nonce before checking anything else, so a replay of a valid
-    // message loses the race even if the signature is perfect.
+    // Spend the nonce first, so a replay loses the race even with a valid signature.
     if (!(await this.spendNonce(fields.nonce))) {
       throw new UnauthorizedException('Sign-in request expired, try again');
     }
@@ -108,7 +101,7 @@ export class SiweService {
       const recovered = await recoverMessageAddress({ message, signature });
       if (recovered.toLowerCase() === address.toLowerCase()) return true;
     } catch {
-      // Not a recoverable EOA signature - fall through to the contract path.
+      // Not a recoverable EOA signature; fall through to the contract path.
     }
 
     // Smart-contract accounts (ERC-1271/6492) can only be checked on-chain.

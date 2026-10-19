@@ -21,12 +21,7 @@ type Props = {
   onClose: () => void;
 };
 
-/**
- * Game picker rendered as an absolute overlay INSIDE the host modal rather
- * than its own Modal - stacking a second RN Modal over the create sheet
- * doesn't reliably present on iOS. No search field: the catalog is short and
- * the keyboard would cover the list.
- */
+// An overlay inside the host modal, not its own Modal: a second RN Modal over the create sheet doesn't reliably present on iOS.
 export default function GamePickerSheet({
   visible,
   choices,

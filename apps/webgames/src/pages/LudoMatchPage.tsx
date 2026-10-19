@@ -39,8 +39,7 @@ function LudoFlow({
   const [confirmForfeit, setConfirmForfeit] = useState(false);
   const over = engine.playProps.result !== null;
 
-  // The winner is the opponent worth naming on a loss; with three or four
-  // seats there is no single "the opponent", so the table's size stands in.
+  // With three or four seats there is no single opponent, so the table size stands in.
   const extras = useResultExtras(
     roomId,
     over,

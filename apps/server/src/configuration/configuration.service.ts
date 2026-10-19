@@ -12,83 +12,41 @@ export class ConfigurationService {
   public readonly POSTGRES_DB: string;
   public readonly POSTGRES_USER: string;
   public readonly POSTGRES_PASSWORD: string;
-  /** TLS to Postgres (managed providers require it; sslmode=require
-   *  semantics - encrypted, no CA verification). */
+  // sslmode=require semantics: encrypted, no CA verification.
   public readonly POSTGRES_SSL: boolean;
   public readonly JWT_SECRET: string;
   public readonly JWT_EXPIRES_IN: string;
-  /** Lifetime of a refresh token, in days. Rotated on every use. */
   public readonly REFRESH_TOKEN_EXPIRES_IN_DAYS: number;
-  /** Optional — when unset, the cache falls back to in-memory (single instance). */
   public readonly REDIS_URL: string | undefined;
-  /** Optional — when unset, EmailService logs tokens instead of sending them. */
   public readonly RESEND_API_KEY: string | undefined;
-  /** Optional — when unset, the /admin endpoints reject every request. */
   public readonly ADMIN_TOKEN: string | undefined;
-  /** Shared secret the lobby-bot runner signs in with. */
   public readonly BOT_SECRET: string | undefined;
   public readonly EMAIL_FROM: string;
   public readonly IS_PRODUCTION: boolean;
 
-  // ---- App Review demo login ---------------------------------------------
-  /** The fixed-code demo account's email (defaults to demo@playkombat.xyz). */
   public readonly DEMO_LOGIN_EMAIL: string;
-  /**
-   * Optional fixed login code for the demo account. When set, that email logs
-   * in with this exact code and skips the email OTP entirely - for handing a
-   * throwaway account to Apple/iOS review. Off (no bypass) unless set. Must be
-   * 8 characters to satisfy the login-code format.
-   */
   public readonly DEMO_LOGIN_CODE: string | undefined;
 
-  // ---- Sign-In With Ethereum (web client) --------------------------------
-  /**
-   * RFC 3986 authority the SIWE message must name, e.g. `play.playkombat.xyz`
-   * or `localhost:5173`. Comma-separated to allow more than one origin.
-   * Unset ⇒ the SIWE endpoints 503.
-   */
   public readonly SIWE_DOMAINS: string[];
 
-  // ---- staking / chain (optional as a group: unset ⇒ staking disabled,
-  // free games unaffected) -------------------------------------------------
   public readonly CHAIN_RPC_URL: string | undefined;
   public readonly CHAIN_ID: number;
-  /** The platform's hot key - signs pot withdrawals and gas top-ups. */
   public readonly OPERATOR_PRIVATE_KEY: string | undefined;
-  /** Base64, 32 bytes. Encrypts custodial (web) wallet keys at rest. */
   public readonly W_ENCRYPT: string | undefined;
-  /** Confirmations to await before treating a chain tx as final. */
   public readonly CHAIN_CONFIRMATIONS: number;
-  /** Max stake per player in human units (applies to every asset). */
   public readonly STAKE_MAX: number;
-  /** ETH sent to a fresh wallet so it can pay for its own first deposit. */
   public readonly WALLET_GAS_DUST_ETH: string;
 
-  // ---- stake pot (pooled staking) ----------------------------------------
-  /** The StakePot contract. Unset means staked games are unavailable. */
   public readonly STAKE_POT_ADDRESS: string | undefined;
-  /** Platform fee on a settled match, in basis points. Capped at 10%. */
   public readonly STAKE_FEE_BPS: number;
-  /** How often the watcher scans for new pot events. */
   public readonly STAKE_POT_POLL_MS: number;
-  /** Block the pot was deployed in — where a fresh cursor starts scanning.
-   *  Unset ⇒ start at the current head (no backfill). */
   public readonly STAKE_POT_DEPLOY_BLOCK: number | undefined;
-  /** How often ledger totals are checked against contract holdings. */
   public readonly STAKE_POT_RECONCILE_MS: number;
-  /**
-   * Hot wallet that funds the signup grant. Deliberately separate from the
-   * operator: it holds a small KC float and nothing else, so leaking it costs a
-   * top-up rather than the pot. Unset ⇒ no grants are made.
-   */
+  // Separate from the operator: it holds a small KC float, so leaking it costs a top-up, not the pot.
   public readonly FAUCET_KEY: string | undefined;
-  /** KC granted to each new player, in human units. 0 disables the grant. */
   public readonly FAUCET_GRANT_KOMBAT: number;
 
-  // ---- ens subnames ------------------------------------------------------
-  /** Namespace API key. Unset means no subnames are minted. */
   public readonly NAMESPACE_API_KEY: string | undefined;
-  /** The parent name every user subname hangs off. */
   public readonly ENS_PARENT_NAME: string;
 
   constructor(private readonly configService: ConfigService) {
@@ -104,8 +62,7 @@ export class ConfigurationService {
       this.configService.getOrThrow('POSTGRES_PASSWORD');
     this.POSTGRES_SSL = this.configService.get('POSTGRES_SSL') === 'true';
     this.JWT_SECRET = this.configService.getOrThrow('JWT_SECRET');
-    // Short by design: the refresh token carries session longevity now, and a
-    // leaked access token stops being useful in days rather than a month.
+    // Short by design: the refresh token carries session longevity.
     this.JWT_EXPIRES_IN = this.configService.get('JWT_EXPIRES_IN') ?? '2d';
     this.REFRESH_TOKEN_EXPIRES_IN_DAYS = parseInt(
       this.configService.get('REFRESH_TOKEN_EXPIRES_IN_DAYS') ?? '30',
@@ -137,9 +94,7 @@ export class ConfigurationService {
       10,
     );
     this.OPERATOR_PRIVATE_KEY = this.configService.get('OPERATOR_PRIVATE_KEY');
-    // Validated at boot rather than at first wallet creation: a bad key here
-    // is a deploy mistake, and finding out mid-signup would strand the user
-    // with an account and no wallet.
+    // Validated at boot: a bad key found mid-signup would strand a user without a wallet.
     this.W_ENCRYPT = this.configService.get('W_ENCRYPT');
     if (this.W_ENCRYPT !== undefined) {
       parseEncryptionKey(this.W_ENCRYPT);

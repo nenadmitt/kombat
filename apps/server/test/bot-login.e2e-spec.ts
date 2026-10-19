@@ -69,7 +69,6 @@ describeWithSecrets('bot login (e2e)', () => {
     expect(response.status).toBe(401);
   });
 
-  // The whole point of the is_bot check: the secret must not be a master key.
   it('refuses a real player even with the right secret', async () => {
     const human = await createActor(testApp, 'human');
     actors.push(human);

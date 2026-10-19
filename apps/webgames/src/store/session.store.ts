@@ -6,15 +6,12 @@ import { sessionStorage } from '../lib/session-storage';
 import { useWebsocketStore } from './websocket.store';
 
 type SessionState = {
-  /** Null until the stored session has been checked against the server. */
   user: UserProfile | null;
   hasSession: boolean;
   loading: boolean;
-  /** Null while unknown (loading, or the fetch failed - never gate on null). */
+  /** Null while unknown; never gate on null. */
   hasWallet: boolean | null;
-  /** True when that wallet is the platform-held one this browser must load. */
   walletIsCustodial: boolean;
-  /** The player backed out of wallet onboarding; holds for this page load. */
   walletPromptDismissed: boolean;
   setHasWallet: (hasWallet: boolean, custodial?: boolean) => void;
   dismissWalletPrompt: () => void;
@@ -85,7 +82,6 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
 onSessionChange(session => {
   if (session) {
-    // The socket was authenticated with a token the server has now expired.
     useWebsocketStore.getState().reconnect();
     return;
   }

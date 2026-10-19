@@ -16,7 +16,6 @@ const account = privateKeyToAccount(
   '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d',
 );
 
-/** The real store's semantics are get/set/del on a string map. */
 function fakeCache(): CacheService {
   const entries = new Map<string, string>();
   return {

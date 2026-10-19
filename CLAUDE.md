@@ -1,7 +1,7 @@
 # Gaming platform monorepo
 
-Realtime multiplayer mini-games (Battleship, Ludo Royale) with optional
-on-chain stakes. npm workspaces + turbo.
+Realtime multiplayer mini-games (Battleship, Ludo Royale, Salvo, Chroma Clash,
+Triple Cut) with optional on-chain stakes. npm workspaces + turbo.
 
 ## Layout
 
@@ -16,10 +16,9 @@ on-chain stakes. npm workspaces + turbo.
 - `apps/evm-contracts` - Solidity (Foundry): `StakePot`, the pooled custody
   contract players deposit into, plus the KombatCoin token;
   `apps/server/src/stake-pot/stake-pot.abi.ts` is the hand-kept ABI mirror and
-  must stay in sync with it. There is no escrow contract - `MatchEscrow` and
-  `escrow.abi.ts` were deleted at the pot cutover (see `STAKEPOT_CLEANUP.md`).
-  The surviving `stake_escrows` table is a per-room **settlement-state** row,
-  not an escrow: matches settle in the off-chain ledger.
+  must stay in sync with it. There is no escrow contract: `match_settlements`
+  is a per-room settlement-state row, and matches settle in the off-chain
+  ledger.
 - `packages/core` - platform-agnostic shared domain code: game rules
   (`games/battleship`: fleet, mines, power-ups, shot resolution;
   `games/ludo`: board topology, dice/turn rules, bot policy), the socket
@@ -51,29 +50,20 @@ fixes it.
 
 ## Comments
 
-# **THE DEFAULT IS NO COMMENT. DO NOT NARRATE YOUR WORK.**
+Keep comments to an absolute minimum. The default is none. Write one only when
+a reader would otherwise get the code wrong, never to narrate what the code
+already says.
 
-**Write a comment only when it states something the code cannot**: a non-obvious
-constraint, a why, a protocol/ordering requirement, a deliberate trade-off.
-Match the surrounding style - this codebase favors **short** "why" comments on
-tricky seams. One line. Two at the outside.
+Before writing a comment, try to make the code say it: a clearer name, a named
+constant, a smaller function.
 
-**NEVER write any of these. This is the single most repeated piece of feedback
-in this repo:**
+Worth writing: why a non-obvious choice was made, a constraint that lives in
+another system (an external API, a chain or provider quirk), a gotcha that
+looks like a mistake, the reason for a lint suppression.
 
-- **Justifying your change to a reviewer.** "This is what makes X safe",
-  "without this, Y would happen", "the reason this is correct is...". That
-  belongs in the commit message or the PR, never in the file.
-- **An essay above a function.** If a docstring runs to paragraphs explaining a
-  threat model, a race, or a design rationale, it is slop. Cut it to the one
-  line a future reader actually needs, or delete it.
-- **Narrating the next line.** `// Memory first, so nothing reads a stale value`
-  above `cached = null` says nothing the code doesn't.
-- **Change-log comments.** "now uses X", "added for feature Y", "moved from Z".
-  Git already knows.
-- **Restating an identifier.** `/** The user's id. */` over `userId: string`.
+Not worth writing: a summary of the next line, a doc block restating a
+signature, `@param` lists repeating parameter names, file header blocks,
+section divider comments, commented-out code, TODOs without an owner and a
+reason.
 
-**Rule of thumb: if the comment would be equally true and equally interesting to
-someone reading the file a year from now with no idea a change happened, keep
-it. Otherwise delete it.** Deleting a comment you were about to write is
-almost always the right call.
+One line, not a paragraph.

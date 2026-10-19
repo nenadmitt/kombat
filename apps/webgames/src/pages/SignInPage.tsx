@@ -86,8 +86,7 @@ export function SignInPage() {
     return <Navigate to={user.username ? '/lobby' : '/onboarding'} replace />;
   }
 
-  // Signed the message, waiting on the server's session: neither "connect"
-  // nor "sign in" is true, and offering either would re-run a done step.
+  // Signed, awaiting the server session: offering connect or sign in would re-run a done step.
   const settling = isLoading || isSignedIn || (hasSession && loading);
 
   if (stage === 'code') {
@@ -130,8 +129,7 @@ export function SignInPage() {
           className="input auth-code"
           value={code}
           onChange={event => {
-            // Letters and digits, upper case: the server's alphabet. Stripping
-            // to digits made a real code impossible to type or paste.
+            // Letters and digits, upper case: the server's alphabet.
             const next = event.target.value
               .toUpperCase()
               .replace(/[^A-Z0-9]/g, '')
@@ -267,7 +265,6 @@ export function SignInPage() {
   );
 }
 
-/** The email row opens into its own field rather than pushing a new screen. */
 function EmailMethod({
   busy,
   error,

@@ -77,7 +77,6 @@ export function App() {
   );
 }
 
-/** Pot balances arrive as full snapshots on the user's own socket room. */
 function LiveData() {
   const refresh = usePotStore(s => s.refresh);
   const apply = usePotStore(s => s.apply);
@@ -99,11 +98,6 @@ function LiveData() {
   return null;
 }
 
-/**
- * A match left running follows the player around the app until they rejoin or
- * forfeit it, the same prompt the mobile app shows. Suppressed on that match's
- * own route, which is where Rejoin sends them.
- */
 function ResumeMatchGate() {
   const room = useActiveRoomStore(s => s.room);
   const refresh = useActiveRoomStore(s => s.refresh);
@@ -115,8 +109,6 @@ function ResumeMatchGate() {
     void refresh();
   }, [refresh]);
 
-  // Leaving a board is the moment the answer changes: the match either ended
-  // there or is still live and worth prompting about.
   const onBoard = location.pathname.startsWith('/game/');
   const wasOnBoard = useRef(onBoard);
   useEffect(() => {
@@ -138,11 +130,7 @@ function ResumeMatchGate() {
   );
 }
 
-/**
- * Offers the one-time welcome bonus on the first authenticated landing. The
- * outcome is remembered locally; the server's 409 is the real backstop, so a
- * cleared browser at worst re-offers something that immediately settles.
- */
+// Remembered locally; the server's 409 is the real backstop against a re-offer.
 function WelcomeBonusGate() {
   const userId = useSessionStore(s => s.user?.id);
   const [offer, setOffer] = useState<{ amount: string; symbol: string } | null>(
@@ -196,10 +184,7 @@ function RequireSession({
   if (!user.username && !skipOnboardingCheck) {
     return <Navigate to="/onboarding" replace />;
   }
-  // An email account is meant to end up with its custodial wallet, so a
-  // walletless one is routed back through onboarding on every entry. Backing
-  // out is allowed (free games work either way); it returns next page load.
-  // hasWallet null means unknown - never wall the app on a failed fetch.
+  // hasWallet null means unknown: never wall the app on a failed fetch.
   if (
     !skipOnboardingCheck &&
     user.email &&

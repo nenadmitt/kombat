@@ -17,18 +17,14 @@ import { CHROMA_SUIT_HEX, CHROMA_SUIT_VAR, SUIT_LABELS } from './chroma-theme';
 import type { ChromaPlayProps } from './chroma-engine';
 import type { ResultExtras } from '../use-result-data';
 
-/** Card widths per surface. Fluid so a phone gets the whole table without a
- *  horizontal scroll; the rest of each card's geometry follows in CSS. */
 const HAND_CARD_W = 'clamp(42px, 12vw, 58px)';
 const HAND_CARD_W_CROWDED = 'clamp(36px, 10vw, 50px)';
 const DRAW_CARD_W = 'clamp(46px, 14vw, 64px)';
 const DISCARD_CARD_W = 'clamp(52px, 16vw, 72px)';
 const PRISM_CARD_W = 'clamp(56px, 18vw, 78px)';
 
-/** Past this the fan stops reading and the hand becomes a scrolling row. */
 const FAN_LIMIT = 8;
 
-/** Card backs stacked behind an opponent's count, before it just gets silly. */
 const MINI_CARDS = 6;
 
 const WIN_COPY = {
@@ -94,7 +90,6 @@ export function ChromaPlay(props: ChromaPlayProps & ResultExtras) {
   const [soloArmed, setSoloArmed] = useState(false);
   const [prismSuit, setPrismSuit] = useState<ChromaSuit>('crimson');
 
-  // Selection and SOLO reset whenever the turn context changes under us.
   useEffect(() => {
     setSelected(null);
     setSoloArmed(false);
@@ -137,7 +132,6 @@ export function ChromaPlay(props: ChromaPlayProps & ResultExtras) {
   const opponents = seats.filter(seat => !seat.isMe);
   const turnSeat = seats.find(seat => seat.onTurn) ?? null;
 
-  // A wild I played leaves me off-turn until the colour lands.
   const awaitingMyColor =
     stage === 'pick-color' && (pickingColor || turnSeat?.isMe === true);
   const mine = myTurn || awaitingMyColor;
@@ -148,7 +142,6 @@ export function ChromaPlay(props: ChromaPlayProps & ResultExtras) {
     playableSet.has(index) &&
     (myDrawnIndex === null || index === myDrawnIndex);
   const playDisabled = selected === null || !selectable(selected);
-  // Arming SOLO matters exactly when this play would leave one card.
   const soloRelevant = myHand.length === 2;
   const showPass = myDrawnIndex !== null;
   const showSolo = !showPass || soloRelevant;
@@ -186,7 +179,6 @@ export function ChromaPlay(props: ChromaPlayProps & ResultExtras) {
     <div className="chroma-play">
       <div className="chroma-stage">
         <div className="chroma-table">
-          {/* Phones hide the sidebar turn strip; this pill is its stand-in. */}
           <div className={mine ? 'chroma-turn-pill' : 'chroma-turn-pill is-theirs'}>
             <span className="turn-dot" />
             <span className="chroma-turn-pill-name">

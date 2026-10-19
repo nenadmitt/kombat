@@ -19,7 +19,6 @@ import type { RpsEngine, RpsPlayProps, RpsStage } from './rps-engine';
 
 type RevealInfo = NonNullable<RpsPlayProps['reveal']>;
 
-/** What a reveal leaves pending until the player asks for the next round. */
 type PendingNext = {
   round: number;
   deadline: number | null;
@@ -30,11 +29,6 @@ type PendingNext = {
 
 const SYNC_RETRY_MS = 3000;
 
-/**
- * Multiplayer Triple Cut. The server owns the secret lock-in and reveals only
- * once both are in; the client renders pushes and replaces state wholesale
- * from the REST snapshot on mount and on reconnect.
- */
 export function useMultiplayerRps(roomId: string): RpsEngine {
   const { joinChannel, leaveChannel, on, emit } = useWebsocketStore();
   const status = useWebsocketStore(s => s.status);
@@ -91,8 +85,6 @@ export function useMultiplayerRps(roomId: string): RpsEngine {
       setWaitingError(null);
       setLoaded(true);
     } catch (err) {
-      // Say why, then keep retrying: a silent catch here is how a permanent
-      // spinner happens.
       setWaitingError(
         err instanceof ApiError ? err.message : 'Could not reach the server.',
       );
@@ -162,9 +154,7 @@ export function useMultiplayerRps(roomId: string): RpsEngine {
       offError();
       leaveChannel(channel);
     };
-    // `status` is a dependency because a forced reconnect replaces the socket
-    // instance: handlers bound to the old one are gone, and without re-running
-    // this the match goes silent while still looking connected.
+    // `status` is a dependency: a forced reconnect replaces the socket instance.
   }, [roomId, joinChannel, leaveChannel, on, emit, status]);
 
   useEffect(() => {

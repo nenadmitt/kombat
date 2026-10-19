@@ -86,7 +86,6 @@ import { colors } from '../theme/colors';
 
 const ICONS = {
   anchor: AnchorIcon,
-  /** Elevation dial - Salvo's ANGLE card. */
   angle: Angle01Icon,
   apple: AppleIcon,
   'arrow-down': ArrowDown02Icon,
@@ -153,7 +152,6 @@ const ICONS = {
   swords: FencingIcon,
   target: Target01Icon,
   timer: Timer01Icon,
-  /** Shell arc - Salvo's glyph across lobby / history rows. */
   trajectory: ChartSplineIcon,
   trash: Delete01Icon,
   'trending-up': ChartUpIcon,
@@ -175,16 +173,7 @@ type Props = Omit<HugeiconsProps, 'icon' | 'altIcon' | 'showAlt' | 'ref'> & {
   type: IconName;
 };
 
-/**
- * The app's single icon surface (Hugeicons, stroke-rounded). Screens name an
- * icon rather than importing one, so the underlying set can be swapped in this
- * file alone - which is how the app moved off lucide, and how it would move to
- * Hugeicons' duotone-rounded once that Pro set is licensed.
- *
- * Two defaults differ from the raw component on purpose: Hugeicons renders
- * black when no colour is given (invisible on this dark ground), and its 1.5
- * stroke reads lighter than the weight the screens were drawn against.
- */
+// Hugeicons renders black with no colour and its 1.5 stroke reads too light, hence these defaults.
 export default function Icon({
   type,
   color = colors.textPrimary,

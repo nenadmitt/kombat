@@ -12,11 +12,7 @@ export class SalvoEnterDto {
   roomId: string;
 }
 
-/**
- * Drive toward a column. Bounded to the field here; the match service still
- * re-clamps against the live positions and the turn's movement budget, so
- * this is only the outer envelope.
- */
+// Only the outer envelope; the match service re-clamps against live positions and the move budget.
 export class SalvoMoveDto {
   @IsUUID()
   roomId: string;
@@ -27,7 +23,6 @@ export class SalvoMoveDto {
   toX: number;
 }
 
-/** Aim to fire with. Re-clamped server-side before the shot is simulated. */
 export class SalvoFireDto {
   @IsUUID()
   roomId: string;

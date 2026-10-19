@@ -4,23 +4,15 @@ import { ENEMY_BODY, ENEMY_TREAD, MY_TREAD, WRECK } from './salvo-theme';
 
 type Props = {
   side: SalvoSide;
-  /** Screen position of the tank's centre column and the ground under it. */
   x: number;
   y: number;
-  /** Barrel elevation in degrees; the barrel tracks the dial live. */
   angle: number;
   destroyed: boolean;
-  /** Ground slope in degrees under the hull, positive climbing to the right. */
+  /** Degrees, positive climbing to the right. */
   tilt?: number;
-  /** Terrain-space to screen scale, so the hull grows with the field. */
   scale?: number;
 };
 
-/**
- * The tank, layer for layer: a barrel hinged at the turret, a rounded turret
- * cap, the hull and a darker tread shadow. Every offset is a design unit from
- * the mobile sprite, mirrored for the right-hand tank.
- */
 export function SalvoTank({
   side,
   x,
@@ -33,16 +25,12 @@ export function SalvoTank({
   const left = side === SalvoSide.Left;
   const s = (v: number) => v * scale * SALVO_TANK_SCALE;
 
-  // Local space: the origin sits on the ground under the hull's centre, with
-  // the frame reaching s(20) either side. Pieces are placed from the near edge
-  // and measured up from the ground, as the design draws them.
   const nearEdge = left ? -s(20) : s(20);
   const pieceX = (offset: number, width: number) =>
     left ? nearEdge + s(offset) : nearEdge - s(offset) - width;
   const pieceY = (bottom: number, height: number) => -s(bottom) - height;
 
-  // The hull leans onto the contour, pivoting on the tracks rather than its
-  // centre - which is the origin here.
+  // Pivots on the tracks, not the hull's centre (the origin here).
   const contour = `translate(${x}, ${y}) rotate(${-tilt})`;
 
   if (destroyed) {
@@ -87,8 +75,7 @@ export function SalvoTank({
   const barrelH = s(3.5);
   const barrelX = pieceX(15, barrelW);
   const barrelY = pieceY(11, barrelH);
-  // Elevation is absolute in the physics, so the barrel cancels the hull's
-  // lean and still points where the dial says. It hinges on its near edge.
+  // Elevation is absolute in the physics, so the barrel cancels the hull's lean.
   const hingeX = left ? barrelX : barrelX + barrelW;
   const barrelAngle = (left ? -angle : angle) + tilt;
 

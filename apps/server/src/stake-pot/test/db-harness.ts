@@ -4,17 +4,7 @@ import { DataSource } from 'typeorm';
 
 config();
 
-/**
- * Ledger tests run against a real Postgres 18 - `uuidv7()` defaults and row
- * locking are exactly what they exercise, so an in-memory driver would prove
- * nothing.
- *
- * Same server as the app, but its own database (`<POSTGRES_DB>_test`), created
- * on first run. It has to be a separate database: the suite truncates the
- * stake-pot tables between cases, and doing that to the development database
- * while a dev server is running wipes the deposit cursor mid-scan, which sends
- * the watcher back to the deploy block and re-credits every deposit it finds.
- */
+// Separate database: truncating the dev cursor mid-scan makes a running watcher re-credit every deposit.
 const BASE_DB = process.env.POSTGRES_DB ?? 'gaming_platform';
 
 const CONNECTION = {
@@ -37,7 +27,6 @@ export const TEST_DB = {
   database: process.env.TEST_POSTGRES_DB ?? `${BASE_DB}_test`,
 };
 
-/** Tables the stake-pot tests own; truncated between cases. */
 const POT_TABLES = [
   'stake_ledger_entries',
   'stake_pot_withdrawals',
@@ -46,7 +35,7 @@ const POT_TABLES = [
   'stake_pot_cursor',
 ];
 
-/** Postgres has no CREATE DATABASE IF NOT EXISTS; 42P04 is "already exists". */
+// Postgres has no CREATE DATABASE IF NOT EXISTS; 42P04 is "already exists".
 async function ensureDatabase(): Promise<void> {
   const admin = new DataSource({
     type: 'postgres',
@@ -89,7 +78,6 @@ export async function truncatePotTables(dataSource: DataSource): Promise<void> {
   );
 }
 
-/** A stable uuid per label, so tests can name their actors readably. */
 export function testUserId(label: string): string {
   const hex = Buffer.from(label).toString('hex').padEnd(12, '0').slice(0, 12);
   return `00000000-0000-4000-8000-${hex}`;

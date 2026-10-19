@@ -2,13 +2,6 @@ import { describeOutcome, type RpsMove } from '@gaming-platform/core';
 
 const cap = (m: RpsMove) => m.charAt(0).toUpperCase() + m.slice(1);
 
-/**
- * Reveal headline for a resolved round, guarding the no-show cases that
- * `describeOutcome` (which needs two real moves) can't take: a tie, a
- * double no-show, or a decisive round a player timed out of.
- *
- * `outcome` is from the local player's perspective: 1 = I won, -1 = I lost.
- */
 export function revealHeadline(
   mine: RpsMove | null,
   theirs: RpsMove | null,

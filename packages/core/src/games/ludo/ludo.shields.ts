@@ -1,12 +1,7 @@
 import { TRACK_END } from './ludo.board';
 import type { LudoColor, LudoTokens } from './ludo.types';
 
-/** Token indices that can never be captured, for the rest of the match. */
 export type LudoShields = Partial<Record<LudoColor, number[]>>;
-
-export function shieldsFor(shields: LudoShields, color: LudoColor): number[] {
-  return shields[color] ?? [];
-}
 
 export function hasShield(
   shields: LudoShields | undefined,
@@ -37,8 +32,6 @@ export function dropColorShields(
   ) as LudoShields;
 }
 
-/** Own tokens the shield may still be put on: one per pawn, and only where
- *  capture is possible at all - the home column is already out of reach. */
 export function shieldableTokens(
   tokens: LudoTokens,
   color: LudoColor,

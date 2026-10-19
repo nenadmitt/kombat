@@ -19,7 +19,6 @@ import type { LudoPlayProps } from './ludo-engine';
 import { LUDO_COLOR_HEX } from './ludo-theme';
 import type { ResultExtras } from '../use-result-data';
 
-/** How long the die tumbles before it settles on the rolled value. */
 const ROLL_ANIMATION_MS = 550;
 
 const WIN_COPY = {
@@ -132,8 +131,6 @@ export function LudoPlay(props: LudoPlayProps & ResultExtras) {
             ? onShield
             : onMoveToken;
 
-  // An ability armed but never cast dies with the turn, and the picker cannot
-  // outlive the turn it would arm for.
   useEffect(() => {
     if (!myTurn) {
       setArmedAbility(null);
@@ -141,8 +138,7 @@ export function LudoPlay(props: LudoPlayProps & ResultExtras) {
     }
   }, [myTurn]);
 
-  // Disarm on the engine's ack, never optimistically: a rejected cast leaves
-  // the ability armed and the points unspent.
+  // Disarm on the engine's ack: a rejected cast leaves the ability armed and the points unspent.
   const armedUses = armedAbility ? usesLeft[armedAbility] : null;
   const spentRef = useRef<{ id: AbilityId | null; uses: number | null }>({
     id: null,
@@ -162,7 +158,6 @@ export function LudoPlay(props: LudoPlayProps & ResultExtras) {
     spentRef.current = { id: armedAbility, uses: armedUses };
   }, [armedAbility, armedUses]);
 
-  // The die tumbles on every roll, including a repeat of the same value.
   const [rolling, setRolling] = useState(false);
   const firstRoll = useRef(true);
   useEffect(() => {
@@ -244,7 +239,6 @@ export function LudoPlay(props: LudoPlayProps & ResultExtras) {
   return (
     <div className="ludo-play">
       <div className="ludo-stage">
-        {/* Phones hide the sidebar seat list; this strip is its stand-in. */}
         <div className="ludo-seat-strip">
           {seats.map(seat => (
             <div
@@ -287,7 +281,6 @@ export function LudoPlay(props: LudoPlayProps & ResultExtras) {
       </div>
 
       <aside className="ludo-side" style={turnStyle}>
-        {/* Every seat, so a 2-, 3- or 4-player table reads the same. */}
         <div className="ludo-seats">
           {seats.map(seat => (
             <div
@@ -317,8 +310,6 @@ export function LudoPlay(props: LudoPlayProps & ResultExtras) {
           ))}
         </div>
 
-        {/* Abilities, die, notice and button share the tray, so the sticky
-            mobile tray keeps all of them on screen. */}
         <div className="match-actions">
           <LudoAbilityBar
             chargeHp={chargeHp}

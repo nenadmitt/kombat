@@ -29,12 +29,6 @@ import {
 
 type SocketWithUser = Socket & { data: { userId?: string } };
 
-/**
- * Ludo realtime handlers. Same shape as BattleshipGateway: shares the one
- * socket.io server (WebsocketsGateway owns auth), holds no gameplay state -
- * matches live in the cache via LudoMatchService and turn timeouts are
- * enforced by the shared GameDeadlineSweeper.
- */
 @WebSocketGateway({ cors: true })
 export class LudoGateway {
   constructor(
@@ -302,8 +296,6 @@ export class LudoGateway {
     }
   }
 
-  // --- presence --------------------------------------------------------------
-
   private async markOnline(
     client: SocketWithUser,
     roomId: string,
@@ -321,7 +313,7 @@ export class LudoGateway {
           }
         })
         .catch(() => {
-          // Best effort — presence flags self-correct on the next enter.
+          // Best effort: presence flags self-correct on the next enter.
         });
     });
   }
@@ -338,12 +330,7 @@ export class LudoGateway {
     );
   }
 
-  /**
-   * `fresh` bypasses the room cache. Only the enter path needs it: it decides
-   * whether the match may start, and a stale Pending copy (possible on a
-   * second instance when running without Redis) strands the whole room on a
-   * loading spinner. Per-action calls stay on the cache.
-   */
+  // `fresh` bypasses the room cache; only enter needs it, since it decides whether the match may start.
   private async loadParticipantRoom(
     roomId: string,
     userId: string,
@@ -355,9 +342,7 @@ export class LudoGateway {
     if (!room) {
       throw new Error('Game room not found.');
     }
-    // participantsOf covers both seatings: a two-player joiner sits in
-    // `opponent_id`, a multi-seat joiner in `opponent_ids`. Reading either
-    // column directly is how Salvo rejected its own joiner.
+    // Never a seat column directly: two-player and multi-seat joiners sit in different columns.
     if (!participantsOf(room).includes(userId)) {
       throw new Error('You are not part of this room.');
     }

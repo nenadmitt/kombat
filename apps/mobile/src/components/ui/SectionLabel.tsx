@@ -12,15 +12,12 @@ import { type as typePresets } from '../../theme/typography';
 
 type Props = {
   children: string;
-  /** Optional right-aligned action (e.g. "View all"). */
   action?: string;
   onActionPress?: () => void;
-  /** Right-aligned muted count ("3 OF 12"). Ignored when `action` is set. */
   note?: string;
   style?: StyleProp<ViewStyle>;
 };
 
-/** Uppercase mono eyebrow that precedes a section ("ASSETS", "RECENT MATCHES"). */
 export default function SectionLabel({
   children,
   action,

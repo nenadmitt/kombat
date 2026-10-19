@@ -25,11 +25,6 @@ import {
 
 type SocketWithUser = Socket & { data: { userId?: string } };
 
-/**
- * Salvo realtime handlers - same shape as the other game gateways. Clients
- * send intent only (a column to drive to, an aim to fire with); every outcome
- * is computed by the match service and broadcast to the room channel.
- */
 @WebSocketGateway({ cors: true })
 export class SalvoGateway {
   constructor(
@@ -53,8 +48,6 @@ export class SalvoGateway {
       const room = await this.loadParticipantRoom(dto.roomId, userId, true);
       await this.stakesService.assertRoomPlayable(room);
       await this.matchService.getOrCreate(room);
-      // The battlefield snapshot (terrain included) is a caller-only push;
-      // it is identical for both players, but each needs it on entry.
       client.emit(SALVO_EVENTS.state, await this.matchService.stateFor(dto.roomId));
       await this.markOnline(client, dto.roomId, userId);
     } catch (error) {
@@ -151,8 +144,6 @@ export class SalvoGateway {
     }
   }
 
-  // --- presence --------------------------------------------------------------
-
   private async markOnline(
     client: SocketWithUser,
     roomId: string,
@@ -184,15 +175,7 @@ export class SalvoGateway {
     });
   }
 
-  // --- helpers ---------------------------------------------------------------
-
-  /** Load the room and prove the caller is one of its two players. */
-  /**
-   * `fresh` bypasses the room cache. Only the enter path needs it: it decides
-   * whether the match may start, and a stale Pending copy (possible on a
-   * second instance when running without Redis) strands the whole room on a
-   * loading spinner. Per-action calls stay on the cache.
-   */
+  // `fresh` bypasses the room cache; only enter needs it, since it decides whether the match may start.
   private async loadParticipantRoom(
     roomId: string,
     userId: string,
@@ -204,9 +187,7 @@ export class SalvoGateway {
     if (!room) {
       throw new Error('Room not found.');
     }
-    // participantsOf covers both seatings: a two-player joiner sits in
-    // `opponent_id`, a multi-seat joiner in `opponent_ids`. Reading either
-    // column directly is how Salvo rejected its own joiner.
+    // Never a seat column directly: two-player and multi-seat joiners sit in different columns.
     if (!participantsOf(room).includes(userId)) {
       throw new Error('You are not part of this room.');
     }

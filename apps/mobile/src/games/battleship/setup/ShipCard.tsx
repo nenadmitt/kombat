@@ -14,8 +14,6 @@ type Props = {
   onRemove: () => void;
 };
 
-/** One ship in the "YOUR SHIPS" tray. Tap the card to select it for placement;
- *  once placed, the trash button sends it back to the tray. */
 export default function ShipCard({
   ship,
   placed,
@@ -61,7 +59,6 @@ export default function ShipCard({
 
 const styles = StyleSheet.create({
   card: {
-    // Sized for a wrapping 3-per-row grid in the tray (30% + gaps).
     flexGrow: 1,
     flexBasis: '30%',
     alignItems: 'center',

@@ -79,8 +79,7 @@ function playerName(found: Extract<LookupState, { status: "found" }>): string {
 }
 
 export function StakeScreen() {
-  // wagmi state only exists client-side; render the signed-out shell on the
-  // server so hydration never disagrees with the wallet.
+  // wagmi state is client-only; render the signed-out shell on the server so hydration agrees.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -240,9 +239,7 @@ function StakeCard({ account }: { account: Address | undefined }) {
   const tokenAllowed = value<boolean>(2);
   const potPaused = value<boolean>(3);
 
-  // Debounced: an ENS name resolves on mainnet first, then the address is put
-  // to the platform. The stake button never enables on an address the platform
-  // has not confirmed belongs to a player.
+  // Never enable staking on an address the platform has not confirmed as a player.
   useEffect(() => {
     const query = recipient.trim();
     if (!query) {
@@ -327,8 +324,7 @@ function StakeCard({ account }: { account: Address | undefined }) {
   const needsApproval =
     parsed !== undefined && allowance !== undefined && allowance < parsed;
 
-  // Chain the second transaction off the approval landing, so the pot always
-  // has the allowance by the time stake() runs.
+  // Chained off the approval landing so the pot has the allowance when stake() runs.
   useEffect(() => {
     if (
       approveReceipt.isSuccess &&

@@ -34,7 +34,6 @@ import {
 import LudoPawn, { pawnHeightFor } from './LudoPawn';
 import { LUDO_COLOR_HEX, ludoTint } from './ludo-theme';
 
-/** Arm-cell background/border per the design's cell logic. */
 const NEUTRAL_FILL = 'rgba(255, 255, 255, 0.05)';
 const NEUTRAL_BORDER = 'rgba(255, 255, 255, 0.6)';
 
@@ -46,7 +45,6 @@ type CellPaint = {
   star: string | null;
 };
 
-/** A 5-point star path centered at (cx, cy). */
 function starPath(cx: number, cy: number, r: number) {
   const path = Skia.Path.Make();
   for (let i = 0; i < 10; i++) {
@@ -71,7 +69,6 @@ function polygon(points: [number, number][]) {
   return path;
 }
 
-/** Static description of every visible arm cell (the cross), derived once. */
 const ARM_CELLS: CellPaint[] = (() => {
   const cells: CellPaint[] = [];
   const homeColumn = new Map<string, LudoColor>();
@@ -97,7 +94,7 @@ const ARM_CELLS: CellPaint[] = (() => {
       const mr = inMid(row);
       const mc = inMid(col);
       if ((mr && mc) || (!mr && !mc)) {
-        continue; // center + base corners render as overlays
+        continue;
       }
       const key = `${row},${col}`;
       const color = homeColumn.get(key) ?? trackColor.get(key)?.color ?? null;
@@ -120,22 +117,14 @@ const ARM_CELLS: CellPaint[] = (() => {
 
 type Props = {
   boardSize: number;
-  /** Colors actually seated this match (2-4). */
   seatedColors: LudoColor[];
   tokens: LudoTokens;
   eliminated?: LudoColor[];
-  /** My color + my movable token indices - those pawns glow and accept taps. */
   myColor?: LudoColor;
   movableTokens?: number[];
   onTokenTap?: (tokenIndex: number) => void;
 };
 
-/**
- * The 15x15 Ludo board from the design: colored arm cells with safe-cell
- * stars, four base corners with 2x2 pawn slots, the four-triangle center,
- * and pawns floating over their cells. Movable pawns pulse; tapping one
- * reports its token index.
- */
 function LudoBoard({
   boardSize,
   seatedColors,
@@ -149,7 +138,6 @@ function LudoBoard({
   const gap = Math.max(1.5, cell * 0.07);
   const cellRadius = cell * 0.2;
 
-  // Pulse for movable pawns: a soft glow breathing behind them.
   const pulse = useSharedValue(0.35);
   useEffect(() => {
     pulse.value = withRepeat(
@@ -163,8 +151,6 @@ function LudoBoard({
 
   const prevProgressRef = useRef(new Map<string, number>());
 
-  /** Screen-space anchor (pawn center) for every token of a color, plus the
-   *  intermediate track cells its last move walked through. */
   const tokenAnchors = useMemo(() => {
     const anchors: {
       color: LudoColor;
@@ -177,7 +163,6 @@ function LudoBoard({
     const nextProgress = new Map<string, number>();
     for (const color of seatedColors) {
       const list = tokens[color] ?? [];
-      // Group on-track tokens by cell so stacked pawns fan out slightly.
       const byCell = new Map<string, number[]>();
       list.forEach((p, tokenIndex) => {
         const boardCell = cellForProgress(color, p);
@@ -199,11 +184,8 @@ function LudoBoard({
         }
         const boardCell = cellForProgress(color, p);
         if (!boardCell) {
-          return; // home - rendered by the HUD count, not the board
+          return;
         }
-        // Cells between the previous progress and this one, so the pawn hops
-        // field by field instead of flying straight across the board. Base
-        // releases and captures (from/to -1) keep the single arc.
         const from = prevProgress.get(`${color}-${tokenIndex}`);
         const path: { x: number; y: number }[] = [];
         if (from !== undefined && from >= 0 && from !== p) {
@@ -217,7 +199,6 @@ function LudoBoard({
         }
         const stack = byCell.get(`${boardCell.row},${boardCell.col}`)!;
         const fan = stack.length > 1 ? stack.indexOf(tokenIndex) - (stack.length - 1) / 2 : 0;
-        // A wide fan so a stack reads as distinct pawns, not one green blob.
         anchors.push({
           color,
           tokenIndex,
@@ -309,7 +290,6 @@ function LudoBoard({
           />
         ))}
 
-        {/* Center: the four home triangles + star (design's finish square). */}
         <Path path={polygon([c.tl, c.tr, c.mid])} color={LUDO_COLOR_HEX.green} />
         <Path path={polygon([c.tr, c.br, c.mid])} color={LUDO_COLOR_HEX.yellow} />
         <Path path={polygon([c.br, c.bl, c.mid])} color={LUDO_COLOR_HEX.blue} />
@@ -345,15 +325,8 @@ function LudoBoard({
   );
 }
 
-/** Per-cell hop duration when a move walks several fields. */
 const HOP_MS = 150;
 
-/**
- * A pawn that hops to wherever its target moves. A move along the track hops
- * through every `path` cell in order (one arc per field); base releases and
- * captures pass an empty path and jump in a single arc. A movable
- * (highlighted) pawn enlarges and glows in step with the board's shared pulse.
- */
 function AnimatedPawn({
   targetX,
   targetY,
@@ -381,7 +354,6 @@ function AnimatedPawn({
 }) {
   const xs = useSharedValue([targetX, targetX]);
   const ys = useSharedValue([targetY, targetY]);
-  // Measured in segments: floor = current waypoint, fraction = hop progress.
   const progress = useSharedValue(1);
 
   useEffect(() => {
@@ -393,8 +365,6 @@ function AnimatedPawn({
     ) {
       return;
     }
-    // Start the jump from wherever the pawn is rendered right now, so a
-    // target change mid-flight doesn't teleport it.
     const segs = curXs.length - 1;
     const p = Math.min(Math.max(progress.value, 0), segs);
     const i = Math.min(Math.floor(p), segs - 1);
@@ -413,7 +383,6 @@ function AnimatedPawn({
     });
   }, [targetX, targetY, path, xs, ys, progress]);
 
-  // Scale about the pawn's visual center (where it stands on its cell).
   const cx = width / 2;
   const cy = height * 0.62;
   const transform = useDerivedValue(() => {
@@ -460,7 +429,6 @@ function AnimatedPawn({
   );
 }
 
-/** Center of a base slot (2x2 grid inside the corner) for a token index. */
 function baseSlotCenter(
   color: LudoColor,
   tokenIndex: number,
@@ -478,7 +446,6 @@ function baseSlotCenter(
   };
 }
 
-/** One 6x6 base corner: tinted rounded frame, dark inner panel, 2x2 slots. */
 function BaseCorner({
   color,
   cell,

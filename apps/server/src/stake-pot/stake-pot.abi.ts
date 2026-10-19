@@ -1,11 +1,4 @@
-/**
- * Minimal ABI for the surface the server touches. Kept by hand and must stay in
- * sync with apps/evm-contracts/src/StakePot.sol.
- *
- * The permit deposit path is absent on purpose: the player's device signs that.
- * The server only needs plain `stake` (for the signup faucet, which pays into a
- * player's pot on their behalf), plus the `Staked` event and `withdrawTo`.
- */
+// Hand-kept; must stay in sync with apps/evm-contracts/src/StakePot.sol.
 
 export const STAKE_POT_ABI = [
   {
@@ -79,7 +72,6 @@ export const STAKE_POT_ABI = [
     inputs: [{ name: 'token', type: 'address' }],
     outputs: [{ name: '', type: 'uint256' }],
   },
-  // Custom errors the server has to recognise by name rather than by string.
   {
     type: 'error',
     name: 'AlreadyProcessed',
@@ -107,5 +99,4 @@ export const STAKE_POT_ABI = [
   { type: 'error', name: 'NotOperator', inputs: [] },
 ] as const;
 
-/** The contract's `AlreadyProcessed` - a resend whose original already paid. */
 export const ALREADY_PROCESSED_ERROR = 'AlreadyProcessed';

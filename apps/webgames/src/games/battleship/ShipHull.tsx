@@ -1,23 +1,12 @@
 type Props = {
-  /** Long dimension (bow to stern). */
   length: number;
-  /** Short dimension. */
   thickness: number;
-  /** Cell count - controls how many deck dots are drawn. */
   cells: number;
   color: string;
   opacity?: number;
 };
 
-/**
- * A ship hull pointing right: rounded stern, pointed bow, deck dots. Drawn at
- * the origin, so wrap it in a transform to position or rotate it.
- *
- * The stern is the mobile app's `arcToOval(0,0,h,h, start 90, sweep 180)`:
- * from the bottom of the cap, clockwise through the left edge, to the top.
- * In SVG's y-down space that is sweep-flag 1; flipping it puts the bulge on
- * the wrong end.
- */
+// SVG sweep-flag 1 matches mobile's arcToOval stern; flipping it puts the bulge on the wrong end.
 export function ShipHull({ length, thickness, cells, color, opacity }: Props) {
   const h = thickness;
   const bow = h * 1.1;

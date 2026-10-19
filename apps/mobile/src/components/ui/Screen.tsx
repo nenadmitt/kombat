@@ -11,16 +11,12 @@ import { colors, spacing } from '../../theme/colors';
 
 type Props = {
   children: React.ReactNode;
-  /** Wrap content in a vertical ScrollView. */
   scroll?: boolean;
-  /** Safe-area edges to inset. Defaults to top only (tab bar owns the bottom). */
   edges?: readonly Edge[];
   contentStyle?: StyleProp<ViewStyle>;
-  /** Extra bottom padding for scroll content (space above the tab bar). */
   bottomInset?: number;
 };
 
-/** Standard flat-canvas screen frame: background + safe area + padded content. */
 export default function Screen({
   children,
   scroll = false,
@@ -59,7 +55,6 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
-    // One uniform vertical rhythm between every top-level block.
     gap: spacing.md,
   },
 });

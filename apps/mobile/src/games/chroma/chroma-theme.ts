@@ -2,7 +2,6 @@ import type { ChromaSuit, ChromaValue } from '@gaming-platform/core';
 
 import { colors } from '../../theme/colors';
 
-/** Suit display colors (tokens added from the Chroma Clash design). */
 export const SUIT_COLORS: Record<ChromaSuit, string> = {
   crimson: colors.chromaCrimson,
   amber: colors.chromaAmber,
@@ -17,7 +16,6 @@ export const SUIT_LABELS: Record<ChromaSuit, string> = {
   azure: 'Azure',
 };
 
-/** Action faces render as the design's glyphs; numbers render as themselves. */
 const VALUE_GLYPHS: Partial<Record<ChromaValue, string>> = {
   freeze: '⊘',
   flip: '⇄',
@@ -34,7 +32,6 @@ export function isActionValue(value: ChromaValue): boolean {
   return VALUE_GLYPHS[value] !== undefined;
 }
 
-/** Spoken names for notices ("Kraken played Jade +2"). */
 export function describeCard(card: { suit: ChromaSuit | 'wild'; value: ChromaValue }): string {
   const face =
     card.value === 'freeze'

@@ -1,9 +1,6 @@
 import type { ReactNode } from "react";
 
-/**
- * The mobile app's per-game icons (apps/mobile/src/games/GameIcon.tsx), ported
- * to DOM SVG so the site and the app show the same mark. Keep the two in sync.
- */
+// Ported from mobile's GameIcon; keep the two in sync.
 export type GameKey =
   | "battleships"
   | "chroma"
@@ -105,7 +102,6 @@ const RENDERERS: Record<GameKey, ReactNode> = {
         strokeWidth={2.2}
         transform="rotate(-2 30 33)"
       />
-      {/* Top card: opaque body first, then the accent tint + stroke over it. */}
       <rect
         x={26}
         y={14}

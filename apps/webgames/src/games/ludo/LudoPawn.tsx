@@ -1,5 +1,3 @@
-/** The pawn silhouette from the design asset: shadow, flared body, collar,
- *  head with a specular dot. Drawn in its own 26x34 space and scaled to fit. */
 const BODY = 'M5 16 Q13 20 21 16 L24 28.5 Q13 31.5 2 28.5 Z';
 const COLLAR =
   'M8.6 14 L17.4 14 Q19 14 19 15.6 Q19 17.2 17.4 17.2 L8.6 17.2 Q7 17.2 7 15.6 Q7 14 8.6 14 Z';
@@ -10,7 +8,6 @@ export const PAWN_VIEW_H = 34;
 const EDGE = 'rgba(0, 0, 0, 0.3)';
 
 type Props = {
-  /** Target width; the 26x34 artwork scales to it. */
   width: number;
   color: string;
   opacity?: number;

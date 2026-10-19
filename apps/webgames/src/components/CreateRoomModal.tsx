@@ -37,7 +37,6 @@ const BLURBS: Partial<Record<GameType, string>> = {
   [GameType.ChromaClash]: '2-4 players - shed your hand first',
 };
 
-/** Only the arenas with a web board: the rest have nothing to play them in. */
 export function CreateRoomModal({ onClose, onCreated }: Props) {
   const { balances, enabled: potEnabled, refresh } = usePotStore();
 
@@ -51,8 +50,7 @@ export function CreateRoomModal({ onClose, onCreated }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Stakes come out of the pot, so a stale snapshot would offer a stake the
-  // player can no longer cover.
+  // Stakes come out of the pot, so a stale snapshot could offer a stake the player can't cover.
   useEffect(() => {
     void refresh();
   }, [refresh]);

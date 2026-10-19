@@ -5,17 +5,10 @@ same JWT as HTTP, TypeORM/Postgres entities, a Redis-backed cache for live
 match state, one `GameDeadlineSweeper` for every game's turn clocks, and the
 staking chain service.
 
-## 0. **THE DEFAULT IS NO COMMENT. DO NOT NARRATE YOUR WORK.**
+## Comments
 
-See the Comments section in the root `CLAUDE.md` - it applies here and it is
-the most repeated piece of feedback in this repo.
-
-**Services, entities and migrations in this app attract the worst of it.** A
-migration does not need a rationale essay; an entity does not need a threat
-model above the class; a service method does not need to explain to a reviewer
-why it is correct. **Never write a comment that justifies your change** - that
-is what the commit message is for. If a docstring runs to paragraphs, cut it to
-the one line a future reader needs, or delete it.
+The Comments section in the root `CLAUDE.md` applies here: the default is no
+comment.
 
 ## Adding a new game
 
@@ -106,8 +99,7 @@ write - another instance can serve a stale room for the whole TTL.
 Anything that decides **whether a match may start**, or who may act, must use
 `findGameRoomByIdFresh` instead. Hot per-action paths stay on the cached read.
 Correctness must never depend on Redis being configured; Redis makes this
-faster, not correct. See
-`apps/mobile/claude/reports/MATCH_START_STUCK_LOADING.md`.
+faster, not correct.
 
 ## Events that move the client between screens
 
@@ -116,5 +108,4 @@ Room lifecycle events (`ROOM_EVENTS.started`, `game:opponent-joined`,
 match screen. Emit **one** such event per transition, and never two in the
 same tick: the client has to serialize its native modal dismissal against the
 navigation push, and a second event mid-sequence re-triggers it. This has
-caused repeated "app renders but is touch-dead" bugs on iOS - see
-`apps/mobile/claude/reports/OVERLAY_BLOCKED_ERROR.md`.
+caused repeated "app renders but is touch-dead" bugs on iOS.

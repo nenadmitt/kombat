@@ -6,11 +6,7 @@ const ADDRESS_KEY = 'kombat.siweAddress';
 const COLOR_KEY = 'kombat.avatarColor';
 const WELCOME_KEY = 'kombat.welcomeBonus';
 
-/**
- * The refresh token is a login credential, and a browser has nowhere better
- * than localStorage to put one. Same trade-off every wallet-adjacent web app
- * makes; the token is single-use and rotates on every refresh.
- */
+// localStorage is the only option for the refresh token; it is single-use and rotates on refresh.
 export const sessionStorage = {
   read(): AuthSession | null {
     const accessToken = localStorage.getItem(ACCESS_KEY);
@@ -29,8 +25,7 @@ export const sessionStorage = {
     localStorage.removeItem(ADDRESS_KEY);
   },
 
-  /** The wallet that signed for the stored session, so a different (or newly
-   *  connected) wallet is never handed someone else's session. */
+  /** The wallet that signed for this session, so another wallet never inherits it. */
   readAddress(): string | null {
     return localStorage.getItem(ADDRESS_KEY);
   },
@@ -47,7 +42,6 @@ export const sessionStorage = {
     localStorage.setItem(COLOR_KEY, color);
   },
 
-  /** Null until the user has either taken or waved off the welcome bonus. */
   readWelcomeBonus(userId: string): string | null {
     return localStorage.getItem(`${WELCOME_KEY}:${userId}`);
   },

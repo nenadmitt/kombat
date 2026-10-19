@@ -1,5 +1,4 @@
-/** Crypto brand marks - the icon set ships none of these. Mirrors
- *  apps/mobile/src/components/BrandIcon.tsx so a coin reads the same on both. */
+// The icon set ships no crypto marks; mirrors mobile's BrandIcon.
 export type BrandIconName = "eth" | "kombat" | "usdc" | "usdt" | "dai";
 
 const RENDERERS: Record<
@@ -20,8 +19,6 @@ const RENDERERS: Record<
     ),
   },
 
-  // Platform token has no real-world logo; a faceted gold gem matches the gold
-  // tint used for KOMBAT everywhere else.
   kombat: {
     viewBox: "0 0 24 24",
     body: (
@@ -95,7 +92,7 @@ export function BrandIcon({
   );
 }
 
-/** Hugeicons MoneyBag01, stroke-rounded - the pot mark the mobile app uses. */
+/** Hugeicons MoneyBag01, stroke-rounded. */
 export function PotIcon({ size = 18 }: { size?: number }) {
   return (
     <svg

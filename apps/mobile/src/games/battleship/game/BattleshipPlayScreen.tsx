@@ -56,45 +56,28 @@ import {
 type Mode = 'attack' | 'fleet';
 
 export type BattleshipPlayScreenProps = {
-  /** My own placed fleet (fleet view). */
   myFleet: PlacedShip[];
-  /** My still-armed sea mines (fleet view). */
   myMines: MinePlacement[];
-  /** Shots I have fired (attack view markers). */
   myShots: Shot[];
-  /** Shots the opponent has fired at me (fleet view markers). */
   opponentShots: Shot[];
-  /** Sunk enemy ships, revealed on the attack view. */
   revealedEnemyShips: PlacedShip[];
-  /** My charge points. */
   points: number;
-  /** My power-up uses so far (each kind capped per match). */
   powerupsUsed: Record<PowerupKind, number>;
-  /** My fire-action tally (drives the result screen's accuracy). */
   volleys: VolleyStats;
-  /** Whether it's my turn (gates FIRE + hint treatment). */
   myTurn: boolean;
-  /** Animation batch for my most recent shot (attack view). */
   action: GridAction | null;
-  /** Animation batch for the opponent's most recent shot (fleet view). */
   opponentAction: GridAction | null;
   opponent: { initial: string; name: string };
-  /** Enemy ships I've sunk / my ships the opponent has sunk (header counts). */
   sunkByMe: number;
   sunkByOpponent: number;
-  /** Epoch ms the current turn ends (null outside an active turn). */
   turnDeadline: number | null;
-  /** Socket connection indicators. */
   myOnline: boolean;
   opponentOnline: boolean;
   result: 'win' | 'lose' | null;
-  /** Why the match ended (drives the result-screen copy). */
   resultReason: BattleshipEndReason | null;
-  /** Per-player stake (staked multiplayer matches) - shown on the result screen. */
   stake?: { token: StakeAsset; amount: string } | null;
   onFire: (kind: FireKind, row: number, col: number) => void;
   onTimerExpire?: () => void;
-  /** Header back - leaving an in-progress match forfeits it. */
   onExit: () => void;
   onQuit: () => void;
 };
@@ -102,14 +85,11 @@ export type BattleshipPlayScreenProps = {
 const GLOW_COLOR = 'rgba(142, 224, 90, 0.3)';
 const GLOW_TRANSPARENT = 'rgba(142, 224, 90, 0)';
 const GLOW_HEIGHT = 420;
-/** Pause before auto-switching boards so the last shot's markers are seen. */
 const MODE_SWITCH_DELAY_MS = 1500;
-/** Cross-fade duration when the attack/fleet boards swap. */
 const BOARD_FADE_MS = 320;
 
 const cellLabel = (row: number, col: number) => `${COLUMN_LABELS[col]}${row + 1}`;
 
-/** Result-screen copy per outcome and end reason. */
 const RESULT_COPY: Record<
   'win' | 'lose',
   Record<BattleshipEndReason, { eyebrow: string; message: (name: string) => string }>
@@ -152,12 +132,6 @@ const RESULT_COPY: Record<
   },
 };
 
-/**
- * Pure-UI battle screen: renders entirely from props and reports intents via
- * callbacks. It never resolves shots - an engine (demo bot or multiplayer
- * socket) owns the game state and feeds it back in. Only view-local interaction
- * state (mode, selection, armed power-up) lives here.
- */
 export default function BattleshipPlayScreen({
   myFleet,
   myMines,
@@ -196,7 +170,6 @@ export default function BattleshipPlayScreen({
     col: number;
   } | null>(null);
 
-  // Clear any pending selection whenever the turn leaves me.
   useEffect(() => {
     if (!myTurn) {
       setSelected(null);
@@ -205,8 +178,6 @@ export default function BattleshipPlayScreen({
     }
   }, [myTurn]);
 
-  // Nudge: a short buzz when the battle screen appears and whenever the turn
-  // becomes mine (no-op on simulators - vibration needs a physical device).
   const prevTurn = useRef<boolean | null>(null);
   useEffect(() => {
     if (result) {
@@ -218,9 +189,6 @@ export default function BattleshipPlayScreen({
     prevTurn.current = myTurn;
   }, [myTurn, result]);
 
-  // Follow the action: my turn shows enemy waters, the opponent's turn shows
-  // my fleet. The switch is delayed a beat so the shot that ended the turn is
-  // still visible; the manual toggle keeps working in between.
   useEffect(() => {
     const timer = setTimeout(
       () => setMode(myTurn ? 'attack' : 'fleet'),
@@ -229,9 +197,6 @@ export default function BattleshipPlayScreen({
     return () => clearTimeout(timer);
   }, [myTurn]);
 
-  // A mine blast yanks attention straight to the board it tore up, so the
-  // explosion animation is actually seen (the regular follow-the-action switch
-  // above would arrive after it finished).
   useEffect(() => {
     if (opponentAction?.kind === 'mine') {
       setMode('fleet');
@@ -284,9 +249,7 @@ export default function BattleshipPlayScreen({
     [myTurn, armed, shotAt],
   );
 
-  // Cells an armed power-up would strike (row for torpedo, 3x3 for bomb). The
-  // torpedo previews the whole row so the enemy's position stays hidden; the
-  // empty-fleet bombCells call is used purely for its (clamped) geometry.
+  // The torpedo previews the whole row so the enemy stays hidden; bombCells on an empty fleet is used only for its clamped geometry.
   const previewCells = useMemo(() => {
     if (!armed || !powerupTarget) {
       return undefined;
@@ -327,11 +290,8 @@ export default function BattleshipPlayScreen({
   };
 
   const isAttack = mode === 'attack';
-  // Banner shows my last shot on the attack view, the opponent's on fleet.
   const bannerShot = isAttack ? lastShot : lastIncoming;
 
-  // Cross-fade the two stacked boards instead of hard-swapping their opacity -
-  // 1 = attack (enemy waters) on top, 0 = fleet on top.
   const attackFade = useSharedValue(isAttack ? 1 : 0);
   useEffect(() => {
     attackFade.value = withTiming(isAttack ? 1 : 0, { duration: BOARD_FADE_MS });
@@ -341,14 +301,10 @@ export default function BattleshipPlayScreen({
     opacity: 1 - attackFade.value,
   }));
 
-  // Plain back - the navigation guard in BattleshipGame owns the
-  // leave-forfeits confirmation for every exit path.
   const handleHeaderBack = onExit;
 
   if (result) {
-    // Accuracy is per fire action: a volley (single shot / torpedo / bomb)
-    // counts as a hit when at least one of its cells struck a ship, so a
-    // bomb's splash misses don't drag the stat down.
+    // Accuracy is per volley: any cell striking a ship counts, so bomb splash misses don't drag it down.
     const shotsFired = volleys.fired;
     const hitsLanded = volleys.hit;
     const accuracy = shotsFired ? Math.round((hitsLanded / shotsFired) * 100) : 0;
@@ -359,8 +315,7 @@ export default function BattleshipPlayScreen({
       { value: `${sunkByMe} / ${SHIPS.length}`, label: 'SHIPS SUNK', highlight: true },
     ];
     if (stake) {
-      // Pot (2×stake) rather than net winnings - the fee is applied on-chain
-      // at settlement, so the exact net lands in History once settled.
+      // The pot, not net winnings: the fee is applied at settlement.
       const symbol = STAKE_ASSET_SYMBOLS[stake.token];
       const amount = formatStakeAmount(stake.amount, stake.token);
       const pot = formatStakeAmount(
@@ -428,7 +383,6 @@ export default function BattleshipPlayScreen({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Players + turn timer */}
         <View style={styles.playerBar}>
           <View style={styles.playerSide}>
             <View style={[styles.avatar, styles.avatarYou]}>
@@ -484,7 +438,6 @@ export default function BattleshipPlayScreen({
           </View>
         </View>
 
-        {/* Attack / Fleet toggle */}
         <View style={styles.toggle}>
           <Pressable
             style={styles.toggleSegment}
@@ -525,7 +478,6 @@ export default function BattleshipPlayScreen({
           </Pressable>
         </View>
 
-        {/* Grid heading */}
         <View style={styles.gridHeading}>
           <Text style={styles.gridTitle}>
             {isAttack ? 'ENEMY WATERS' : 'YOUR FLEET'}
@@ -543,7 +495,6 @@ export default function BattleshipPlayScreen({
           </Text>
         </View>
 
-        {/* Column labels */}
         <View style={styles.gridRow}>
           <View style={{ width: LABEL_GUTTER }} />
           {COLUMN_LABELS.map(label => (
@@ -552,7 +503,6 @@ export default function BattleshipPlayScreen({
             </Text>
           ))}
         </View>
-        {/* Row labels + board */}
         <View style={styles.gridRow}>
           <View style={{ width: LABEL_GUTTER }}>
             {ROW_LABELS.map(n => (
@@ -565,10 +515,7 @@ export default function BattleshipPlayScreen({
             ))}
           </View>
 
-          {/* Both boards stay mounted and laid out; toggling cross-fades their
-              opacity (not `display`, which tears down the Skia canvas surface
-              and leaves it blank on the way back). They're stacked in a fixed
-              square so only the active one takes visual/touch precedence. */}
+          {/* Opacity, not `display`: display tears down the Skia surface and leaves it blank on the way back. */}
           <View style={{ width: boardSize, height: boardSize }}>
             <Animated.View
               style={[styles.boardLayer, attackBoardStyle]}
@@ -601,7 +548,6 @@ export default function BattleshipPlayScreen({
           </View>
         </View>
 
-        {/* Last-shot result banner */}
         {bannerShot && (
           <View
             style={[
@@ -637,7 +583,6 @@ export default function BattleshipPlayScreen({
           </View>
         )}
 
-        {/* Power-ups (attack only) */}
         {isAttack && (
           <PowerupBar
             points={points}
@@ -647,7 +592,6 @@ export default function BattleshipPlayScreen({
           />
         )}
 
-        {/* Enemy fleet remaining */}
         <View style={styles.fleetPanel}>
           <Text style={styles.sectionLabel}>ENEMY FLEET REMAINING</Text>
           <View style={styles.fleetRow}>
@@ -685,7 +629,6 @@ export default function BattleshipPlayScreen({
         </View>
       </ScrollView>
 
-      {/* Fire */}
       <View style={styles.fireBar}>
         <Pressable disabled={!canFire} onPress={handleFire}>
           <GradientView

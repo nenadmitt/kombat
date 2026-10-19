@@ -8,12 +8,6 @@ import { WalletEntity } from '../src/db/entities/wallet.entity';
 import { WalletOrigin } from '../src/db/types/wallet';
 import { decryptPrivateKey, parseEncryptionKey } from '../src/wallets/key-cipher.util';
 
-/**
- * Account platform (web vs mobile) and the two custody models behind it.
- * Everything goes over real HTTP against a real database - the wallet route
- * is guarded, so "does an unauthenticated caller get a wallet" is a question
- * only the wired-up app can answer.
- */
 describe('accounts and wallets (e2e)', () => {
   let testApp: TestApp;
   let actors: Actor[] = [];
@@ -27,7 +21,6 @@ describe('accounts and wallets (e2e)', () => {
     return created;
   };
 
-  /** Raw HTTP, so the unauthenticated and malformed-token cases are reachable. */
   const call = async (
     method: string,
     path: string,
@@ -124,9 +117,7 @@ describe('accounts and wallets (e2e)', () => {
     it('mints one wallet even when two creations race', async () => {
       const player = await actor('race-once', UserPlatform.Web);
 
-      // The service counts before it inserts, which two concurrent calls walk
-      // straight past - React StrictMode fires the creating effect twice in
-      // dev and did exactly this. The unique index is what actually holds.
+      // Concurrent creates race past the service's count check; the unique index is what holds.
       const results = await Promise.all([
         player.post('/wallets', { network: WalletNetwork.Ethereum }),
         player.post('/wallets', { network: WalletNetwork.Ethereum }),
@@ -170,8 +161,6 @@ describe('accounts and wallets (e2e)', () => {
       const { status, body } = await player.get('/wallets/embedded-key');
       expect(status).toBe(200);
       expect(body.address).toBe(created.body.address);
-      // The browser signs with this: it has to derive the same address, or
-      // every transaction would come from an account with no funds.
       expect(privateKeyToAccount(body.privateKey).address).toBe(
         created.body.address,
       );
@@ -218,13 +207,11 @@ describe('accounts and wallets (e2e)', () => {
       expect(wallet?.type).toBe(WalletOrigin.Embedded);
       expect(wallet?.encryptedPrivateKey).toMatch(/^v1:/);
 
-      // It is the real key, and it is genuinely encrypted at rest.
       const key = parseEncryptionKey(process.env.W_ENCRYPT);
       const privateKey = decryptPrivateKey(wallet!.encryptedPrivateKey!, key);
       expect(privateKey).toMatch(/^0x[0-9a-f]{64}$/);
       expect(wallet!.encryptedPrivateKey).not.toContain(privateKey);
 
-      // The mnemonic is handed over once; the key never leaves the server.
       expect(body.mnemonic.split(' ')).toHaveLength(12);
       expect(JSON.stringify(body)).not.toContain(privateKey);
     });
@@ -240,7 +227,6 @@ describe('accounts and wallets (e2e)', () => {
   });
 
   describe('an account signs in only from the app that created it', () => {
-    /** Drives the real OTP flow; request-token/test returns the code. */
     const signIn = async (email: string, platform: 'web' | 'mobile') => {
       const requested = await call('POST', '/authentication/request-token/test', {
         body: { email },
@@ -311,9 +297,7 @@ describe('accounts and wallets (e2e)', () => {
       const email = 'closed-book@e2e.local';
       expect((await signIn(email, 'web')).session).not.toBeNull();
 
-      // Requesting a code from the other app looks exactly like requesting
-      // one for any address - a 403 here would be a free account-and-platform
-      // oracle for anyone with an email list.
+      // A 403 here would be a free account-and-platform oracle for anyone with an email list.
       const requested = await call(
         'POST',
         '/authentication/request-token/test',
@@ -321,8 +305,6 @@ describe('accounts and wallets (e2e)', () => {
       );
       expect([200, 201]).toContain(requested.status);
 
-      // And a wrong code answers 401 regardless of platform: the probe
-      // "403 means the account exists elsewhere" must not work.
       const probed = await call('POST', '/authentication/exchange-token', {
         body: { email, token: 'WRONGCOD' },
         platform: 'mobile',
@@ -341,8 +323,6 @@ describe('accounts and wallets (e2e)', () => {
       );
       const code = requested.body.token;
 
-      // The verdict costs the caller nothing but the round trip: the same
-      // code still signs them in where the account lives.
       const crossed = await call('POST', '/authentication/exchange-token', {
         body: { email, token: code },
         platform: 'mobile',
@@ -358,12 +338,9 @@ describe('accounts and wallets (e2e)', () => {
     });
 
     it('lets the shared demo account in from either app', async () => {
-      // A demo identity handed out for reviews is not somebody's account:
-      // pinning it to one app would lock the web demo out of itself.
       const email = process.env.DEMO_LOGIN_EMAIL ?? 'demo@playkombat.xyz';
       const code = process.env.DEMO_LOGIN_CODE;
       if (!code) {
-        // Configured per environment; nothing to assert without it.
         return;
       }
 
@@ -385,8 +362,6 @@ describe('accounts and wallets (e2e)', () => {
       const { session } = await signIn(email, 'web');
       expect(session).not.toBeNull();
 
-      // The login check counts for nothing if a copied refresh token can walk
-      // around it from the other client.
       const crossed = await call('POST', '/authentication/refresh', {
         body: { refreshToken: session!.refreshToken },
         platform: 'mobile',

@@ -16,7 +16,6 @@ export const GAME_LABELS: Record<GameType, string> = {
   [GameType.Salvo]: 'Salvo',
 };
 
-/** The arenas that have a web board behind them. */
 export const WEB_PLAYABLE_GAMES: readonly GameType[] = [
   GameType.NavalBattle,
   GameType.Salvo,

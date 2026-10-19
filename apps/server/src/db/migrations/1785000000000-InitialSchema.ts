@@ -1,21 +1,10 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * The whole schema. Collapsed from the incremental history once the shape had
- * settled, so this is the only migration a fresh database runs.
- *
- * Two conventions worth knowing before adding to it:
- * - `uuidv7()` for primary keys (Postgres 18 builtin), so ids stay time-sortable.
- * - Every timestamp is `timestamptz`. Comparing a naive `timestamp` against
- *   `Date.now()` skews by the process's UTC offset, which silently breaks the
- *   sweepers' staleness cutoffs.
- */
+// Every timestamp is timestamptz: a naive timestamp compared to Date.now() skews by the UTC offset.
 export class InitialSchema1785000000000 implements MigrationInterface {
   name = 'InitialSchema1785000000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // ---- identity ---------------------------------------------------------
-
     await queryRunner.query(`
       CREATE TABLE "users" (
         "id" uuid NOT NULL DEFAULT uuidv7(),
@@ -29,7 +18,6 @@ export class InitialSchema1785000000000 implements MigrationInterface {
         CONSTRAINT "PK_users" PRIMARY KEY ("id")
       )
     `);
-    // Partial: a code is only assigned once a user picks a username.
     await queryRunner.query(
       `CREATE UNIQUE INDEX "UQ_users_referral_code" ON "users" ("referral_code") WHERE "referral_code" IS NOT NULL`,
     );
@@ -70,8 +58,6 @@ export class InitialSchema1785000000000 implements MigrationInterface {
       `CREATE INDEX "IDX_refresh_tokens_user_live" ON "refresh_tokens" ("user_id") WHERE "revoked_at" IS NULL`,
     );
 
-    // Custodial wallets hold no key material: the address is kept only to map
-    // an on-chain Staked event back to a user.
     await queryRunner.query(`
       CREATE TABLE "wallets" (
         "id" uuid NOT NULL DEFAULT uuidv7(),
@@ -84,13 +70,10 @@ export class InitialSchema1785000000000 implements MigrationInterface {
         CONSTRAINT "PK_wallets" PRIMARY KEY ("id")
       )
     `);
-    // Decoded log args are not reliably checksummed, so the lookup is
-    // case-insensitive and the plain unique index cannot serve it.
+    // Decoded log args aren't reliably checksummed, so the lookup is case-insensitive.
     await queryRunner.query(
       `CREATE INDEX "IDX_wallets_address_lower" ON "wallets" (LOWER("address"))`,
     );
-
-    // ---- platform ---------------------------------------------------------
 
     await queryRunner.query(`
       CREATE TABLE "app_settings" (
@@ -101,8 +84,6 @@ export class InitialSchema1785000000000 implements MigrationInterface {
         CONSTRAINT "PK_app_settings" PRIMARY KEY ("id")
       )
     `);
-
-    // ---- games ------------------------------------------------------------
 
     await queryRunner.query(`
       CREATE TABLE "game_rooms" (
@@ -130,7 +111,6 @@ export class InitialSchema1785000000000 implements MigrationInterface {
     await queryRunner.query(
       `CREATE INDEX "IDX_game_rooms_user_status" ON "game_rooms" ("user_id", "status")`,
     );
-    // The filterable lobby: pending public rooms only.
     await queryRunner.query(
       `CREATE INDEX "IDX_game_rooms_lobby" ON "game_rooms" ("game_type", "stake_token", "created_at") WHERE "status" = 0 AND "is_private" = false`,
     );
@@ -138,12 +118,6 @@ export class InitialSchema1785000000000 implements MigrationInterface {
       `CREATE UNIQUE INDEX "UQ_game_rooms_code" ON "game_rooms" ("code") WHERE "code" IS NOT NULL`,
     );
 
-    /**
-     * Per-room settlement state. `status` is the CAS target that makes a room
-     * settle exactly once, so this table decides who settles, not just what
-     * happened. Nothing is escrowed - stakes live in the pooled StakePot and
-     * matches settle in the ledger below.
-     */
     await queryRunner.query(`
       CREATE TABLE "match_settlements" (
         "id" uuid NOT NULL DEFAULT uuidv7(),
@@ -162,8 +136,6 @@ export class InitialSchema1785000000000 implements MigrationInterface {
     await queryRunner.query(
       `CREATE INDEX "IDX_match_settlements_status_updated" ON "match_settlements" ("status", "updated_at")`,
     );
-
-    // ---- stake pot --------------------------------------------------------
 
     await queryRunner.query(`
       CREATE TABLE "staked_balances" (
@@ -208,8 +180,7 @@ export class InitialSchema1785000000000 implements MigrationInterface {
     await queryRunner.query(
       `CREATE UNIQUE INDEX "UQ_stake_ledger_deposit_tx" ON "stake_ledger_entries" ("tx_hash", "log_index") WHERE "tx_hash" IS NOT NULL`,
     );
-    // Settlement idempotency: one Hold/Capture/Release per player per room, one
-    // Prize, one Fee. Without it two concurrent settlements both pay out.
+    // One Hold/Capture/Release per player per room, one Prize, one Fee: stops a double payout.
     await queryRunner.query(
       `CREATE UNIQUE INDEX "UQ_stake_ledger_room_entry" ON "stake_ledger_entries" ("room_id", "user_id", "kind") WHERE "room_id" IS NOT NULL`,
     );
@@ -250,13 +221,11 @@ export class InitialSchema1785000000000 implements MigrationInterface {
         CONSTRAINT "PK_stake_pot_grants" PRIMARY KEY ("id")
       )
     `);
-    // One grant per player: claimed before the transaction is sent, so a
-    // retried signup cannot pay twice.
+    // Claimed before the tx is sent, so a retried signup can't pay twice.
     await queryRunner.query(
       `CREATE UNIQUE INDEX "UQ_stake_pot_grants_user" ON "stake_pot_grants" ("user_id")`,
     );
 
-    // Single row, so a plain smallint PK rather than the shared uuid.
     await queryRunner.query(`
       CREATE TABLE "stake_pot_cursor" (
         "id" smallint NOT NULL,

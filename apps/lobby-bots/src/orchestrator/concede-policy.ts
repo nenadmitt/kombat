@@ -3,14 +3,7 @@ import { jitter } from '../bot/pacing';
 import type { Config } from '../config';
 import type { Logger } from '../logger';
 
-/**
- * A match with no real player in it decides nothing, so playing it out just
- * burns turn clocks and API calls for twenty minutes. Every bot but one
- * concedes and the survivor takes it.
- *
- * A room only counts as all-ours when every seat is a bot this process runs,
- * so a human in the room - even one who joined late - always gets a real match.
- */
+// Only rooms where every seat is a bot this process runs; a human in the room always gets a real match.
 export class ConcedePolicy {
   private decided = new Map<string, string>();
 
@@ -20,7 +13,7 @@ export class ConcedePolicy {
     private readonly log: Logger,
   ) {}
 
-  /** Same answer in every bot, and unpredictable across rooms. */
+  /** Deterministic so every bot agrees on the winner. */
   private pickWinner(roomId: string, userIds: string[]): string {
     const seed = [...roomId].reduce((sum, char) => sum + char.charCodeAt(0), 0);
     return [...userIds].sort()[seed % userIds.length]!;
@@ -36,10 +29,7 @@ export class ConcedePolicy {
     }
 
     for (const [roomId, seats] of rooms) {
-      // Seats taken, not seats available: a room started short-handed has
-      // fewer players than capacity, and comparing against capacity left
-      // exactly those matches - the ones bots start early - running for their
-      // full length.
+      // Seats taken, not capacity: a room started early has fewer players than seats.
       const taken = Math.max(
         ...seats.map(bot => bot.room!.joinedCount),
         seats.length,
@@ -69,7 +59,6 @@ export class ConcedePolicy {
     }
   }
 
-  /** Staggered, so a match does not end in the same instant it began. */
   private async concede(bot: BotRuntime, roomId: string): Promise<void> {
     await new Promise(resolve =>
       setTimeout(resolve, jitter(this.config.concedeDelayMs)),
@@ -78,7 +67,7 @@ export class ConcedePolicy {
     try {
       await bot.api.forfeitGameRoom(roomId);
     } catch {
-      // Already over - someone else's concession ended it first.
+      // Already over: another concession ended it first.
     }
   }
 }

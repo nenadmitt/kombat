@@ -17,16 +17,10 @@ type MineMarkerProps = {
   cy: number;
   cellSize: number;
   opacity?: number;
-  /** Override the amber (e.g. danger red for an invalid placement hover). */
   color?: string;
-  /** A spent mine: the core is blown open into a dark hole. */
   exploded?: boolean;
 };
 
-/** A sea mine: a glowing amber starburst - a core with four long orthogonal
- *  arms and four short diagonal nubs (the "puffy star" from the design).
- *  An exploded one keeps the starburst but has a dark hole blown through
- *  its core. */
 export function MineMarker({
   cx,
   cy,
@@ -47,10 +41,8 @@ export function MineMarker({
           <BlurMask blur={6} style="normal" />
         </Circle>
       )}
-      {/* orthogonal arms */}
       <Line p1={vec(cx - arm, cy)} p2={vec(cx + arm, cy)} color={fill} strokeWidth={core} strokeCap="round" />
       <Line p1={vec(cx, cy - arm)} p2={vec(cx, cy + arm)} color={fill} strokeWidth={core} strokeCap="round" />
-      {/* diagonal nubs */}
       <Line p1={vec(cx - d, cy - d)} p2={vec(cx + d, cy + d)} color={fill} strokeWidth={core} strokeCap="round" />
       <Line p1={vec(cx - d, cy + d)} p2={vec(cx + d, cy - d)} color={fill} strokeWidth={core} strokeCap="round" />
       <Circle cx={cx} cy={cy} r={core * 1.15} color={fill} />
@@ -71,21 +63,11 @@ type Geo = {
 
 type AnimatedShotProps = Geo & {
   kind: MarkerKind;
-  /** Shared 0→1 timeline this marker reads. */
   progress: SharedValue<number>;
-  /** Slice of the timeline this marker plays in (for staggered reveals). */
   windowStart: number;
   windowEnd: number;
 };
 
-/**
- * A single hit/miss/sunk/mine marker whose entrance is driven by a shared timeline:
- * - miss: a grey X cross-fades into the settled grey dot.
- * - hit: an oversized glowing red circle springs back to normal size.
- * - sunk: the red square scales in, then the white X fades on top.
- * - mine: the revealed starburst springs back from oversized (it just went off).
- * A settled marker is just this with `progress` pinned at 1.
- */
 export function AnimatedShot({
   kind,
   cellX,
@@ -104,12 +86,9 @@ export function AnimatedShot({
     return Math.min(1, Math.max(0, raw));
   });
 
-  // miss: dot scales up as the X fades out
   const missDotScale = useDerivedValue(() => [{ scale: t.value }]);
   const missXOpacity = useDerivedValue(() => 1 - t.value);
-  // hit: circle springs from oversized down to base
   const hitScale = useDerivedValue(() => [{ scale: 1 + 0.9 * (1 - t.value) }]);
-  // sunk: square forms first, then the X fades in
   const squareScale = useDerivedValue(() => [
     { scale: Math.min(1, t.value * 1.6) },
   ]);
@@ -157,7 +136,6 @@ export function AnimatedShot({
   }
 
   if (kind === 'mine') {
-    // A mine in the shot log is always one that just went off.
     return (
       <Group origin={origin} transform={hitScale}>
         <MineMarker cx={cx} cy={cy} cellSize={cellSize} exploded />
@@ -202,8 +180,6 @@ type BombBlastProps = {
   progress: SharedValue<number>;
 };
 
-/** A big yellow blast flash over a bombed cell: a glowing circle that springs
- *  from oversized down to normal, then fades to reveal the settled marker. */
 export function BombBlast({ cx, cy, cellSize, progress }: BombBlastProps) {
   const scale = useDerivedValue(() => [{ scale: 1.1 + 1.1 * (1 - progress.value) }]);
   const opacity = useDerivedValue(() => {
@@ -226,13 +202,10 @@ export function BombBlast({ cx, cy, cellSize, progress }: BombBlastProps) {
 type MineExplosionProps = {
   cx: number;
   cy: number;
-  /** Cell size - the blast expands to cover the full 3x3 block. */
   cellSize: number;
   progress: SharedValue<number>;
 };
 
-/** A mine going off: one glowing yellow circle that expands from the blast
- *  center out over the 3x3 area, then fades to reveal the damage beneath. */
 export function MineExplosion({ cx, cy, cellSize, progress }: MineExplosionProps) {
   const r = useDerivedValue(
     () => cellSize * (0.25 + 1.6 * progress.value),
@@ -262,7 +235,6 @@ type TorpedoProjectileProps = {
   progress: SharedValue<number>;
 };
 
-/** A glowing yellow projectile sweeping left→right along a row, with a trail. */
 export function TorpedoProjectile({
   row,
   fromCol,

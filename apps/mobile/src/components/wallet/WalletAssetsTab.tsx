@@ -14,9 +14,7 @@ import BrandIcon from '../BrandIcon';
 import Icon, { type IconName } from '../Icon';
 import { Card } from '../ui';
 
-/** Token mark in an asset row. */
 const ICON_TILE = 40;
-/** Square affordance: copy / QR. */
 const MINI_TILE = 32;
 
 const ACTIONS = [
@@ -29,25 +27,17 @@ export type WalletAction = (typeof ACTIONS)[number]['key'];
 
 type Props = {
   address: string;
-  /** The user's ENS subname; null until it has been minted. */
   ensName: string | null;
   chainId: ChainId;
   balances: Partial<Record<TokenSymbol, TokenBalance>>;
-  /** Pot balances, so a row can say how much of that token is already staked. */
   pot: StakePotBalances;
   loading: boolean;
-  /** Null while the manual refresh is on cooldown or unavailable. */
   onRefresh: (() => void) | null;
   error: string | null;
   onAction: (action: WalletAction) => void;
   onShowQr: () => void;
 };
 
-/**
- * The wallet tab: the custodial address, money in and out, and every token
- * held on the selected chain. A row that also has funds in the pot says so,
- * because the two balances are easy to confuse.
- */
 export default function WalletAssetsTab({
   address,
   ensName,
@@ -225,7 +215,6 @@ export default function WalletAssetsTab({
   );
 }
 
-/** What this token already holds in the pot, formatted, or null if none. */
 function stakedAmount(symbol: TokenSymbol, pot: StakePotBalances): string | null {
   const entry = POT_ASSETS.find(a => a.symbol === symbol);
   if (!entry) {
@@ -308,8 +297,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     gap: spacing.xs,
-    // Card pads spacing.md horizontally; match it vertically so the tile's
-    // inset is equal on all four sides.
     paddingVertical: spacing.md,
   },
   actionLabel: {

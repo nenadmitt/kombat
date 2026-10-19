@@ -2,8 +2,7 @@ import { createPublicClient, http, type Address } from "viem";
 import { mainnet } from "viem/chains";
 import { normalize } from "viem/ens";
 
-// ENS names live on mainnet whichever chain the pot is on, so resolution gets
-// its own client rather than the wagmi one.
+// ENS lives on mainnet whatever chain the pot is on, so resolution gets its own client.
 const ensClient = createPublicClient({
   chain: mainnet,
   transport: http(

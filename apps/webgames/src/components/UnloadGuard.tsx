@@ -3,7 +3,6 @@ import { useEffect } from 'react';
 
 import { useActiveRoomStore } from '../store/active-room.store';
 
-/** Arms the browser's leave-tab prompt while a room or match would be lost. */
 export function UnloadGuard() {
   const room = useActiveRoomStore(s => s.room);
 

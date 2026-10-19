@@ -7,7 +7,6 @@ export interface GeneratedEthereumWallet {
   privateKey: string;
 }
 
-/** Generates a fresh BIP-39 mnemonic (12 words) and derives an Ethereum account from it. */
 export function generateEthereumWallet(): GeneratedEthereumWallet {
   const mnemonic = generateMnemonic(english);
   const account = mnemonicToAccount(mnemonic);

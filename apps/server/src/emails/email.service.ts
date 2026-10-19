@@ -14,7 +14,7 @@ export class EmailService {
 
     if (!this.resend) {
       this.logger.warn(
-        'RESEND_API_KEY not configured — emails will be logged, not sent.',
+        'RESEND_API_KEY not configured - emails will be logged, not sent.',
       );
     }
   }

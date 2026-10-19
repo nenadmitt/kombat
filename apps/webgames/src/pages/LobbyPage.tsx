@@ -65,23 +65,18 @@ export function LobbyPage() {
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [closingRoom, setClosingRoom] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
-  // The waiting modal is the room card's expanded form; minimizing only hides it.
   const [waitingMinimized, setWaitingMinimized] = useState(false);
-  // A multi-seat room I joined but do not own: I wait for it to start too.
   const [joinedRoom, setJoinedRoom] = useState<GameRoomSummary | null>(null);
-  // A staked room the user asked to join, waiting on the confirmation sheet.
   const [pendingJoin, setPendingJoin] = useState<GameRoomSummary | null>(null);
   const [resolvingCode, setResolvingCode] = useState(false);
   const [starting, setStarting] = useState(false);
   const [leaving, setLeaving] = useState(false);
 
-  // The opponent-joined payload carries only a room id, so the creator's own
-  // room is what tells us which board to open.
+  // The opponent-joined payload carries only a room id, so my own room says which board to open.
   const activeRoomRef = useRef(activeRoom);
   activeRoomRef.current = activeRoom;
   const joinedRoomRef = useRef(joinedRoom);
   joinedRoomRef.current = joinedRoom;
-  // Only a room the lobby ever listed can be judged gone by its absence.
   const pendingListedRef = useRef(false);
 
   const hostIds = useMemo(() => rooms.map(room => room.creatorUserId), [rooms]);
@@ -92,8 +87,7 @@ export function LobbyPage() {
     void refreshActiveRoom();
   }, [load, refreshActiveRoom]);
 
-  // A room can be reaped while this client is offline, so the removal event
-  // is missable; reconnecting refetches instead of trusting local state.
+  // Removal events are missable while offline, so a reconnect refetches.
   const prevSocketStatusRef = useRef(socketStatus);
   useEffect(() => {
     const was = prevSocketStatusRef.current;
@@ -112,9 +106,7 @@ export function LobbyPage() {
     const offUpdated = on(LOBBY_EVENTS.roomUpdated, payload =>
       upsert(payload as GameRoomSummary),
     );
-    // A room leaves the lobby both when it starts and when it is reaped, and
-    // the payload cannot tell those apart - so re-read rather than drop a room
-    // that is one event away from sending us into the match.
+    // Removal fires on both start and reap, indistinguishably, so re-read rather than drop.
     const offRemoved = on(LOBBY_EVENTS.roomRemoved, payload => {
       const { roomId } = payload as { roomId: string };
       remove(roomId);
@@ -129,7 +121,6 @@ export function LobbyPage() {
         }
       });
     });
-    // A 2-player room starts the instant someone joins mine.
     const offOpponent = on(ROOM_EVENTS.opponentJoined, payload => {
       const { roomId } = payload as { roomId: string };
       const mine = activeRoomRef.current;
@@ -137,8 +128,6 @@ export function LobbyPage() {
       navigate(`/game/${mine.gameType}/${roomId}`);
     });
 
-    // A 3-4 seat room fills a seat at a time; both the host and everyone
-    // already sitting need the count to move.
     const applySeatCount = (payload: unknown) => {
       const p = payload as RoomPlayerJoinedPayload;
       const patch = (room: GameRoomSummary | null) =>
@@ -151,8 +140,6 @@ export function LobbyPage() {
     const offPlayerJoined = on(ROOM_EVENTS.playerJoined, applySeatCount);
     const offPlayerLeft = on(ROOM_EVENTS.playerLeft, applySeatCount);
 
-    // Whoever is sitting at a multi-seat room enters when it starts - full
-    // table or the host starting early.
     const offStarted = on(ROOM_EVENTS.started, payload => {
       const { roomId } = payload as RoomStartedPayload;
       const room =
@@ -185,10 +172,7 @@ export function LobbyPage() {
     setActiveRoom,
   ]);
 
-  // /mine returns any room the player sits in, either role - so the owner
-  // card (with Close) must check who created it. A joined seat otherwise
-  // rendered twice: once as itself and once dressed as an owned room whose
-  // Close the server rightly refuses.
+  // /mine returns rooms in either role, so the owner card must check the creator.
   const hostedRoom =
     activeRoom &&
     (activeRoom.creatorUserId === myUserId ||
@@ -203,8 +187,7 @@ export function LobbyPage() {
       ? activeRoom
       : null);
 
-  // The lobby keeps moving under an open confirmation, so the sheet reads the
-  // live room. A room joined by code is never listed, hence the fallback.
+  // A room joined by code is never listed, hence the fallback.
   const pendingRoom = pendingJoin
     ? (rooms.find(room => room.id === pendingJoin.id) ?? pendingJoin)
     : null;
@@ -216,14 +199,13 @@ export function LobbyPage() {
       pendingListedRef.current = true;
       if (live.joinedCount < live.playerCount) return;
     } else if (!pendingListedRef.current) {
-      return; // Never listed (a private room reached by code) - leave it open.
+      return;
     }
     setPendingJoin(null);
     setJoinError('That room is no longer open.');
   }, [rooms, pendingJoin, joiningId]);
 
-  /** Every join funnels through here and confirms first - a 1v1 room starts
-   *  the match on the spot, so a bare click must not be enough. */
+  // A 1v1 room starts on join, so every join confirms first.
   function requestJoin(room: GameRoomSummary) {
     setJoinError(null);
     pendingListedRef.current = false;
@@ -236,8 +218,6 @@ export function LobbyPage() {
     try {
       const joined = await apiClient.joinGameRoom(room.id, stakeToken);
       setPendingJoin(null);
-      // Joining the last free seat starts the match; any earlier seat leaves
-      // the table still filling, and the board does not exist yet.
       if (joined.status === GameRoomStatus.Pending) {
         setJoinedRoom(joined);
         setWaitingMinimized(false);
@@ -254,7 +234,6 @@ export function LobbyPage() {
     }
   }
 
-  /** Host-only: start a multi-seat room before every seat is taken. */
   async function startNow(room: GameRoomSummary) {
     setStarting(true);
     setJoinError(null);
@@ -270,7 +249,6 @@ export function LobbyPage() {
     }
   }
 
-  /** Give up a seat in a room that has not started yet. */
   async function leaveRoom(room: GameRoomSummary) {
     setLeaving(true);
     setJoinError(null);

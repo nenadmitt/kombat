@@ -8,10 +8,8 @@ import { fonts } from '../theme/typography';
 
 type Props = {
   message: string;
-  /** Backend/network error code (ErrorCode enum) - shown as fine print for support reference. */
   code: string;
   onRetry: () => void;
-  /** Way off the screen when retrying keeps failing. */
   onSignOut: () => void;
 };
 

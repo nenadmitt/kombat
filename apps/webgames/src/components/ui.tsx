@@ -3,11 +3,6 @@ import * as SwitchPrimitive from '@radix-ui/react-switch';
 import { X } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 
-/**
- * Shared primitives. Radix supplies the behaviour (focus trapping, escape,
- * roving focus, ARIA); the look comes from our own tokens.
- */
-
 export function Switch({
   checked,
   onCheckedChange,

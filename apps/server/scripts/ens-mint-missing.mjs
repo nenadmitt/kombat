@@ -1,8 +1,3 @@
-// Mint a subname for every user who has a username but no ens_name. The
-// sibling ens-backfill.mjs repairs names that exist; this creates the missing
-// ones. Idempotent, and DRY_RUN=1 prints the plan without touching anything.
-//
-// Targets the .env Postgres by default; set DATABASE_URL to point elsewhere.
 import { readFileSync } from 'node:fs';
 import { createOffchainClient, ChainName } from '@thenamespace/offchain-manager';
 import { ensFullName, ensLabelCandidate, toEnsLabel } from '@gaming-platform/core';
@@ -38,8 +33,7 @@ const db = process.env.DATABASE_URL
     });
 await db.connect();
 
-// Only users with a wallet: a name minted with no address resolves to nothing,
-// which is the exact mess ens-backfill.mjs exists to clean up.
+// Only users with a wallet: a name minted with no address resolves to nothing.
 const { rows } = await db.query(`
   SELECT u.id, u.username, w.address
     FROM users u
@@ -73,9 +67,7 @@ for (const { id, username, address } of rows) {
       break;
     }
 
-    // Claim the row before the API call, exactly as EnsSubnameService does:
-    // the partial unique index is what stops two runs taking the same label,
-    // and a name minted against a row we then fail to write is unattributable.
+    // Claim the row before the API call: the partial unique index stops two runs taking the same label.
     const claim = await db.query(
       `UPDATE users SET ens_name = $1 WHERE id = $2 AND ens_name IS NULL`,
       [fullName, id],
@@ -97,7 +89,6 @@ for (const { id, username, address } of rows) {
       minted++;
       done = true;
     } catch (error) {
-      // Release the claim so a later run can retry the same label.
       await db.query(`UPDATE users SET ens_name = NULL WHERE id = $1`, [id]);
       console.log(`FAILED ${fullName}: ${error instanceof Error ? error.message : error}`);
       done = true;

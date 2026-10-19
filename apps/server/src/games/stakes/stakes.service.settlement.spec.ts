@@ -33,12 +33,6 @@ const CREATOR = testUserId('creator');
 const JOINER = testUserId('joiner');
 const ROOM = '44444444-4444-4444-8444-444444444444';
 
-/**
- * The recovery half of the settlement state machine: what happens when the
- * process dies between the claim and the ledger write, and the exact ledger
- * rows a settlement leaves behind. The happy paths live in
- * stakes.service.pot.spec.ts.
- */
 describe('StakesService (settlement recovery and edges)', () => {
   let dataSource: DataSource;
   let stakePotService: StakePotService;
@@ -195,7 +189,6 @@ describe('StakesService (settlement recovery and edges)', () => {
       expect(
         await stakePotService.availableBalance(PLATFORM_ACCOUNT_ID, ASSET),
       ).toBe(fee);
-      // Conservation: every unit that left the players arrived somewhere.
       expect(await stakePotService.availableBalance(CREATOR, ASSET)).toBe(0n);
     });
 
@@ -297,10 +290,7 @@ describe('StakesService (settlement recovery and edges)', () => {
     });
 
     it('refuses to settle a room whose holds never landed, charging nobody', async () => {
-      // Crash before holdFromPot: the row says Funding, the ledger has no
-      // holds. The claim goes through, but the capture would drive locked
-      // negative and the schema's non-negative CHECK rolls the whole
-      // settlement back - the constraint, not application code, is the guard.
+      // Crash before holdFromPot: the schema's non-negative CHECK, not application code, rolls the settlement back.
       settlementRows.set(ROOM, { status: SettlementStatus.Funding });
       await fund(CREATOR, 1n);
       await fund(JOINER, 1n);
@@ -311,7 +301,6 @@ describe('StakesService (settlement recovery and edges)', () => {
 
       expect(await stakePotService.availableBalance(CREATOR, ASSET)).toBe(1n);
       expect(await stakePotService.availableBalance(JOINER, ASSET)).toBe(1n);
-      // The claim was handed back, so recovery can still fund and settle.
       expect(settlementRows.get(ROOM)?.status).toBe(SettlementStatus.Funding);
     });
 
@@ -338,7 +327,6 @@ describe('StakesService (settlement recovery and edges)', () => {
       const holds = await dataSource
         .getRepository(StakeLedgerEntryEntity)
         .findBy({ roomId: ROOM });
-      // One hold per player from the first funding - recovery added nothing.
       expect(holds.filter(e => e.kind === StakeLedgerKind.Hold)).toHaveLength(2);
     });
   });

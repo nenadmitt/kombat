@@ -6,7 +6,6 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 
-/** Crypto brand marks (chain + token logos) - the icon set ships none of these. */
 export type BrandIconName =
   | 'base'
   | 'ethereum'
@@ -21,7 +20,6 @@ export type BrandIconName =
 type Props = {
   type: BrandIconName;
   size?: number;
-  /** Renders every path in this tint instead of brand colors. */
   mono?: string;
 };
 
@@ -77,8 +75,6 @@ const RENDERERS: Record<
     ),
   }),
 
-  // Platform token has no real-world logo; a faceted gold gem matches the
-  // "◆" glyph + gold tint used for KOMBAT elsewhere.
   kombat: color => ({
     viewBox: '0 0 24 24',
     body: (

@@ -14,16 +14,13 @@ import type { BalanceChainId, Token } from './tokens';
 import { getWalletSecret } from './wallet-keychain';
 
 type TransferParams = {
-  /** Whose key signs this - the secret is stored per account. */
   userId: string;
   chainId: BalanceChainId;
   token: Token;
   to: Address;
-  /** Human-readable amount, e.g. "12.5". */
   amount: string;
 };
 
-/** Signs and broadcasts a native or ERC-20 transfer, returning the tx hash. */
 export async function sendTransfer({
   userId,
   chainId,

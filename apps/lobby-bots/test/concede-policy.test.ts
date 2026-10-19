@@ -69,7 +69,6 @@ test('an all-bot match leaves exactly one bot standing', async () => {
 });
 
 test('a match with a human in it is played out', async () => {
-  // Three of the four seats are ours; the fourth is a real player.
   const seat = room();
   const bots = ['u1', 'u2', 'u3'].map(id => bot(id, seat));
   const policy = new ConcedePolicy(bots, config(), silent);
@@ -99,7 +98,6 @@ test('every bot in the room picks the same winner', async () => {
   const ids = ['u1', 'u2', 'u3', 'u4'];
   const survivors = new Set<string>();
 
-  // Seat order should not change who wins.
   for (const order of [ids, [...ids].reverse()]) {
     const bots = order.map(id => bot(id, seat));
     const policy = new ConcedePolicy(bots, config(), silent);
@@ -128,8 +126,7 @@ test('a room is only decided once', async () => {
 });
 
 test('a room started short-handed still concedes', async () => {
-  // Three bots in a 4-seat room the host started early: capacity says 4, but
-  // there is no fourth player and nobody is coming.
+  // Capacity is 4, but the host started early with 3.
   const seat = room({ joinedCount: 3 });
   const bots = ['u1', 'u2', 'u3'].map(id => bot(id, seat));
   const policy = new ConcedePolicy(bots, config(), silent);
@@ -141,7 +138,7 @@ test('a room started short-handed still concedes', async () => {
 });
 
 test('a short-handed room with a human in it is played out', async () => {
-  // Two bots, but three players took seats - the third is a real player.
+  // Two bots, but three players took seats: the third is a real player.
   const seat = room({ joinedCount: 3 });
   const bots = ['u1', 'u2'].map(id => bot(id, seat));
   const policy = new ConcedePolicy(bots, config(), silent);

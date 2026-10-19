@@ -6,15 +6,7 @@ import {
 } from '../../src/cache';
 import type { TestApp } from './app';
 
-/**
- * Deadlines are data in a sorted set, so a test rewrites the scheduled time
- * into the past and the real GameDeadlineSweeper enforces it on its next
- * 1s tick. That beats shortening TURN_SECONDS/SETUP_SECONDS: nothing is
- * stubbed, the production sweep path is what runs, and a case costs about a
- * second instead of the full 30 or 90.
- *
- * `addDeadline` upserts by member, so this reschedules rather than duplicates.
- */
+// addDeadline upserts by member, so this reschedules rather than duplicates.
 export async function expireDeadline(
   testApp: TestApp,
   roomId: string,
@@ -27,8 +19,7 @@ export async function expireDeadline(
   );
 }
 
-/** The abandon grace window, same trick. Safe to call before the disconnect
- *  has been processed: the scheduler upserts, so callers just try again. */
+// Safe before the disconnect is processed: the scheduler upserts, so callers just retry.
 export async function expireAbandon(
   testApp: TestApp,
   roomId: string,
@@ -46,7 +37,6 @@ type CachedMatch = {
   timeouts: Record<string, number>;
 };
 
-/** Each game keys its match state and its turn deadlines differently. */
 type Game = 'battleship' | 'ludo';
 
 const MATCH_KEY: Record<Game, (roomId: string) => string> = {
@@ -67,8 +57,7 @@ export function readMatch(
   return testApp.cache.getJson<CachedMatch>(MATCH_KEY[game](roomId));
 }
 
-/** Expire whichever turn the match is actually sitting on. The sweeper drops a
- *  member whose seq no longer matches, so the seq has to be read, not guessed. */
+// The sweeper drops a member whose seq no longer matches, so the seq has to be read, not guessed.
 export async function expireCurrentTurn(
   testApp: TestApp,
   roomId: string,

@@ -7,19 +7,12 @@ import { GameIcon } from './GameIcon';
 
 type Props = {
   room: GameRoomSummary;
-  /** Enter the board - the mount point owns navigation. */
   onRejoin: () => void;
   onDismiss: () => void;
 };
 
 type Face = 'resume' | 'confirm-forfeit';
 
-/**
- * Prompts the player to pick a live match back up, mirroring the mobile
- * resume popup. Forfeiting hands the win to the opponent and ends the match
- * server-side; dismissing leaves it running, and the lobby's room card is
- * still there to resume from.
- */
 export function ResumeMatchModal({ room, onRejoin, onDismiss }: Props) {
   const forfeit = useActiveRoomStore(s => s.forfeit);
   const forfeiting = useActiveRoomStore(s => s.forfeiting);

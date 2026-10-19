@@ -12,20 +12,10 @@ export type BotSeedResult = {
   created: string[];
   walletsAttached: string[];
   alreadyPresent: string[];
-  /** Usernames held by some other account; seeding never renames anyone. */
   skipped: string[];
 };
 
-/**
- * Creates the lobby-bot accounts from the roster in core: an email, a
- * username, the is_bot mark, and a custodial wallet each.
- *
- * Deliberately writes the rows itself rather than going through
- * UsersService/WalletsService: both of those mint an ENS subname off a
- * username, which would put twenty bot names on chain for nothing. Gas dusting
- * is skipped for the same reason - a bot needs a wallet row so pot credits can
- * find it, not a funded key.
- */
+// Writes rows directly: UsersService/WalletsService would mint an ENS subname and gas-dust every bot.
 @Injectable()
 export class BotSeedService {
   private readonly logger = new Logger(BotSeedService.name);
@@ -58,7 +48,6 @@ export class BotSeedService {
 
       if (existing) {
         result.alreadyPresent.push(account.username);
-        // A bot seeded before the flag existed, or whose flag was cleared.
         if (!existing.isBot) {
           await this.dbService.setUserIsBot(existing.id, true);
         }
@@ -79,8 +68,7 @@ export class BotSeedService {
   }
 
   private createBot(email: string, username: string): Promise<UserEntity> {
-    // Web platform is what makes the wallet custodial: a bot has no device to
-    // hold a key on.
+    // Web platform makes the wallet custodial: a bot has no device to hold a key.
     return this.dbService.createBotUser(email, username, UserPlatform.Web);
   }
 

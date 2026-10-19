@@ -14,16 +14,12 @@ type Props = {
   chargeHp: number;
   armed: AbilityId | null;
   usesLeft: Record<AbilityId, number>;
-  /** Arming is open at any point of your own turn. */
   canArm: boolean;
   armWindowHint: string;
   onArm: (id: AbilityId | null) => void;
   onClose: () => void;
 };
 
-/** The ability picker: one tile each, the picked one explained in full
- *  underneath. Every tile reads, whether or not you can afford it; arming
- *  closes the sheet and puts the board in pawn-pick mode. */
 export function LudoAbilitiesModal({
   chargeHp,
   armed,

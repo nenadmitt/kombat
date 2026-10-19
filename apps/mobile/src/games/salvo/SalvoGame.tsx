@@ -10,11 +10,6 @@ import type { SalvoEngine } from './salvo-engine';
 import { useLocalSalvo } from './useLocalSalvo';
 import { useMultiplayerSalvo } from './useMultiplayerSalvo';
 
-/**
- * Salvo container - the same route split as the other games: the `Salvo`
- * route carries a roomId (socket multiplayer, server-authoritative), the demo
- * `SalvoSetup` route has none (local bot duel).
- */
 export default function SalvoGame() {
   const route = useRoute();
   const params = route.params as
@@ -108,12 +103,7 @@ function SalvoGameFlow({
     return (
       <MatchLoading
         error={engine.waitingError}
-        // Always tell the server, and let it decide. forfeit() is rejected
-        // server-side when the match does not exist, has not started, or the
-        // caller is not in it - so a genuinely stuck player is not penalised,
-        // while anyone who did reach a live match still forfeits it. Only the
-        // confirmation dialog is skipped: it is UX, not enforcement, and a
-        // client can always just close the app instead.
+        // Always forfeit: the server rejects it unless the caller is in a live match. Only the dialog is skipped.
         onLeave={() => {
           exitConfirmed.current = true;
           engine.forfeit();

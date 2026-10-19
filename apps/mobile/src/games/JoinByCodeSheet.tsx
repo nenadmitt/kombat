@@ -14,15 +14,9 @@ const CODE_LENGTH = 6;
 type Props = {
   visible: boolean;
   onClose: () => void;
-  /** The code resolved to a joinable room - the caller runs the join flow. */
   onResolved: (room: GameRoomSummary) => void;
 };
 
-/**
- * "Join a game" sheet: paste or type a room code and resolve it to a room.
- * On success it hands the room to the caller (GameLobyScreen), which runs the
- * normal join path so staked rooms still confirm before funding.
- */
 export default function JoinByCodeSheet({ visible, onClose, onResolved }: Props) {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -115,7 +109,6 @@ export default function JoinByCodeSheet({ visible, onClose, onResolved }: Props)
   );
 }
 
-/** Uppercase, strip anything not in the code alphabet, cap the length. */
 function sanitize(raw: string): string {
   return raw
     .toUpperCase()

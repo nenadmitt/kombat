@@ -16,30 +16,16 @@ import { shortAddress } from '../lib/format';
 import { useSessionStore } from '../store/session.store';
 
 type Props = {
-  /** Called once the player has a wallet and has acknowledged the phrase. */
   onDone: () => void;
-  /** Backing out without a wallet - allowed, but re-prompted next visit. */
   onSkip?: () => void;
 };
 
-/** Masked lengths for the grid before the words are revealed. */
 const MASK = [6, 5, 8, 6, 7, 4, 5, 9, 6, 5, 7, 6];
 
 type SetUp = { address: string; mnemonic: string } | null;
 
-/**
- * The whole "does this account need a wallet, and here it is" question,
- * answered once per page load and shared across mounts.
- *
- * StrictMode runs effects twice. Checking and creating separately meant the
- * second run listed wallets, found the one the first run had just created,
- * concluded the account already had a wallet and skipped the screen - so the
- * player was sent to the lobby and never saw their phrase. Both runs now
- * await the same answer.
- *
- * Null means the wallet genuinely predates this flow, and its phrase is gone
- * for good: it is returned once, at creation.
- */
+// Shared across mounts: StrictMode runs effects twice and a second run would skip the phrase.
+// Null means the wallet predates this flow; its phrase is only returned at creation.
 let setUpInFlight: Promise<SetUp> | null = null;
 
 function setUpWalletOnce(): Promise<SetUp> {
@@ -55,11 +41,6 @@ function setUpWalletOnce(): Promise<SetUp> {
   return setUpInFlight;
 }
 
-/**
- * The wallet step for a web account. The key is held by the platform,
- * encrypted, so nothing is stored in this browser: the phrase is the player's
- * own backup, and the account keeps working whether or not they save it.
- */
 export function WalletSetupPage({ onDone, onSkip }: Props) {
   const { user, setUser } = useSessionStore();
 
@@ -77,18 +58,15 @@ export function WalletSetupPage({ onDone, onSkip }: Props) {
     try {
       const created = await setUpWalletOnce();
       if (!created) {
-        // A wallet from before this flow: nothing left to show.
         onDone();
         return;
       }
       setWords(created.mnemonic.split(' '));
       setAddress(created.address);
-      // The subname is minted with the username but only points somewhere once
-      // the wallet exists, so the fresh profile is what carries it.
+      // The subname only resolves once the wallet exists, so the fresh profile carries it.
       try {
         setUser(await apiClient.getCurrentUser());
       } catch {
-        // The name is a nicety here; the wallet is what mattered.
       }
     } catch (err) {
       setError(
@@ -127,7 +105,6 @@ export function WalletSetupPage({ onDone, onSkip }: Props) {
             <ArrowClockwise size={18} />
             Try again
           </button>
-          {/* Never a dead end: the lobby works, staking is what needs a wallet. */}
           <button
             type="button"
             className="btn btn-surface btn-block"

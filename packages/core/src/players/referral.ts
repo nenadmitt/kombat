@@ -1,19 +1,14 @@
-/**
- * Referral codes are stored on the user, not derived from the username -
- * a username can in principle change, and a code that changes underneath
- * people who already shared it would break attribution.
- */
+// Stored on the user rather than derived from the username, so a shared code never changes.
 
-/** Codes are uppercase A-Z / 2-9, dropping the glyphs people misread. */
+/** Drops easily misread glyphs (I, O, 0, 1). */
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const REFERRAL_CODE_LENGTH = 8;
 
-/** Anchored, case-insensitive: input is normalised before it is checked. */
+/** Case-sensitive: normalise input first. */
 export const REFERRAL_CODE_PATTERN = new RegExp(
   `^[${CODE_ALPHABET}]{${REFERRAL_CODE_LENGTH}}$`,
 );
 
-/** Trim, uppercase, and drop separators people paste in ("ab-cd 12"). */
 export function normalizeReferralCode(input: string): string {
   return input.trim().toUpperCase().replace(/[\s-]/g, '');
 }
@@ -22,11 +17,7 @@ export function isValidReferralCode(input: string): boolean {
   return REFERRAL_CODE_PATTERN.test(normalizeReferralCode(input));
 }
 
-/**
- * Generate a code from an injected randomness source, so the server can pass
- * a crypto-backed one. Uniqueness is enforced by the column, not here - the
- * caller retries on collision.
- */
+/** Uniqueness is enforced by the column; the caller retries on collision. */
 export function generateReferralCode(
   rand: () => number = Math.random,
 ): string {

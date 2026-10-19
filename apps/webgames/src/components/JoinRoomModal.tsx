@@ -30,7 +30,6 @@ type Props = {
 const FEE_BPS = 500n;
 const BPS = 10_000n;
 
-/** Confirms a seat: for a staked room, which stablecoin pays for it. */
 export function JoinRoomModal({
   room,
   hostName,
@@ -44,8 +43,7 @@ export function JoinRoomModal({
   const [token, setToken] = useState<StakeAsset>(roomToken ?? StakeAsset.Usdc);
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  // The entry leaves the pot, so a stale snapshot would offer a token the
-  // player can no longer cover.
+  // The entry leaves the pot, so a stale snapshot could offer a token the player can't cover.
   useEffect(() => {
     void refresh();
   }, [refresh]);
@@ -71,8 +69,7 @@ export function JoinRoomModal({
   const shortOnPot = loaded && BigInt(available) < BigInt(stakeBase);
   const entry = formatStakeAmount(stakeBase, token);
 
-  // A multi-seat room can be started early, so only a table this join fills
-  // has a knowable pot; the rest can only grow.
+  // A multi-seat room can start early, so only a table this join fills has a knowable pot.
   const seatsTaken = room.joinedCount + 1;
   const seatsLeft = room.playerCount - seatsTaken;
   const pot = BigInt(stakeBase) * BigInt(seatsTaken);
@@ -219,12 +216,6 @@ export function JoinRoomModal({
   );
 }
 
-/**
- * A free room has nothing to price, but a 1v1 join starts the match on the
- * spot - so a click that read as "have a look" would put the player on a
- * board with a running turn clock. Every join confirms; the copy says what
- * the click will actually do.
- */
 function FreeJoinSheet({
   room,
   hostName,

@@ -1,10 +1,8 @@
 import { TRACK_END } from './ludo.board';
 import type { LudoColor, LudoProgress, LudoTokens } from './ludo.types';
 
-/** Token indices carrying the Extra Jump buff, for the rest of the match. */
 export type LudoJumps = Partial<Record<LudoColor, number[]>>;
 
-/** Teleport drops a pawn on the first square of its own home column. */
 export const TELEPORT_TO: LudoProgress = TRACK_END + 1;
 
 export function jumpsFor(jumps: LudoJumps, color: LudoColor): number[] {
@@ -37,11 +35,7 @@ export function dropColorJumps(jumps: LudoJumps, color: LudoColor): LudoJumps {
   ) as LudoJumps;
 }
 
-/**
- * How far a token actually travels for a rolled die. The buff only doubles on
- * the shared track: a base release still needs a raw 6, and the home column
- * keeps the raw die so the exact-finish endgame stays reachable.
- */
+/** Doubles only on the shared track, so the exact-finish endgame stays reachable. */
 export function jumpDistance(
   progress: LudoProgress,
   die: number,
@@ -50,8 +44,6 @@ export function jumpDistance(
   return buffed && progress >= 0 && progress <= TRACK_END ? die * 2 : die;
 }
 
-/** Own tokens the buff may still be put on: one per pawn, and only where it
- *  can still double something - past the track it never applies again. */
 export function jumpableTokens(
   tokens: LudoTokens,
   color: LudoColor,
@@ -68,8 +60,6 @@ export function jumpableTokens(
   return out;
 }
 
-/** Own tokens teleport may take: on the shared track, and only while the
- *  landing square is free (no self-stacking in the home column). */
 export function teleportableTokens(
   tokens: LudoTokens,
   color: LudoColor,

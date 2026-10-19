@@ -9,106 +9,64 @@ import type {
   SalvoTerrain,
 } from './salvo.types';
 
-/**
- * Terrain space. Height matches the design's battlefield viewBox so a renderer
- * only has to scale - never re-derive - the ridge, the tanks and a shell's arc.
- * The field is far wider than one screen: the duel is fought across a map you
- * scroll, with room either side of both tanks to drive into.
- */
+/** Height matches the design's battlefield viewBox, so renderers only scale. */
 export const SALVO_FIELD_WIDTH = 560;
 export const SALVO_FIELD_HEIGHT = 340;
-/** Hills keep this wavelength whatever the field width, so a wider map means
- *  more ridges rather than the same ridges stretched flat. */
+/** Fixed wavelength: a wider map means more ridges, not stretched ones. */
 const TERRAIN_PERIOD = 328;
 
-/** Columns the two tanks start on, per the design's tank placement. Tanks
- *  move from here, so only the engine's live positions are authoritative. */
 export const SALVO_TANK_START_X: Record<SalvoSide, number> = {
   [SalvoSide.Left]: 169,
   [SalvoSide.Right]: 391,
 };
 
-/**
- * How large a tank draws relative to the design's 40x24 sprite box. The hit
- * box and muzzle height below are set to match, so shrinking a hull here does
- * not quietly leave it easier or harder to hit than it looks.
- */
+/** The hit box and muzzle height below are tuned to match this scale. */
 export const SALVO_TANK_SCALE = 0.75;
 
-/** Terrain units a tank may drive per turn - one drive, then one shot. */
 export const SALVO_MOVE_RANGE = 40;
-/** Tanks may never close inside this, nor drive off the field edge. */
 export const SALVO_MIN_SEPARATION = 90;
 export const SALVO_EDGE_MARGIN = 22;
 
 export const SALVO_MAX_HP = 100;
 
-/** Aim limits. Angle is elevation above horizontal, power a 0-100 dial. */
 export const SALVO_MIN_ANGLE = 5;
 export const SALVO_MAX_ANGLE = 85;
 export const SALVO_MIN_POWER = 0;
 export const SALVO_MAX_POWER = 100;
 
-/** Starting aim - the design's 38 degrees at 68 power. */
 export const SALVO_START_ANGLE = 38;
 export const SALVO_START_POWER = 68;
 
-/** A player gets this long to fire before the shot is taken for them. */
 export const SALVO_TURN_SECONDS = 20;
 
-/** Wind is redrawn every round; the HUD shows it as a signed strength. */
 export const SALVO_MAX_WIND = 10;
 
-/** Tuned together so the design's opening aim - 38 degrees at 68 power - is
- *  very nearly the shot that crosses the ridge, leaving the dial's top half
- *  for high lobs and fighting the wind. */
+/** Tuned together so the opening aim very nearly crosses the ridge. */
 const GRAVITY = 0.43;
-/** Muzzle velocity per point of power. */
 const POWER_SCALE = 0.135;
-/** Horizontal acceleration per point of wind. */
 const WIND_SCALE = 0.0055;
 
-/** Integration step and the cap that stops a shell circling forever. */
 const STEP = 0.25;
 const MAX_STEPS = 8000;
-/** Only every Nth step is kept, which is plenty to draw a smooth arc. */
 const PATH_SAMPLE = 2;
 
-/** How far above the terrain a tank's muzzle sits. Must clear TANK_HEIGHT or
- *  a shell detonates on its own hull the instant it leaves the barrel. */
+/** Must clear TANK_HEIGHT or a shell detonates on its own hull. */
 const MUZZLE_HEIGHT = 15;
-/** Half-width / height of a tank's hit box, in terrain units. Kept in step
- *  with SALVO_TANK_SCALE so the hull you see is the hull you hit. */
 const TANK_HALF_WIDTH = 11;
 const TANK_HEIGHT = 12;
 
-/**
- * Damage tiers. A shell that actually strikes the hull hurts far more than
- * one that merely lands nearby, so aiming is worth something: previously any
- * impact within 7 units did full damage, which made a near miss identical to
- * a direct hit.
- */
-/** Struck the hull within DIRECT_CORE of its centre. */
 const DIRECT_DAMAGE = 38;
-/** Struck the hull, but off-centre. */
 const HULL_DAMAGE = 26;
-/** Near miss: the most splash can do, tapering to 1 at the blast rim. */
 const SPLASH_MAX_DAMAGE = 16;
-/** How close to the hull's centre a strike must be to count as direct. */
 const DIRECT_CORE = 6;
-/** Splash reaches this far from the hull's centre. */
 const BLAST_RADIUS = 30;
 
-/** Craters are a circular bite centred on the impact. Sized so the earth
- *  moved matches the old parabolic notch - same volume, better shape - and
- *  a full match does not scrape the map flat. */
 const CRATER_RADIUS = 14;
 
-/** Terrain stays inside this band so neither tank is ever buried or airborne. */
 const MIN_GROUND = 42;
 const MAX_GROUND = 118;
 
-/** Mulberry32 - deterministic, so a seed fully describes a battlefield. */
+/** Mulberry32: deterministic, so a seed fully describes a battlefield. */
 const rngFromSeed = (seed: number): (() => number) => {
   let a = seed >>> 0;
   return () => {
@@ -122,15 +80,9 @@ const rngFromSeed = (seed: number): (() => number) => {
 export const randomSalvoSeed = (): number =>
   Math.floor(Math.random() * 0xffffffff);
 
-/**
- * Build a battlefield from a seed: three sine octaves over a flat base give
- * the design's rolling ridge. Tanks rest on whatever column they occupy, so
- * the ground is never flattened for them.
- */
 export const createSalvoTerrain = (seed: number): SalvoTerrain => {
   const rand = rngFromSeed(seed);
-  // Amplitudes stay modest so the ridge rolls like the design's rather than
-  // throwing up walls that make half the power dial unusable.
+  // Modest amplitudes keep the whole power dial usable.
   const base = 58 + rand() * 18;
   const octaves = [
     { amp: 10 + rand() * 8, freq: 1 + rand() * 0.6, phase: rand() * Math.PI * 2 },
@@ -154,11 +106,7 @@ export const createSalvoTerrain = (seed: number): SalvoTerrain => {
 export const groundAt = (terrain: SalvoTerrain, x: number): number =>
   terrain.heights[clampIndex(x, terrain)] ?? 0;
 
-/**
- * How steeply the ground runs under a hull, in degrees, positive when it
- * climbs to the right. Renderers tilt a tank by this so it sits on the
- * contour instead of floating flat over it.
- */
+/** Degrees, positive when the ground climbs to the right. */
 export const slopeAt = (terrain: SalvoTerrain, x: number): number => {
   const left = groundAt(terrain, x - TANK_HALF_WIDTH);
   const right = groundAt(terrain, x + TANK_HALF_WIDTH);
@@ -166,7 +114,6 @@ export const slopeAt = (terrain: SalvoTerrain, x: number): number => {
   return clamp(deg, -SALVO_MAX_TILT, SALVO_MAX_TILT);
 };
 
-/** Tanks never lean further than this, however sharp the ground gets. */
 export const SALVO_MAX_TILT = 17;
 
 const clampIndex = (x: number, terrain: SalvoTerrain): number =>
@@ -181,11 +128,6 @@ export const clampAngle = (angle: number): number =>
 export const clampPower = (power: number): number =>
   clamp(power, SALVO_MIN_POWER, SALVO_MAX_POWER);
 
-/**
- * Where a tank ends up driving `dx` from `x`, held inside the field and never
- * closing inside SALVO_MIN_SEPARATION of the other tank. Returns the reachable
- * column, so the caller can bill the distance actually travelled.
- */
 export const clampTankX = (
   x: number,
   dx: number,
@@ -204,11 +146,7 @@ export const clampTankX = (
   return clamp(wanted, Math.min(lo, hi), Math.max(lo, hi));
 };
 
-/**
- * A few points marching out of the barrel along the current aim, for the
- * "someone is lining up a shot" tick marks. Length grows with power, so the
- * guide reads the dial without giving the landing point away.
- */
+/** Length grows with power without giving the landing point away. */
 export const aimGuide = (
   terrain: SalvoTerrain,
   tank: SalvoTank,
@@ -227,15 +165,10 @@ export const aimGuide = (
   });
 };
 
-/**
- * Draw the round's wind: a signed strength, positive blowing rightwards.
- * Takes its randomness so the server can supply a crypto-backed source and
- * remain the only authority on it.
- */
+/** Positive blows rightwards; randomness is injected so the server stays the authority. */
 export const rollWind = (rand: () => number = Math.random): number =>
   Math.round((rand() * 2 - 1) * SALVO_MAX_WIND);
 
-/** Where a tank's shell leaves the barrel. */
 export const muzzleOf = (terrain: SalvoTerrain, tank: SalvoTank): SalvoPoint => ({
   x: tank.x,
   y: groundAt(terrain, tank.x) + MUZZLE_HEIGHT,
@@ -250,10 +183,6 @@ const hitsTank = (p: SalvoPoint, terrain: SalvoTerrain, tank: SalvoTank): boolea
   );
 };
 
-/**
- * Fly one shell and resolve it. Pure: the caller owns applying the damage and
- * the crater, so the same call can preview a shot or commit it.
- */
 export const fireShot = (
   terrain: SalvoTerrain,
   shooter: SalvoTank,
@@ -274,12 +203,9 @@ export const fireShot = (
 
   const path: SalvoPoint[] = [{ x, y }];
   let kind: SalvoImpactKind = 'out-of-bounds';
-  // Which hull the shell actually struck, if any - a strike is worth far more
-  // than the same distance measured as splash.
   let struckTarget = false;
   let struckShooter = false;
-  // A shell only arms against its own tank once it has cleared it, so a steep
-  // lob that falls back on the shooter still counts while a launch never does.
+  // Arms against its own tank only once clear: a falling lob can self-hit, a launch never does.
   let armed = false;
 
   for (let step = 0; step < MAX_STEPS; step++) {
@@ -292,8 +218,7 @@ export const fireShot = (
       path.push({ x, y });
     }
 
-    // A shell still climbing is allowed off the top of the field, but it can
-    // never come back from off the sides.
+    // A climbing shell may leave the top of the field but never returns from the sides.
     if (x < 0 || x > terrain.width) {
       kind = 'out-of-bounds';
       break;
@@ -335,7 +260,6 @@ export const fireShot = (
   };
 };
 
-/** Damage a blast at `impact` does to `tank`, tapering to 0 at the rim. */
 export const blastDamage = (
   terrain: SalvoTerrain,
   impact: SalvoPoint,
@@ -351,8 +275,7 @@ export const blastDamage = (
       : { damage: HULL_DAMAGE, kind: 'hull' };
   }
 
-  // Splash is measured from the hull's edge, not its centre, so a shell that
-  // lands just short of the tracks still stings.
+  // Measured from the hull's edge so a shell just short of the tracks still stings.
   const fromHull = Math.max(0, d - TANK_HALF_WIDTH);
   const reach = BLAST_RADIUS - TANK_HALF_WIDTH;
   if (fromHull >= reach) {
@@ -365,11 +288,7 @@ export const blastDamage = (
   return { damage, kind: 'splash' };
 };
 
-/**
- * Carve the crater a shell leaves, mutating `heights` in place. Only terrain
- * impacts call this: a shell that finds a hull detonates on armour, so the
- * ground under a hit tank is left intact.
- */
+/** Mutates `heights`. Only terrain impacts crater; a hull hit leaves the ground intact. */
 export const carveCrater = (terrain: SalvoTerrain, impact: SalvoPoint): void => {
   const r = CRATER_RADIUS;
   for (let x = Math.floor(impact.x - r); x <= Math.ceil(impact.x + r); x++) {
@@ -377,10 +296,6 @@ export const carveCrater = (terrain: SalvoTerrain, impact: SalvoPoint): void => 
     if (Math.abs(dx) > r) {
       continue;
     }
-    // Take a true circular bite centred on the impact: at this column the
-    // new surface is the bottom of that circle, wherever the ground already
-    // sits lower. A heightmap holds one surface per column, so the circle's
-    // deepest point at each column is what the ground becomes.
     const i = clampIndex(x, terrain);
     const floor = impact.y - Math.sqrt(r * r - dx * dx);
     const current = terrain.heights[i] ?? 0;
@@ -395,14 +310,9 @@ export const emptySalvoStats = (): SalvoPlayerStats => ({
   damageByRound: [],
 });
 
-/** Hits as a percentage of shots, rounded - 0 before the first shot. */
 export const salvoAccuracy = (stats: SalvoPlayerStats): number =>
   stats.shots === 0 ? 0 : Math.round((stats.hits / stats.shots) * 100);
 
-/**
- * Pick the bot's aim: grid-search the shot that lands nearest the target, then
- * spread it by `spread` terrain units so it misses like a person does.
- */
 export const chooseBotAim = (
   terrain: SalvoTerrain,
   bot: SalvoTank,
@@ -427,8 +337,7 @@ export const chooseBotAim = (
     }
   }
 
-  // Nudging power alone moves the landing point roughly along the ridge, which
-  // keeps the miss readable as "short" or "long" rather than randomly wild.
+  // Jittering power alone keeps the miss readable as "short" or "long".
   const jitter = (Math.random() * 2 - 1) * spread;
   return {
     angle: clampAngle(best.angle + (Math.random() * 2 - 1) * 2),

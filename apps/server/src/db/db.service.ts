@@ -29,21 +29,14 @@ import { WalletEntity } from './entities/wallet.entity';
 import { SettlementStatus, GameRoomStatus, GameType, StakeAsset } from './types/game';
 import { WalletNetwork, WalletOrigin } from './types/wallet';
 
-/**
- * "Rooms this user took part in", in the seat columns' own order. The array
- * seat uses `@>` rather than `= ANY(...)`: only containment can use the GIN
- * index on opponent_ids, and without it every stats query seq-scans the table.
- */
+// `@>` rather than `= ANY(...)`: only containment can use the GIN index on opponent_ids.
 const PLAYED_IN_ROOM =
   '(room.user_id = :userId OR room.opponent_id = :userId OR room.opponent_ids @> ARRAY[:userId]::uuid[])';
 
-/** Where a user signed up. Added by the web-accounts work; read-only here. */
 const USER_PLATFORM_COLUMN = 'platform';
 
-/** Newest cross-stable rooms corrected per seat, matching the history page cap. */
 const MIXED_STAKE_ROOM_LIMIT = 50;
 
-/** Base-unit net winnings -> ranking points, per stake asset. */
 const RANKING_COIN_POINTS_CASE = STAKEABLE_ASSETS.map(
   asset =>
     `WHEN ${asset} THEN ${RANKING_COIN_POINTS[asset] ?? 0}` +
@@ -61,16 +54,10 @@ export interface RoomTotals {
 
 export interface UserRoomTotals extends RoomTotals {
   wins: number;
-  /** Completed with no winner: forfeits before a result, voided matches. */
   voids: number;
   created: number;
 }
 
-/**
- * Sole point of contact with TypeORM repositories/DataSource. Other modules
- * call through here instead of injecting `Repository<T>` directly, so the
- * schema and ORM stay implementation details of the db module.
- */
 @Injectable()
 export class DbService {
   constructor(
@@ -92,9 +79,6 @@ export class DbService {
     private readonly cacheService: CacheService,
   ) {}
 
-  // --- app settings ---
-
-  /** A settings row's JSON value, or null when the key was never written. */
   async getAppSetting<T>(key: string): Promise<T | null> {
     const row = await this.appSettingRepository.findOne({ where: { key } });
     return row ? (row.value as T) : null;
@@ -104,14 +88,10 @@ export class DbService {
     await this.appSettingRepository.upsert({ key, value }, ['key']);
   }
 
-  // --- users ---
-
-  /** Liveness probe for /healthcheck: one round-trip to Postgres. */
   async pingDatabase(): Promise<void> {
     await this.dataSource.query('SELECT 1');
   }
 
-  /** Every user, newest first. Admin surface only (no pagination yet). */
   findAllUsers(): Promise<UserEntity[]> {
     return this.userRepository.find({ order: { createdAt: 'DESC' } });
   }
@@ -139,7 +119,6 @@ export class DbService {
     return this.userRepository.findOneBy({ referralCode });
   }
 
-  /** Case-insensitive: ENS names are minted lowercase but typed freely. */
   findUserByEnsName(ensName: string): Promise<UserEntity | null> {
     return this.userRepository
       .createQueryBuilder('user')
@@ -147,10 +126,7 @@ export class DbService {
       .getOne();
   }
 
-  /**
-   * Take an ENS name for a user who has none. The partial unique index decides
-   * the winner of a race; the loser sees false and tries the next label.
-   */
+  // The partial unique index decides a race; the loser sees false and tries the next label.
   async claimEnsName(userId: string, ensName: string): Promise<boolean> {
     try {
       const result = await this.userRepository.update(
@@ -174,7 +150,6 @@ export class DbService {
     await this.userRepository.update({ id: userId }, { isBot });
   }
 
-  /** Seeded lobby bot: named at creation, so no username update ever runs. */
   createBotUser(
     email: string,
     username: string,
@@ -189,11 +164,6 @@ export class DbService {
     return this.userRepository.countBy({ referredByUserId: userId });
   }
 
-  /**
-   * Lifetime record over completed rooms. Counting in SQL keeps this correct
-   * for players with thousands of matches, where paging the history feed
-   * would only ever see the first page.
-   */
   async findMatchTotalsForUser(
     userId: string,
   ): Promise<{ games: number; wins: number; voids: number }> {
@@ -215,7 +185,6 @@ export class DbService {
     };
   }
 
-  /** Completed matches per game type, most-played first. */
   async findGameTypeCountsForUser(
     userId: string,
   ): Promise<{ gameType: number; matches: number }[]> {
@@ -235,12 +204,7 @@ export class DbService {
     }));
   }
 
-  /**
-   * Longest unbroken run of wins, in completion order. Gaps-and-islands: every
-   * row in one run shares (overall row number - row number within its
-   * won/not-won partition), so grouping on that difference sizes each run.
-   * Voids break a streak - they are not wins.
-   */
+  // Gaps-and-islands: rows in one run share (overall row number - row number within its partition).
   async findBestWinStreakForUser(userId: string): Promise<number> {
     const row = await this.gameRoomRepository.manager.query<
       { streak: string | null }[]
@@ -268,11 +232,6 @@ export class DbService {
     return Number(row[0]?.streak ?? 0);
   }
 
-  /**
-   * Net staked outcome per asset: what a win actually paid out (from the
-   * settled settlement) minus every stake this player put up. Void rooms are
-   * excluded - the stake is returned, so they net zero.
-   */
   async findStakeNetByTokenForUser(
     userId: string,
   ): Promise<{ stakeToken: number; net: string }[]> {
@@ -299,8 +258,7 @@ export class DbService {
 
     const net = new Map<number, bigint>();
     for (const row of rows) {
-      // numeric comes back as a string; strip any fractional tail so it
-      // stays a valid base-unit integer for BigInt on the client.
+      // numeric comes back as a string; strip the fractional tail so BigInt can parse it.
       net.set(
         Number(row.stakeToken),
         BigInt(String(row.net ?? '0').split('.')[0]!),
@@ -315,12 +273,7 @@ export class DbService {
     }));
   }
 
-  /**
-   * The same net, for rooms where players staked different stablecoins. Each
-   * seat nets in its own token, so there is no single-column SQL for it - and
-   * these rooms are rare enough that reading them one by one is cheaper than
-   * dragging the query above off its indexes.
-   */
+  // Each seat nets in its own token; these rooms are rare, so reading them one by one is cheaper.
   private async mixedStakeNetForUser(
     userId: string,
   ): Promise<Map<number, bigint>> {
@@ -356,7 +309,7 @@ export class DbService {
       }
       const prize = byRoom.get(room.id)?.payoutByAsset;
       if (!prize) {
-        continue; // Not settled yet - nets zero, as the indexed query assumes.
+        continue;
       }
       for (const [asset, amount] of Object.entries(prize)) {
         add(Number(asset), BigInt(amount));
@@ -366,15 +319,7 @@ export class DbService {
     return net;
   }
 
-  /**
-   * Leaderboard points over decided matches (voids and never-started rooms
-   * award nothing): participation per room plus the winner's net payout
-   * converted to points per asset. Unnesting the seat columns cannot use the
-   * seat indexes, so this is a deliberate full scan.
-   *
-   * Every stablecoin scores the same per human unit, so a mixed room's stake
-   * term can stay in the room's token even when that seat staked another one.
-   */
+  // Unnesting the seat columns can't use the seat indexes, so this is a deliberate full scan.
   async findRankings(options: {
     gameType?: GameType;
     limit: number;
@@ -482,13 +427,10 @@ export class DbService {
     }));
   }
 
-  // --- admin stats ---
-
   countUsers(): Promise<number> {
     return this.userRepository.count();
   }
 
-  /** Every room, split by lifecycle and by whether a stake was posted. */
   async findRoomTotals(): Promise<RoomTotals> {
     const row = await this.gameRoomRepository
       .createQueryBuilder('room')
@@ -517,7 +459,6 @@ export class DbService {
     };
   }
 
-  /** Rooms per game type, most-played first. */
   async findRoomCountsByType(): Promise<
     { gameType: number; total: number; staked: number }[]
   > {
@@ -537,11 +478,7 @@ export class DbService {
     }));
   }
 
-  /**
-   * Rooms played, per participant, in one pass — a per-user query would be one
-   * round trip per row of the admin table. Unnesting the three seat columns
-   * cannot use the seat indexes, so this is a deliberate full scan.
-   */
+  // Unnesting the seat columns can't use the seat indexes, so this is a deliberate full scan.
   async findRoomCountsByParticipant(): Promise<
     Map<string, { games: number; staked: number }>
   > {
@@ -569,7 +506,6 @@ export class DbService {
     );
   }
 
-  /** One player's whole record, live rooms included. */
   async findRoomTotalsForUser(userId: string): Promise<UserRoomTotals> {
     const row = await this.gameRoomRepository
       .createQueryBuilder('room')
@@ -612,7 +548,6 @@ export class DbService {
     };
   }
 
-  /** One player's rooms per game type, most-played first. */
   async findRoomCountsByTypeForUser(
     userId: string,
   ): Promise<{ gameType: number; total: number; staked: number }[]> {
@@ -633,11 +568,6 @@ export class DbService {
     }));
   }
 
-  /**
-   * Signup platform per user, or null when the column has not been migrated in
-   * yet. Owned by the web-accounts work; everything here only reads it, so the
-   * admin surface has to work on a database that predates it.
-   */
   async findUserPlatforms(): Promise<Map<string, number> | null> {
     if (!(await this.hasUserPlatformColumn())) {
       return null;
@@ -652,7 +582,7 @@ export class DbService {
     );
   }
 
-  /** Not memoized: the column appears mid-life, when its migration runs. */
+  // Not memoized: the column appears mid-life, when its migration runs.
   private async hasUserPlatformColumn(): Promise<boolean> {
     const rows = await this.dataSource.query<{ present: boolean }[]>(
       `SELECT EXISTS (
@@ -672,12 +602,6 @@ export class DbService {
     );
   }
 
-  /**
-   * A wallet-only account: no email, and the address the user signed in with
-   * registered as an imported wallet. That wallet row is what lets pot
-   * deposits, withdrawals and recipient lookup find the user, so the two
-   * writes have to land together.
-   */
   async createWalletUser(
     address: string,
     platform: UserPlatform,
@@ -702,19 +626,11 @@ export class DbService {
     return this.userRepository.save(user);
   }
 
-  /**
-   * Hard-deletes a user row. The only DB foreign key to users is
-   * email_login_tokens (ON DELETE CASCADE), so those go automatically;
-   * wallets and game_rooms are plain uuid columns with no FK, so callers
-   * that want them gone must delete those first (see AdminService). Returns
-   * true when a row was actually removed.
-   */
+  // Only email_login_tokens cascade; wallets and game_rooms have no FK, so callers delete those first.
   async deleteUser(id: string): Promise<boolean> {
     const result = await this.userRepository.delete({ id });
     return (result.affected ?? 0) > 0;
   }
-
-  // --- email login tokens ---
 
   async deleteLoginTokensForUser(userId: string): Promise<void> {
     await this.emailLoginTokenRepository.delete({ userId });
@@ -741,8 +657,6 @@ export class DbService {
     await this.emailLoginTokenRepository.delete({ id });
   }
 
-  // --- refresh tokens -------------------------------------------------------
-
   createRefreshToken(data: {
     userId: string;
     tokenHash: string;
@@ -753,17 +667,11 @@ export class DbService {
     );
   }
 
-  /** Looked up by hash - the plaintext token is never stored. */
   findRefreshTokenByHash(tokenHash: string): Promise<RefreshTokenEntity | null> {
     return this.refreshTokenRepository.findOneBy({ tokenHash });
   }
 
-  /**
-   * Revoke one token, but only if it is still live. The affected-row count is
-   * what makes rotation safe under concurrency: two requests racing with the
-   * same token both find it live, and only the one that flips `revoked_at`
-   * gets to mint the replacement pair.
-   */
+  // Only the request that flips revoked_at gets to mint the replacement pair.
   async revokeRefreshToken(id: string): Promise<boolean> {
     const result = await this.refreshTokenRepository.update(
       { id, revokedAt: IsNull() },
@@ -772,7 +680,6 @@ export class DbService {
     return result.affected === 1;
   }
 
-  /** Reuse detection and logout-everywhere: drop every live token for a user. */
   async revokeRefreshTokensForUser(userId: string): Promise<void> {
     await this.refreshTokenRepository.update(
       { userId, revokedAt: IsNull() },
@@ -780,9 +687,6 @@ export class DbService {
     );
   }
 
-  // --- wallets ---
-
-  /** The caller's custodial wallet, key material included (normally hidden). */
   findEmbeddedWalletForUser(userId: string): Promise<WalletEntity | null> {
     return this.walletRepository
       .createQueryBuilder('w')
@@ -796,8 +700,6 @@ export class DbService {
     return this.walletRepository.countBy({ userId });
   }
 
-  /** Removes every wallet row for a user (custodial keys included). Returns
-   *  how many were deleted. Wallets have no FK to users, so this is manual. */
   async deleteWalletsForUser(userId: string): Promise<number> {
     const result = await this.walletRepository.delete({ userId });
     return result.affected ?? 0;
@@ -822,24 +724,7 @@ export class DbService {
     });
   }
 
-  /**
-   * Full entity including the encrypted key — used ONLY by the chain module
-   * to sign stakes as the player. Kept as a separate accessor so the common
-   * listing path can never leak key material.
-   */
-  findWalletWithKeyForUser(userId: string): Promise<WalletEntity | null> {
-    return this.walletRepository.findOneBy({ userId });
-  }
-
-  /**
-   * Reverse lookup for the stake pot's event watcher: an on-chain `Staked`
-   * event names an address, and the credit has to land on the owning user.
-   *
-   * Case-insensitive on purpose — wallets are stored checksummed but decoded
-   * log arguments are not reliably in that form, and crediting the wrong (or
-   * no) user over a capitalisation difference would lose a deposit. Served by
-   * the IDX_wallets_address_lower functional index.
-   */
+  // Case-insensitive: decoded log args aren't reliably checksummed. Served by IDX_wallets_address_lower.
   async findWalletByAddress(
     address: string,
   ): Promise<Pick<WalletEntity, 'userId' | 'address'> | null> {
@@ -850,9 +735,6 @@ export class DbService {
       .getOne();
   }
 
-  // --- game rooms ---
-
-  /** A room in Pending or InProgress status — i.e. still "active" for the 1-room-per-user rule. */
   findOpenGameRoomForUser(userId: string): Promise<GameRoomEntity | null> {
     return this.gameRoomRepository.findOneBy({
       userId,
@@ -860,10 +742,6 @@ export class DbService {
     });
   }
 
-  /**
-   * An active room the user takes part in as *either* creator or opponent — so
-   * the client can resume a match the user joined, not only one they created.
-   */
   findActiveGameRoomForParticipant(
     userId: string,
   ): Promise<GameRoomEntity | null> {
@@ -873,7 +751,6 @@ export class DbService {
         statuses: [GameRoomStatus.Pending, GameRoomStatus.InProgress],
       })
       .andWhere(PLAYED_IN_ROOM, { userId })
-      // Knocked out is out: the room is no longer theirs to resume.
       .andWhere('NOT (room.eliminated_user_ids @> ARRAY[:userId]::uuid[])', {
         userId,
       })
@@ -908,12 +785,10 @@ export class DbService {
     return this.gameRoomRepository.findOneBy({ id, userId });
   }
 
-  /** Any room with this code (used to guarantee code uniqueness at creation). */
   findGameRoomByCode(code: string): Promise<GameRoomEntity | null> {
     return this.gameRoomRepository.findOneBy({ code });
   }
 
-  /** A still-joinable room for this code - the join-by-code lookup. */
   findPendingGameRoomByCode(code: string): Promise<GameRoomEntity | null> {
     return this.gameRoomRepository.findOneBy({
       code,
@@ -921,12 +796,7 @@ export class DbService {
     });
   }
 
-  /**
-   * Generic lookup, regardless of owner — joining checks a room someone else
-   * created. Cached (short TTL): the battleship gateway calls this on every
-   * enter/ready/fire/forfeit, so without the cache each move costs a SELECT.
-   * Write paths below invalidate; the TTL bounds staleness if one is missed.
-   */
+  // Short-TTL cache: the gateway calls this on every move. Writes below invalidate.
   async findGameRoomById(id: string): Promise<GameRoomEntity | null> {
     const key = CacheKeys.gameRoom(id);
     const cached = await this.cacheService.getJson<GameRoomEntity>(key);
@@ -936,16 +806,7 @@ export class DbService {
     return this.loadAndCacheGameRoom(id);
   }
 
-  /**
-   * Read straight from Postgres and refresh the cache entry.
-   *
-   * Callers that decide whether a match may start must use this rather than
-   * the cached read. With the in-memory store (no REDIS_URL) an invalidation
-   * only clears the instance that performed the write, so a second instance
-   * can keep serving a Pending copy of a room that has already started - for
-   * up to GAME_ROOM_TTL_SECONDS. That makes the match look unstartable and
-   * strands every player in the room on a loading spinner.
-   */
+  // Use when deciding whether a match may start: an in-memory invalidation only clears the writing instance.
   async findGameRoomByIdFresh(id: string): Promise<GameRoomEntity | null> {
     return this.loadAndCacheGameRoom(id);
   }
@@ -964,12 +825,7 @@ export class DbService {
     return room;
   }
 
-  /**
-   * Seat the opponent in a 2-player room and start it, in one conditional
-   * UPDATE. The WHERE guards status + an empty seat so two joiners racing
-   * the same Pending room can't both win: the second UPDATE affects 0 rows.
-   * Returns whether this call took the seat.
-   */
+  // The WHERE guards status and an empty seat, so two racing joiners can't both win.
   async joinGameRoom(
     id: string,
     opponentId: string,
@@ -1009,11 +865,7 @@ export class DbService {
     return seated;
   }
 
-  /**
-   * Append a joiner to a multi-player room. The single UPDATE enforces
-   * capacity, no-duplicate and not-the-creator atomically, so two racing
-   * joins can't oversubscribe the room. Returns whether the join landed.
-   */
+  // One UPDATE enforces capacity, no-duplicate and not-the-creator atomically.
   async appendGameRoomOpponent(
     id: string,
     userId: string,
@@ -1039,7 +891,6 @@ export class DbService {
     return (result as unknown[]).length > 0;
   }
 
-  /** Remove a joiner from a still-Pending multi-player room. */
   async removeGameRoomOpponent(id: string, userId: string): Promise<boolean> {
     const result = await this.gameRoomRepository.query(
       `UPDATE "game_rooms"
@@ -1053,8 +904,6 @@ export class DbService {
     return (result as unknown[]).length > 0;
   }
 
-  /** Flip a Pending room to InProgress (multi-player start). Returns whether
-   *  this call performed the flip (false = already started/gone). */
   async startGameRoom(id: string): Promise<boolean> {
     const result = await this.gameRoomRepository.update(
       { id, status: GameRoomStatus.Pending },
@@ -1064,9 +913,7 @@ export class DbService {
     return (result.affected ?? 0) > 0;
   }
 
-  /** Flip a room to Completed and persist its result (History reads these).
-   *  One-shot: a room already Completed keeps its winner - a late forfeit
-   *  must not rewrite a settled result. */
+  // One-shot: a late forfeit must not rewrite a settled result.
   async completeGameRoom(
     id: string,
     result?: { winnerUserId: string | null; endReason: string | null },
@@ -1084,7 +931,6 @@ export class DbService {
     await this.cacheService.del(CacheKeys.gameRoom(id));
   }
 
-  /** Completed rooms the user played in, newest first — the History feed. */
   findCompletedGameRoomsForUser(
     userId: string,
     limit = 10,
@@ -1116,18 +962,14 @@ export class DbService {
     await this.cacheService.del(CacheKeys.gameRoom(id));
   }
 
-  /** JSON round-trip turns entities into plain objects with string dates — rebuild both. */
+  // JSON round-trip turns entities into plain objects with string dates.
   private reviveGameRoom(json: GameRoomEntity): GameRoomEntity {
     const room = this.gameRoomRepository.create(json);
     room.createdAt = new Date(json.createdAt);
     return room;
   }
 
-  /**
-   * The lobby listing: pending, public rooms, oldest first, with optional
-   * game-type / stake / token filters. The fixed `status = Pending AND
-   * is_private = false` predicate matches the partial index IDX_game_rooms_lobby.
-   */
+  // The fixed status/is_private predicate matches the partial index IDX_game_rooms_lobby.
   findPendingGameRooms(options?: {
     excludeUserId?: string;
     gameTypes?: GameType[];
@@ -1137,7 +979,6 @@ export class DbService {
     const qb = this.gameRoomRepository
       .createQueryBuilder('room')
       .where('room.status = :status', { status: GameRoomStatus.Pending })
-      // Private rooms are invite-only: never surface them in the lobby.
       .andWhere('room.is_private = false');
 
     if (options?.excludeUserId) {
@@ -1164,7 +1005,6 @@ export class DbService {
     return qb.orderBy('room.created_at', 'ASC').getMany();
   }
 
-  /** Pending rooms (private included) at least this old — the stale-lobby sweep. */
   findPendingGameRoomsCreatedBefore(cutoff: Date): Promise<GameRoomEntity[]> {
     return this.gameRoomRepository
       .createQueryBuilder('room')
@@ -1174,11 +1014,6 @@ export class DbService {
       .getMany();
   }
 
-  /**
-   * Every live room (Pending or InProgress), newest first, private included.
-   * Admin surface only - unlike the lobby query this applies no privacy or
-   * ownership filter.
-   */
   findActiveGameRooms(): Promise<GameRoomEntity[]> {
     return this.gameRoomRepository.find({
       where: {
@@ -1187,8 +1022,6 @@ export class DbService {
       order: { createdAt: 'DESC' },
     });
   }
-
-  // --- match settlements ---
 
   createMatchSettlement(data: {
     roomId: string;
@@ -1221,14 +1054,7 @@ export class DbService {
     await this.matchSettlementRepository.update({ roomId }, patch);
   }
 
-  /**
-   * Claim a live settlement for exactly one terminal transition.
-   *
-   * The conditional UPDATE is the serialization point for settlement: a room
-   * can leave Funding/Funded once, so concurrent completions (a forfeit racing
-   * a timeout, a replayed socket event) can neither settle twice nor settle and
-   * void the same room. Returns true only for the caller that won it.
-   */
+  // The serialization point for settlement: a room leaves Funding/Funded once, so it can't settle twice.
   async claimMatchSettlement(
     roomId: string,
     next: SettlementStatus.SettlePending | SettlementStatus.VoidPending,
@@ -1243,13 +1069,7 @@ export class DbService {
     return result.affected === 1;
   }
 
-  /**
-   * Hand a claim back after the settlement work failed, so a retry can pick it
-   * up instead of the stake staying locked forever.
-   *
-   * Guarded on the pending statuses: if another worker already carried this
-   * room to Settled/Voided, this must not drag it back to Funded.
-   */
+  // Guarded on the pending statuses so a Settled/Voided room isn't dragged back to Funded.
   async releaseMatchSettlementClaim(
     roomId: string,
     previous: SettlementStatus,
@@ -1264,7 +1084,6 @@ export class DbService {
     );
   }
 
-  /** Sweeper scan: settlements still needing work, oldest-touched first. */
   findMatchSettlementsByStatus(
     statuses: SettlementStatus[],
     limit = 20,
@@ -1276,8 +1095,7 @@ export class DbService {
     });
   }
 
-  /** Funded settlements untouched for at least `minAgeMinutes`. The cutoff is
-   *  evaluated in SQL so it cannot skew with the process clock. */
+  // Cutoff evaluated in SQL so it can't skew with the process clock.
   findStaleFundedSettlements(
     minAgeMinutes: number,
     limit = 50,
@@ -1293,9 +1111,6 @@ export class DbService {
       .getMany();
   }
 
-  // --- admin / test ---
-
-  /** Wipes every entity-backed table (schema untouched). Used by TestService. */
   async truncateAllTables(): Promise<string[]> {
     const tableNames = this.dataSource.entityMetadatas.map(
       (meta) => meta.tableName,

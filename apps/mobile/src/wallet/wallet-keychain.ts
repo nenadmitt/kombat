@@ -8,14 +8,9 @@ type StoredWalletSecret = {
   privateKey: string;
 };
 
-/**
- * One slot per account. A device may hold several logins over its life and the
- * server keeps only the address, so a shared slot would let the next account
- * sign with the previous one's key - and overwrite the only copy of it.
- */
+/** One slot per account: a shared slot would let the next account sign with the previous one's key. */
 const serviceFor = (userId: string) => `${WALLET_KEYCHAIN_SERVICE}.${userId}`;
 
-/** Securely persists the mnemonic + derived private key (iOS Keychain / Android Keystore). */
 export async function saveWalletSecret(
   userId: string,
   secret: StoredWalletSecret,
@@ -25,23 +20,14 @@ export async function saveWalletSecret(
   });
 }
 
-/**
- * This account's secret. A plain read - adopting the legacy slot is
- * `adoptLegacySecret`, which proves ownership first. Migrating from here would
- * mean every caller silently claims whatever key the device holds, and the
- * claim destroys the only copy.
- */
+/** A plain read: adopting the legacy slot goes through adoptLegacySecret, which proves ownership first. */
 export async function getWalletSecret(
   userId: string,
 ): Promise<StoredWalletSecret | null> {
   return read(serviceFor(userId));
 }
 
-/**
- * Moves a pre-per-user secret into this account's slot, but only when it
- * derives to `expectedAddress`. Wrong owner: leave it where it is, because the
- * account it belongs to has no other copy.
- */
+/** Wrong owner: leave the legacy secret in place, because the account it belongs to has no other copy. */
 export async function adoptLegacySecret(
   userId: string,
   expectedAddress: string,
@@ -61,7 +47,6 @@ export async function adoptLegacySecret(
   return legacy;
 }
 
-/** Whether a stored key actually controls `address`. */
 export function derivesTo(privateKey: string, address: string): boolean {
   try {
     return (
@@ -71,19 +56,6 @@ export function derivesTo(privateKey: string, address: string): boolean {
   } catch {
     return false;
   }
-}
-
-export async function clearWalletSecret(userId: string): Promise<void> {
-  await Keychain.resetGenericPassword({ service: serviceFor(userId) });
-}
-
-/**
- * The slot from before secrets were keyed by user. Installs predating that
- * hold their only copy of the key here, so sign-in adopts it - but only for
- * the account whose address it actually derives to.
- */
-export async function readLegacyWalletSecret(): Promise<StoredWalletSecret | null> {
-  return read(WALLET_KEYCHAIN_SERVICE);
 }
 
 export async function clearLegacyWalletSecret(): Promise<void> {

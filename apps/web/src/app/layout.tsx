@@ -8,7 +8,6 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
-/** The brand face - the wordmark is drawn in it (branding/HANDOFF.md). */
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   weight: ["700"],

@@ -70,44 +70,31 @@ import { LudoDieRoller } from './ludo.dice';
 
 export type LudoMatchState = {
   roomId: string;
-  /** Seats in join order (creator first) — also the turn order. */
+  // Join order (creator first), which is also the turn order.
   players: LudoPlayer[];
   tokens: LudoTokens;
   phase: 'play' | 'over';
   turnUserId: string;
   stage: LudoStage;
-  /** The die awaiting a token choice (stage 'move'), else null. */
   die: number | null;
-  /** Consecutive sixes rolled by the current player this turn. */
   sixChain: number;
-  /** Movable token indices for the pending die (stage 'move'). */
   movable: number[];
   eliminated: LudoColor[];
   timeouts: Record<string, number>;
   online: Record<string, boolean>;
-  /** Running capture totals per user (missing on pre-existing matches). */
+  // Optional: missing on matches cached by an older build.
   captureCounts?: Record<string, number>;
-  /** Charge in half-points per user. */
+  // In half-points.
   chargeHp: Record<string, number>;
   abilityUses: Record<string, Record<LudoAbilityKind, number>>;
-  /** Pawns carrying Extra Jump, all owners - public. */
   jumps: LudoJumps;
-  /** Pawns carrying the permanent shield, all owners - public. */
   shields: LudoShields;
   turnStartedAt: number | null;
-  /** Bumped on every turn-clock restart; stale deadlines carry an old seq. */
   turnSeq: number;
   winnerUserId: string | null;
   endReason: LudoEndReason | null;
 };
 
-/**
- * Server-authoritative Ludo match state, cached and locked per room exactly
- * like Battleship's. The server owns the dice (crypto randomInt) - clients
- * only ever ask to roll or pick a token, and every mutation runs a
- * lock -> read -> mutate -> write cycle so the deadline sweeper and gateway
- * can't interleave.
- */
 @Injectable()
 export class LudoMatchService {
   constructor(
@@ -115,7 +102,6 @@ export class LudoMatchService {
     private readonly dieRoller: LudoDieRoller,
   ) {}
 
-  /** Fetch (or lazily create) the match for a started room. */
   getOrCreate(room: GameRoomEntity): Promise<LudoMatchState> {
     return this.locked(room.id, async () => {
       const existing = await this.load(room.id);
@@ -164,7 +150,6 @@ export class LudoMatchService {
     });
   }
 
-  /** Roll the die for the current player and resolve what it allows. */
   roll(roomId: string, userId: string): Promise<LudoRolledPayload> {
     return this.locked(roomId, async () => {
       const match = await this.require(roomId);
@@ -188,7 +173,6 @@ export class LudoMatchService {
         match.sixChain = sixChain;
         match.movable = movable;
       } else if (!thirdSix && die === DIE_SIDES) {
-        // A six with nothing to move still grants the re-roll.
         match.stage = 'roll';
         match.die = null;
         match.sixChain = sixChain;
@@ -213,7 +197,6 @@ export class LudoMatchService {
     });
   }
 
-  /** Move one of the roller's movable tokens by the pending die. */
   move(
     roomId: string,
     userId: string,
@@ -292,7 +275,6 @@ export class LudoMatchService {
     });
   }
 
-  /** Fire the launcher: one of my on-track tokens jumps LAUNCH_DISTANCE cells. */
   launch(
     roomId: string,
     userId: string,
@@ -359,7 +341,6 @@ export class LudoMatchService {
     });
   }
 
-  /** Buff one of my pawns: every shared-track move it makes is doubled. */
   addJumpAbility(
     roomId: string,
     userId: string,
@@ -397,7 +378,6 @@ export class LudoMatchService {
     });
   }
 
-  /** Skip one of my on-track pawns to the first square of its home column. */
   teleport(
     roomId: string,
     userId: string,
@@ -446,7 +426,6 @@ export class LudoMatchService {
     });
   }
 
-  /** Shield one of my pawns: nothing can capture it for the rest of the match. */
   addShieldAbility(
     roomId: string,
     userId: string,
@@ -484,12 +463,6 @@ export class LudoMatchService {
     });
   }
 
-  /**
-   * The current turn ran out. The idle player accrues a timeout; on the
-   * MAX_TIMEOUTS-th they are eliminated (tokens back to base). The match
-   * ends when elimination leaves a single player standing. A seq mismatch
-   * means the turn already advanced - nothing to enforce.
-   */
   timeoutTurn(
     roomId: string,
     seq: number,
@@ -532,7 +505,6 @@ export class LudoMatchService {
     });
   }
 
-  /** A player leaves mid-match: eliminated; last player standing wins. */
   forfeit(roomId: string, userId: string): Promise<LudoEliminatedPayload> {
     return this.locked(roomId, async () => {
       const match = await this.require(roomId);
@@ -568,7 +540,6 @@ export class LudoMatchService {
     });
   }
 
-  /** Update a player's socket-connection state. Returns whether it's an active match. */
   setPresence(
     roomId: string,
     userId: string,
@@ -585,7 +556,6 @@ export class LudoMatchService {
     });
   }
 
-  /** Snapshot for REST resume - Ludo hides nothing, same for everyone. */
   async stateFor(roomId: string, userId: string): Promise<LudoRoomState> {
     const match = await this.require(roomId);
     this.assertParticipant(match, userId);
@@ -617,8 +587,6 @@ export class LudoMatchService {
     await this.cacheService.del(CacheKeys.ludoMatch(roomId));
   }
 
-  // --- cache plumbing ----------------------------------------------------------
-
   private locked<T>(roomId: string, fn: () => Promise<T>): Promise<T> {
     return this.cacheService.withLock(
       CacheKeys.ludoLock(roomId),
@@ -634,8 +602,7 @@ export class LudoMatchService {
     if (!match) {
       return null;
     }
-    // Matches cached before an ability shipped carry no field for it, and a
-    // ledger missing its key.
+    // Matches cached before an ability shipped carry no field for it.
     const partial = match as Partial<LudoMatchState>;
     return {
       ...match,
@@ -671,8 +638,6 @@ export class LudoMatchService {
     );
   }
 
-  // --- match logic helpers -------------------------------------------------------
-
   private deadline(match: LudoMatchState): number {
     return (match.turnStartedAt ?? Date.now()) + TURN_SECONDS * 1000;
   }
@@ -691,7 +656,6 @@ export class LudoMatchService {
     }
   }
 
-  /** Abilities are open at any point of the caster's own turn. */
   private assertMyTurn(match: LudoMatchState, userId: string): void {
     this.assertParticipant(match, userId);
     if (match.phase !== 'play') {
@@ -748,7 +712,6 @@ export class LudoMatchService {
     );
   }
 
-  /** Charge and a use for one ability, or a rejection the client can show. */
   private spend(
     match: LudoMatchState,
     userId: string,
@@ -776,13 +739,7 @@ export class LudoMatchService {
     };
   }
 
-  /**
-   * An ability cast with a die already pending can leave that die with no
-   * legal move at all (it moved the only movable pawn), which hands the turn
-   * on. Casting never buys the caster more time, so the clock only restarts
-   * when the turn actually passes. Returns whether it did - the caller must
-   * then reschedule the deadline, since the old seq is now stale.
-   */
+  // Casting never buys more time: the clock restarts only if the turn passed, and then the caller must reschedule.
   private settleAbilityTurn(match: LudoMatchState, userId: string): boolean {
     if (match.stage !== 'move') {
       return false;
@@ -812,7 +769,6 @@ export class LudoMatchService {
     };
   }
 
-  /** Hand the turn to the next non-eliminated player, fresh roll stage. */
   private passTurn(match: LudoMatchState): void {
     const colors = match.players.map(p => p.color);
     const current = this.colorOf(match, match.turnUserId);
@@ -824,10 +780,6 @@ export class LudoMatchService {
     match.movable = [];
   }
 
-  /**
-   * Remove a player from play. Returns the winner's userId when this leaves
-   * exactly one player standing (and ends the match), else null.
-   */
   private eliminate(
     match: LudoMatchState,
     userId: string,

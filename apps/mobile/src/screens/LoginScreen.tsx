@@ -120,7 +120,6 @@ export default function LoginScreen(_props: Props) {
           <Text style={styles.wordmark}>kombat</Text>
         </View>
 
-        {/* Headline + CTA pushed to the lower third. */}
         <View style={styles.footer}>
           <Text style={styles.headline}>
             Play.{'\n'}Compete.{'\n'}
@@ -339,7 +338,6 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xxl,
     paddingBottom: spacing.xl,
   },
-  // The web's lockup ratios: wordmark 0.88x the mark's height, gap 0.25x.
   logoStack: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -496,8 +494,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    // stretch, not height '100%': the row centres its children, which would
-    // otherwise leave the field only as tall as its text and hard to hit.
+    // stretch, not height '100%': the row centres its children, which would leave the field only as tall as its text.
     alignSelf: 'stretch',
     fontFamily: mono.medium,
     fontSize: 16,

@@ -1,15 +1,16 @@
-# @gaming-platform/lobby-bots
+# apps/lobby-bots
 
-Bot accounts that keep the lobby from looking empty. They hold it at
-`BOTS_MIN_OPEN_ROOMS` open rooms, join a room a real player has been sitting in
-for 20-30 seconds, and play the match out. They talk to the server as ordinary
-clients over the public API and sockets - the only server-side support is the
-`is_bot` mark that keeps them out of the rankings.
+A standalone runner for bot accounts that keep the lobby from looking empty.
+Bots host rooms, join rooms a real player has been waiting in, and play the
+match out. They talk to the server as ordinary clients over the public REST
+API and socket.io; the only server-side support is the `is_bot` flag (which
+keeps them out of the rankings) and a bot login route.
 
-## Running it locally
+## Running it
 
-**1. The accounts have to exist first.** The roster lives in
-`packages/core/src/players/bot-accounts.ts` and the server creates it:
+**1. Seed the accounts.** The roster is defined in
+`packages/core/src/players/bot-accounts.ts`, and the server creates it through
+the admin API (`ADMIN_TOKEN` must be set on the server):
 
 ```bash
 curl -X POST http://localhost:3000/api/v1/admin/bots/seed \
@@ -18,74 +19,73 @@ curl -X POST http://localhost:3000/api/v1/admin/bots/seed \
   -d '{"count":20}'
 ```
 
-Idempotent: re-running adds nothing. Each account gets an email, a username,
-`is_bot`, and one custodial wallet. It never mints an ENS name and never
-renames anyone - a username already held by someone else comes back as
-`skipped`.
+Seeding is idempotent. Each account gets an email, a username, the `is_bot`
+flag and one custodial wallet. A username already taken by someone else is
+reported as `skipped`.
 
-**2. Set the shared secret.** The runner signs in at
-`POST /authentication/bot-login` with a roster username and `BOTS_SECRET`,
-which must match the server's `BOT_SECRET` (16 chars minimum, or the route is
-refused as unsecured). This works in production - there is no `NODE_ENV`
-requirement.
+**2. Share the secret.** Set `BOT_SECRET` on the server (16 characters
+minimum) and the same value as `BOTS_SECRET` here. The runner signs in at
+`POST /api/v1/authentication/bot-login` with a roster username and that
+secret. The route only accepts accounts flagged `is_bot` and creates nothing,
+so the secret cannot be used to sign in as a real player.
 
-The route reaches `is_bot` accounts only and creates nothing, so the secret is
-not a master key: presenting it for a real player's username is refused, and
-so is a roster name that was never seeded. The runner additionally checks the
-username it gets back matches the account it asked for.
-
-**3. Run it.** The whole stack (databases, server, webgames, bots) comes up
-with one command from the repo root:
+**3. Run.**
 
 ```bash
-docker compose up -d --build
+cp apps/lobby-bots/.env.example apps/lobby-bots/.env
+npm run bots                 # from the repo root (tsx src/main.ts)
 ```
 
-Or run just this service, on the host:
-
-```bash
-npm run bots
-```
-
-or in Docker, from the repo root (the image needs the whole workspace, since
-the runner consumes `@gaming-platform/core` from its build):
+It also runs as part of the root `docker compose up -d --build`, or on its
+own from an image built at the repo root:
 
 ```bash
 docker build -f apps/lobby-bots/Dockerfile -t kombat-lobby-bots .
 docker run --rm --add-host=host.docker.internal:host-gateway \
-  -e BOTS_COUNT=20 -e BOTS_SECRET="$BOT_SECRET" kombat-lobby-bots
+  -e BOTS_SECRET="$BOT_SECRET" kombat-lobby-bots
 ```
 
-The image ships no `.env`; every knob is an environment variable, and
-`BOTS_SERVER_URL` defaults to `http://host.docker.internal:3000` so the
-container reaches an API running on the host.
+In the image, `BOTS_SERVER_URL` defaults to `http://host.docker.internal:3000`.
 
-Stop a host runner with `pkill -f "tsx src/main.ts"` - the process name is
-`tsx`, not something matching "lobby-bots".
+Workspace scripts: `dev`, `build`, `start`, `typecheck`, `test`.
 
 ## Configuration
 
-See `.env.example`. The ones worth knowing:
-
-| Key | Default | |
+| Variable | Default | Meaning |
 | --- | --- | --- |
 | `BOTS_SERVER_URL` | `http://localhost:3000` | API and socket origin |
-| `BOTS_SECRET` | - | must equal the server's `BOT_SECRET` |
-| `BOTS_COUNT` | 10 | how many of the roster to run |
-| `BOTS_JOIN_DELAY_MS_MIN/MAX` | 20000 / 30000 | how long a room must sit unanswered |
-| `BOTS_MIN_OPEN_ROOMS` | 4 | the lobby floor bots defend |
-| `BOTS_GAME_MIX` | `NavalBattle:0.3,Ludo:0.3,TripleCut:0.2,Salvo:0.2` | what they host |
-| `BOTS_STAKES_ENABLED` | true | may join staked rooms |
-| `BOTS_STAKE_ASSETS` | `Kombat` | the only asset they will stake |
+| `BOTS_SECRET` | none | Must equal the server's `BOT_SECRET` |
+| `BOTS_COUNT` | 10 | How many roster accounts to run |
+| `BOTS_GAME_MIX` | `NavalBattle:0.3,Ludo:0.3,TripleCut:0.2,Salvo:0.2` | Weighted mix of games the bots host |
+| `BOTS_MIN_OPEN_ROOMS` | 4 | Open lobby rooms the bots keep available |
+| `BOTS_MAX_HOSTED_ROOMS`, `BOTS_MAX_ROOMS_PER_GAME` | 4, 2 | Caps on bot-hosted rooms |
+| `BOTS_JOIN_DELAY_MS_MIN/MAX` | 20000 / 30000 | How long a player's room waits before a bot joins |
+| `BOTS_STAKES_ENABLED`, `BOTS_STAKE_ASSETS` | `true`, `Kombat` | Whether bots match staked rooms, and in which assets |
+| `BOTS_LOG_LEVEL` | `info` | `debug` for verbose logs |
 
-## What they will not do
+Pacing knobs (`BOTS_SEAT_FILL_*`, `BOTS_EARLY_START_*`, `BOTS_CONCEDE_DELAY_MS_*`,
+`BOTS_HOSTED_ROOM_TTL_MS_*`, and per-game think times such as
+`BOTS_LUDO_ROLL_MS_*`) are listed with their defaults in `.env.example`.
 
-- **Join another bot's room.** Hosts are matched against the roster in core,
-  not just this process's own account ids, so a second runner or an older
-  roster is still recognised. A host that cannot be resolved is never joined.
-- **Create a staked room.** Bots only ever match a stake a player chose, and
-  only after checking their settled pot balance covers it.
-- **Lose on the clock while "thinking".** Every pause is clamped to leave eight
+## Behaviour
+
+- **Drivers** exist for Battleships, Ludo Royale, Triple Cut and Salvo, using
+  the bot policies from `@gaming-platform/core`. Rooms of any other game are
+  left alone.
+- **Joining.** A bot takes one seat in a player's room only after it has sat
+  unanswered for the join delay. Room hosts are classified against the whole
+  roster, not only this process's accounts, so bots do not answer each
+  other's rooms through this path.
+- **Filling multi-seat rooms.** Ludo rooms a bot hosts or has joined get
+  further bot seats on a slower schedule, and the host sometimes starts
+  early, so tables fill the way they would with people.
+  When every seat in a match is a bot from this process, one deterministic
+  winner is picked and the others concede after a short delay; a match with a
+  human in it is always played for real.
+- **Stakes.** Bots never create a staked room. They only match a stake a
+  player chose, in an allowed asset, after checking their settled pot balance
+  covers it.
+- **Clock safety.** Every thinking pause is clamped to finish at least eight
   seconds before the turn deadline.
-- **Play anything without a driver.** Only Battleship and Ludo have bot
-  policies in core; a room of any other type is left alone.
+- Stop a host runner with `pkill -f "tsx src/main.ts"` (the process is named
+  `tsx`).

@@ -29,9 +29,7 @@ const NATIVE_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
 
 const MAX_UINT256 = 2n ** 256n - 1n;
 
-/** A decoded `Withdrawn` event. */
 export type PotWithdrawal = {
-  /** The uuid form, or null when the id was not minted by this server. */
   withdrawalId: string | null;
   to: Address;
   asset: StakeAsset;
@@ -40,7 +38,6 @@ export type PotWithdrawal = {
   logIndex: number;
 };
 
-/** A decoded `Staked` event, resolved to the platform's own asset enum. */
 export type StakedDeposit = {
   beneficiary: Address;
   asset: StakeAsset;
@@ -50,27 +47,18 @@ export type StakedDeposit = {
   blockNumber: bigint;
 };
 
-/**
- * All on-chain access for the stake pot. Narrow by design: the server never
- * signs a deposit (the player's device does) and there is no per-user on-chain
- * state to read. Enabled only when the pot env group is fully configured.
- */
 @Injectable()
 export class StakePotChainService {
   private readonly logger = new Logger(StakePotChainService.name);
 
   readonly enabled: boolean;
-  // Inferred client type - annotating viem's generic PublicClient directly
-  // trips its structural-generics mismatch.
+  // Inferred: annotating viem's PublicClient directly trips its structural-generics mismatch.
   private publicClient!: ReturnType<StakePotChainService['makePublicClient']>;
   private operatorAccount!: PrivateKeyAccount;
   private pot!: Address;
   private chain!: Chain;
   private tokens!: Partial<Record<StakeAsset, Address>>;
-  /** Reverse of `tokens`, lowercased - deposit events name a token address. */
   private assetByAddress!: Map<string, StakeAsset>;
-  /** Signup-grant signer. Separate from the operator so its blast radius is a
-   *  small KC float, not the pot. Undefined when FAUCET_KEY is unset. */
   private faucetAccount?: PrivateKeyAccount;
 
   constructor(
@@ -128,7 +116,6 @@ export class StakePotChainService {
     return this.pot;
   }
 
-  /** Whether this asset has a token on the configured chain. */
   hasToken(asset: StakeAsset): boolean {
     return this.tokens[asset] !== undefined;
   }
@@ -143,15 +130,11 @@ export class StakePotChainService {
     return token;
   }
 
-  /** The withdrawal row's uuid as the contract's bytes32 id. */
   withdrawalIdToBytes32(id: string): Hex {
     return padHex(`0x${id.replace(/-/g, '')}`, { size: 32 });
   }
 
-  /**
-   * Inverse of `withdrawalIdToBytes32`, or null when the id cannot have come
-   * from a withdrawal row - the owner picks its own ids when sweeping directly.
-   */
+  // Null when the id can't be a withdrawal row: the owner picks its own ids when sweeping.
   bytes32ToWithdrawalId(value: Hex): string | null {
     const hex = value.slice(2).toLowerCase();
     if (hex.length !== 64 || !/^0{32}[0-9a-f]{32}$/.test(hex)) {
@@ -167,14 +150,10 @@ export class StakePotChainService {
     ].join('-');
   }
 
-  // ---- reads ---------------------------------------------------------------
-
   getLatestBlock(): Promise<bigint> {
     return this.publicClient.getBlockNumber();
   }
 
-  /** Decoded `Staked` events in an inclusive block range. Unrecognised tokens
-   *  are dropped with a warning; reconciliation surfaces the drift. */
   async getDeposits(fromBlock: bigint, toBlock: bigint): Promise<StakedDeposit[]> {
     const logs = await this.publicClient.getContractEvents({
       address: this.pot,
@@ -210,10 +189,6 @@ export class StakePotChainService {
     return deposits;
   }
 
-  /**
-   * Decoded `Withdrawn` events in an inclusive block range. Covers both the
-   * operator's payouts and the owner's direct sweeps - they are the same event.
-   */
   async getWithdrawals(
     fromBlock: bigint,
     toBlock: bigint,
@@ -254,8 +229,6 @@ export class StakePotChainService {
     return withdrawals;
   }
 
-  /** The sweeper's answer to "did my transaction land before I crashed?" -
-   *  cheaper and more reliable than hunting for a receipt. */
   isWithdrawalProcessed(withdrawalId: string): Promise<boolean> {
     return this.publicClient.readContract({
       address: this.pot,
@@ -265,7 +238,6 @@ export class StakePotChainService {
     });
   }
 
-  /** Pooled holdings for one asset - the chain side of reconciliation. */
   getHoldings(asset: StakeAsset): Promise<bigint> {
     return this.publicClient.readContract({
       address: this.pot,
@@ -275,15 +247,6 @@ export class StakePotChainService {
     });
   }
 
-  isPaused(): Promise<boolean> {
-    return this.publicClient.readContract({
-      address: this.pot,
-      abi: STAKE_POT_ABI,
-      functionName: 'paused',
-    });
-  }
-
-  /** Receipt status for a tx the sweeper already sent, or null if not mined. */
   async getTransactionStatus(
     hash: Hex,
   ): Promise<'success' | 'reverted' | null> {
@@ -291,16 +254,11 @@ export class StakePotChainService {
       const receipt = await this.publicClient.getTransactionReceipt({ hash });
       return receipt.status;
     } catch {
-      // Not mined yet (or dropped) - the caller falls back to the contract's
-      // own idempotency record, which is authoritative either way.
+      // Not mined yet (or dropped); the contract's idempotency record is authoritative either way.
       return null;
     }
   }
 
-  // ---- writes --------------------------------------------------------------
-
-  /** Runs under the shared operator lock, so pot payouts and any remaining
-   *  other operator traffic stay on one nonce stream. */
   async withdrawTo(args: {
     withdrawalId: string;
     to: Address;
@@ -342,8 +300,6 @@ export class StakePotChainService {
     );
   }
 
-  // ---- signup faucet -------------------------------------------------------
-
   get faucetEnabled(): boolean {
     return this.enabled && this.faucetAccount !== undefined;
   }
@@ -352,16 +308,7 @@ export class StakePotChainService {
     return this.faucetAccount?.address;
   }
 
-  /**
-   * Pay a grant straight into `beneficiary`'s pot, signed by the faucet wallet.
-   *
-   * The faucet writes no balances itself: this emits the ordinary `Staked`
-   * event, so the watcher credits it exactly like a player's own deposit,
-   * idempotency and reconciliation included.
-   *
-   * Not under the operator lock - a different signer means a separate nonce
-   * stream, so it cannot collide with pot payouts.
-   */
+  // Not under the operator lock: a different signer has its own nonce stream.
   async grantIntoPot(args: {
     beneficiary: Address;
     asset: StakeAsset;
@@ -383,8 +330,7 @@ export class StakePotChainService {
 
     await this.ensureFaucetAllowance(client, account, token, args.amount);
 
-    // No receipt wait: the claim endpoint returns the hash immediately and
-    // the deposit watcher credits the pot when the Staked event lands.
+    // No receipt wait: the watcher credits the pot when the Staked event lands.
     return client.writeContract({
       address: this.pot,
       abi: STAKE_POT_ABI,
@@ -395,7 +341,6 @@ export class StakePotChainService {
     });
   }
 
-  /** Faucet token float, so an empty faucet can be reported before it bites. */
   faucetBalance(asset: StakeAsset): Promise<bigint> {
     const account = this.faucetAccount;
     if (!account) {
@@ -409,7 +354,6 @@ export class StakePotChainService {
     });
   }
 
-  /** One-time unlimited approval from the faucet to the pot, per token. */
   private async ensureFaucetAllowance(
     client: ReturnType<typeof createWalletClient>,
     account: PrivateKeyAccount,
@@ -437,8 +381,7 @@ export class StakePotChainService {
     this.logger.log(`Faucet approved the pot for ${token} (tx ${hash})`);
   }
 
-  /** The contract refusing a replay is not a failure: the original payout
-   *  already happened, so the caller should confirm. */
+  // A replay refusal is not a failure: the original payout already happened.
   isAlreadyProcessedError(error: unknown): boolean {
     if (error instanceof BaseError) {
       const revert = error.walk(
@@ -451,8 +394,7 @@ export class StakePotChainService {
         return true;
       }
     }
-    // Simulation happens before the send, so the revert can also surface as a
-    // plain message from the node.
+    // Simulation happens before the send, so the revert can surface as a plain node message.
     const message = error instanceof Error ? error.message : String(error);
     return message.includes(ALREADY_PROCESSED_ERROR);
   }

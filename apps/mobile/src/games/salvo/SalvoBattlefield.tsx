@@ -31,40 +31,25 @@ import SalvoTank from './SalvoTank';
 import type { SalvoDamageEvent, SalvoSeatView } from './salvo-engine';
 
 export type SalvoBattlefieldProps = {
-  /** Full world size in px - wider than the viewport it scrolls inside. */
   width: number;
   height: number;
   terrain: SalvoTerrain;
   tanks: SalvoSeatView[];
-  /** Arc to draw dashed behind the shell: the last resolved or in-flight shot. */
   trajectory: SalvoPoint[] | null;
-  /** Whose shot the arc belongs to - mine reads in accent, theirs in steel. */
   trajectorySide: SalvoSide | null;
-  /** Where the shell is right now while a shot plays out. */
   shell: SalvoPoint | null;
-  /** Landing point of the last resolved shot, ringed like the design. */
   impact: SalvoPoint | null;
-  /** Ring the tank a shell is inbound on. */
   incomingOn: SalvoSide | null;
-  /** Whoever is lining up a shot gets tick marks off the barrel. */
   aimingSide: SalvoSide | null;
-  /** Identifies the landed shot, so a new impact fires a fresh blast. */
   impactId: number | null;
-  /** Hull destroyed this match: burns with a bigger, slower blast. */
   destroyedSide: SalvoSide | null;
-  /** Damage from the shot that just landed, floated over the hull that took it. */
   damage: SalvoDamageEvent | null;
-  /** Tank whose barrel may be dragged to aim, or null when aiming is locked. */
   draggableSide: SalvoSide | null;
-  /** Fired with the elevation the drag is pointing at, already clamped. */
   onAimAngle: (angle: number) => void;
 };
 
-/** Touch target around the muzzle, in points. Generous enough to grab with a
- *  thumb without swallowing the drags that scroll the map. */
 const AIM_HANDLE = 150;
 
-/** The design's parallax ridges, authored against its 328x340 battlefield box. */
 const BACK_RIDGES = [
   { path: 'M0,116 C44,96 84,126 132,108 C182,90 220,120 268,104 C296,95 314,110 328,102', fill: '#0e1220', opacity: 0.5 },
   { path: 'M0,164 C40,148 78,176 126,160 C176,143 214,170 262,156 C294,147 312,162 328,154', fill: '#0c1019', opacity: 0.6 },
@@ -72,19 +57,12 @@ const BACK_RIDGES = [
 const FRONT_RIDGE =
   'M0,308 C40,300 70,316 108,312 C150,308 172,286 210,296 C254,308 290,318 328,310';
 
-/** Static star field, matching the three specks in the design. */
 const STARS = [
   { x: 44, y: 34, o: 0.45 },
   { x: 206, y: 22, o: 0.3 },
   { x: 268, y: 58, o: 0.38 },
 ];
 
-/**
- * The Salvo playfield: sky gradient, the design's parallax ridges, the live
- * destructible terrain, both tanks and the shell's dashed arc. Authored in the
- * design's 328x340 terrain space and scaled uniformly into a world wider than
- * the screen, so the caller can scroll a camera across it.
- */
 export default function SalvoBattlefield({
   width,
   height,
@@ -102,14 +80,12 @@ export default function SalvoBattlefield({
   draggableSide,
   onAimAngle,
 }: SalvoBattlefieldProps) {
-  // Gameplay scales uniformly, so a 45-degree barrel throws a 45-degree arc.
-  // The parallax backdrop is decorative and simply stretches to fill instead.
+  // Gameplay scales uniformly so a 45-degree barrel throws a 45-degree arc; the decorative backdrop just stretches.
   const sx = width / SALVO_FIELD_WIDTH;
   const sy = height / SALVO_FIELD_HEIGHT;
   const arcColor =
     trajectorySide === SalvoSide.Right ? colors.salvoEnemy : colors.accent;
 
-  /** Terrain space is y-up from the bottom; screen space is y-down from the top. */
   const px = (x: number) => x * sx;
   const py = (y: number) => height - y * sx;
 
@@ -126,7 +102,6 @@ export default function SalvoBattlefield({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [terrain, width, height]);
 
-  /** The lit rim the design draws along the top of the playable ground. */
   const rimPath = useMemo(() => {
     const p = Skia.Path.Make();
     p.moveTo(0, py(terrain.heights[0] ?? 0));
@@ -150,7 +125,6 @@ export default function SalvoBattlefield({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trajectory, width, height]);
 
-  /** Ridge paths are authored against the 328x340 box, so scale as a group. */
   const decor = useMemo(() => {
     const make = (d: string) => Skia.Path.MakeFromSVGString(d) ?? Skia.Path.Make();
     return {
@@ -159,8 +133,7 @@ export default function SalvoBattlefield({
     };
   }, []);
 
-  // PanResponder is built once, so its handlers read the latest props through
-  // refs instead of the ones captured on the first render.
+  // PanResponder is built once, so its handlers read the latest props through refs.
   const dragger = draggableSide === null
     ? null
     : (tanks.find(t => t.side === draggableSide) ?? null);
@@ -171,8 +144,7 @@ export default function SalvoBattlefield({
 
   const pan = useRef(
     PanResponder.create({
-      // Claiming the touch only when a barrel is grabbable leaves every other
-      // drag to the horizontal ScrollView that pans the map.
+      // Claim the touch only when a barrel is grabbable, leaving every other drag to the ScrollView that pans the map.
       onStartShouldSetPanResponder: () => draggerRef.current !== null,
       onMoveShouldSetPanResponder: () => draggerRef.current !== null,
       // Once aiming has begun the ScrollView must not steal the gesture.
@@ -182,14 +154,12 @@ export default function SalvoBattlefield({
     }),
   ).current;
 
-  /** Turn a touch inside the handle into an elevation off the muzzle. */
   function aimAt(locationX: number, locationY: number) {
     const t = draggerRef.current;
     if (!t) {
       return;
     }
     const dx = locationX - AIM_HANDLE / 2;
-    // Screen y grows downward, so lifting the finger raises the barrel.
     const dy = AIM_HANDLE / 2 - locationY;
     const forward = t.side === SalvoSide.Left ? dx : -dx;
     const deg = (Math.atan2(dy, Math.max(forward, 0.001)) * 180) / Math.PI;
@@ -206,15 +176,12 @@ export default function SalvoBattlefield({
       })
     : null;
 
-  // Blasts tick from JS, like the shell flight, because Reanimated's
-  // withTiming does not drive these Skia nodes in this app.
   const impactProgress = useBlastProgress(impactId, 620);
   const wreckProgress = useBlastProgress(destroyedSide, 1500);
 
   const wreck =
     destroyedSide === null ? null : (tanks.find(t => t.side === destroyedSide) ?? null);
 
-  // Floating "-12" over each hull that just lost HP.
   const damageProgress = useBlastProgress(damage?.id ?? null, 1100);
 
   const aimer = aimingSide === null ? null : tanks.find(t => t.side === aimingSide);
@@ -250,14 +217,12 @@ export default function SalvoBattlefield({
           />
         ))}
 
-        {/* Parallax ridges, drawn in the design's own coordinate space. */}
         <Group transform={[{ scaleX: sx }, { scaleY: sy }]}>
           {decor.back.map(r => (
             <Path key={r.fill} path={r.path} color={r.fill} opacity={r.opacity} />
           ))}
         </Group>
 
-        {/* Live, destructible ground. */}
         <Path path={groundPath} color={colors.salvoTerrain} />
         <Path
           path={rimPath}
@@ -267,7 +232,6 @@ export default function SalvoBattlefield({
           opacity={0.75}
         />
 
-        {/* Foreground ridge sits in front of the ground, per the design. */}
         <Group transform={[{ scaleX: sx }, { scaleY: sy }]}>
           <Path path={decor.front} color="#080910" opacity={0.55} />
         </Group>
@@ -285,7 +249,6 @@ export default function SalvoBattlefield({
           </Path>
         )}
 
-        {/* Grab ring: shows the barrel is draggable while aiming is live. */}
         {dragMuzzle && (
           <Circle
             cx={px(dragMuzzle.x)}
@@ -300,7 +263,6 @@ export default function SalvoBattlefield({
           </Circle>
         )}
 
-        {/* Aim ticks marching out of the barrel of whoever is lining up. */}
         {guide?.map((p, i) => (
           <Circle
             key={i}
@@ -327,7 +289,6 @@ export default function SalvoBattlefield({
           </Group>
         )}
 
-        {/* Incoming ring around the tank under fire. */}
         {incomingOn !== null &&
           (() => {
             const t = tanks.find(s => s.side === incomingOn);
@@ -347,7 +308,6 @@ export default function SalvoBattlefield({
             );
           })()}
 
-        {/* Shell going off where it landed. */}
         {impact && impactProgress !== null && (
           <SalvoBlast
             cx={px(impact.x)}
@@ -357,7 +317,6 @@ export default function SalvoBattlefield({
           />
         )}
 
-        {/* The kill: a bigger, slower blast over the wreck. */}
         {wreck && wreckProgress !== null && (
           <SalvoBlast
             cx={px(wreck.x)}
@@ -381,7 +340,6 @@ export default function SalvoBattlefield({
             if (!tank) {
               return null;
             }
-            // Drift up and fade out over the life of the popup.
             const rise = 26 + damageProgress * 26;
             return (
               <Text
@@ -392,7 +350,6 @@ export default function SalvoBattlefield({
                     left: px(tank.x) - 40,
                     top: py(groundAt(terrain, tank.x)) - rise,
                     opacity: Math.min(1, (1 - damageProgress) * 2.2),
-                    // A hull strike reads louder than splash.
                     fontSize: hit.kind === 'splash' ? 13 : 17,
                   },
                 ]}
@@ -416,7 +373,6 @@ export default function SalvoBattlefield({
         />
       ))}
 
-      {/* Drag anywhere in this patch around your own muzzle to set elevation. */}
       {dragMuzzle && (
         <View
           {...pan.panHandlers}
@@ -433,10 +389,6 @@ export default function SalvoBattlefield({
   );
 }
 
-/**
- * Run 0 -> 1 over `duration` whenever `key` changes to a new non-null value,
- * then hold at 1. Returns null while there is nothing to draw.
- */
 function useBlastProgress(key: number | null, duration: number): number | null {
   const [progress, setProgress] = useState<number | null>(null);
 
@@ -462,7 +414,6 @@ function useBlastProgress(key: number | null, duration: number): number | null {
   return progress;
 }
 
-/** Close a ridge stroke down to the bottom of the design's 340-tall box. */
 const closedRidge = (path: ReturnType<typeof Skia.Path.Make>) => {
   path.lineTo(SALVO_FIELD_WIDTH, SALVO_FIELD_HEIGHT);
   path.lineTo(0, SALVO_FIELD_HEIGHT);
@@ -478,7 +429,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: mono.bold,
     color: colors.danger,
-    // Keeps the red readable over the lit terrain rim.
     textShadowColor: 'rgba(0, 0, 0, 0.85)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,

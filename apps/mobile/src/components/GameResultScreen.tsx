@@ -19,35 +19,25 @@ export type ResultVariant = 'win' | 'lose';
 export type ResultStat = {
   value: string;
   label: string;
-  /** Render the value in the variant's accent color (e.g. hits, ships sunk). */
   highlight?: boolean;
 };
 
 export type ResultOpponent = {
-  /** Single-letter avatar. */
   initial: string;
-  /** e.g. "DEFEATED" / "LOST TO". */
   label: string;
   name: string;
 };
 
 type Props = {
   variant: ResultVariant;
-  /** Hero glyph in the ring. */
   icon: IconName;
-  /** Small uppercase kicker, e.g. "FLEET DESTROYED". */
   eyebrow: string;
-  /** Big title, e.g. "VICTORY". */
   title: string;
-  /** Supporting sentence under the title. */
   message: string;
   opponent?: ResultOpponent;
-  /** Exactly four reads well in the 2x2 grid, but any count wraps. */
   stats: ResultStat[];
-  /** Primary action - the "Back" button. */
   onBack: () => void;
   backLabel?: string;
-  /** Optional secondary actions (rendered only when provided). */
   onHome?: () => void;
   onShare?: () => void;
 };
@@ -56,7 +46,6 @@ type Theme = {
   accent: string;
   glow: [string, string];
   gradient: { colors: readonly string[]; positions: readonly number[] };
-  /** Text/icon color that sits on the primary button gradient. */
   onGradient: string;
 };
 
@@ -75,11 +64,6 @@ const THEME: Record<ResultVariant, Theme> = {
   },
 };
 
-/**
- * Generic end-of-match result screen (win or lose), reusable across games.
- * The calling game supplies the copy, opponent, stats and rank data; this
- * component owns the layout and the win/lose theming.
- */
 export default function GameResultScreen({
   variant,
   icon,
@@ -211,7 +195,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: spacing.sm,
     marginBottom: spacing.md,
-    // Soft glow around the ring (iOS).
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.7,
     shadowRadius: 20,

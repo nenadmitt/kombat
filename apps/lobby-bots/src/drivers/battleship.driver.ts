@@ -17,12 +17,7 @@ import { pauseFor, sleep } from '../bot/pacing';
 import { gameChannel, once, type DriverContext, type DriverResult } from './driver';
 import { joinChannel } from '../net/socket';
 
-/**
- * chooseAim reads the *defender's* fleet to know which hits belong to a ship
- * that is already sunk. A networked player only ever learns the ships that
- * have sunk, so feeding it those alone leaves every hit on a still-floating
- * ship looking "active" - which is exactly the trail the hunt should follow.
- */
+// Only sunk ships are ever revealed, so hits on still-floating ships stay "active" for chooseAim to hunt.
 function syntheticFleet(revealed: RevealedShip[]): FleetPlacements {
   return Object.fromEntries(revealed.map(ship => [ship.id, ship.placement]));
 }
@@ -92,8 +87,7 @@ export async function playBattleship(
     local.over = true;
   });
 
-  // The gateway answers a refused action here and nowhere else (no acks), so
-  // an error means our view is stale rather than that the action was illegal.
+  // The gateway has no acks and reports a refused action only here, which means our view is stale.
   let resyncWanted = false;
   onReconnect(() => {
     joinChannel(socket, gameChannel(roomId));
@@ -127,7 +121,6 @@ export async function playBattleship(
     }
 
     if (local.turnUserId !== myUserId) {
-      // Any of these can end the wait; the timeout re-checks a missed event.
       await Promise.race([
         once(socket, BATTLESHIP_EVENTS.shot, signal, 5_000),
         once(socket, BATTLESHIP_EVENTS.turnTimeout, signal, 5_000),
@@ -149,8 +142,7 @@ export async function playBattleship(
       applyState(await api.getBattleshipRoomState(roomId));
       continue;
     }
-    // Single shots only: power-ups make the bots harder to beat, which is the
-    // opposite of the point.
+    // Single shots only: power-ups would make bots harder to beat.
     socket.emit(BATTLESHIP_EVENTS.fire, {
       roomId,
       kind: 'single',

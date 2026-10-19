@@ -36,7 +36,7 @@ export function AbilityIcon({ id, size = 22 }: { id: AbilityId; size?: number })
 export type Ability = {
   id: AbilityId;
   label: string;
-  /** Cost in half-points, the unit the engines keep charge in. */
+  /** In half-points. */
   costHp: number;
   maxUses: number;
   blurb: string;
@@ -137,8 +137,6 @@ export const HELP_TEXT =
 
 const SEGMENTS = CHARGE_MAX_HP / 2;
 
-/** The charge meter, one segment per point; an odd half-point half-fills its
- *  segment. Shared by the rail panel and the modal. */
 export function ChargeTrack({ chargeHp }: { chargeHp: number }) {
   return (
     <div className="charge-track">
@@ -160,16 +158,13 @@ export function ChargeTrack({ chargeHp }: { chargeHp: number }) {
 }
 
 type Props = {
-  /** Charge in half-points; the bar shows it as points. */
+  /** Half-points; the bar shows points. */
   chargeHp: number;
   armed: AbilityId | null;
-  /** Abilities are a turn action, so the button closes off-turn. */
   disabled: boolean;
   onOpenAbilities: () => void;
 };
 
-/** Charge meter plus the Abilities button. The cards themselves live in the
- *  modal the button opens. */
 export function LudoAbilityBar({
   chargeHp,
   armed,

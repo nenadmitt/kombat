@@ -8,7 +8,6 @@ export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
 
 type WebsocketState = {
   status: ConnectionStatus;
-  /** Set when the server closed the socket and will not retry on its own. */
   kicked: boolean;
   connect: () => void;
   disconnect: () => void;
@@ -21,8 +20,7 @@ type WebsocketState = {
 
 let socket: Socket | null = null;
 
-// socket.io room membership lives in the server's memory, so any reconnect
-// drops every subscription. The connect handler replays these.
+// socket.io room membership is server memory, so the connect handler replays these.
 const joinedChannels = new Set<string>();
 
 export const useWebsocketStore = create<WebsocketState>((set, get) => ({
@@ -34,8 +32,7 @@ export const useWebsocketStore = create<WebsocketState>((set, get) => ({
 
     set({ status: 'connecting', kicked: false });
     const client = io(env.apiBaseUrl, {
-      // Callback form: re-read on every attempt, so a reconnect after a
-      // refresh carries the new token rather than the one captured here.
+      // Callback form so a reconnect after a refresh carries the new token.
       auth: cb => cb({ token: sessionStorage.read()?.accessToken }),
       transports: ['websocket'],
     });
@@ -47,8 +44,7 @@ export const useWebsocketStore = create<WebsocketState>((set, get) => ({
       set({ status: 'connected', kicked: false });
     });
     client.on('disconnect', reason => {
-      // socket.io does not retry a server-side disconnect, so this one is
-      // terminal until something re-opens the connection.
+      // socket.io does not retry a server-side disconnect.
       set({
         status: 'disconnected',
         kicked: reason === 'io server disconnect',

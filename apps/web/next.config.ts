@@ -2,9 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  // npm hoists connectkit to the repo root but nests wagmi in this workspace
-  // (its state deps conflict with the mobile app's), so connectkit can't
-  // resolve wagmi on its own. Point everyone at this workspace's copy.
+  // npm hoists connectkit to the root but nests wagmi here, so point everyone at this workspace's copy.
   turbopack: {
     resolveAlias: {
       wagmi: "./node_modules/wagmi",
@@ -15,8 +13,7 @@ const nextConfig: NextConfig = {
     },
   },
   // Next 16 only serves qualities declared here; PhoneFrame asks for 92.
-  // Optimized screenshots never change without a filename change, so let
-  // browsers and the CDN keep them for a year.
+  // Screenshots change only with their filename, so cache them for a year.
   images: { qualities: [75, 92], minimumCacheTTL: 31536000 },
   async headers() {
     return [

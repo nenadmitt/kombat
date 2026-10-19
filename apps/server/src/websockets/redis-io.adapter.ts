@@ -6,16 +6,7 @@ import type { ServerOptions } from 'socket.io';
 
 import { INSTANCE_ID } from '../instance-id';
 
-/**
- * socket.io adapter backed by Redis pub/sub, so broadcasts reach sockets
- * connected to other server instances. Without it, socket.io tracks rooms in
- * process memory and an emit from instance 1 never reaches a socket on
- * instance 2.
- *
- * `connect()` must resolve before the app starts listening. It uses its own
- * two Redis connections (pub + sub) - the cache store's client can't be
- * reused because a subscribing connection is locked out of regular commands.
- */
+// Own pub/sub connections: a subscribing Redis connection is locked out of regular commands.
 export class RedisIoAdapter extends IoAdapter {
   private adapterConstructor?: ReturnType<typeof createAdapter>;
 
@@ -50,9 +41,7 @@ export class RedisIoAdapter extends IoAdapter {
   }
 }
 
-/** Live adapter status, surfaced by the health probes. The cache client and
- *  these pub/sub clients connect independently, so cache health says nothing
- *  about whether cross-instance delivery works. */
+// These clients connect independently of the cache client, so cache health says nothing about delivery.
 export const adapterState: {
   mode: 'memory' | 'redis';
   pub: string;
@@ -66,8 +55,7 @@ function watch(client: Redis, role: 'pub' | 'sub', logger: Logger): void {
       logger.log(`redis ${role}: ${event}`);
     });
   }
-  // ioredis emits 'error' on every failed reconnect; without a listener it
-  // becomes an unhandled 'error' event and takes the process down.
+  // Without an 'error' listener, a failed ioredis reconnect crashes the process.
   client.on('error', (error: Error) => {
     adapterState[role] = `error: ${error.message}`;
     logger.error(`redis ${role} error: ${error.message}`);

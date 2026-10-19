@@ -24,24 +24,18 @@ const POWERUPS: PowerupDef[] = [
   { kind: 'bomb', icon: 'bomb', label: 'Bomb', blurb: '3×3 area blast' },
 ];
 
-// Amber "energy" gradient for the charge bar (distinct from the brand gradient).
 const CHARGE_GRADIENT = {
   colors: ['#f8cf5c', '#e0a015'],
   positions: [0.15, 0.85],
 } as const;
 
 type Props = {
-  /** Current charge points - earned by hitting enemy ships. */
   points: number;
-  /** Uses spent so far per power-up (each is capped at POWERUP_MAX_USES). */
   used: Record<PowerupKind, number>;
   armed: PowerupKind | null;
   onArm: (kind: PowerupKind) => void;
 };
 
-/** Power-ups with a charge bar. Each hit adds a point; each power-up has its
- *  own cost and a per-match use cap. A card is armable only while you can
- *  afford it and have uses left. */
 export default function PowerupBar({ points, used, armed, onArm }: Props) {
   const fill = Math.min(points / CHARGE_BAR_MAX, 1);
   const [showTip, setShowTip] = useState(false);

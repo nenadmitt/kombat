@@ -1,11 +1,5 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * "One wallet per account" was a count-then-insert in the service, which two
- * concurrent requests walk straight past. The database is the only place the
- * rule actually holds. Existing duplicates (dev artifacts of that race) are
- * resolved to the oldest row.
- */
 export class OneWalletPerUser1786000000000 implements MigrationInterface {
   name = 'OneWalletPerUser1786000000000';
 

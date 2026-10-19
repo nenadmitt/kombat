@@ -9,7 +9,6 @@ import styles from "./Footer.module.css";
 
 type Placeholder = {
   label: string;
-  /** What the visitor actually wants to know: when, and what holds until then. */
   body: string;
 };
 
@@ -98,8 +97,6 @@ function ComingSoon({
     closeBtn.current?.focus();
   }, []);
 
-  // Escape closes, Tab stays inside: a dialog you can tab out of leaves the
-  // keyboard on a page it is covering.
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
       if (event.key === "Escape") {

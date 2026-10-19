@@ -8,14 +8,7 @@ import { sessionStorage } from './session-storage';
 import { wagmiConfig } from './wagmi';
 import { useSessionStore } from '../store/session.store';
 
-/**
- * SIWE for ConnectKit's modal: connecting a wallet and signing in are one
- * flow the modal owns, so no screen asks for the signature itself.
- *
- * Unlike a client-verified setup, the server is the authority here - it
- * issues the nonce and returns the session the rest of the app runs on, so
- * `verifyMessage` is where our JWT is minted.
- */
+// The server issues the nonce and mints our JWT in `verifyMessage`.
 export const siweConfig: SIWEConfig = {
   getNonce: async () => (await apiClient.requestSiweNonce()).nonce,
 
@@ -40,12 +33,7 @@ export const siweConfig: SIWEConfig = {
     return true;
   },
 
-  /**
-   * A stored token alone is not a session: it has to belong to the wallet that
-   * is connected now, and the server has to have accepted it (a `user` on the
-   * store). Reporting "signed in" off a bare token is how the modal signs
-   * nobody in and the app sits on the sign-in screen.
-   */
+  // A bare token is not a session: it must match the connected wallet and be accepted by the server.
   getSession: async () => {
     const { address, chainId } = getAccount(wagmiConfig);
     if (!address || !chainId) return null;
@@ -60,14 +48,10 @@ export const siweConfig: SIWEConfig = {
     return true;
   },
 
-  // The server expires a nonce after 5 minutes, which is exactly ConnectKit's
-  // default refetch interval - a nonce fetched on mount can be dead by the
-  // time it is signed. Refetch well inside the window instead.
+  // The server expires nonces after 5 minutes, ConnectKit's default refetch interval, so refetch sooner.
   nonceRefetchInterval: 1000 * 60 * 3,
 
-  // Our session is a server JWT that outlives the wallet connection: a wallet
-  // that drops (or has not reconnected yet on a fresh load) must not log the
-  // player out mid-match. A different wallet is another account, though.
+  // The JWT outlives the wallet connection; only a different wallet ends the session.
   signOutOnDisconnect: false,
   signOutOnAccountChange: true,
   // Switching to the right chain is a fix, not a reason to drop the session.

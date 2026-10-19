@@ -1,45 +1,33 @@
 import type { StakeAsset } from '@gaming-platform/core';
 
-/** Root stack: pre-tabs states (auth, onboarding), then the tabbed app. */
 export type RootStackParamList = {
   Login: undefined;
   Onboarding: undefined;
   MainTabs: undefined;
-  // Root-level (not nested under Games) so it's reachable both from deep in
-  // the Games tab (join button) and from the global "opponent joined" push.
-  // Stake fields ride along (when known) so the result screen can show the
-  // pot without another fetch.
   Battleship: {
     roomId: string;
     stakeToken?: StakeAsset | null;
     stakeAmount?: string | null;
   };
-  // Demo/preview of the fleet-deployment UI, reachable from the Demo Games
-  // tab - not part of the real room/join flow.
   BattleshipSetup: undefined;
-  // Same split for Ludo: multiplayer room vs. the bot demo.
   Ludo: {
     roomId: string;
     stakeToken?: StakeAsset | null;
     stakeAmount?: string | null;
   };
   LudoSetup: undefined;
-  // Same split for Triple Cut (rock-paper-scissors).
   TripleCut: {
     roomId: string;
     stakeToken?: StakeAsset | null;
     stakeAmount?: string | null;
   };
   TripleCutSetup: undefined;
-  // Same split for Chroma Clash (UNO-style shedding, 2-4 players).
   ChromaClash: {
     roomId: string;
     stakeToken?: StakeAsset | null;
     stakeAmount?: string | null;
   };
   ChromaClashSetup: undefined;
-  // Same split for Salvo (the two-tank artillery duel). Only the local route
-  // is wired today - Salvo has no socket gateway yet.
   Salvo: {
     roomId: string;
     stakeToken?: StakeAsset | null;
@@ -48,7 +36,6 @@ export type RootStackParamList = {
   SalvoSetup: undefined;
 };
 
-/** Bottom tabs shown once the user is authenticated and onboarded. */
 export type MainTabParamList = {
   Games: undefined;
   Wallet: undefined;
@@ -57,7 +44,6 @@ export type MainTabParamList = {
   DemoGames: undefined;
 };
 
-/** Nested stack behind the Games tab. */
 export type GamesStackParamList = {
   GamesList: undefined;
 };

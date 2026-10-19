@@ -6,11 +6,6 @@ import {
 
 import type { Config } from '../config';
 
-/**
- * Whether a bot may join this room's stake. Bots stake only the assets in
- * BOTS_STAKE_ASSETS (KOMBAT by default) and only out of settled pot balance,
- * so a bot can never enter a match it cannot cover.
- */
 export async function canAffordRoom(
   api: ApiClient,
   config: Config,
@@ -25,7 +20,6 @@ export async function canAffordRoom(
   return available >= BigInt(room.stakeAmount ?? '0');
 }
 
-/** The asset a bot joins with; it never converts across assets. */
 export function joinTokenFor(room: GameRoomSummary): StakeAsset | undefined {
   return room.stakeToken ?? undefined;
 }

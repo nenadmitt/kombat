@@ -12,17 +12,16 @@ export class CreateGameRoomDto {
   @IsEnum(GameType)
   gameType: GameType;
 
-  /** Omit both stake fields for a free game; provide both to stake. */
+  // Omit both stake fields for a free game; provide both to stake.
   @IsOptional()
   @IsEnum(StakeAsset)
   stakeToken?: StakeAsset;
 
-  /** Per-player stake in base units (wei-style decimal string). */
+  // Base units, as a decimal string.
   @ValidateIf(dto => dto.stakeToken !== undefined)
   @IsNumberString()
   stakeAmount?: string;
 
-  /** Private rooms are hidden from the lobby; joinable only via their code. */
   @IsOptional()
   @IsBoolean()
   isPrivate?: boolean;

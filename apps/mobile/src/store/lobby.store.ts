@@ -9,24 +9,18 @@ import { apiClient } from '../api/client';
 import { useCurrentUserStore } from './currentUser.store';
 import { useServerStore } from './server.store';
 
-/**
- * Short cache so bouncing between tabs doesn't re-hit the API: a focus within
- * this window reuses the last list (the WebSocket keeps it live while you're
- * actually on the lobby). Deliberately low - the lobby is money-sensitive.
- */
+/** Deliberately short: the lobby is money-sensitive. */
 const CACHE_TTL_MS = 20_000;
 
 export type LobbyStatus = 'idle' | 'loading' | 'ready' | 'error';
 
-/** Default (no constraints) filters. */
 export const EMPTY_FILTERS: LobbyRoomFilters = {
   gameTypes: [],
   stake: 'all',
   stakeTokens: [],
 };
 
-/** Does a room satisfy the active filters? Re-applied to live room-added
- *  events since the server only filters the initial fetch. */
+/** Re-applied to live room-added events since the server only filters the initial fetch. */
 export function roomMatchesFilters(
   room: GameRoomSummary,
   filters: LobbyRoomFilters,
@@ -45,15 +39,6 @@ export function roomMatchesFilters(
   return true;
 }
 
-/** True when any filter is narrowing the list (used for the "clear" affordance). */
-export function hasActiveFilters(filters: LobbyRoomFilters): boolean {
-  return (
-    !!filters.gameTypes?.length ||
-    (filters.stake ?? 'all') !== 'all' ||
-    !!filters.stakeTokens?.length
-  );
-}
-
 type LobbyState = {
   rooms: GameRoomSummary[];
   status: LobbyStatus;
@@ -61,14 +46,10 @@ type LobbyState = {
   filters: LobbyRoomFilters;
   lastFetchedAt: number;
 
-  /** Fetch the list. Skips the network if the cache is still fresh, unless
-   *  `force` (manual refresh / filter change). */
   fetch: (opts?: { force?: boolean }) => Promise<void>;
-  /** Replace the filters and refetch (a filter change is a new server query). */
   setFilters: (filters: LobbyRoomFilters) => void;
 
-  // WebSocket patches (creator's own rooms and rooms failing the active
-  // filters are dropped - the server broadcasts to every lobby viewer).
+  // The server broadcasts to every lobby viewer, so the creator's own rooms and rooms failing the filters are dropped.
   applyAdded: (room: GameRoomSummary) => void;
   applyRemoved: (roomId: string) => void;
   applyUpdated: (room: GameRoomSummary) => void;
@@ -95,7 +76,7 @@ export const useLobbyStore = create<LobbyState>((set, get) => ({
       status === 'ready' &&
       Date.now() - lastFetchedAt < CACHE_TTL_MS
     ) {
-      return; // Cache still fresh - don't spam the API on tab switches.
+      return;
     }
     set({ status: 'loading', error: null });
     try {
@@ -118,7 +99,6 @@ export const useLobbyStore = create<LobbyState>((set, get) => ({
 
   setFilters: filters => {
     set({ filters });
-    // A new filter set is a new query - bypass the cache.
     void get().fetch({ force: true });
   },
 
@@ -140,7 +120,6 @@ export const useLobbyStore = create<LobbyState>((set, get) => ({
 
   applyUpdated: room => {
     if (isMine(room) || !roomMatchesFilters(room, get().filters)) {
-      // No longer belongs in this view (e.g. filtered out) - drop it if present.
       get().applyRemoved(room.id);
       return;
     }

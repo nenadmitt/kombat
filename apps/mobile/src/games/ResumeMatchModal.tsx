@@ -11,22 +11,12 @@ import { GAME_TYPE_LABELS } from './game-type-labels';
 import { formatRoomCode } from './room-code';
 
 type Props = {
-  /** Enter the match - navigation is owned by the mounting screen. */
   onRejoin: (room: GameRoomSummary) => void;
 };
 
-/** Which card the single Modal shows. The forfeit confirmation is a second
- *  face of the same Modal (not a useConfirm sheet): presenting a second
- *  native Modal on top of this one wedges iOS's presentation stack, same
- *  rule as WaitingForPlayersPopup. */
+/** The forfeit confirmation is a second face of this Modal: a second native Modal on top wedges iOS. */
 type Face = 'resume' | 'confirm-forfeit';
 
-/**
- * Prompts the user to resume a match that was in progress when they last left
- * the app. Mounted once above the tab navigator (see MainTabsWithGameOverlay)
- * and driven entirely by game.store, so it shows regardless of the active tab.
- * Forfeiting hands the win to the opponent and ends the match server-side.
- */
 export default function ResumeMatchModal({ onRejoin }: Props) {
   const resumableMatch = useGameStore(state => state.resumableMatch);
   const isForfeiting = useGameStore(state => state.isForfeiting);
@@ -36,15 +26,11 @@ export default function ResumeMatchModal({ onRejoin }: Props) {
   const clearResumableMatch = useGameStore(state => state.clearResumableMatch);
 
   const [face, setFace] = useState<Face>('resume');
-  // Room to rejoin once the Modal has finished dismissing. Navigating while
-  // the Modal is still animating away overlaps two native transitions, which
-  // wedges iOS touches - so Rejoin stores the room here, hides the Modal, and
-  // onDismiss performs the navigation.
+  // Navigate from onDismiss: navigating while the Modal animates away overlaps two native transitions and wedges iOS touches.
   const pendingRejoinRef = useRef<GameRoomSummary | null>(null);
 
   const visible = resumableMatch !== null;
 
-  // A fresh resumable match (e.g. next login) starts back on the resume face.
   useEffect(() => {
     if (visible) {
       setFace('resume');

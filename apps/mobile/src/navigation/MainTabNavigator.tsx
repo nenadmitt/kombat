@@ -9,14 +9,7 @@ import KKTabBar from './KKTabBar';
 
 const Tab = createBottomTabNavigator();
 
-/**
- * Bottom tabs: PROFILE · WALLET · [LOBBY] · HISTORY · DEMO, where the centre
- * LOBBY is a raised circular action that opens the game lobby (the Games
- * stack). Chrome is drawn by KKTabBar.
- *
- * Screens are registered in visual (left-to-right) order so the tab bar's
- * centre slot lands on the lobby.
- */
+/** Screens are registered in visual order so the centre slot lands on the lobby. */
 export default function MainTabNavigator() {
   return (
     <Tab.Navigator

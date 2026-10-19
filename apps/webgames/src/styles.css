@@ -3145,7 +3145,7 @@ a {
   background: var(--result-accent);
 }
 
-/* — settlement — */
+/* - settlement - */
 
 .result-settle {
   grid-area: settle;

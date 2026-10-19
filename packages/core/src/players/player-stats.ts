@@ -1,32 +1,18 @@
 import type { GameType } from '../games/game-room.types';
 import type { StakeAsset } from '../games/stake.types';
 
-/**
- * A player's lifetime record, aggregated server-side from completed rooms.
- * This is the only source the Profile screen reads - nothing is derived from
- * a paginated history feed, which would only ever see one page of matches.
- */
 export type PlayerStats = {
-  /** Completed matches this player took part in, void ones included. */
+  /** Void matches included. */
   games: number;
   wins: number;
   losses: number;
-  /** Matches that ended without a winner (voided stakes). */
   voids: number;
-  /**
-   * Net base-unit change per staked asset: winnings minus the stakes put up.
-   * Only assets the player has actually staked appear.
-   */
   netByToken: Partial<Record<StakeAsset, string>>;
-  /** How many players signed up with this player's referral code. */
   referrals: number;
-  /** Longest unbroken run of wins, in completion order. */
   bestStreak: number;
-  /** How many different game types the player has completed a match in. */
   distinctGames: number;
-  /** Signup time, for the "joined" stat. Null only if the row predates it. */
+  /** Null only if the row predates the column. */
   joinedAt: string | null;
-  /** The most-completed game type and its match count; null before the first. */
   mostPlayed: { gameType: GameType; matches: number } | null;
 };
 
@@ -43,18 +29,12 @@ export const emptyPlayerStats = (): PlayerStats => ({
   mostPlayed: null,
 });
 
-/** Wins as a percentage of decided (non-void) matches. 0 before the first. */
 export function winRate(stats: PlayerStats): number {
   const decided = stats.wins + stats.losses;
   return decided === 0 ? 0 : Math.round((stats.wins / decided) * 100);
 }
 
-/**
- * Level curve. There is no XP system, so a level is a plain read of how much
- * someone has played: each level costs 25% more matches than the last,
- * starting at 3. Level 1 from the first game, ~level 10 around 90 matches.
- * Deterministic, so the client and server never disagree.
- */
+/** Each level costs 25% more matches than the last, starting at 3. */
 export function levelForGames(games: number): number {
   let level = 0;
   let remaining = games;
@@ -67,29 +47,15 @@ export function levelForGames(games: number): number {
   return level;
 }
 
-/** Matches still to play before the next level. */
-export function gamesToNextLevel(games: number): number {
-  const level = levelForGames(games);
-  let total = 0;
-  let cost = 3;
-  for (let i = 0; i <= level; i++) {
-    total += cost;
-    cost = Math.ceil(cost * 1.25);
-  }
-  return Math.max(0, total - games);
-}
-
 export type AchievementId = 'first-blood' | 'top-gun' | 'veteran' | 'whale';
 
 export type Achievement = {
   id: AchievementId;
   label: string;
-  /** One line explaining how it is earned, shown when locked. */
   requirement: string;
   unlocked: boolean;
 };
 
-/** Any staked asset with a positive net counts toward the Whale badge. */
 const hasPositiveNet = (stats: PlayerStats): boolean =>
   Object.values(stats.netByToken).some(net => {
     try {
@@ -99,11 +65,7 @@ const hasPositiveNet = (stats: PlayerStats): boolean =>
     }
   });
 
-/**
- * Badges are derived from the lifetime record rather than stored, so they
- * stay honest with no extra bookkeeping. Order is stable: the Profile screen
- * shows the first few and unlocked ones sort first.
- */
+/** Order is stable: the Profile screen shows only the first few. */
 export function achievementsFor(stats: PlayerStats): Achievement[] {
   return [
     {

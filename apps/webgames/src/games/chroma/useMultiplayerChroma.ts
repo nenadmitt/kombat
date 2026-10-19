@@ -30,13 +30,6 @@ import type { ChromaEngine, ChromaSeatView } from './chroma-engine';
 
 const SYNC_RETRY_MS = 3000;
 
-/**
- * Multiplayer Chroma engine: the server owns the deck and every rule, so this
- * client only emits and renders. There are no optimistic updates - a play, a
- * draw or a pass changes nothing on screen until the broadcast lands. Hands
- * are hidden: broadcasts carry counts, my real cards arrive only on the
- * caller-only `chroma:hand` push.
- */
 export function useMultiplayerChroma(roomId: string): ChromaEngine {
   const joinChannel = useWebsocketStore(s => s.joinChannel);
   const leaveChannel = useWebsocketStore(s => s.leaveChannel);
@@ -69,7 +62,6 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
 
   const usernames = useUsernames(players.map(p => p.userId));
 
-  // Socket handlers read these without re-subscribing.
   const myUserIdRef = useRef(myUserId);
   myUserIdRef.current = myUserId;
   const usernamesRef = useRef(usernames);
@@ -82,7 +74,6 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
     return usernamesRef.current[userId] ?? 'Player';
   }, []);
 
-  /** Every broadcast refreshes the shared table state the same way. */
   const applyTable = useCallback((t: ChromaTableState) => {
     setHandCounts(t.handCounts);
     setDiscardTop(t.discardTop);
@@ -97,8 +88,7 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
     if (t.winnerUserId) {
       setWinnerUserId(t.winnerUserId);
     }
-    // Any table change invalidates a stale drawn-card restriction unless the
-    // caller re-establishes it (the drew handler does, right after).
+    // Any table change clears the drawn-card restriction; the drew handler re-sets it.
     setMyDrawnIndex(null);
   }, []);
 
@@ -110,7 +100,6 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
     };
   }, [roomId]);
 
-  /** Replace local state with the authoritative snapshot (mount + reconnect). */
   const syncState = useCallback(async () => {
     try {
       const s = await apiClient.getChromaRoomState(roomId);
@@ -135,8 +124,6 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
       setWaitingError(null);
       setLoaded(true);
     } catch (err) {
-      // Keep retrying, but say WHY on the waiting screen - a silent catch here
-      // is how "stuck on a spinner" bugs stay unsolvable.
       setWaitingError(
         err instanceof ApiError ? err.message : 'Could not reach the server.',
       );
@@ -238,9 +225,6 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
       setEndReason(p.reason);
     });
 
-    // Gateway failures ("not your turn", an unfunded stake) surface here rather
-    // than hanging the screen. Past the waiting phase the notice line is the
-    // only place left to show them.
     const offGatewayError = on(CHROMA_EVENTS.error, raw => {
       const message =
         (raw as { message?: string }).message ?? 'Something went wrong.';
@@ -265,8 +249,6 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
     };
   }, [roomId, joinChannel, leaveChannel, on, emit, applyTable, nameOf]);
 
-  // The snapshot must eventually land: without it the table renders empty and
-  // a resumed match has no hand.
   useEffect(() => {
     if (loaded && discardTop !== null) return;
     void syncState();
@@ -274,7 +256,6 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
     return () => clearInterval(timer);
   }, [loaded, discardTop, syncState]);
 
-  // Pushes missed while offline are covered by a fresh snapshot.
   const prevStatusRef = useRef(status);
   useEffect(() => {
     const was = prevStatusRef.current;
@@ -306,8 +287,7 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
     emit(CHROMA_EVENTS.forfeit, { roomId });
   }, [roomId, emit]);
 
-  // The server only names a winner once one seat is left, so elimination has
-  // to end my own match on its own.
+  // The server only names a winner once one seat is left, so elimination ends my match here.
   const iAmEliminated = myUserId ? eliminated.includes(myUserId) : false;
 
   const result: 'win' | 'lose' | null = winnerUserId
@@ -318,8 +298,7 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
       ? 'lose'
       : null;
 
-  // `endReason` is relative to the winner, so it only describes my loss when I
-  // am the one who went out.
+  // `endReason` is relative to the winner, so it only describes my loss when I went out.
   const resultReason: ChromaEndReason | null = !result
     ? null
     : iAmEliminated

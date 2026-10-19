@@ -7,11 +7,9 @@ import {
 
 import { GameType } from '../db/types/game';
 
-// Multi-seat semantics (which games accumulate joiners, minimum to start)
-// live in core so mobile shares them; re-exported for existing imports.
 export { isMultiSeatGame, MULTI_SEAT_MIN_PLAYERS };
 
-/** Room capacity per game type (multi-seat rooms may start below capacity). */
+// Multi-seat rooms may start below capacity.
 const PLAYER_COUNT_BY_GAME_TYPE: Record<GameType, number> = {
   [GameType.NavalBattle]: 2,
   [GameType.Ludo]: LUDO_MAX_PLAYERS,

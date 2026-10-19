@@ -6,8 +6,6 @@ import { WebsocketsGateway } from './websockets.gateway';
 import { WebsocketsService } from './websockets.service';
 
 @Module({
-  // DbModule: game-channel subscriptions are authorized against the room's
-  // participant list.
   imports: [AuthenticationModule, DbModule],
   providers: [WebsocketsGateway, WebsocketsService],
   exports: [WebsocketsService],

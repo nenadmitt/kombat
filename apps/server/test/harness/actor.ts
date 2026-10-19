@@ -21,18 +21,7 @@ export type Actor = {
 
 let emailCounter = 0;
 
-/**
- * A signed-in player: user row, JWT, and a live socket.
- *
- * Labels must be unique within a test -  is a unique column.
- *
- * Labels must be unique within a test - `username` is a unique column.
- *
- * Every actor needs its own userId. The gateway disconnects an account's
- * existing sockets when a new one authenticates, so two actors sharing a user
- * would silently kill each other's connection and surface as an unrelated
- * assertion failing further down.
- */
+// Each actor needs its own user: a new authenticated socket disconnects the account's existing ones.
 export async function createActor(
   testApp: TestApp,
   label: string,
@@ -85,8 +74,7 @@ export async function createActor(
   };
 }
 
-/** `forceNew` matters: socket.io-client otherwise multiplexes every actor
- *  onto one shared connection to the same origin. */
+// `forceNew`: socket.io-client otherwise multiplexes every actor onto one connection.
 export function connectSocket(url: string, token: string): Promise<Socket> {
   const socket = io(url, {
     auth: { token },

@@ -8,7 +8,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-/** Which of the 3x3 pip positions light up per die value (design's die). */
 const PIPS: Record<number, number[]> = {
   1: [4],
   2: [0, 8],
@@ -21,15 +20,12 @@ const PIPS: Record<number, number[]> = {
 const SHUFFLE_MS = 90;
 
 type Props = {
-  /** 1-6, or null before the first roll (renders an empty face). */
   value: number | null;
-  /** While true the face shuffles and the die wobbles in place. */
   rolling?: boolean;
   size?: number;
 };
 
-/** The white die from the design: rounded ivory square, dark pips laid out
- *  with computed pixel sizes (percent+wrap collapses on some RN versions). */
+/** Pip sizes are computed in px: percent+wrap collapses on some RN versions. */
 export default function LudoDice({ value, rolling = false, size = 78 }: Props) {
   const [face, setFace] = useState(value);
 

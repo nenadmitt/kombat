@@ -3,7 +3,7 @@ import { randomInt } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { DIE_SIDES } from '@gaming-platform/core';
 
-/** The die behind every Ludo roll. A seam so the e2e suite can script it. */
+// A seam so the e2e suite can script the die.
 export abstract class LudoDieRoller {
   abstract roll(): number;
 }

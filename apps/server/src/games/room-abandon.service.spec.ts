@@ -24,12 +24,6 @@ const JOINER = '22222222-2222-4222-8222-222222222222';
 const ROOM = '33333333-3333-4333-8333-333333333333';
 const NOW = new Date('2026-08-10T12:00:00Z').getTime();
 
-/**
- * A disconnect must never cost anyone a live room, so the fire path re-checks
- * everything: these cover the schedule filter and every reason enforcement
- * drops out - plus the promise that cleanup goes through the same
- * GamesService calls (and therefore the same events) as the manual endpoints.
- */
 describe('RoomAbandonService', () => {
   let service: RoomAbandonService;
   let games: GamesService;

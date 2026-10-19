@@ -11,22 +11,14 @@ import { Canvas, Fill, LinearGradient, vec } from '@shopify/react-native-skia';
 type Point = { x: number; y: number };
 
 type Props = {
-  /** Gradient color stops. */
   colors: readonly string[];
-  /** Optional stop positions (0..1), one per color. */
   positions?: readonly number[];
-  /** Gradient start, in normalized (0..1) coordinates. Default top-left. */
   start?: Point;
-  /** Gradient end, in normalized (0..1) coordinates. Default bottom-right. */
   end?: Point;
   style?: StyleProp<ViewStyle>;
   children?: React.ReactNode;
 };
 
-/**
- * Fills its bounds with a linear gradient (via Skia) and renders children on top.
- * Set a borderRadius in `style` (with overflow handled here) to get rounded corners.
- */
 export function GradientView({
   colors,
   positions,

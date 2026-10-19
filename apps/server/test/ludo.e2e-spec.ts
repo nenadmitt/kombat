@@ -35,18 +35,11 @@ import {
   waitUntil,
 } from './harness/events';
 
-/** A pawn here has no legal five (it would overshoot home) and a pawn in base
- *  needs a six, so a seat parked on it can roll without moving anything. */
+// No legal five here (it would overshoot home) and a base pawn needs a six, so a parked seat rolls without moving.
 const PARKED_PROGRESS = 55;
 const PARK_ROLLS = PARKED_PROGRESS / 5;
 
-/**
- * The die is scripted (`testApp.dice`), so every case reads as the sequence of
- * rolls it actually is. Seats are colored in join order: the creator is red
- * (track offset 0), the first joiner green (offset 13), and a token's
- * progress plus its offset is the shared-track cell it stands on - which is
- * what makes captures and star fields plannable here.
- */
+// Seats are colored in join order: red offset 0, green offset 13. Progress + offset is the shared-track cell.
 describe('ludo match (e2e)', () => {
   let testApp: TestApp;
   let actors: Actor[];
@@ -74,8 +67,6 @@ describe('ludo match (e2e)', () => {
     return body;
   };
 
-  /** A room the creator starts early, every seat subscribed and entered. The
-   *  fourth joiner would start it on the join instead. */
   const startMatch = async (...joiners: Actor[]): Promise<void> => {
     await createRoom();
     for (const seat of joiners) {
@@ -98,8 +89,7 @@ describe('ludo match (e2e)', () => {
     });
   };
 
-  /** Every broadcast names its author, which is what keeps a seat from
-   *  mistaking another seat's pending event for its own answer. */
+  // Every broadcast names its author, so a seat can't mistake another seat's event for its answer.
   const byActor =
     (who: Actor) =>
     (payload: { byUserId: string }): boolean =>
@@ -151,8 +141,7 @@ describe('ludo match (e2e)', () => {
     return (await error).message;
   };
 
-  /** Hand the turn on with a five: it walks a pawn that is still on the
-   *  track, and does nothing at all once the seat is parked. */
+  // A five walks a pawn still on the track and does nothing once the seat is parked.
   const pass = async (who: Actor): Promise<void> => {
     const rolled = await roll(who, 5);
     if (rolled.movableTokens.length > 0) {
@@ -160,11 +149,6 @@ describe('ludo match (e2e)', () => {
     }
   };
 
-  /**
-   * Walks every seat's opening pawn to PARKED_PROGRESS in lockstep. The seats
-   * keep their fixed offsets apart the whole way, so nobody lands on anybody,
-   * and once parked the board holds still.
-   */
   const parkOpeningPawns = async (seats: Actor[]): Promise<void> => {
     for (let step = 0; step < PARK_ROLLS; step++) {
       for (const seat of seats) {
@@ -174,8 +158,6 @@ describe('ludo match (e2e)', () => {
     }
   };
 
-  /** Parked seats rolling fives: nothing is movable, so the turn just passes
-   *  and each roll is pure charge. */
   const bankCharge = async (seats: Actor[], rounds: number): Promise<void> => {
     for (let round = 0; round < rounds; round++) {
       for (const seat of seats) {
@@ -185,17 +167,12 @@ describe('ludo match (e2e)', () => {
     }
   };
 
-  /** Parked, with a full bar and three pawns still in base. */
   const fillBar = async (seats: Actor[]): Promise<void> => {
     await parkOpeningPawns(seats);
     await bankCharge(seats, CHARGE_MAX_HP - PARK_ROLLS);
   };
 
-  /**
-   * Walks the host's pawns forward one at a time until each reaches its goal
-   * (a goal of -1 leaves that pawn in base), and hands the turn back to the
-   * host. The joiner walks alongside on fives until it parks.
-   */
+  // A goal of -1 leaves that pawn in base.
   const walk = async (goals: number[]): Promise<void> => {
     let red = (await matchState(host)).tokens.red!;
     for (;;) {
@@ -413,8 +390,7 @@ describe('ludo match (e2e)', () => {
 
       await roll(host, 6);
       await move(host, 0);
-      // Red 11 + 5 = 16, and green's pawn on its own progress 3 stands on that
-      // same shared cell (green starts 13 further along the track).
+      // Red 11 + 5 = 16, where green's pawn on progress 3 stands (green starts 13 further along).
       const rolled = await roll(host, 5);
       const moved = await move(host, 0);
 
@@ -625,8 +601,7 @@ describe('ludo match (e2e)', () => {
       await fillBar([host, joiner]);
       await roll(host, 6);
       await move(host, 1);
-      // Progress 6 is the only start-of-track square a launch turns into a
-      // neutral star landing.
+      // Progress 6 is the only start-of-track square a launch turns into a neutral star landing.
       await roll(host, 6);
       await move(host, 1);
 
@@ -666,8 +641,7 @@ describe('ludo match (e2e)', () => {
       await fillBar([host, joiner]);
       await pass(host);
 
-      // Green's pawn on its own progress 2 stands on the square a launch from
-      // the red start cell lands on.
+      // Green's pawn on its own progress 2 stands on the square a launch from the red start cell lands on.
       await roll(joiner, 6);
       await move(joiner, 1);
       await roll(joiner, 2);
@@ -711,8 +685,7 @@ describe('ludo match (e2e)', () => {
     });
 
     it('keeps a shielded pawn on the board and still lets it capture', async () => {
-      // Red walks up the track in fives; green banks a star on the way, which
-      // is exactly what the shield costs.
+      // Green banks a star on the way, which is exactly what the shield costs.
       for (const greenDie of [5, 3, 5, 5, 5]) {
         await roll(host, 5);
         await move(host, 0);
@@ -730,8 +703,7 @@ describe('ludo match (e2e)', () => {
       );
       expect(shielded.shields).toEqual({ green: [0] });
       expect(shielded.chargeHp[joiner.userId]).toBe(0);
-      // Sixes let green spend its turn on a pawn out of base and leave the
-      // shielded one exactly where red is about to land.
+      // Sixes let green spend its turn elsewhere and leave the shielded pawn where red is about to land.
       await roll(joiner, 6);
       await move(joiner, 1);
       await roll(joiner, 6);

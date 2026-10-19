@@ -28,26 +28,14 @@ type Props = {
   onPress?: () => void;
   variant?: ButtonVariant;
   size?: ButtonSize;
-  /** Optional leading icon. */
   icon?: IconName;
-  /** Optional trailing icon (e.g. arrow-right on "Continue"). */
   trailingIcon?: IconName;
   disabled?: boolean;
   loading?: boolean;
-  /** Stretch to fill the parent width. */
   fullWidth?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
-/**
- * The one button used across the app. Flat, single-accent design:
- * - primary   - solid accent fill, dark label
- * - secondary - outlined (neutral border), transparent fill
- * - outline   - accent outline + accent label, transparent fill (inline CTAs)
- * - tinted    - soft accent wash, accent label
- * - danger    - soft red wash, red label
- * - ghost     - text only
- */
 export default function Button({
   label,
   onPress,
@@ -127,8 +115,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Subtle accent halo under the solid-lime CTA (iOS; Android has no coloured
-  // elevation). Kept low so it reads as a glow, not a drop shadow.
   primaryGlow: {
     shadowColor: colors.accent,
     shadowOffset: { width: 0, height: 4 },
