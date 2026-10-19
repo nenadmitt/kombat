@@ -1,7 +1,7 @@
 # Gaming platform monorepo
 
-Realtime multiplayer mini-games (Battleship, Ludo Royale) with optional
-on-chain stakes. npm workspaces + turbo.
+Realtime multiplayer mini-games (Battleship, Ludo Royale, Salvo, Chroma Clash,
+Triple Cut) with optional on-chain stakes. npm workspaces + turbo.
 
 ## Layout
 
@@ -16,10 +16,9 @@ on-chain stakes. npm workspaces + turbo.
 - `apps/evm-contracts` - Solidity (Foundry): `StakePot`, the pooled custody
   contract players deposit into, plus the KombatCoin token;
   `apps/server/src/stake-pot/stake-pot.abi.ts` is the hand-kept ABI mirror and
-  must stay in sync with it. There is no escrow contract - `MatchEscrow` and
-  `escrow.abi.ts` were deleted at the pot cutover.
-  The surviving `stake_escrows` table is a per-room **settlement-state** row,
-  not an escrow: matches settle in the off-chain ledger.
+  must stay in sync with it. There is no escrow contract: `match_settlements`
+  is a per-room settlement-state row, and matches settle in the off-chain
+  ledger.
 - `packages/core` - platform-agnostic shared domain code: game rules
   (`games/battleship`: fleet, mines, power-ups, shot resolution;
   `games/ludo`: board topology, dice/turn rules, bot policy), the socket
