@@ -8,20 +8,13 @@ import { CHAIN_NAME } from '../lib/chain';
 const STEPS = ['Sign in', 'Wallet', 'Stake'];
 
 type Props = {
-  /** Headline, one line per array entry, set tight. */
   title: string[];
   lead: string;
   points: { icon: Icon; label: string }[];
-  /** The step the player is on, 1-based. */
   step?: number;
   children: ReactNode;
 };
 
-/**
- * The signed-out shell: pitch on the left, the actual form on the right. On a
- * phone the left column is the part that gives way - only the wordmark and
- * the headline stay.
- */
 export function AuthShell({ title, lead, points, step = 1, children }: Props) {
   return (
     <div className="auth">

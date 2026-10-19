@@ -1,11 +1,7 @@
 import { GameType } from '@gaming-platform/core';
 import type { ReactNode } from 'react';
 
-/**
- * The one per-game icon, ported shape-for-shape from the mobile app
- * (apps/mobile/src/games/GameIcon.tsx) so a game looks the same on both
- * clients. Mobile's palette tokens map onto ours one to one.
- */
+// Ported shape-for-shape from mobile's GameIcon so a game looks the same on both clients.
 const TEXT = 'var(--text)';
 const ACCENT = 'var(--lime)';
 const GOLD = 'var(--gold)';
@@ -100,7 +96,6 @@ const RENDERERS: Record<GameType, () => ReactNode> = {
         strokeWidth={2.2}
         transform="rotate(-2 30 33)"
       />
-      {/* Top card: opaque body first, then the accent tint + stroke over it. */}
       <rect
         x={26}
         y={14}

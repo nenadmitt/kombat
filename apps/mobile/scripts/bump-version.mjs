@@ -1,13 +1,4 @@
 #!/usr/bin/env node
-/**
- * One-command version bump for both platforms:
- *
- *   npm run version:bump --workspace @gaming-platform/mobile [-- major|minor|patch]
- *
- * Bumps `version` (patch by default) and `buildNumber` in package.json, then
- * runs sync-version.mjs. Android needs nothing else - build.gradle reads
- * package.json directly.
- */
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';

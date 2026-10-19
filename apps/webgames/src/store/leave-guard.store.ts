@@ -1,10 +1,7 @@
 import { create } from 'zustand';
 
 type LeaveGuardState = {
-  /**
-   * Set by a live board. Anything that navigates out of the app shell hands
-   * its exit here instead of running it, and the board decides.
-   */
+  /** Set by a live board: exits out of the shell are handed here and the board decides. */
   intercept: ((proceed: () => void) => void) | null;
   arm: (intercept: (proceed: () => void) => void) => void;
   disarm: () => void;

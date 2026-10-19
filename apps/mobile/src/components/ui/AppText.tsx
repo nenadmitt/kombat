@@ -11,11 +11,6 @@ type Props = TextProps & {
   style?: StyleProp<TextStyle>;
 };
 
-/**
- * Text bound to the semantic type scale (see theme/typography `type`). Use
- * `variant` for the role and `color` for a token override - keeps screens off
- * ad-hoc font sizes/families.
- */
 export default function AppText({
   variant = 'body',
   color = colors.textPrimary,

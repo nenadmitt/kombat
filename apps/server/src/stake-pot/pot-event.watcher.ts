@@ -13,26 +13,12 @@ import { StakePotCursorEntity } from './entities/stake-pot-cursor.entity';
 import { StakePotChainService } from './stake-pot-chain.service';
 import { StakePotService } from './stake-pot.service';
 
-/** Single-row cursor table. */
 const CURSOR_ID = 1;
 
-/**
- * Free-tier RPCs cap getLogs ranges; chunking also bounds how much a single
- * pass has to hold in memory when catching up from a cold cursor.
- */
+// Free-tier RPCs cap getLogs ranges.
 const MAX_BLOCKS_PER_QUERY = 2_000n;
 
-/**
- * Brings the ledger in line with the pot's events: credits deposits, and records
- * withdrawals the server did not initiate (the owner sweeping fees straight out
- * of the contract).
- *
- * Correctness rests on the confirmation lag (a reorg can't strand a credit for
- * a log that never happened) and on journal uniqueness (re-reading a range is a
- * no-op), not on the cursor. So the cursor is only an optimisation, and is
- * advanced only after a chunk is fully applied: a crash mid-chunk re-reads
- * rather than skips, the one direction that can't lose money.
- */
+// The cursor is advanced only after a chunk is applied: a crash re-reads rather than skips.
 @Injectable()
 export class PotEventWatcher implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PotEventWatcher.name);
@@ -50,7 +36,7 @@ export class PotEventWatcher implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit(): void {
     if (!this.chainService.enabled) {
-      return; // Pot not configured - don't spin.
+      return;
     }
     this.interval = setInterval(() => {
       void this.scan();
@@ -63,7 +49,6 @@ export class PotEventWatcher implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /** One pass. Public so tests (and an admin endpoint) can drive it directly. */
   async scan(): Promise<void> {
     if (this.scanning) {
       return; // Never stack scans behind a slow RPC.
@@ -97,7 +82,6 @@ export class PotEventWatcher implements OnModuleInit, OnModuleDestroy {
         from = to + 1n;
       }
     } catch (error) {
-      // Leave the cursor where it is; the next tick retries the same range.
       this.logger.error(
         'Deposit scan failed',
         error instanceof Error ? error.stack : String(error),
@@ -121,8 +105,7 @@ export class PotEventWatcher implements OnModuleInit, OnModuleDestroy {
         deposit.beneficiary,
       );
       if (!wallet) {
-        // Someone paid in for an address the platform doesn't know. The funds
-        // are pooled but unattributed; reconciliation will report the drift.
+        // Pooled but unattributed; reconciliation reports the drift.
         this.logger.warn(
           `Deposit of ${deposit.value} (asset ${deposit.asset}) to unknown address ` +
             `${deposit.beneficiary} in ${deposit.txHash} - not credited`,
@@ -138,11 +121,7 @@ export class PotEventWatcher implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /**
-   * Withdrawals the server has no row for came from `ownerWithdrawTo`, which
-   * bypasses the ledger. Recording them is what stops a fee sweep looking like
-   * a permanent shortfall to the reconciliation job.
-   */
+  // Withdrawals with no server row came from ownerWithdrawTo, which bypasses the ledger.
   private async recordExternalWithdrawals(
     from: bigint,
     to: bigint,
@@ -150,8 +129,7 @@ export class PotEventWatcher implements OnModuleInit, OnModuleDestroy {
     const withdrawals = await this.chainService.getWithdrawals(from, to);
     for (const withdrawal of withdrawals) {
       if (withdrawal.withdrawalId) {
-        // Minted by this server, so the ledger already debited it at request
-        // time. Recording it again would double-count.
+        // Already debited at request time; recording it again would double-count.
         continue;
       }
       await this.stakePotService.recordFeeSweep(
@@ -162,9 +140,7 @@ export class PotEventWatcher implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /** Created on first boot at STAKE_POT_DEPLOY_BLOCK, or at the current head
-   *  when unset - accidentally scanning a whole chain is worse than needing
-   *  the env var. */
+  // Without a deploy block, start at the head: accidentally scanning a whole chain is worse.
   private async loadCursor(latest: bigint): Promise<StakePotCursorEntity> {
     const existing = await this.cursorRepository.findOneBy({ id: CURSOR_ID });
     if (existing) {

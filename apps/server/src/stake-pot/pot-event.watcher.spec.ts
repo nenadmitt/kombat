@@ -26,7 +26,6 @@ const ALICE_ADDRESS = '0x00000000000000000000000000000000000a11ce';
 const STRANGER_ADDRESS = '0x00000000000000000000000000000000deadbeef';
 const CONFIRMATIONS = 3;
 
-/** Chain stub: a fixed head plus logs the test places at chosen blocks. */
 function makeChain(head: bigint) {
   const logs: StakedDeposit[] = [];
   const withdrawnLogs: (PotWithdrawal & { blockNumber: bigint })[] = [];
@@ -115,10 +114,7 @@ describe('PotEventWatcher', () => {
   });
 
   afterAll(async () => {
-    // Leave no cursor behind. These tests use fake block numbers, and the
-    // suite shares the app's database - a stale cursor of e.g. 97 would send a
-    // real watcher scanning from genesis. With no row it re-initialises from
-    // STAKE_POT_DEPLOY_BLOCK, which is correct.
+    // No cursor left behind: a fake-block cursor would send a real watcher scanning from genesis.
     await truncatePotTables(dataSource);
     await dataSource.destroy();
   });
@@ -155,8 +151,7 @@ describe('PotEventWatcher', () => {
 
   it('does not read blocks inside the confirmation lag', async () => {
     const harness = makeChain(100n);
-    // Block 99 is above the safe head (100 − 3 = 97): a reorg could still
-    // remove it, so crediting now could invent money.
+    // Block 99 is above the safe head (100 - 3 = 97).
     harness.addLog(deposit({ blockNumber: 99n, txHash: '0xfresh' as `0x${string}` }));
 
     await makeWatcher(harness.chain, 90).scan();
@@ -170,7 +165,6 @@ describe('PotEventWatcher', () => {
     harness.addLog(deposit({ blockNumber: 90n, txHash: '0xrepeat' as `0x${string}` }));
 
     await makeWatcher(harness.chain, 80).scan();
-    // Simulate a crash that lost the cursor advance.
     await cursors.update({ id: 1 }, { lastScannedBlock: '80' });
     await makeWatcher(harness.chain, 80).scan();
 
@@ -192,8 +186,6 @@ describe('PotEventWatcher', () => {
 
     await makeWatcher(harness.chain, 80).scan();
 
-    // Nothing credited, but the cursor still moves - the funds are pooled and
-    // unattributed, which is reconciliation's problem, not the watcher's.
     expect(await ledger.count()).toBe(0);
     expect(await cursor()).toBe(97n);
   });
@@ -225,7 +217,7 @@ describe('PotEventWatcher', () => {
 
     harness.failOnce();
     await watcher.scan();
-    expect(await cursor()).toBe(79n); // initialised, never advanced
+    expect(await cursor()).toBe(79n);
     expect(await ledger.count()).toBe(0);
 
     await watcher.scan();
@@ -274,7 +266,6 @@ describe('PotEventWatcher', () => {
 
     await makeWatcher(harness.chain, undefined).scan();
 
-    // Historical deposits are deliberately not backfilled without the env var.
     expect(await ledger.count()).toBe(0);
     expect(await cursor()).toBe(499n);
   });
@@ -290,23 +281,15 @@ describe('PotEventWatcher', () => {
     expect(harness.rangesQueried.length).toBe(before);
   });
 
-  // ---- owner fee sweeps ----------------------------------------------------
-
-  /**
-   * `ownerWithdrawTo` never touches the server, so without this the ledger keeps
-   * claiming fees the pot no longer holds and reconciliation reports a permanent
-   * shortfall.
-   */
   it('records an owner sweep as a fee sweep', async () => {
     const harness = makeChain(100n);
-    // Give the platform account some accrued fees to sweep against.
     await stakePotService.credit(PLATFORM_ACCOUNT_ID, StakeAsset.Usdc, 500_000n, {
       txHash: '0xfees',
       logIndex: 0,
     });
     harness.addWithdrawn({
       blockNumber: 90n,
-      withdrawalId: null, // not minted by this server
+      withdrawalId: null,
       to: ALICE_ADDRESS as `0x${string}`,
       asset: StakeAsset.Usdc,
       value: 500_000n,
@@ -330,7 +313,6 @@ describe('PotEventWatcher', () => {
     });
     harness.addWithdrawn({
       blockNumber: 90n,
-      // A real withdrawal row id: already debited at request time.
       withdrawalId: '019fafe8-4741-76c5-ad43-0b919261bc32',
       to: ALICE_ADDRESS as `0x${string}`,
       asset: StakeAsset.Usdc,

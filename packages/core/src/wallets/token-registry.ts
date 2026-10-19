@@ -5,24 +5,19 @@ export type TokenSymbol = 'ETH' | 'KOMBAT' | 'USDC' | 'USDT' | 'DAI';
 export type TokenInfo = {
   symbol: TokenSymbol;
   name: string;
-  /** 0x-prefixed ERC20 address; the zero address marks the chain's native coin. */
+  /** The zero address marks the chain's native coin. */
   address: string;
   decimals: number;
   native?: boolean;
-  /** Set when the pot accepts this token for match stakes. */
   stakeAsset?: StakeAsset;
 };
 
 export const NATIVE_TOKEN_ADDRESS =
   '0x0000000000000000000000000000000000000000';
 
-/**
- * Canonical token addresses per chain, hardcoded on purpose: these are
- * facts about a chain, not deployment configuration. Stake-enabled entries
- * must match the pot's on-chain allowlist (apps/evm-contracts/README.md).
- */
+/** Hardcoded on purpose: chain facts, not deployment config. Stake entries must match the pot's on-chain allowlist. */
 export const CHAIN_TOKENS: Record<number, TokenInfo[]> = {
-  // Sepolia, the closed-test chain. No USDT/DAI deployments here.
+  // Sepolia: no USDT deployment.
   11155111: [
     {
       symbol: 'ETH',
@@ -53,9 +48,8 @@ export const CHAIN_TOKENS: Record<number, TokenInfo[]> = {
       decimals: 18,
       stakeAsset: StakeAsset.Dai,
     },
-    // USDT has no Sepolia deployment, so it is absent here on purpose.
   ],
-  // Ethereum mainnet. Transfers only until the pot deploys there.
+  // Ethereum mainnet
   1: [
     {
       symbol: 'ETH',
@@ -98,7 +92,6 @@ export function findToken(
   return tokensForChain(chainId).find(token => token.symbol === symbol);
 }
 
-/** ERC20 address per stake asset for a chain (native excluded, it has none). */
 export function stakeAssetAddresses(
   chainId: number,
 ): Partial<Record<StakeAsset, string>> {

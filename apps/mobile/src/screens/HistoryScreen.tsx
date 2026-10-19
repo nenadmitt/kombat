@@ -25,12 +25,10 @@ import { display, mono, type } from '../theme/typography';
 type Status = 'loading' | 'ready' | 'error';
 type Filter = 'all' | 'win' | 'loss';
 
-/** First page size, then how many more we pull on each scroll to the bottom. */
 const PAGE_SIZE = 10;
 const PAGE_SIZE_MORE = 8;
 
 const ICON_TILE = 40;
-/** Win/loss strip: a tall accent bar per win, a short muted one per loss. */
 const BAR_WIDTH = 8;
 const BAR_TALL = 28;
 const BAR_SHORT = 16;
@@ -71,7 +69,6 @@ function formatWhen(iso: string): string {
   return date.toLocaleDateString();
 }
 
-/** "120 USDC" / "Free" - the stake each player put up. */
 function stakeLabel(entry: MatchHistoryEntry): string {
   if (entry.stakeToken === null || !entry.stakeAmount) {
     return 'Free';
@@ -79,8 +76,6 @@ function stakeLabel(entry: MatchHistoryEntry): string {
   return `${formatStakeAmount(entry.stakeAmount, entry.stakeToken)} ${STAKE_ASSET_SYMBOLS[entry.stakeToken]}`;
 }
 
-/** Signed net for the row's right rail ("+228" / "-50"); the token lives in
- *  the meta line, so this stays a bare number. */
 function prizeLabel(entry: MatchHistoryEntry): string | null {
   if (entry.stakeToken === null || entry.prizeDelta === null) {
     return null;
@@ -101,7 +96,6 @@ export default function HistoryScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
-  /** False once the server returns a short page - nothing more to fetch. */
   const [hasMore, setHasMore] = useState(true);
   /** Guards against overlapping loadMore calls (onEndReached can double-fire). */
   const loadingMoreRef = useRef(false);
@@ -115,8 +109,6 @@ export default function HistoryScreen() {
       setHasMore(page.length === PAGE_SIZE);
       setStatus('ready');
     } catch (err) {
-      // History stays uncached by design - offline just shows this failure
-      // state; flag the outage so the global banner + lobby gate react too.
       if (err instanceof ApiError && err.isNetworkError) {
         useServerStore.getState().reportOffline();
       }
@@ -141,7 +133,6 @@ export default function HistoryScreen() {
       setEntries(prev => [...prev, ...page]);
       setHasMore(page.length === PAGE_SIZE_MORE);
     } catch {
-      // Keep what we have; the next scroll retries.
     } finally {
       loadingMoreRef.current = false;
       setLoadingMore(false);
@@ -151,26 +142,22 @@ export default function HistoryScreen() {
   useFocusEffect(
     useCallback(() => {
       void fetchFirstPage();
-      // Cached and shared with Profile, so a tab bounce is not a second query.
       void loadStats();
     }, [fetchFirstPage, loadStats]),
   );
 
-  // The list and the counters both come back, so the button is rate-limited.
   const refresh = useCooldown(() => {
     void fetchFirstPage();
     void loadStats({ force: true });
   });
 
-  // The endpoint pages raw matches with no result filter, so Wins/Losses cut
-  // the loaded pages client-side.
+  // The endpoint has no result filter, so Wins/Losses cut the loaded pages client-side.
   const visible = useMemo(
     () => (filter === 'all' ? entries : entries.filter(e => e.result === filter)),
     [entries, filter],
   );
 
-  // A filter can hide every loaded match while later pages still hold some;
-  // FlatList never fires onEndReached on an empty list, so pull the next page.
+  // FlatList never fires onEndReached on an empty list, so pull the next page when a filter hides everything loaded.
   useEffect(() => {
     if (status === 'ready' && hasMore && entries.length > 0 && visible.length === 0) {
       void loadMore();
@@ -178,13 +165,11 @@ export default function HistoryScreen() {
   }, [status, hasMore, entries.length, visible.length, loadMore]);
 
   const decided = stats.wins + stats.losses;
-  // Zeroes are the store's cold-start default, not a result - hold the dash
-  // until the aggregate has actually arrived.
+  // Zeroes are the store's cold-start default, not a result; hold the dash until the aggregate arrives.
   const statValue = (value: number) => (statsLoaded ? `${value}` : '-');
   const winRateLabel =
     !statsLoaded || decided === 0 ? '-' : `${winRate(stats)}%`;
 
-  // Newest first from the server; the strip reads left to right in time.
   const recentResults = entries
     .slice(0, BAR_COUNT)
     .map(e => e.result)
@@ -377,7 +362,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   statSlot: {
-    // Even columns, so a wide value cannot shove its neighbour's label.
     flex: 1,
   },
   statValue: {

@@ -23,7 +23,6 @@ class UpdateUrlsDto {
 }
 
 export class SetAppVersionDto {
-  /** Omit (or null) to clear the floor entirely. */
   @IsOptional()
   @Matches(SEMVER, { message: 'minAppVersion must be x.y.z' })
   minAppVersion?: string;

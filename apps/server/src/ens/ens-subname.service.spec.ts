@@ -14,10 +14,6 @@ type Created = {
   texts?: { key: string; value: string }[];
 };
 
-/**
- * A subname is a nicety; a username is not. Every failure path here has to
- * end with the caller's username intact and no half-written claim.
- */
 describe('EnsSubnameService', () => {
   let taken: Set<string>;
   let created: Created[];
@@ -52,8 +48,6 @@ describe('EnsSubnameService', () => {
     } as unknown as DbService;
 
     const svc = new EnsSubnameService(config, db);
-    // Swap the real client for a fake; constructing it is the only thing the
-    // API key gates.
     (svc as unknown as { client?: unknown }).client = apiKey
       ? {
           isSubnameAvailable: async (fullName: string) => ({
@@ -93,7 +87,6 @@ describe('EnsSubnameService', () => {
         owner: ADDRESS,
       });
       expect(created[0].addresses?.[0]?.value).toBe(ADDRESS);
-      // The display name is kept as the user typed it, not the label.
       expect(created[0].texts).toEqual([{ key: 'name', value: 'Arti' }]);
     });
 
@@ -143,7 +136,6 @@ describe('EnsSubnameService', () => {
         'arb',
         'scroll',
       ]);
-      // One address, every chain: the wallet is the same account everywhere.
       expect(
         new Set(created[0]?.addresses?.map(a => a.value)),
       ).toEqual(new Set([ADDRESS]));
@@ -169,7 +161,6 @@ describe('EnsSubnameService', () => {
       createThrows = new Error('namespace 503');
 
       expect(await service.mintForUsername(USER, 'arti', ADDRESS)).toBeNull();
-      // Nothing left claimed, so a retry can take the same label.
       expect(claims.has(USER)).toBe(false);
     });
 

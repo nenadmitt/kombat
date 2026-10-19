@@ -26,9 +26,7 @@ import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,20}$/;
-// Placeholder word lengths for the masked grid before the real mnemonic is loaded.
 const MASK_LENGTHS = [6, 7, 5, 8, 5, 6, 5, 7, 8];
-// Selectable avatar tints (a local preview - persistence isn't wired yet).
 const AVATAR_COLORS = [colors.accent, colors.gold, colors.success, colors.info];
 
 export default function OnboardingScreen() {
@@ -44,12 +42,9 @@ export default function OnboardingScreen() {
   const [revealed, setRevealed] = useState(false);
   const [mnemonicError, setMnemonicError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  // Visual-only avatar tint (no backend support yet - a design preview).
   const [avatarColor, setAvatarColor] = useState<string>(colors.accent);
 
   const isValid = USERNAME_PATTERN.test(username.trim());
-  // A referral code is optional, but a half-typed one should block submit
-  // rather than be silently dropped on the floor.
   const referralEntered = referralCode.trim().length > 0;
   const referralValid = !referralEntered || isValidReferralCode(referralCode);
   const avatarInitial = (username.trim()[0] ?? 'K').toUpperCase();
@@ -123,7 +118,6 @@ export default function OnboardingScreen() {
             </Text>
           </View>
 
-          {/* Profile: avatar + tint picker + username */}
           <Card accent style={styles.profileCard}>
             <Text style={[type.label, styles.profileLabel]}>Your profile</Text>
 
@@ -175,8 +169,7 @@ export default function OnboardingScreen() {
                 3-20 characters · letters, numbers, underscores.
               </Text>
 
-              {/* Optional referral. Attribution is write-once server-side, so
-                  this is the only moment it can be claimed. */}
+              {/* Attribution is write-once server-side, so this is the only moment it can be claimed. */}
               <Text style={styles.referralLabel}>
                 Referral code <Text style={styles.referralOptional}>(optional)</Text>
               </Text>
@@ -213,7 +206,6 @@ export default function OnboardingScreen() {
             </View>
           </Card>
 
-          {/* Recovery phrase */}
           <View style={styles.recoveryHeaderRow}>
             <Text style={[type.label, styles.label]}>Recovery phrase</Text>
             <Chip label="Keep secret" tone="gold" icon="lock" />
@@ -298,7 +290,6 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.lg,
     paddingBottom: spacing.xxl,
-    // One uniform vertical rhythm between every block on the screen.
     gap: spacing.md,
   },
   titleGroup: {
@@ -379,12 +370,10 @@ const styles = StyleSheet.create({
   },
   usernameInput: {
     flex: 1,
-    // Sora reads airy at input size; tighten the tracking to match the design.
     fontFamily: display.bold,
     fontSize: 17,
     letterSpacing: -0.2,
     color: colors.textPrimary,
-    // Trim RN's default vertical text padding so the caret sits snug.
     paddingVertical: 0,
   },
   availableBadge: {
@@ -426,7 +415,6 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   wordChip: {
-    // Three equal columns that fill the card width (RN has no CSS grid).
     flexBasis: '30%',
     flexGrow: 1,
     alignItems: 'center',

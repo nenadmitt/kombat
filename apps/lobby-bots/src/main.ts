@@ -6,11 +6,6 @@ import { Orchestrator } from './orchestrator/orchestrator';
 
 const log = createLogger('main');
 
-/**
- * Check the three things a start needs, in the order they fail, and say
- * which one it was: a missing env var, an unreachable server, and a refused
- * sign-in are three different fixes and used to produce near-identical logs.
- */
 async function preflight(config: ReturnType<typeof loadConfig>): Promise<void> {
   log.info(`server url: ${config.serverUrl}`);
   log.info(`bots: ${config.botCount} of ${BOT_ACCOUNTS.length} on the roster`);

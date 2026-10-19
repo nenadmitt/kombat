@@ -25,8 +25,7 @@ loadEnv();
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env'] }),
-    // Per-IP, per-route. Off outside production so the e2e suite and local
-    // scripts can hammer the API.
+    // Off outside production so the e2e suite and local scripts can hammer the API.
     ThrottlerModule.forRoot({
       throttlers: [{ ttl: seconds(60), limit: 100 }],
       skipIf: () => !isProductionEnv(process.env.NODE_ENV),

@@ -13,8 +13,7 @@ export class CrossStableStakes1786100000000 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "match_settlements" ADD COLUMN "fee_by_asset" jsonb`,
     );
-    // A cross-stable room pays the winner one prize per asset, so the ledger's
-    // per-room uniqueness has to be per asset too.
+    // A cross-stable room pays one prize per asset, so ledger uniqueness is per asset too.
     await queryRunner.query(`DROP INDEX "UQ_stake_ledger_room_entry"`);
     await queryRunner.query(
       `CREATE UNIQUE INDEX "UQ_stake_ledger_room_entry" ON "stake_ledger_entries" ("room_id", "user_id", "kind", "asset") WHERE "room_id" IS NOT NULL`,

@@ -2,32 +2,18 @@ import { BlurMask, Circle, Group } from '@shopify/react-native-skia';
 
 import { colors } from '../../theme/colors';
 
-/** Debris directions, in degrees anticlockwise from due right. Fixed so the
- *  hook count per blast never changes between renders. */
+/** Fixed so the hook count per blast never changes between renders. */
 const SPARKS = [18, 55, 92, 128, 162, 205, 250, 300];
 
 type Props = {
-  /** Blast centre in screen space. */
   cx: number;
   cy: number;
-  /** Radius the shockwave reaches at full expansion. */
   radius: number;
-  /** 0 -> 1 over the life of the blast. */
   progress: number;
 };
 
-/**
- * A shell going off: a hot core that flashes and collapses, a shockwave ring
- * riding out past it, and debris thrown clear. Sized by `radius`, so the same
- * component covers a shell landing and a hull being destroyed.
- *
- * Driven by a plain number rather than a Reanimated shared value: `withTiming`
- * does not drive these Skia nodes in this app (a static assignment paints, an
- * animated one never does), while the JS-ticked progress the shell flight
- * already uses is smooth and predictable.
- */
+/** Driven by a JS-ticked number: Reanimated's withTiming does not drive these Skia nodes in this app. */
 export default function SalvoBlast({ cx, cy, radius, progress: p }: Props) {
-  // The core punches out fast then dies back, leaving the ring to travel on.
   const coreR = radius * (p < 0.25 ? p * 2.4 : Math.max(0, 0.6 - (p - 0.25) * 0.8));
   const coreOpacity = Math.min(1, p * 8) * (1 - Math.min(1, p / 0.55));
   const glowR = coreR * 1.6;
@@ -84,9 +70,7 @@ function Spark({
     return null;
   }
   const rad = (angle * Math.PI) / 180;
-  // Screen y grows downward, so a positive angle throws debris upward.
   const travel = radius * 1.3 * (1 - (1 - p) * (1 - p));
-  // Debris decelerates as it flies and sags under gravity on the way out.
   const x = cx + Math.cos(rad) * travel;
   const y = cy - Math.sin(rad) * travel + radius * 0.9 * p * p;
 

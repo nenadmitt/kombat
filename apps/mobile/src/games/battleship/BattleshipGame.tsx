@@ -15,13 +15,6 @@ import { useDemoBattleship } from './game/useDemoBattleship';
 import { useMultiplayerBattleship } from './game/useMultiplayerBattleship';
 import BattleshipSetupScreen from './setup/BattleshipSetupScreen';
 
-/**
- * Battleship container. Owns the mode via one of two engines, chosen from the
- * route: the `Battleship` route carries a `roomId` (socket multiplayer), while
- * the demo `BattleshipSetup` route has none (local bot). Drives the shared
- * flow: fleet setup → (waiting) → the pure-UI play screen.
- */
-/** Stake info riding on the route (staked multiplayer matches only). */
 export type MatchStakeInfo = { token: StakeAsset; amount: string };
 
 export default function BattleshipGame() {
@@ -91,19 +84,12 @@ function BattleshipGameFlow({
 }) {
   const navigation = useNavigation();
   const confirm = useConfirm();
-  // Set when the user has already confirmed leaving (e.g. the waiting screen's
-  // own cancel dialog) so the navigation guard lets that exit pass silently.
   const exitConfirmed = useRef(false);
 
-  // Leaving an unfinished multiplayer match (any phase) forfeits it; the demo
-  // only guards active play. The result screens exit freely.
   const guardExit =
     engine.playProps.result === null &&
     (isMultiplayer || engine.phase === 'play');
 
-  // Single choke point for every way off this screen: header back, Android
-  // back, anything that pops the route (iOS edge-swipe is disabled on the
-  // route itself). Confirm, forfeit, then let the blocked action through.
   usePreventRemove(guardExit, ({ data }) => {
     if (exitConfirmed.current) {
       navigation.dispatch(data.action);
@@ -130,8 +116,6 @@ function BattleshipGameFlow({
         opponent={engine.playProps.opponent}
         deadline={engine.setupDeadline}
         error={engine.waitingError}
-        // Cancelling forfeits the match (the confirm dialog lives inside);
-        // it already confirmed, so the navigation guard steps aside.
         onCancel={() => {
           exitConfirmed.current = true;
           engine.forfeit();
@@ -145,7 +129,6 @@ function BattleshipGameFlow({
       <BattleshipPlayScreen
         {...engine.playProps}
         stake={stake}
-        // Plain back - the navigation guard owns the forfeit confirmation.
         onExit={onExit}
         onQuit={onExit}
       />

@@ -21,17 +21,11 @@ export type ChipTone =
 type Props = {
   label: string;
   tone?: ChipTone;
-  /** Optional leading icon, tinted to the tone's foreground. */
   icon?: IconName;
-  /** Small uppercase mono badge (default) vs regular-case. */
   uppercase?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
-/**
- * Mono pill/badge - the design's recurring micro-label (DEMO, WIN, KEEP SECRET,
- * feature tags). Filled soft-tint by default; `outline` for a hairline chip.
- */
 export default function Chip({
   label,
   tone = 'neutral',

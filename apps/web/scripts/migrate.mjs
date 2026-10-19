@@ -10,7 +10,6 @@ config();
 
 const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'migrations');
 
-/** Identity of "the migration lock" across every instance and release. */
 const LOCK_KEY = 4314907002n;
 
 function connectionConfig() {
@@ -41,8 +40,7 @@ async function main() {
       )
     `);
 
-    // Two instances booting together otherwise both see the same pending list
-    // and the second dies on "relation already exists".
+    // Without the lock, two instances booting together both run the same pending list.
     await client.query(`SET lock_timeout = '5min'`);
     await client.query('SELECT pg_advisory_lock($1)', [LOCK_KEY.toString()]);
 

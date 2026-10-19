@@ -4,8 +4,7 @@ import { IsIn, IsOptional } from 'class-validator';
 import { StakeAsset } from '../../db/types/game';
 
 export class JoinGameRoomDto {
-  /** Omit to stake whatever the room was opened in; a stable-staked room also
-   *  accepts either of the other two stablecoins. */
+  // Omit to stake the room's token; a stable-staked room also accepts the other stablecoins.
   @IsOptional()
   @IsIn(STAKEABLE_ASSETS)
   stakeToken?: StakeAsset;

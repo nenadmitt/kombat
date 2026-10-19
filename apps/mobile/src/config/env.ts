@@ -1,9 +1,5 @@
 import Config from 'react-native-config';
 
-/**
- * Typed, validated access to build-time env vars (from `.env` via
- * react-native-config). Client-safe values only - secrets never live here.
- */
 function required(key: keyof typeof Config): string {
   const value = Config[key];
   if (!value) {
@@ -14,7 +10,6 @@ function required(key: keyof typeof Config): string {
   return value;
 }
 
-/** Optional: absent means the feature that reads it stays hidden. */
 function optional(key: keyof typeof Config): string | null {
   return Config[key] || null;
 }
@@ -22,9 +17,7 @@ function optional(key: keyof typeof Config): string | null {
 export const env = {
   apiBaseUrl: required('API_BASE_URL'),
   alchemyToken: required('ALCHEMY_TOKEN'),
-  /** Status/incident page linked from the maintenance banner. */
   maintenanceDetailsUrl: optional('MAINTENANCE_DETAILS_URL'),
-  /** Expected StakePot address. When set, a server-supplied deposit target
-   *  that differs is refused - a compromised API can't redirect deposits. */
+  /** When set, a server-supplied deposit target that differs is refused. */
   stakePotAddressPin: optional('STAKE_POT_ADDRESS_PIN'),
 };

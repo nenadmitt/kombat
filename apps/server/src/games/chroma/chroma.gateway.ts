@@ -27,12 +27,6 @@ import {
 
 type SocketWithUser = Socket & { data: { userId?: string } };
 
-/**
- * ChromaClash realtime handlers - same shape as the other game gateways.
- * Hidden-hand discipline lives here: every mutation broadcasts its public
- * payload to the room channel, then pushes each changed hand privately to
- * its owner via the caller-only `hand` event.
- */
 @WebSocketGateway({ cors: true })
 export class ChromaGateway {
   constructor(
@@ -56,7 +50,7 @@ export class ChromaGateway {
       const room = await this.loadParticipantRoom(dto.roomId, userId, true);
       await this.stakesService.assertRoomPlayable(room);
       const match = await this.matchService.getOrCreate(room);
-      // Own hand rides a caller-only push, never the channel.
+      // Own hand is a caller-only push, never the channel.
       client.emit(CHROMA_EVENTS.hand, {
         cards: match.hands[userId] ?? [],
       });
@@ -194,7 +188,6 @@ export class ChromaGateway {
     }
   }
 
-  /** Channel broadcast + private hand pushes for every changed hand. */
   private broadcast(
     roomId: string,
     event: string,
@@ -216,8 +209,6 @@ export class ChromaGateway {
     await this.stakesService.completeMatch(roomId, winnerUserId, 'complete');
   }
 
-  // --- presence --------------------------------------------------------------
-
   private async markOnline(
     client: SocketWithUser,
     roomId: string,
@@ -235,7 +226,7 @@ export class ChromaGateway {
           }
         })
         .catch(() => {
-          // Best effort — presence flags self-correct on the next enter.
+          // Best effort: presence flags self-correct on the next enter.
         });
     });
   }
@@ -252,12 +243,7 @@ export class ChromaGateway {
     );
   }
 
-  /**
-   * `fresh` bypasses the room cache. Only the enter path needs it: it decides
-   * whether the match may start, and a stale Pending copy (possible on a
-   * second instance when running without Redis) strands the whole room on a
-   * loading spinner. Per-action calls stay on the cache.
-   */
+  // `fresh` bypasses the room cache; only enter needs it, since it decides whether the match may start.
   private async loadParticipantRoom(
     roomId: string,
     userId: string,
@@ -269,9 +255,7 @@ export class ChromaGateway {
     if (!room) {
       throw new Error('Game room not found.');
     }
-    // participantsOf covers both seatings: a two-player joiner sits in
-    // `opponent_id`, a multi-seat joiner in `opponent_ids`. Reading either
-    // column directly is how Salvo rejected its own joiner.
+    // Never a seat column directly: two-player and multi-seat joiners sit in different columns.
     if (!participantsOf(room).includes(userId)) {
       throw new Error('You are not part of this room.');
     }

@@ -7,7 +7,6 @@ import { GameRoomStatus, GameType } from '../db/types/game';
 import { participantsOf } from '../games/room.util';
 import { WebsocketsService } from '../websockets';
 
-/** users.platform values, owned by the web-accounts work. */
 const PLATFORM_LABELS: Record<number, string> = { 0: 'mobile', 1: 'web' };
 
 function platformLabel(platform: number | null): string | null {
@@ -25,7 +24,6 @@ export interface AdminStatsOverview {
   users: {
     total: number;
     online: number;
-    /** null until the users.platform column exists. */
     byPlatform: { platform: number; label: string; users: number }[] | null;
   };
   games: RoomTotals & { byType: TypeCount[] };
@@ -64,7 +62,6 @@ export interface AdminUserView {
   email: string | null;
   username: string | null;
   createdAt: string;
-  /** Has at least one open socket on this instance right now. */
   online: boolean;
   isBot: boolean;
 }
@@ -91,7 +88,6 @@ export interface DeleteUserResult {
   walletsDeleted: number;
 }
 
-/** Operator-only reads and actions behind the AdminTokenGuard. */
 @Injectable()
 export class AdminService {
   constructor(
@@ -99,14 +95,12 @@ export class AdminService {
     private readonly websocketsService: WebsocketsService,
   ) {}
 
-  /** Every user, newest first, flagged with live-connection status. */
   async listUsers(): Promise<AdminUserView[]> {
     const users = await this.dbService.findAllUsers();
     const online = new Set(this.websocketsService.getOnlineUserIds());
     return users.map(user => this.toUserView(user, online));
   }
 
-  /** Users with at least one live socket connection right now. */
   async listActiveUsers(): Promise<AdminUserView[]> {
     const online = new Set(this.websocketsService.getOnlineUserIds());
     if (online.size === 0) {
@@ -116,7 +110,6 @@ export class AdminService {
     return users.map(user => this.toUserView(user, online));
   }
 
-  /** Platform-wide counters for the admin dashboard. */
   async getStatsOverview(): Promise<AdminStatsOverview> {
     const [totals, byType, platforms] = await Promise.all([
       this.dbService.findRoomTotals(),
@@ -150,7 +143,6 @@ export class AdminService {
     };
   }
 
-  /** One row per user for the dashboard table, newest first. */
   async listUserStats(): Promise<AdminUserStatsRow[]> {
     const [users, played, platforms] = await Promise.all([
       this.dbService.findAllUsers(),
@@ -177,7 +169,6 @@ export class AdminService {
     });
   }
 
-  /** One user's full record. */
   async getUserStats(id: string): Promise<AdminUserStats> {
     const user = await this.dbService.findUserById(id);
     if (!user) {
@@ -209,18 +200,12 @@ export class AdminService {
     };
   }
 
-  /** Every live room (Pending or InProgress), newest first. */
   async listActiveGames(): Promise<AdminGameRoomView[]> {
     const rooms = await this.dbService.findActiveGameRooms();
     return rooms.map(room => this.toGameView(room));
   }
 
-  /**
-   * Hard-deletes a user and their wallets. Game rooms are left intact by
-   * design - the now-orphaned id resolves to "unknown" wherever history or
-   * opponent lookups reference it (they already null-coalesce a missing user).
-   * The user's email_login_tokens go via the DB cascade.
-   */
+  // Game rooms are kept; the orphaned id resolves to "unknown" wherever it is referenced.
   async deleteUser(id: string): Promise<DeleteUserResult> {
     const user = await this.dbService.findUserById(id);
     if (!user) {

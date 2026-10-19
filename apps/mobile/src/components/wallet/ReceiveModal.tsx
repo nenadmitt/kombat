@@ -17,7 +17,6 @@ type Props = {
   address: string;
 };
 
-/** Shows the wallet address as a QR code with copy + share. */
 export default function ReceiveModal({ visible, onClose, chain, address }: Props) {
   const [copied, setCopied] = useState(false);
 
@@ -124,7 +123,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     padding: spacing.md,
     borderRadius: radius.lg,
-    // Soft bloom behind the code (iOS).
     shadowColor: colors.accent,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,

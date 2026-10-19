@@ -22,12 +22,6 @@ import { applyMove, legalMoves } from './ludo.rules';
 import { shieldableTokens, type LudoShields } from './ludo.shields';
 import type { LudoColor, LudoTokens } from './ludo.types';
 
-/**
- * Pick the bot's token for a rolled die, or null when nothing is movable.
- * Greedy one-ply heuristic: capture > finish a token > leave base > reach
- * a safe cell or the home column > push the furthest token. Shared by the
- * mobile demo (and any future server-side bot).
- */
 export function chooseBotMove(
   tokens: LudoTokens,
   color: LudoColor,
@@ -71,8 +65,7 @@ export function chooseBotMove(
     ) {
       score += 30;
     }
-    // Prefer pushing the token closest to home; tiny jitter breaks ties so
-    // the bot doesn't play identically every game.
+    // Jitter breaks ties so the bot doesn't play identically every game.
     score += result.toProgress / 10 + Math.random();
 
     if (score > bestScore) {
@@ -83,7 +76,6 @@ export function chooseBotMove(
   return best;
 }
 
-/** Every ability is cast on one of the caster's own pawns. */
 export type LudoAbilityAction = {
   kind: LudoAbilityKind;
   tokenIndex: number;
@@ -95,23 +87,14 @@ export type LudoAbilityActionInput = {
   opponents: LudoColor[];
   chargeHp: number;
   usesLeft: Record<LudoAbilityKind, number>;
-  /** Buffed pawns of every color. */
   jumps?: LudoJumps;
-  /** Shielded pawns of every color. */
   shields?: LudoShields;
 };
 
-/** How close behind an opponent has to be for the bot to jump clear. */
 const LAUNCH_THREAT_CELLS = 12;
 
-/** Only worth burning the one teleport on a pawn already most of the way round. */
 const TELEPORT_TARGET_PROGRESS = 30;
 
-/**
- * At most one ability per turn: launch a pawn the throw would bank or that
- * something is closing in on, shield the leading pawn, teleport one that is
- * nearly home, else buff the best candidate with Extra Jump.
- */
 export function pickAbilityAction(
   input: LudoAbilityActionInput,
 ): LudoAbilityAction | null {

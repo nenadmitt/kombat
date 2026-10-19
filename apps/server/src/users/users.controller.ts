@@ -39,7 +39,6 @@ export class UsersController {
     };
   }
 
-  /** Lifetime record backing the Profile screen's stats and badges. */
   @Get('me/stats')
   async getMyStats(
     @SecurityContext() securityContext: ISecurityContext,
@@ -47,8 +46,6 @@ export class UsersController {
     return this.usersService.getStats(securityContext.userId);
   }
 
-  /** Batch-resolve public profiles (?ids=a,b,c) - match rosters, history.
-   *  Auth'd but not restricted: usernames are public by design. */
   @Get('profiles')
   async getProfiles(
     @Query() dto: GetProfilesDto,

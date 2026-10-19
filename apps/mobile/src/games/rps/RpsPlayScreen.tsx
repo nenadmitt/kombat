@@ -51,12 +51,9 @@ const MOVE_LABEL: Record<RpsMove, string> = {
   scissors: 'SCISSORS',
 };
 
-/** Arena hand-slot geometry - one set of numbers for BOTH sides so the two
- *  cards can never drift apart in size, rounding or badge distance. */
 const SLOT_SIZE = 112;
 const SLOT_ICON = 66;
 
-/** Springs its content in whenever `popKey` changes (new pick / lock). */
 function PopIn({ popKey, children }: { popKey: string | null; children: ReactNode }) {
   const scale = useSharedValue(1);
   useEffect(() => {
@@ -69,7 +66,6 @@ function PopIn({ popKey, children }: { popKey: string | null; children: ReactNod
   return <Animated.View style={style}>{children}</Animated.View>;
 }
 
-/** Gentle idle float (the design's ld-float) for a slot's settled content. */
 function Floating({ children }: { children: ReactNode }) {
   const y = useSharedValue(0);
   useEffect(() => {
@@ -85,7 +81,6 @@ function Floating({ children }: { children: ReactNode }) {
   return <Animated.View style={style}>{children}</Animated.View>;
 }
 
-/** The opponent's placeholder: a slow-breathing question mark. */
 function PulsingMark({ waiting }: { waiting: boolean }) {
   const opacity = useSharedValue(0.35);
   useEffect(() => {
@@ -105,7 +100,6 @@ function PulsingMark({ waiting }: { waiting: boolean }) {
   return <Animated.Text style={[styles.qMark, style]}>?</Animated.Text>;
 }
 
-/** Row of BEST_OF/2-rounded score pips for one player. */
 function ScorePips({ score }: { score: number }) {
   return (
     <View style={styles.pipRow}>
@@ -116,11 +110,6 @@ function ScorePips({ score }: { score: number }) {
   );
 }
 
-/**
- * Pure-UI Triple Cut screen: the live match (choose + lock) and the round
- * reveal, driven entirely by engine props. The demo bot engine and the
- * multiplayer socket engine both feed it.
- */
 export default function RpsPlayScreen({
   opponent,
   myOnline,
@@ -143,8 +132,6 @@ export default function RpsPlayScreen({
 }: RpsPlayScreenProps) {
   const { width } = useWindowDimensions();
 
-  // A move is only committed by pressing LOCK IN - selecting a card just
-  // arms it. Clear the local selection whenever a fresh round begins.
   const [selected, setSelected] = useState<RpsMove | null>(null);
   useEffect(() => {
     if (stage === 'choosing' && myMove === null) {
@@ -211,7 +198,6 @@ export default function RpsPlayScreen({
   }
 
   const revealing = stage === 'revealing' && reveal !== null;
-  // The arena shows the committed move once locked, otherwise the armed pick.
   const activePick = myMove ?? selected;
 
   return (
@@ -242,7 +228,6 @@ export default function RpsPlayScreen({
       </View>
 
       <View style={styles.content}>
-        {/* Score strip */}
         <View style={styles.scoreStrip}>
           <View style={styles.scoreSide}>
             <View style={[styles.avatar, styles.avatarEnemy]}>
@@ -290,7 +275,6 @@ export default function RpsPlayScreen({
           />
         ) : (
           <>
-            {/* Arena */}
             <View style={styles.arena}>
               <View style={styles.arenaSide}>
                 <View style={[styles.handSlot, opponentLocked && styles.handSlotLocked]}>
@@ -339,7 +323,6 @@ export default function RpsPlayScreen({
               </View>
             </View>
 
-            {/* Choose */}
             <Text style={styles.chooseLabel}>CHOOSE YOUR MOVE</Text>
             <View style={styles.choices}>
               {RPS_MOVES.map(move => {
@@ -369,7 +352,6 @@ export default function RpsPlayScreen({
               })}
             </View>
 
-            {/* Countdown + LOCK IN */}
             <View style={styles.footerRow}>
               <View style={styles.timerBox}>
                 <TurnTimer
@@ -427,8 +409,6 @@ export default function RpsPlayScreen({
   );
 }
 
-/** The reveal face per the design: eyebrow + headline, both hands with the
- *  winner flagged (loser dimmed), the score box, and the match-point line. */
 function RevealBody({
   reveal,
   opponent,
@@ -478,7 +458,6 @@ function RevealBody({
         />
       </View>
 
-      {/* Score box: opponent | pip stack | you (design's reveal footer). */}
       <View style={styles.revealScoreBox}>
         <View style={styles.revealScoreCol}>
           <Text style={styles.revealScoreLabel}>
@@ -619,8 +598,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.lg,
   },
-  // Badge distance comes from this one gap; both slots share one size,
-  // radius and border width, so the two sides always render identically.
   arenaSide: { alignItems: 'center', gap: 12 },
   handSlot: {
     width: SLOT_SIZE,
@@ -681,7 +658,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentSoft,
     borderColor: colors.accent,
     borderWidth: 1.5,
-    // The design lifts the armed card slightly out of the row.
     transform: [{ translateY: -3 }],
   },
   choiceCardDim: { opacity: 0.4 },
@@ -689,7 +665,6 @@ const styles = StyleSheet.create({
   choiceLabelOn: { color: colors.textPrimary },
 
   footerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: 'auto', marginBottom: spacing.md },
-  // Bare timer column beside the LOCK IN button, per the design.
   timerBox: { alignItems: 'center', gap: 2, minWidth: 56 },
   timer: { fontSize: 22, fontFamily: mono.bold, color: colors.textPrimary, fontVariant: ['tabular-nums'] },
   timerLabel: { fontSize: 9, fontFamily: mono.bold, color: colors.textMuted, letterSpacing: 1 },
@@ -705,7 +680,6 @@ const styles = StyleSheet.create({
   lockButtonDisabled: { opacity: 0.4 },
   lockButtonText: { fontSize: 16, fontFamily: fonts.bold, color: colors.textPrimary, letterSpacing: 1 },
 
-  // reveal
   reveal: { alignItems: 'center', gap: spacing.md, paddingTop: spacing.sm },
   revealEyebrow: { fontSize: 11, fontFamily: fonts.extraBold, letterSpacing: 2 },
   revealHeadline: { fontSize: 28, fontFamily: display.bold, color: colors.textPrimary, textAlign: 'center', letterSpacing: -0.3 },

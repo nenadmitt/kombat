@@ -4,13 +4,7 @@ import { CacheStore } from './cache-store';
 
 type Entry = { value: string; expiresAt: number | null };
 
-/**
- * In-process CacheStore — the fallback when REDIS_URL is unset. Preserves
- * today's single-instance behavior: state lives (and dies) with the process.
- * Node is single-threaded, so tryLock's check-then-set is atomic without any
- * further coordination; the lock still matters because callers hold it across
- * awaits inside a read-mutate-write cycle.
- */
+// Node is single-threaded, so check-then-set is atomic; the lock still matters across awaits.
 export class InMemoryCacheStore implements CacheStore {
   private readonly entries = new Map<string, Entry>();
   private readonly deadlines = new Map<string, number>();
@@ -76,7 +70,6 @@ export class InMemoryCacheStore implements CacheStore {
     return Promise.resolve(due);
   }
 
-  /** Lazy expiry: entries are dropped when read past their TTL. */
   private read(key: string): Entry | undefined {
     const entry = this.entries.get(key);
     if (!entry) {

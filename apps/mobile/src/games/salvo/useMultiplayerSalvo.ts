@@ -34,22 +34,13 @@ import type {
   SalvoTrail,
 } from './salvo-engine';
 
-/** One shell step per frame; the server's path is ~60 points, so ~1s of flight. */
 const SHELL_FRAME_MS = 16;
-/** A destroyed hull burns this long before the result screen takes over. */
 const DESTRUCTION_MS = 3500;
-/** A confirmed drive rolls the hull over this long, matching the local game. */
 const DRIVE_MS = 1500;
 const DRIVE_FRAME_MS = 33;
 
 const roundOf = (shotNumber: number) => Math.ceil(shotNumber / 2);
 
-/**
- * Multiplayer engine: the server owns the terrain, both tanks, the wind and
- * every trajectory. This client sends intent only - a column to drive to, an
- * aim to fire with - and animates the outcomes it is pushed. The one piece of
- * local state is my own undisclosed dial, which is not sent until I fire.
- */
 export function useMultiplayerSalvo(roomId: string): SalvoEngine {
   const joinChannel = useWebsocketStore(s => s.joinChannel);
   const leaveChannel = useWebsocketStore(s => s.leaveChannel);
@@ -130,15 +121,12 @@ export function useMultiplayerSalvo(roomId: string): SalvoEngine {
     setStats(s.stats);
     setWinnerUserId(s.winnerUserId);
     setEndReason(s.endReason);
-    // A snapshot is authoritative: if the match is already over there is no
-    // wreck left to watch, so the result shows immediately.
     setResultRevealed(s.winnerUserId !== null);
     setDestroyedUserId(null);
     setFlight(null);
     setTrail(null);
   }, []);
 
-  /** Roll a hull from where it stands to the column the server confirmed. */
   const animateDrive = useCallback((userId: string, toX: number) => {
     if (driveTimer.current) {
       clearInterval(driveTimer.current);
@@ -169,12 +157,10 @@ export function useMultiplayerSalvo(roomId: string): SalvoEngine {
     }, DRIVE_FRAME_MS);
   }, []);
 
-  /** Apply the shot's consequences once the shell has landed on screen. */
   const settle = useCallback((payload: SalvoShotPayload, side: SalvoSide) => {
     setFlight(null);
     setTrail({ shooter: side, path: payload.path, impact: payload.impact, id: shotId.current });
-    // The crater is arithmetic, not simulation, so applying the server's
-    // impact point locally always yields the server's heightmap.
+    // The crater is arithmetic, not simulation, so applying the server's impact point locally yields its heightmap.
     if (payload.crater) {
       setTerrain(prev => {
         if (!prev) {
@@ -185,7 +171,6 @@ export function useMultiplayerSalvo(roomId: string): SalvoEngine {
         return next;
       });
     }
-    // One popup per hull that actually lost HP, from the server's numbers.
     const shooterSide = side;
     const targetSide =
       side === SalvoSide.Left ? SalvoSide.Right : SalvoSide.Left;
@@ -221,7 +206,6 @@ export function useMultiplayerSalvo(roomId: string): SalvoEngine {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** Fly the server's own path, then settle the outcome it already decided. */
   const playShot = useCallback((payload: SalvoShotPayload) => {
     shotId.current += 1;
     const id = shotId.current;
@@ -267,7 +251,6 @@ export function useMultiplayerSalvo(roomId: string): SalvoEngine {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Keep a ref of seats so socket handlers resolve sides without re-subscribing.
   const seatsRef = useRef(seats);
   seatsRef.current = seats;
 
@@ -314,8 +297,6 @@ export function useMultiplayerSalvo(roomId: string): SalvoEngine {
       );
     });
 
-    // The gateway reports enter/action failures on salvo:error. Surfacing
-    // them is what turns "stuck on a spinner" into a readable bug report.
     const offError = on(SALVO_EVENTS.error, raw => {
       const message =
         (raw as { message?: string }).message ?? 'Something went wrong.';
@@ -352,16 +333,13 @@ export function useMultiplayerSalvo(roomId: string): SalvoEngine {
     nameOf,
   ]);
 
-  // A reconnect re-enters, which re-pushes the authoritative snapshot.
   useEffect(() => {
     if (status === 'connected') {
       emit(SALVO_EVENTS.enter, { roomId });
     }
   }, [status, roomId, emit]);
 
-  // Salvo's snapshot arrives as a push rather than a fetch, so "retry" means
-  // re-entering. The server rejects an enter until the room is InProgress,
-  // and that can lag the start event, so keep asking until terrain lands.
+  // Retry means re-entering: the server rejects enter until the room is InProgress, which can lag the start event.
   const enterOnce = useCallback(async () => {
     emit(SALVO_EVENTS.enter, { roomId });
   }, [emit, roomId]);
@@ -396,8 +374,6 @@ export function useMultiplayerSalvo(roomId: string): SalvoEngine {
     emit(SALVO_EVENTS.forfeit, { roomId });
   }, [emit, roomId]);
 
-  // --- derived play props ------------------------------------------------------
-
   const me = seats.find(s => s.userId === myUserId) ?? null;
   const mySide = me?.side ?? SalvoSide.Left;
 
@@ -408,7 +384,6 @@ export function useMultiplayerSalvo(roomId: string): SalvoEngine {
     isMe: s.userId === myUserId,
     hp: s.hp,
     x: s.x,
-    // My own barrel tracks my live dial; theirs shows what they last fired.
     angle: s.userId === myUserId ? myAngle : s.angle,
     power: s.userId === myUserId ? myPower : s.power,
   }));
@@ -459,8 +434,7 @@ export function useMultiplayerSalvo(roomId: string): SalvoEngine {
     onAim,
     onMove,
     onFire,
-    // The server's sweeper enforces the clock; the client never auto-fires,
-    // which would race it.
+    // The server's sweeper enforces the clock; auto-firing here would race it.
     onTimerExpire: () => {},
   };
 
@@ -479,14 +453,12 @@ const emptyStats = (): SalvoPlayerStats => ({
   damageByRound: [],
 });
 
-/** Placeholder while the first snapshot is still in flight. */
 const EMPTY_TERRAIN: SalvoTerrain = {
   width: 1,
   height: SALVO_FIELD_HEIGHT,
   heights: [0],
 };
 
-/** Read a resolved shot as the one-line banner, from the shooter's side. */
 function describeShot(payload: SalvoShotPayload, who: string): string {
   if (payload.selfDamage > 0) {
     return `${who} caught the blast - ${payload.selfDamage} self damage`;

@@ -5,13 +5,11 @@ export class BattleshipReadyDto {
   @IsUUID()
   roomId: string;
 
-  // Structural check only - the fleet's legality (all ships, in-bounds,
-  // non-overlapping) is validated by isValidFleet in the match service.
+  // Structural check only; isValidFleet checks legality in the match service.
   @IsObject()
   placements: FleetPlacements;
 
-  // Structural check only - mine legality (count, in-bounds, off ships) is
-  // validated by isValidMines in the match service.
+  // Structural check only; isValidMines checks legality in the match service.
   @IsArray()
   mines: MinePlacement[];
 }

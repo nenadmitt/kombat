@@ -9,7 +9,6 @@ import type {
   VolleyStats,
 } from '@gaming-platform/core';
 
-/** A ship positioned on a board, with the colour it renders in. */
 export type PlacedShip = {
   id: string;
   size: number;
@@ -17,10 +16,6 @@ export type PlacedShip = {
   placement: Placement;
 };
 
-/**
- * One resolved action to animate. `id` bumps on every action so a repeat of
- * the same cells still re-triggers the animation.
- */
 export type GridAction = {
   id: number;
   kind: 'single' | 'torpedo' | 'bomb' | 'mine';
@@ -37,9 +32,7 @@ export type BattleshipPlayProps = {
   powerupsUsed: Record<PowerupKind, number>;
   volleys: VolleyStats;
   myTurn: boolean;
-  /** The latest action on the enemy board (mine blasts land on mine). */
   action: GridAction | null;
-  /** The latest action on my own board. */
   opponentAction: GridAction | null;
   opponent: { initial: string; name: string };
   sunkByMe: number;
@@ -56,18 +49,11 @@ export type BattleshipPlayProps = {
 
 export type EnginePhase = 'setup' | 'waiting' | 'play';
 
-/**
- * A Battleship engine drives the match and exposes it as board props. The
- * local bot demo and the multiplayer socket both implement this, so one set
- * of screens serves both.
- */
 export type BattleshipEngine = {
   phase: EnginePhase;
-  /** Why the snapshot has not landed yet, so a stuck load is never mute. */
   waitingError?: string | null;
   submitFleet: (placements: FleetPlacements, mines: MinePlacement[]) => void;
   forfeit: () => void;
-  /** Epoch ms the fleet must be deployed by, or null outside setup. */
   setupDeadline: number | null;
   playProps: BattleshipPlayProps;
 };

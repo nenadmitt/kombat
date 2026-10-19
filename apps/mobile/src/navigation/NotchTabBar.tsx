@@ -5,11 +5,6 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import Icon, { type IconName } from '../components/Icon';
 import { colors } from '../theme/colors';
 
-/**
- * Notch-style tab bar: dark, anchored to the bottom edge. The selected tab's
- * icon sits in a blue rounded tile that pops up above the bar's top edge,
- * ringed by the screen background so it reads as a raised tab.
- */
 const TAB_ICONS: Record<string, IconName> = {
   Games: 'games',
   Wallet: 'wallet',
@@ -25,9 +20,7 @@ export default function NotchTabBar({
   const insets = useSafeAreaInsets();
 
   return (
-    // Outer wrapper paints the screen background behind the bar's rounded
-    // corners - otherwise the navigator's default (light) background bleeds
-    // through the corner cutouts.
+    // Paint the background behind the rounded corners, or the navigator's light default bleeds through.
     <View style={styles.wrapper}>
       <View style={[styles.bar, { paddingBottom: insets.bottom }]}>
         {state.routes.map((route, index) => {
@@ -97,8 +90,6 @@ const styles = StyleSheet.create({
   },
   tileActive: {
     backgroundColor: colors.accent,
-    // Pop the selected tab up out of the bar, ringed by the screen background
-    // so it reads as a raised notch (per the reference design).
     transform: [{ translateY: -24 }],
     borderWidth: 4,
     borderColor: colors.background,

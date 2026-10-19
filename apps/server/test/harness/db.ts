@@ -1,13 +1,6 @@
 import { DataSource } from 'typeorm';
 
-/**
- * Its own database, separate from the stake-pot suite's `<POSTGRES_DB>_test`:
- * this suite truncates the whole schema (users, rooms, settlements), which
- * would wipe rows that suite is mid-way through asserting on.
- *
- * The app migrates it on boot — MigrationService runs on module init — so all
- * that is needed here is for the database to exist first.
- */
+// Separate from the stake-pot suite's database: this suite truncates the whole schema.
 const CONNECTION = {
   host: process.env.POSTGRES_HOST ?? 'localhost',
   port: parseInt(process.env.POSTGRES_PORT ?? '5433', 10),
@@ -19,7 +12,7 @@ const CONNECTION = {
       : false,
 };
 
-/** Everything the suite writes. `migrations_typeorm` is deliberately absent. */
+// `migrations_typeorm` is deliberately absent.
 const TABLES = [
   'stake_ledger_entries',
   'stake_pot_withdrawals',
@@ -34,7 +27,7 @@ const TABLES = [
   'users',
 ];
 
-/** Postgres has no CREATE DATABASE IF NOT EXISTS; 42P04 is "already exists". */
+// Postgres has no CREATE DATABASE IF NOT EXISTS; 42P04 is "already exists".
 export async function ensureE2eDatabase(): Promise<void> {
   const admin = new DataSource({
     type: 'postgres',

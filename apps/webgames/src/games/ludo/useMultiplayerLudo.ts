@@ -37,14 +37,6 @@ import {
 
 const SYNC_RETRY_MS = 3000;
 
-/**
- * Multiplayer Ludo engine: everything flows through the single app socket.
- * The server owns the dice and the whole state machine; this client renders
- * pushes and replaces its state wholesale from the REST snapshot on mount and
- * after every reconnect. Unlike the 1v1 games there can be four seats, so
- * "which seat is mine" comes from the session's userId rather than an
- * everyone-but-the-opponent trick.
- */
 export function useMultiplayerLudo(roomId: string): LudoEngine {
   const joinChannel = useWebsocketStore(s => s.joinChannel);
   const leaveChannel = useWebsocketStore(s => s.leaveChannel);
@@ -77,7 +69,6 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
 
   const usernames = useUsernames(players.map(p => p.userId));
 
-  // Socket handlers read these without re-subscribing.
   const myUserIdRef = useRef(myUserId);
   myUserIdRef.current = myUserId;
   const playersRef = useRef(players);
@@ -116,7 +107,6 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
     [],
   );
 
-  /** Replace local state with the authoritative snapshot (mount + reconnect). */
   const syncState = useCallback(async () => {
     try {
       const state = await apiClient.getLudoRoomState(roomId);
@@ -142,8 +132,6 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
       setWaitingError(null);
       setLoaded(true);
     } catch (err) {
-      // Keep retrying, but say WHY on the waiting screen - a silent catch here
-      // is how "stuck on a spinner" bugs stay unsolvable.
       setWaitingError(
         err instanceof ApiError ? err.message : 'Could not reach the server.',
       );
@@ -305,8 +293,6 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
       setEndReason(p.reason);
     });
 
-    // Gateway failures (enter and every action) surface here rather than
-    // hanging the screen with no explanation.
     const offGatewayError = on(LUDO_EVENTS.error, raw => {
       const message =
         (raw as { message?: string }).message ?? 'Something went wrong.';
@@ -329,13 +315,9 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
       offGatewayError();
       leaveChannel(channel);
     };
-    // `status` is a dependency because a forced reconnect replaces the socket
-    // instance: handlers bound to the old one are gone, and without re-running
-    // this the match goes silent while still looking connected.
+    // `status` is a dependency: a forced reconnect replaces the socket instance.
   }, [roomId, joinChannel, leaveChannel, on, emit, nameOf, applyAbilityTurn, status]);
 
-  // The snapshot must eventually land: without it the board renders empty and
-  // a resumed match has no turn state.
   useEffect(() => {
     if (loaded) return;
     void syncState();
@@ -343,7 +325,6 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
     return () => clearInterval(timer);
   }, [loaded, syncState]);
 
-  // Pushes missed while offline are covered by a fresh snapshot.
   const prevStatusRef = useRef(status);
   useEffect(() => {
     const was = prevStatusRef.current;

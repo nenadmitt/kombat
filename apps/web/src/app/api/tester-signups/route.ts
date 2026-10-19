@@ -12,20 +12,13 @@ import { visitorId, withVisitorCookie } from "@/lib/visitor";
 
 const USERNAME = /^[a-zA-Z0-9_.-]{2,32}$/;
 
-/**
- * Stricter than "something@something.something": rejects the shapes a real
- * mailbox never has (leading, trailing or doubled dots, a hyphen on either
- * end of a domain label, a numeric or one-letter TLD), so a typo bounces here
- * instead of becoming an invite that can never be delivered.
- */
 const EMAIL =
   /^[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
 
 export async function POST(request: Request) {
   const ip = clientIp(request.headers) ?? "unknown";
   const visitor = visitorId(request);
-  // Both keys are checked, so evading the cap costs a new address *and* a
-  // cleared cookie rather than either one alone.
+  // Both keys are checked, so evading the cap takes a new address and a cleared cookie.
   const keys = [`ip:${ip}`, `v:${visitor}`];
 
   const reply = <T,>(body: T, init?: ResponseInit) =>
@@ -89,8 +82,6 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof DuplicateEmailError) {
-      // Already on the list is the same outcome the user wants, so it is not
-      // an error worth surfacing as one.
       return reply({ ok: true, alreadyRegistered: true });
     }
     console.error("tester signup failed", error);

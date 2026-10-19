@@ -10,7 +10,6 @@ type Props = {
   onPress?: () => void;
 };
 
-/** Rounded mono pill showing a truncated wallet address + copy affordance. */
 export default function AddressPill({ address, onPress }: Props) {
   return (
     <Pressable

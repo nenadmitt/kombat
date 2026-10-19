@@ -5,21 +5,13 @@ import { CHROMA_SUIT_VAR, glyphFor, isActionValue } from './chroma-theme';
 
 type Props = {
   card: ChromaCard;
-  /** Any CSS length. Every other measurement on the card derives from it in
-   *  the stylesheet, so a fluid width scales the whole face. */
+  /** Any CSS length; every other card measurement derives from it. */
   width: string;
-  /** Outlined as currently legal to play. */
   playable?: boolean;
-  /** Picked in the hand: lime ring, glow and a lift. */
   selected?: boolean;
   dimmed?: boolean;
 };
 
-/**
- * One Chroma card: suit-coloured face (wilds get the four-quadrant back), the
- * white oval rotated across the middle, the face glyph in the suit colour and
- * small white corner glyphs, the lower one upside down.
- */
 export function ChromaCardView({
   card,
   width,
@@ -53,7 +45,6 @@ export function ChromaCardView({
   );
 }
 
-/** The face-down back used for the draw pile and opponents' mini cards. */
 export function ChromaCardBack({ width }: { width: string }) {
   return (
     <span

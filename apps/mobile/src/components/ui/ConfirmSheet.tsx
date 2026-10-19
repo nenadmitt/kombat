@@ -8,19 +8,13 @@ import { display, type } from '../../theme/typography';
 import BottomSheet from './BottomSheet';
 import Button from './Button';
 
-/** Everything a confirmation/notice sheet needs. All optional but `title`. */
 export type ConfirmOptions = {
   title: string;
   message?: string;
-  /** Confirm button label. Defaults to "Confirm". */
   confirmLabel?: string;
-  /** Cancel button label. Defaults to "Cancel". Ignored for `mode: 'info'`. */
   cancelLabel?: string;
-  /** Red confirm button + red icon ring, for irreversible actions. */
   destructive?: boolean;
-  /** Optional icon shown in the ring above the title. */
   icon?: IconName;
-  /** `info` shows a single acknowledge button (no cancel). */
   mode?: 'confirm' | 'info';
 };
 
@@ -28,23 +22,14 @@ type ConfirmFn = (options: ConfirmOptions) => Promise<boolean>;
 
 const ConfirmContext = createContext<ConfirmFn | null>(null);
 
-/**
- * App-wide confirmation sheet. Mount `<ConfirmProvider>` once near the root,
- * then call `const confirm = useConfirm()` and `await confirm({ ... })` from
- * anywhere - it resolves `true` on confirm, `false` on cancel/dismiss. This is
- * the bottom-sheet replacement for `Alert.alert` across the app.
- */
 export function ConfirmProvider({ children }: { children: ReactNode }) {
   const [options, setOptions] = useState<ConfirmOptions | null>(null);
   const resolverRef = useRef<((value: boolean) => void) | null>(null);
   const pendingValueRef = useRef(false);
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Resolve only once the sheet is fully off-screen. Callers often present
-  // another Modal right after awaiting confirm(); presenting while this one
-  // is still animating out wedges iOS's modal presentation stack (frozen,
-  // touch-dead app). iOS signals real dismissal via onDismiss; the timer is the
-  // Android/safety fallback. First one wins.
+  // Resolve only once fully off screen: presenting another Modal while this one animates out wedges iOS touches.
+  // onDismiss is the iOS signal; the timer is the Android fallback.
   const finishSettle = useCallback(() => {
     if (fallbackTimerRef.current) {
       clearTimeout(fallbackTimerRef.current);
@@ -127,7 +112,6 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/** Imperative confirm - `await confirm({ title, message, ... })`. */
 export function useConfirm(): ConfirmFn {
   const ctx = useContext(ConfirmContext);
   if (!ctx) {

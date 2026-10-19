@@ -44,7 +44,6 @@ type Props = {
   onClose: () => void;
 };
 
-/** Brand icon per stakeable asset. Amounts are the fixed STAKE_PRESETS. */
 const STAKE_BRANDS: Partial<Record<StakeAsset, BrandIconName>> = {
   [StakeAsset.Usdc]: 'usdc',
   [StakeAsset.Usdt]: 'usdt',
@@ -56,11 +55,6 @@ const STAKE_TOKENS: StakeAsset[] = STAKEABLE_ASSETS;
 
 const DEFAULT_STAKE = 10;
 
-/**
- * The catalog this modal offers, filtered by the shared allowlist so a game
- * without a gateway (Salvo, which is local-only) can never be offered as a
- * room even if someone adds a row for it here.
- */
 const GAME_CHOICES: GameChoice[] = (
   [
   { gameType: GameType.NavalBattle, label: 'Battleships', blurb: '1v1 naval strategy · ~6 min' },
@@ -71,7 +65,6 @@ const GAME_CHOICES: GameChoice[] = (
   ] as GameChoice[]
 ).filter(choice => supportsMultiplayerRoom(choice.gameType));
 
-/** Trim trailing zeros for pot display (228.00 -> 228). */
 function trimNum(value: number): string {
   return value.toFixed(value >= 1 ? 2 : 4).replace(/\.?0+$/, '');
 }
@@ -82,7 +75,6 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [gameType, setGameType] = useState<GameType>(GameType.NavalBattle);
   const [gamePickerVisible, setGamePickerVisible] = useState(false);
-  /** null = free play, otherwise the staked token. */
   const [stakeToken, setStakeToken] = useState<StakeAsset | null>(null);
   const [stakeAmount, setStakeAmount] = useState<number>(DEFAULT_STAKE);
   const [tokenPickerOpen, setTokenPickerOpen] = useState(false);
@@ -91,8 +83,7 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
   const pot = useStakePotStore(state => state.balances);
   const refreshPot = useStakePotStore(state => state.refresh);
 
-  // Stakes come out of the pot, so a stale snapshot would offer stakes the
-  // player can no longer cover.
+  // Refresh: a stale pot snapshot would offer stakes the player can no longer cover.
   useEffect(() => {
     if (visible) {
       void refreshPot();
@@ -158,9 +149,7 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
               amount: parseStakeAmount(String(stakeAmount), stakeToken),
             };
       const room = await apiClient.createGameRoom(gameType, stake, isPrivate);
-      // Close this Modal first and only then hand the room to the waiting
-      // popup (another Modal). Presenting one while this is still animating
-      // out wedges iOS's presentation stack and kills every touch.
+      // Close this Modal before handing off to the waiting popup: overlapping presentations wedge iOS touches.
       onClose();
       setTimeout(() => setWaitingRoom(room), MODAL_DISMISS_MS);
     } catch (err) {
@@ -205,7 +194,6 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
             </Pressable>
           </View>
 
-          {/* Game */}
           <View style={styles.field}>
             <Text style={[type.label, styles.label]}>Game</Text>
             <Pressable style={styles.gameRow} onPress={() => setGamePickerVisible(true)}>
@@ -220,7 +208,6 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
             </Pressable>
           </View>
 
-          {/* Stake mode */}
           <View style={styles.stakeHeader}>
             <Text style={[type.label, styles.label]}>Stake</Text>
             <View style={styles.segment}>
@@ -317,7 +304,6 @@ export default function CreateGameRoomModal({ visible, onClose }: Props) {
             <Text style={styles.freeHint}>No stake - nothing wagered, just bragging rights.</Text>
           )}
 
-          {/* Private room */}
           <View style={styles.privateCard}>
             <View style={styles.privateIcon}>
               <Icon type="lock" color={colors.accentLight} size={18} />
@@ -390,7 +376,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: spacing.lg,
-    // One uniform vertical rhythm between every block.
     gap: spacing.md,
   },
   dragHandle: {
@@ -517,7 +502,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   amountValue: {
-    // Flex so the number and pill keep stable positions across presets.
     flex: 1,
     fontFamily: mono.bold,
     fontSize: 40,
@@ -571,7 +555,6 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   preset: {
-    // Four per row; the 8 presets settle into a 4x2 grid.
     flexBasis: '22%',
     flexGrow: 1,
     alignItems: 'center',

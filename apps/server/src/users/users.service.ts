@@ -23,10 +23,7 @@ import { DbService } from '../db';
 import { UserEntity } from '../db/entities/user.entity';
 import { EnsSubnameService } from '../ens';
 
-/** Crypto-backed uniform in [0,1) for referral-code generation. */
 const cryptoRand = () => randomInt(0, 281474976710655) / 281474976710655;
-/** Codes are 8 chars from a 32-glyph alphabet; collisions are vanishingly
- *  rare, but the unique index is the real guard so we simply re-roll. */
 const CODE_ATTEMPTS = 5;
 
 @Injectable()
@@ -44,24 +41,17 @@ export class UsersService {
     return user;
   }
 
-  /** Public (no-email) profiles for a batch of ids; unknown ids are omitted. */
   async getPublicProfiles(ids: string[]): Promise<PublicUserProfile[]> {
     const users = await this.dbService.findUsersByIds([...new Set(ids)]);
     return users.map(user => ({
       id: user.id,
       username: user.username,
-      // No avatar storage yet - the field is reserved in the API shape.
+      // Reserved in the API shape; there is no avatar storage.
       avatarUrl: null,
     }));
   }
 
-  /**
-   * Set the username and, on the way through, mint this user's own referral
-   * code and record who referred them.
-   *
-   * Attribution is write-once: a `referredBy` is only accepted while the
-   * field is still empty, so re-running onboarding can never reassign credit.
-   */
+  // Attribution is write-once: referredBy is only accepted while it is still empty.
   async updateUsername(
     userId: string,
     username: string,
@@ -98,8 +88,7 @@ export class UsersService {
     try {
       saved = await this.dbService.saveUser(user);
     } catch (err) {
-      // Postgres unique_violation — the app-level check above is just a
-      // friendly pre-check; this is the real guard against a race.
+      // unique_violation: the real guard against a race; the check above is only a pre-check.
       if ((err as { code?: string }).code === '23505') {
         throw new ConflictException('Username is already taken');
       }
@@ -107,17 +96,13 @@ export class UsersService {
     }
 
     if (!saved.ensName) {
-      // Detached like the signup grant: a Namespace outage must not fail the
-      // username, and the next username call retries.
+      // Detached: a Namespace outage must not fail the username, and the next username call retries.
       void this.mintSubname(saved);
     }
     return saved;
   }
 
-  /**
-   * A name with no address resolves to nothing, so the mint waits for the
-   * wallet. Whichever of the two lands second is what triggers it.
-   */
+  // A name with no address resolves to nothing, so whichever of username and wallet lands second mints.
   private async mintSubname(user: UserEntity): Promise<void> {
     const wallets = await this.dbService.findWalletsForUser(user.id);
     const address = wallets[0]?.address;
@@ -131,7 +116,6 @@ export class UsersService {
     );
   }
 
-  /** The profile payload, with the referrer resolved to a username. */
   async getProfile(userId: string): Promise<{
     user: UserEntity;
     referredByUsername: string | null;
@@ -143,7 +127,6 @@ export class UsersService {
     return { user, referredByUsername: referrer?.username ?? null };
   }
 
-  /** Lifetime record for the Profile screen. */
   async getStats(userId: string): Promise<PlayerStats> {
     const [totals, netRows, referrals, byGameType, bestStreak, user] =
       await Promise.all([
@@ -160,8 +143,6 @@ export class UsersService {
       netByToken[row.stakeToken as StakeAsset] = row.net;
     }
 
-    // Ordered most-played first, so the head is the headline and the length
-    // is how many different games the player has finished a match in.
     const [top] = byGameType;
 
     return {
@@ -181,12 +162,7 @@ export class UsersService {
     };
   }
 
-  /**
-   * Resolve a stake beneficiary. Accepts a wallet address, an ENS name (dots)
-   * or a bare username. Only platform wallets resolve: an address nobody plays
-   * under is "not found", which is what stops the web stake form firing at a
-   * pot credit that no player can ever spend.
-   */
+  // Only platform wallets resolve, so the stake form can't credit a pot no player can spend.
   async lookupRecipient(query: string): Promise<RecipientLookup> {
     const q = query.trim();
     let user: UserEntity | null = null;
@@ -225,7 +201,6 @@ export class UsersService {
     };
   }
 
-  /** Re-roll until the unique index accepts one. */
   private async mintReferralCode(): Promise<string> {
     for (let i = 0; i < CODE_ATTEMPTS; i++) {
       const code = generateReferralCode(cryptoRand);

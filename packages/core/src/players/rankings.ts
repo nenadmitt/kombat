@@ -1,11 +1,10 @@
 import type { GameType } from '../games/game-room.types';
 import { StakeAsset } from '../games/stake.types';
 
-/** Points for taking part in a decided match. Void rooms award nothing. */
+/** Void rooms award nothing. */
 export const RANKING_POINTS_FREE_GAME = 5;
 export const RANKING_POINTS_STAKED_GAME = 10;
 
-/** Points per whole coin of net winnings: stablecoins 1:1, KOMBAT at 10%. */
 export const RANKING_COIN_POINTS: Partial<Record<StakeAsset, number>> = {
   [StakeAsset.Kombat]: 0.1,
   [StakeAsset.Usdc]: 1,
@@ -14,7 +13,7 @@ export const RANKING_COIN_POINTS: Partial<Record<StakeAsset, number>> = {
 };
 
 export type RankingEntry = {
-  /** 1-based position in the requested ranking (offset included). */
+  /** 1-based, offset included. */
   rank: number;
   userId: string;
   username: string | null;
@@ -28,7 +27,6 @@ export type RankingEntry = {
 };
 
 export type RankingsQuery = {
-  /** Omit for the general (all games) ranking. */
   gameType?: GameType;
   limit?: number;
   offset?: number;

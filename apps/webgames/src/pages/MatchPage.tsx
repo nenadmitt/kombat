@@ -12,11 +12,7 @@ import { RpsMatchPage } from './RpsMatchPage';
 import { isWebPlayable } from '../lib/format';
 import { useLeaveGuardStore } from '../store/leave-guard.store';
 
-/**
- * The game type rides in the URL because there is no endpoint that resolves a
- * room id to its game: `/games/rooms/:id/state` already needs to know which
- * shape to parse.
- */
+// The game type rides in the URL: no endpoint resolves a room id to its game.
 function parseGameType(raw: string | undefined): GameType | null {
   const value = Number(raw);
   return Number.isInteger(value) && isWebPlayable(value as GameType)
@@ -57,10 +53,6 @@ export function DemoPage() {
   );
 }
 
-/**
- * Every board runs in the overlay. Reaching outside it is an exit like any
- * other, so it goes through whatever guard the live match armed.
- */
 function Board({ exit, children }: { exit: string; children: ReactNode }) {
   const intercept = useLeaveGuardStore(s => s.intercept);
   const navigate = useNavigate();

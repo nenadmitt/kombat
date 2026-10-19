@@ -1,6 +1,5 @@
 module.exports = {
   presets: ['module:@react-native/babel-preset'],
-  // Reanimated 4 ships its Babel plugin via react-native-worklets.
-  // It MUST be the last plugin.
+  // Must stay the last plugin: Reanimated 4 ships it via react-native-worklets.
   plugins: ['react-native-worklets/plugin'],
 };

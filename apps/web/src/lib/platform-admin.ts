@@ -1,8 +1,4 @@
-/**
- * Server-side reads of the NestJS platform API's operator surface. The token
- * is a different secret from this app's own ADMIN_TOKEN and never leaves the
- * server, so the browser talks to our route handlers instead of that API.
- */
+// The platform operator token is a separate secret that never leaves the server.
 const API_URL =
   process.env.PLATFORM_API_URL ??
   process.env.NEXT_PUBLIC_PLATFORM_API_URL ??

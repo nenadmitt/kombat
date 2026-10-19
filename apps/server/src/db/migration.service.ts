@@ -1,23 +1,13 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
-/**
- * Applies any pending TypeORM migrations on every application start.
- * DbModule sets `migrationsRun: false` on the TypeORM connection itself so
- * this is the single place migrations run — keeps the behavior visible and
- * logged instead of happening silently inside the ORM's bootstrap.
- */
 @Injectable()
 export class MigrationService implements OnModuleInit {
   private readonly logger = new Logger(MigrationService.name);
 
-  /**
-   * Advisory-lock key. Arbitrary, but must never change: it is the identity
-   * of "the migration lock" across every instance and release.
-   */
+  // Arbitrary, but must never change: it identifies the migration lock across instances and releases.
   private static readonly LOCK_KEY = 4_314_907_001n;
 
-  /** Long enough for a real migration, short enough to fail a wedged one. */
   private static readonly LOCK_TIMEOUT = '5min';
 
   constructor(private readonly dataSource: DataSource) {}
@@ -26,17 +16,7 @@ export class MigrationService implements OnModuleInit {
     await this.runMigrations();
   }
 
-  /**
-   * TypeORM takes no lock of its own, so two instances booting together both
-   * see the same pending list and both start applying it - the second then
-   * dies on "relation already exists". A session-level advisory lock
-   * serialises them: the first migrates, the rest wait and then find nothing
-   * to do.
-   *
-   * Requires a real session, so this breaks under a transaction-pooling
-   * connection proxy (PgBouncer in `transaction` mode). Run migrations as a
-   * deploy step instead if you ever put one in front of Postgres.
-   */
+  // Session advisory lock so concurrent boots don't both migrate. Breaks behind a transaction-mode PgBouncer.
   private async runMigrations() {
     if (!this.dataSource.isInitialized) {
       await this.dataSource.initialize();
@@ -52,8 +32,7 @@ export class MigrationService implements OnModuleInit {
       ]);
       locked = true;
 
-      // Re-checked while holding the lock. Checking before would let an
-      // instance that queued behind the migrator re-run what it just applied.
+      // Re-checked under the lock so a queued instance doesn't re-run what was just applied.
       if (!(await this.dataSource.showMigrations())) {
         this.logger.log('No pending migrations.');
         return;

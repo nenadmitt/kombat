@@ -1,9 +1,6 @@
 import type { ReactNode } from 'react';
 
-/**
- * Token brand marks, ported from the mobile app's BrandIcon. The icon set
- * ships none of these, so they are drawn here.
- */
+// The icon set ships no token marks, so they are drawn here, ported from mobile's BrandIcon.
 const MARKS: Record<string, { viewBox: string; body: ReactNode }> = {
   ETH: {
     viewBox: '0 0 24 24',
@@ -73,7 +70,6 @@ const MARKS: Record<string, { viewBox: string; body: ReactNode }> = {
   },
 };
 
-/** Unknown symbols render nothing, so a new asset degrades quietly. */
 export function TokenIcon({
   symbol,
   size = 24,

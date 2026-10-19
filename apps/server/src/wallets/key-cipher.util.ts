@@ -5,21 +5,12 @@ import {
   timingSafeEqual,
 } from 'crypto';
 
-/**
- * Authenticated encryption for custodial private keys. AES-256-GCM: the tag
- * makes a tampered ciphertext fail loudly instead of decrypting to garbage a
- * signer would then use.
- *
- * Stored form is `v1:<base64(iv | tag | ciphertext)>`. The version prefix is
- * the migration path to a KMS or per-user derived keys later, without a
- * schema change or a backfill.
- */
+// `v1:<base64(iv | tag | ciphertext)>`. GCM's tag makes a tampered ciphertext fail loudly.
 const VERSION = 'v1';
 const IV_BYTES = 12;
 const TAG_BYTES = 16;
 export const KEY_BYTES = 32;
 
-/** Decodes and validates the configured key. Throws if it is unusable. */
 export function parseEncryptionKey(raw: string | undefined): Buffer {
   if (!raw) {
     throw new Error('W_ENCRYPT is not set');
@@ -30,7 +21,7 @@ export function parseEncryptionKey(raw: string | undefined): Buffer {
       `W_ENCRYPT must decode to ${KEY_BYTES} bytes, got ${key.length}`,
     );
   }
-  // All-zero keys are the classic "we forgot to generate one" placeholder.
+  // All-zero keys are the classic forgot-to-generate placeholder.
   if (timingSafeEqual(key, Buffer.alloc(KEY_BYTES))) {
     throw new Error('W_ENCRYPT must not be all zeroes');
   }

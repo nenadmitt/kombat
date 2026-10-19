@@ -4,11 +4,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../navigation/types';
 
-/**
- * Leaving a match. A plain goBack() is dropped with "GO_BACK was not handled
- * by any navigator" whenever nothing sits under this route - a cold start or a
- * deep link straight into a match - so fall back to the tabs.
- */
+/** A plain goBack() is unhandled when nothing sits under this route (cold start, deep link), so fall back to the tabs. */
 export function useMatchExit(): () => void {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();

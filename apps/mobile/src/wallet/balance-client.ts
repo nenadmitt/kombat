@@ -16,19 +16,13 @@ const aggregatorAbi = parseAbi([
   'function latestRoundData() view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)',
 ]);
 
-/** null = the call failed (e.g. placeholder address) and should render as unavailable. */
 export type RawBalances = Partial<Record<TokenSymbol, bigint | null>>;
 
 export type BalancesResult = {
   balances: RawBalances;
-  /** ETH/USD price from Chainlink, 8 decimals; null if the feed call failed. */
   ethUsdPrice: bigint | null;
 };
 
-/**
- * Reads every token balance for `address` plus the ETH/USD price on `chainId`
- * in a single multicall.
- */
 export async function fetchBalances(
   chainId: BalanceChainId,
   address: Address,
@@ -36,8 +30,6 @@ export async function fetchBalances(
   const client = getPublicClient(chainId);
   const multicall3 = VIEM_CHAIN[chainId].contracts.multicall3.address;
 
-  // Tokens without an address (e.g. KOMBAT on a chain it isn't deployed to) are
-  // skipped here and reported as zero by the store.
   const tokens = CHAIN_TOKENS[chainId].filter(
     token => token.native || token.address,
   );

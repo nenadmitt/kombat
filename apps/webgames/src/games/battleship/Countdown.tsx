@@ -2,14 +2,11 @@ import { formatCountdown } from '@gaming-platform/core';
 import { useEffect, useState } from 'react';
 
 type Props = {
-  /** Epoch ms the clock runs out. */
   deadline: number;
   label?: string;
-  /** Fired once when it reaches zero. */
   onExpire?: () => void;
 };
 
-/** A self-ticking m:ss countdown that turns red in the last five seconds. */
 export function Countdown({ deadline, label, onExpire }: Props) {
   const [now, setNow] = useState(() => Date.now());
 

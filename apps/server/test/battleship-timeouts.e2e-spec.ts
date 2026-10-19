@@ -12,12 +12,6 @@ import { subscribe, waitFor, waitUntil } from './harness/events';
 import { expireCurrentTurn, expireDeadline, readMatch } from './harness/clock';
 import { FAR_MINES, FIXED_FLEET } from './harness/fixtures/battleship';
 
-/**
- * Rather than shortening TURN_SECONDS (30) and SETUP_SECONDS (90), each case
- * rewrites the scheduled deadline into the past and lets the real
- * GameDeadlineSweeper pick it up on its next 1s tick. Nothing is stubbed, so
- * what runs here is the production enforcement path.
- */
 describe('battleship timeouts (e2e)', () => {
   let testApp: TestApp;
   let actors: Actor[];
@@ -31,7 +25,6 @@ describe('battleship timeouts (e2e)', () => {
     return created;
   };
 
-  /** Room created, filled, both players subscribed and entered - still in setup. */
   const enterSetup = async (): Promise<void> => {
     const { body: room } = await host.post('/games/rooms', {
       gameType: GameType.NavalBattle,
@@ -56,7 +49,6 @@ describe('battleship timeouts (e2e)', () => {
     });
   };
 
-  /** Both fleets down, host on turn. */
   const startPlay = async (): Promise<void> => {
     await enterSetup();
     const started = waitFor(host.socket, BATTLESHIP_EVENTS.start);
@@ -65,12 +57,10 @@ describe('battleship timeouts (e2e)', () => {
     await started;
   };
 
-  /** Row 7 is open water end to end. A cell may only be fired once, so each
-   *  miss needs its own column. */
+  // A cell may only be fired once, so each miss needs its own column.
   const missCell = (n: number) => ({ row: 7, col: n });
 
-  /** Races the error channel so a refused shot reports why instead of hanging
-   *  until the event timeout. */
+  // Races the error channel so a refused shot reports why instead of timing out.
   const miss = async (who: Actor, cell: { row: number; col: number }) => {
     const shot = waitFor(who.socket, BATTLESHIP_EVENTS.shot);
     const refused = waitFor<{ message: string }>(
@@ -190,7 +180,6 @@ describe('battleship timeouts (e2e)', () => {
       await startPlay();
       const before = await readMatch(testApp, roomId);
 
-      // Host misses, which advances turnSeq; the old seq is now stale.
       await miss(host, missCell(0));
       await expireDeadline(testApp, roomId, 'turn', before!.turnSeq);
       await new Promise(resolve => setTimeout(resolve, 1_500));
@@ -204,8 +193,6 @@ describe('battleship timeouts (e2e)', () => {
     it('settles the match when one player stops playing', async () => {
       await startPlay();
 
-      // Host keeps missing to hand the turn over; the joiner never acts, so
-      // every one of their turns expires.
       for (let i = 0; i < MAX_TIMEOUTS; i++) {
         await miss(host, missCell(i));
         await waitUntil(async () => {
@@ -238,17 +225,14 @@ describe('battleship timeouts (e2e)', () => {
       host.disconnect();
       joiner.disconnect();
 
-      // No client is connected from here on: the sweeper alone has to carry
-      // the match to a result. Turns alternate on each timeout, so the host
-      // (who opened) caps out first.
+      // Turns alternate on each timeout, so the host (who opened) caps out first.
       for (let i = 0; i < MAX_TIMEOUTS * 2; i++) {
         const match = await readMatch(testApp, roomId);
         if (match?.phase === 'over') {
           break;
         }
         await expireCurrentTurn(testApp, roomId);
-        // The capping timeout ends the match without restarting the clock, so
-        // turnSeq stops moving - phase is the other way out of this wait.
+        // The capping timeout doesn't restart the clock, so turnSeq stops moving; phase is the other exit.
         await waitUntil(async () => {
           const next = await readMatch(testApp, roomId);
           if (!next) {

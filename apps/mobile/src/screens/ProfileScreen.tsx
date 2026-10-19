@@ -14,7 +14,6 @@ import { usePlayerStatsStore } from '../store/playerStats.store';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
 
-/** Badge glyphs. The badges themselves are derived from real stats in core. */
 const ACHIEVEMENT_ICONS: Record<AchievementId, IconName> = {
   'first-blood': 'target',
   'top-gun': 'trophy',
@@ -22,20 +21,16 @@ const ACHIEVEMENT_ICONS: Record<AchievementId, IconName> = {
   whale: 'crown',
 };
 
-/** Referral payouts are not tracked yet, so the card reports nothing earned. */
 const REFERRAL_PLACEHOLDER = { invited: 0, matches: 0, earned: '$0.00' } as const;
 
-/** Denominator for the "games tried" tile. */
 const GAME_COUNT = Object.keys(GAME_TYPE_LABELS).length;
 
 const AVATAR = 76;
-/** iOS/Android minimum for anything tappable. */
 const TAP_TARGET = 44;
 const BADGE = 52;
 const ICON_TILE = 32;
 const REFERRAL_TILE = 40;
 
-/** "92d" under three months, then "1y 2m" - the stat slot fits ~4 glyphs. */
 function joinedLabel(joinedAt: string | null): string {
   if (!joinedAt) {
     return '-';
@@ -57,8 +52,6 @@ export default function ProfileScreen() {
   const referralCode = useCurrentUserStore(state => state.referralCode);
   const logout = useCurrentUserStore(state => state.logout);
 
-  // Lifetime aggregate, served from the shared cache - never derived from the
-  // paginated history feed, which only ever sees one page.
   const stats = usePlayerStatsStore(state => state.stats);
   const loaded = usePlayerStatsStore(state => state.fetchedAt !== null);
   const load = usePlayerStatsStore(state => state.load);
@@ -92,12 +85,10 @@ export default function ProfileScreen() {
     Share.share({
       message: `Play KryptoKombat with me - use my code ${shareable} when you sign up.`,
     }).catch(() => {
-      // User dismissed the share sheet; nothing to do.
     });
   }, [shareable]);
 
-  // Before the first fetch the store holds zeroes, and "0 matches" is a claim
-  // rather than a blank - hold the dash until the aggregate has actually come.
+  // Before the first fetch the store holds zeroes; hold the dash until the aggregate arrives.
   const stat = (value: number | string) => (loaded ? `${value}` : '-');
 
   return (
@@ -121,8 +112,7 @@ export default function ProfileScreen() {
                 refresh.ready ? 'Refresh stats' : `Refresh again in ${refresh.secondsLeft}s`
               }
             >
-              {/* Toned, not dimmed: an opacity that reads as "off" on this
-                  ground drops the glyph under the 3:1 non-text floor. */}
+              {/* Toned, not dimmed: a dimming opacity drops the glyph under the 3:1 non-text floor. */}
               <Icon
                 type="refresh"
                 color={refresh.ready ? colors.textSecondary : colors.textMuted}
@@ -190,7 +180,6 @@ export default function ProfileScreen() {
                 size={24}
               />
             </View>
-            {/* Two lines: "First Blood" does not fit a quarter-width slot. */}
             <Text style={styles.badgeLabel} numberOfLines={2}>
               {achievement.unlocked ? achievement.label : 'Locked'}
             </Text>
@@ -317,7 +306,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   statSlot: {
-    // Even columns, so a wide value cannot shove its neighbour's label.
     flex: 1,
   },
   statLabel: {

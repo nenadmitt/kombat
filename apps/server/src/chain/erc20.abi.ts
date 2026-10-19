@@ -1,8 +1,3 @@
-/**
- * The ERC20 surface the platform reads and writes. Hand-kept: only what is
- * actually called, plus the EIP-2612 members the pot's deposit path needs.
- */
-
 export const ERC20_ABI = [
   {
     type: 'function',

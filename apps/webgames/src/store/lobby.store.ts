@@ -14,8 +14,7 @@ export const EMPTY_FILTERS: LobbyRoomFilters = {
   stakeTokens: [],
 };
 
-/** The server only filters the initial fetch, so live room-added events have
- *  to be re-checked client-side. */
+// The server only filters the initial fetch, so live room-added events are re-checked here.
 export function roomMatchesFilters(
   room: GameRoomSummary,
   filters: LobbyRoomFilters,

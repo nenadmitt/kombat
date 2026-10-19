@@ -5,23 +5,14 @@ import { colors } from '../../theme/colors';
 
 type Props = {
   side: SalvoSide;
-  /** Screen position of the tank's centre column and the ground under it. */
   x: number;
   y: number;
-  /** Barrel elevation in degrees; the barrel tracks the dial live. */
   angle: number;
   destroyed: boolean;
-  /** Ground slope in degrees under the hull, positive climbing to the right. */
   tilt?: number;
-  /** Terrain-space to screen scale, so the hull grows with the field. */
   scale?: number;
 };
 
-/**
- * The design's tank, layer for layer: barrel hinged at the turret, a rounded
- * turret cap, the hull and a darker tread shadow. Two colourways - the
- * player's accent tank and the opponent's steel - and a wreck for a dead hull.
- */
 export default function SalvoTank({
   side,
   x,
@@ -32,14 +23,10 @@ export default function SalvoTank({
   scale = 1,
 }: Props) {
   const left = side === SalvoSide.Left;
-  // Every offset in this sprite is a design unit; SALVO_TANK_SCALE trims the
-  // whole hull to match the hit box the rules use.
   const s = (v: number) => v * scale * SALVO_TANK_SCALE;
   const body = left ? colors.accent : colors.salvoEnemy;
   const tread = left ? colors.salvoTread : colors.salvoEnemyTread;
 
-  // The design mirrors the right-hand tank, so every offset is measured from
-  // the near edge and the barrel hinges on that same edge.
   const at = (offset: number) => (left ? { left: s(offset) } : { right: s(offset) });
 
   const frame = {
@@ -49,9 +36,6 @@ export default function SalvoTank({
     height: s(24),
   };
 
-  // Lean the hull onto the contour. Screen y runs downward, so ground that
-  // climbs to the right is a counter-clockwise turn; the pivot is shifted to
-  // the frame's bottom edge (the tracks) rather than its centre.
   const lean = frame.height / 2;
   const contour = [
     { translateY: lean },
@@ -107,9 +91,7 @@ export default function SalvoTank({
   }
 
   const barrelW = s(left ? 22 : 20);
-  // RN rotates about an element's centre. Rotating about the near edge instead
-  // (the CSS `transform-origin` the design relies on) means composing
-  // T(c) * R * T(-c) with c at that edge: -w/2 on the left, +w/2 on the right.
+  // RN rotates about the centre; composing T(c) * R * T(-c) pivots on the near edge instead.
   const hinge = left ? -barrelW / 2 : barrelW / 2;
 
   return (
@@ -124,8 +106,7 @@ export default function SalvoTank({
             height: s(3.5),
             borderRadius: s(2),
             backgroundColor: body,
-            // Elevation is absolute in the physics, so the barrel cancels out
-            // the hull's lean and still points where the dial says.
+            // Elevation is absolute in the physics, so the barrel cancels out the hull's lean.
             transform: [
               { translateX: hinge },
               { rotate: `${(left ? -angle : angle) + tilt}deg` },

@@ -1,6 +1,4 @@
-// Renders og-image.html to public/og.png at 1200x630.
-//   node apps/web/scripts/generate-og.mjs
-// Needs a browser: `npm i -D playwright && npx playwright install chromium`.
+// Usage: node apps/web/scripts/generate-og.mjs (needs playwright and chromium).
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -19,8 +17,6 @@ try {
 }
 
 const browser = await chromium.launch();
-// 1200x630 exactly - the size the metadata declares, and already 2x the width
-// a preview card is ever drawn at.
 const page = await browser.newPage({ viewport: { width: 1200, height: 630 } });
 await page.goto(pathToFileURL(source).href, { waitUntil: "networkidle" });
 await page.evaluate(() => document.fonts.ready);

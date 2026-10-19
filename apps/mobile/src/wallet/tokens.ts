@@ -5,7 +5,6 @@ import { colors } from '../theme/colors';
 
 export type TokenSymbol = 'ETH' | 'USDC' | 'USDT' | 'DAI' | 'KOMBAT';
 
-/** Chains we can read on-chain balances for. */
 export type BalanceChainId = 'base' | 'sepolia';
 
 export type Token = {
@@ -15,10 +14,8 @@ export type Token = {
   brand?: BrandIconName;
   glyph?: string;
   tint: string;
-  /** Native coin (ETH) - read via multicall3.getEthBalance, no token address. */
   native?: boolean;
   address?: Address;
-  /** Pegged to $1 - used for the USD total until a price feed exists. */
   stable?: boolean;
 };
 
@@ -61,7 +58,6 @@ const DAI = (address?: Address): Token => ({
   address,
 });
 
-/** Shown on every chain; without an address it renders as no funds. */
 const KOMBAT = (address?: Address): Token => ({
   symbol: 'KOMBAT',
   name: 'Platform Token',
@@ -80,8 +76,7 @@ export const CHAIN_TOKENS: Record<BalanceChainId, Token[]> = {
     DAI('0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb'),
   ],
   sepolia: [
-    // Must match the StakePot allowlist and the server's TOKEN_REGISTRY
-    // (apps/evm-contracts/README.md) - deposits pull these exact tokens.
+    // Must match the StakePot allowlist and the server's TOKEN_REGISTRY: deposits pull these exact tokens.
     KOMBAT('0x01a659Df789D3E433D7cdFf4CAc70596C56B03c0'),
     ETH,
     USDC('0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'),
@@ -94,7 +89,6 @@ export function supportsBalances(chainId: string): chainId is BalanceChainId {
   return chainId === 'base' || chainId === 'sepolia';
 }
 
-/** Chainlink ETH/USD aggregators (answer is 8 decimals). */
 export const ETH_USD_FEED: Record<BalanceChainId, Address> = {
   base: '0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70',
   sepolia: '0x694AA1769357215DE4FAC081bf1f309aDC325306',

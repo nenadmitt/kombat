@@ -19,12 +19,7 @@ const ctx = { userId: USER } as ISecurityContext;
 
 type MatchMock = { getOrCreate: jest.Mock; stateFor: jest.Mock };
 
-/**
- * GET /games/rooms/:id/state falls through to Battleship, so a game type
- * missing its dispatch branch silently gets a Battleship match created
- * against its room id (this shipped once). This spec pins the branch for
- * every playable type - adding game six without a branch fails here.
- */
+// The state endpoint falls through to Battleship, so every playable type needs its own dispatch branch.
 describe('GamesController.getRoomState dispatch', () => {
   let controller: GamesController;
   let services: Record<string, MatchMock>;
@@ -45,8 +40,7 @@ describe('GamesController.getRoomState dispatch', () => {
       salvo: mock('salvo'),
     };
     const db = {
-      // Only the fresh variant exists on the mock: the cached read stranding
-      // players on a spinner is the regression this guards.
+      // Only the fresh variant exists on the mock: a cached read here is the regression.
       findGameRoomByIdFresh: async () => dbRoom,
     } as unknown as DbService;
 

@@ -52,14 +52,10 @@ export class WalletsService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    // Custody follows the account, never a caller-supplied flag: a web client
-    // cannot ask for a device wallet it has no way to sign with, and a phone
-    // cannot ask us to hold its key.
+    // Custody follows the account, never a caller-supplied flag.
     const custodial = user.platform === UserPlatform.Web;
 
-    // The mnemonic is handed to the caller once and never persisted. For a
-    // mobile (Platform) wallet nothing else is kept either: the key stays on
-    // the device, and the server has no path that signs for that player.
+    // The mnemonic is returned once and never persisted.
     const { mnemonic, address, privateKey } = generateEthereumWallet();
 
     try {
@@ -68,8 +64,7 @@ export class WalletsService {
         address,
         type: custodial ? WalletOrigin.Embedded : WalletOrigin.Platform,
         network,
-        // A web player has no device key store, so the platform holds the key
-        // encrypted at rest. Losing W_ENCRYPT loses every one of these wallets.
+        // Losing W_ENCRYPT loses every custodial wallet.
         ...(custodial
           ? {
               encryptedPrivateKey: encryptPrivateKey(
@@ -80,17 +75,14 @@ export class WalletsService {
           : {}),
       });
     } catch (error) {
-      // The count check above is advisory; the unique index is the rule. Two
-      // concurrent creations (React StrictMode double-fires effects in dev)
-      // both pass the count and race to insert - the loser lands here.
+      // The count check above is advisory; the unique index is the rule, and a racing loser lands here.
       if ((error as { code?: string }).code === '23505') {
         throw new ConflictException('You already have a wallet');
       }
       throw error;
     }
 
-    // The wallet needs gas to sign its own first pot deposit. Fire-and-forget:
-    // a dusting failure must not fail wallet creation.
+    // Fire-and-forget: a dusting failure must not fail wallet creation.
     void this.chainService.fundGasFor(userId).catch((error: unknown) => {
       this.logger.warn(
         `Wallet gas top-up failed for user ${userId}: ${
@@ -99,10 +91,7 @@ export class WalletsService {
       );
     });
 
-    // The other half of the pair: a username set before the wallet had none
-    // to mint against, so the name is claimed here instead. Awaited, because
-    // the screen that shows this wallet also shows its name - and mintForUsername
-    // never throws, so a slow or failed provider costs the name, not the wallet.
+    // Awaited because the wallet screen also shows the name; mintForUsername never throws.
     if (user.username && !user.ensName) {
       await this.ensSubnameService.mintForUsername(
         userId,
@@ -114,12 +103,7 @@ export class WalletsService {
     return { address, mnemonic };
   }
 
-  /**
-   * The embedded wallet's key, for its owner. A web player signs in their own
-   * browser exactly as a connected wallet does, so the key has to reach the
-   * client; the platform holds it only because a browser has nowhere durable
-   * to keep one.
-   */
+  // The platform holds the key only because a browser has nowhere durable to keep one.
   async getEmbeddedKey(
     userId: string,
   ): Promise<{ address: string; privateKey: string }> {

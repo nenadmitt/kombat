@@ -12,11 +12,6 @@ import { SiweService } from './siwe.service';
 import { createTestDataSource } from '../stake-pot/test/db-harness';
 import { AuthenticationService } from './authentication.service';
 
-/**
- * Rotation is the whole point of refresh tokens, so it is tested against real
- * Postgres: the single-use guarantee is a conditional UPDATE, and an in-memory
- * double would only prove the mock behaves.
- */
 describe('AuthenticationService (refresh rotation)', () => {
   let dataSource: DataSource;
   let service: AuthenticationService;
@@ -44,7 +39,6 @@ describe('AuthenticationService (refresh rotation)', () => {
     dbService = new DbService(
       dataSource,
       repos.user,
-      // Only the user + refresh repositories are exercised here.
       undefined as never,
       repos.refresh,
       undefined as never,
@@ -75,7 +69,6 @@ describe('AuthenticationService (refresh rotation)', () => {
     userId = user.id;
   });
 
-  /** issueSession is private; a login is the supported way to mint a pair. */
   const login = () =>
     (
       service as unknown as {
@@ -104,16 +97,13 @@ describe('AuthenticationService (refresh rotation)', () => {
     );
   });
 
-  /** The theft signal: a revoked token coming back means someone copied it. */
   it('revokes every session when a used token is replayed', async () => {
     const first = await login();
     const second = await service.refreshSession(first.refreshToken, UserPlatform.Mobile);
 
-    // The thief replays the old token...
     await expect(service.refreshSession(first.refreshToken, UserPlatform.Mobile)).rejects.toThrow(
       UnauthorizedException,
     );
-    // ...which must also kill the victim's still-live token.
     await expect(service.refreshSession(second.refreshToken, UserPlatform.Mobile)).rejects.toThrow(
       UnauthorizedException,
     );

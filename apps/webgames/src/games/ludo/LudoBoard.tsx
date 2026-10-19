@@ -29,7 +29,6 @@ import { LudoPawn, PAWN_VIEW_H, PAWN_VIEW_W } from './LudoPawn';
 import { AbilityIcon, type AbilityId } from './LudoAbilityBar';
 import { ABILITY_COLORS, LUDO_COLOR_HEX, ludoTint } from './ludo-theme';
 
-/** The board is drawn in cell units and scaled by the SVG viewBox. */
 const CELL = 10;
 const SIZE = BOARD * CELL;
 const GAP = CELL * 0.07;
@@ -38,8 +37,7 @@ const CELL_RADIUS = CELL * 0.2;
 const NEUTRAL_FILL = 'rgba(255, 255, 255, 0.05)';
 const NEUTRAL_BORDER = 'rgba(255, 255, 255, 0.6)';
 
-/** The longest distance a pawn can actually walk (a doubled six). A bigger
- *  jump is a teleport and flies in one arc rather than crawling the track. */
+// A bigger jump is a teleport and flies in one arc rather than crawling the track.
 const MAX_WALK_STEPS = 12;
 
 type CellPaint = {
@@ -50,7 +48,6 @@ type CellPaint = {
   star: string | null;
 };
 
-/** A 5-point star, as an SVG path centred at (cx, cy). */
 function starPath(cx: number, cy: number, r: number): string {
   const points: string[] = [];
   for (let i = 0; i < 10; i++) {
@@ -63,7 +60,6 @@ function starPath(cx: number, cy: number, r: number): string {
   return `M${points.join('L')}Z`;
 }
 
-/** Static description of every visible arm cell (the cross), derived once. */
 const ARM_CELLS: CellPaint[] = (() => {
   const cells: CellPaint[] = [];
   const homeColumn = new Map<string, LudoColor>();
@@ -93,7 +89,7 @@ const ARM_CELLS: CellPaint[] = (() => {
       const mr = inMid(row);
       const mc = inMid(col);
       if ((mr && mc) || (!mr && !mc)) {
-        continue; // centre + base corners render as overlays
+        continue;
       }
       const key = `${row},${col}`;
       const color = homeColumn.get(key) ?? trackColor.get(key)?.color ?? null;
@@ -115,7 +111,6 @@ const ARM_CELLS: CellPaint[] = (() => {
   return cells;
 })();
 
-/** Centre of a base slot (2x2 grid inside the corner) for a token index. */
 function baseSlotCenter(
   color: LudoColor,
   tokenIndex: number,
@@ -131,28 +126,19 @@ function baseSlotCenter(
 }
 
 type Props = {
-  /** Colours actually seated this match (2-4). */
   seatedColors: LudoColor[];
   tokens: LudoTokens;
   eliminated?: LudoColor[];
-  /** My colour + my movable token indices - those pawns glow and take clicks. */
   myColor?: LudoColor;
   movableTokens?: number[];
   onTokenPick?: (tokenIndex: number) => void;
-  /** Buffed pawns of every seat: the Extra Jump glow is public. */
   jumps?: LudoJumps;
-  /** Shielded pawns of every seat: the ring is public. */
   shields?: LudoShields;
 };
 
 const BOOSTED_TIP = 'Extra Jump - moves double';
 const SHIELDED_TIP = 'Shield - cannot be captured';
 
-/**
- * The 15x15 board: coloured arm cells with safe-cell stars, four base corners
- * with 2x2 pawn slots, the four-triangle centre, and pawns over their cells.
- * Movable pawns pulse and take a click.
- */
 function LudoBoardView({
   seatedColors,
   tokens,
@@ -166,8 +152,6 @@ function LudoBoardView({
   const prevProgressRef = useRef(new Map<string, number>());
   const [hovered, setHovered] = useState<string | null>(null);
 
-  /** Board-space anchor (pawn centre) for every token of a colour, plus the
-   *  intermediate track cells its last move walked through. */
   const anchors = useMemo(() => {
     const list: {
       color: LudoColor;
@@ -185,7 +169,6 @@ function LudoBoardView({
         : seatedColors;
     for (const color of paintOrder) {
       const progresses = tokens[color] ?? [];
-      // Group on-track tokens by cell so stacked pawns fan out slightly.
       const byCell = new Map<string, number[]>();
       progresses.forEach((p, tokenIndex) => {
         const cell = cellForProgress(color, p);
@@ -207,11 +190,8 @@ function LudoBoardView({
         }
         const cell = cellForProgress(color, p);
         if (!cell) {
-          return; // home - the HUD counts it, the board does not draw it
+          return;
         }
-        // Cells between the previous progress and this one, so the pawn hops
-        // field by field instead of flying straight across the board. Base
-        // releases and captures (from/to -1) keep the single arc.
         const from = prevProgress.get(`${color}-${tokenIndex}`);
         const path: { x: number; y: number }[] = [];
         if (
@@ -305,7 +285,6 @@ function LudoBoardView({
           />
         ))}
 
-        {/* Centre: the four home triangles plus the finish star. */}
         <path d={`M${c0},${c0}L${c1},${c0}L${cm},${cm}Z`} fill={LUDO_COLOR_HEX.green} />
         <path d={`M${c1},${c0}L${c1},${c1}L${cm},${cm}Z`} fill={LUDO_COLOR_HEX.yellow} />
         <path d={`M${c1},${c1}L${c0},${c1}L${cm},${cm}Z`} fill={LUDO_COLOR_HEX.blue} />
@@ -403,16 +382,10 @@ function LudoBoardView({
   );
 }
 
-/** Per-cell hop duration when a move walks several fields. */
 const HOP_MS = 150;
 const SINGLE_ARC_MS = 420;
 
-/**
- * A pawn group that hops to wherever its target moves. A move along the track
- * hops through every `path` cell in order (one arc per field); base releases
- * and captures pass an empty path and jump in a single arc. The transform is
- * driven imperatively so React re-renders never snap a pawn mid-flight.
- */
+// Driven imperatively so React re-renders never snap a pawn mid-flight.
 function HoppingPawn({
   targetX,
   targetY,
@@ -431,15 +404,13 @@ function HoppingPawn({
   children: ReactNode;
 }) {
   const ref = useRef<SVGGElement>(null);
-  // Measured in segments: floor = current waypoint, fraction = hop progress.
   const anim = useRef({
     xs: [targetX, targetX],
     ys: [targetY, targetY],
     progress: 1,
     raf: 0,
   });
-  // A fresh array every render would restart the effect - and cancel a live
-  // hop - on any unrelated re-render, so the waypoints travel as a value.
+  // Passed as a value: a fresh array each render would restart the effect and cancel a live hop.
   const pathRef = useRef(path);
   pathRef.current = path;
   const pathKey = path.map(w => `${w.x},${w.y}`).join(' ');
@@ -474,8 +445,6 @@ function HoppingPawn({
       };
     };
 
-    // Start the jump from wherever the pawn is rendered right now, so a
-    // target change mid-flight doesn't teleport it.
     const start = at(a.progress);
     a.xs = [start.x, ...waypoints.map(w => w.x), targetX];
     a.ys = [start.y, ...waypoints.map(w => w.y), targetY];
@@ -512,7 +481,6 @@ function HoppingPawn({
   );
 }
 
-/** One 6x6 base corner: tinted rounded frame, dark inner panel, 2x2 slots. */
 function BaseCorner({
   color,
   seated,

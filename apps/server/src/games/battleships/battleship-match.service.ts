@@ -45,55 +45,30 @@ import { GameRoomStatus } from '../../db/types/game';
 
 export type MatchState = {
   roomId: string;
-  /** [creatorId, opponentId] — the creator fires first. */
   players: [string, string];
   fleets: Record<string, FleetPlacements | null>;
-  /** Sea mines armed on each user's OWN board (with triggered flags). */
   mines: Record<string, (MinePlacement & { triggered: boolean })[]>;
-  /** Shots FIRED BY each user (against the opponent). Blast cells from a
-   *  triggered mine are appended here too - they damage the opponent's board
-   *  on the opponent's behalf. */
+  // Includes blast cells from a triggered mine, recorded as shots on the opponent's behalf.
   shots: Record<string, Shot[]>;
   points: Record<string, number>;
-  /** Power-up uses so far per user (POWERUP_MAX_USES each per match). */
   powerupsUsed: Record<string, Record<PowerupKind, number>>;
-  /** Fire-action tallies per user (for end-screen accuracy). */
   volleys: Record<string, VolleyStats>;
-  /** Accrued turn-timeout counts per user (MAX_TIMEOUTS → forfeit). */
   timeouts: Record<string, number>;
-  /** Socket connection state per user (for the presence indicator). */
   online: Record<string, boolean>;
   phase: 'setup' | 'play' | 'over';
   turnUserId: string | null;
-  /** Epoch ms the current turn started (for the countdown deadline). */
   turnStartedAt: number | null;
-  /**
-   * Bumped every time the turn clock (re)starts. Scheduled turn deadlines
-   * carry the seq they were armed for, so a popped deadline for an old turn
-   * is recognized as stale and dropped — the cache-side replacement for
-   * clearTimeout.
-   */
+  // Deadlines carry the seq they were armed for, so one popped for an old turn is dropped as stale.
   turnSeq: number;
-  /** Epoch ms fleet setup auto-forfeits (fixed at match creation). */
   setupDeadline: number;
   winnerUserId: string | null;
-  /** Why the match ended (null while still in progress). */
   endReason: BattleshipEndReason | null;
 };
 
-/**
- * Server-authoritative Battleship match state, stored in the shared cache
- * (Redis when configured, in-process otherwise) so any instance can serve any
- * event and a restart doesn't lose matches. Every mutation runs a
- * lock → read → mutate → write cycle under the per-room lock; timeout
- * enforcement re-validates phase/turnSeq under the same lock, which makes the
- * deadline sweeper idempotent and multi-instance-safe.
- */
 @Injectable()
 export class BattleshipMatchService {
   constructor(private readonly cacheService: CacheService) {}
 
-  /** Fetch (or lazily create) the match for a filled, in-progress room. */
   getOrCreate(room: GameRoomEntity): Promise<MatchState> {
     return this.locked(room.id, async () => {
       const existing = await this.load(room.id);
@@ -139,7 +114,6 @@ export class BattleshipMatchService {
     });
   }
 
-  /** Submit a fleet + mines. Returns whether both players are now ready (→ play). */
   setFleet(
     roomId: string,
     userId: string,
@@ -172,8 +146,6 @@ export class BattleshipMatchService {
       }
       await this.persist(match);
       if (bothReady) {
-        // The stale setup deadline stays in the ZSET; the sweeper drops it
-        // because the match is no longer in setup.
         await this.scheduleTurnDeadline(match);
       }
       return {
@@ -184,7 +156,6 @@ export class BattleshipMatchService {
     });
   }
 
-  /** Resolve a shot (single / torpedo / bomb) and advance the match. */
   fire(
     roomId: string,
     userId: string,
@@ -246,9 +217,7 @@ export class BattleshipMatchService {
         .filter(id => !before.has(id))
         .map(id => this.revealed(id, opponentFleet));
 
-      // Any struck mine explodes against the FIRER's own board: its blast
-      // cells count as shots by the opponent (no charge points awarded) and
-      // can sink the firer's ships.
+      // A struck mine blasts the firer's own board: its cells count as the opponent's shots.
       const myFleet = match.fleets[userId]!;
       const mineBlasts: MineBlast[] = [];
       for (const cell of added.filter(s => s.result === 'mine')) {
@@ -275,8 +244,6 @@ export class BattleshipMatchService {
         });
       }
 
-      // Hit → keep firing; a wholly-missed shot passes the turn - and setting
-      // off a mine always ends the turn, hits or not.
       const anyHit = added.some(s => s.result === 'hit');
       const mineTriggered = mineBlasts.length > 0;
       const myShipsAllSunk =
@@ -292,7 +259,6 @@ export class BattleshipMatchService {
         winnerUserId = userId;
         nextTurnUserId = userId;
       } else if (myShipsAllSunk) {
-        // The mine blast finished off the firer's own fleet - opponent wins.
         match.phase = 'over';
         match.winnerUserId = opponentId;
         match.endReason = 'complete';
@@ -304,7 +270,6 @@ export class BattleshipMatchService {
         nextTurnUserId = opponentId;
         match.turnUserId = opponentId;
       }
-      // Any move (that doesn't end the game) restarts the turn clock.
       if (!winnerUserId) {
         this.restartTurnClock(match);
       }
@@ -329,12 +294,6 @@ export class BattleshipMatchService {
     });
   }
 
-  /**
-   * The current turn ran out. The idle player accrues a timeout; on the
-   * MAX_TIMEOUTS-th they forfeit the match. Otherwise the turn passes on.
-   * `seq` is the turnSeq the deadline was armed for — a mismatch means the
-   * turn already advanced, so there is nothing to enforce (returns null).
-   */
   timeoutTurn(roomId: string, seq: number): Promise<TurnTimeoutPayload | null> {
     return this.locked(roomId, async () => {
       const match = await this.load(roomId);
@@ -378,14 +337,11 @@ export class BattleshipMatchService {
     });
   }
 
-  /** A player leaves → the opponent wins. Returns the winner. */
   forfeit(roomId: string, userId: string): Promise<{ winnerUserId: string }> {
     return this.locked(roomId, async () => {
       const match = await this.require(roomId);
       this.assertParticipant(match, userId);
-      // A finished match stays cached for its whole TTL so both players can
-      // still read the 'over' state - without this guard it stays forfeitable
-      // too, and every replay fires another settlement at the pot.
+      // Finished matches stay cached for the TTL; without this guard every replay would settle again.
       if (match.phase === 'over') {
         throw new ConflictException('The match is already over.');
       }
@@ -398,12 +354,6 @@ export class BattleshipMatchService {
     });
   }
 
-  /**
-   * The fleet-setup window ran out. Any player who never deployed forfeits: a
-   * ready player wins; if neither deployed, the match is voided (no winner).
-   * Returns null when there is nothing to enforce (match gone or already
-   * past setup — e.g. both players readied before the deadline popped).
-   */
   timeoutSetup(roomId: string): Promise<{ winnerUserId: string | null } | null> {
     return this.locked(roomId, async () => {
       const match = await this.load(roomId);
@@ -420,7 +370,6 @@ export class BattleshipMatchService {
     });
   }
 
-  /** Update a player's socket-connection state. Returns whether it's an active match. */
   setPresence(
     roomId: string,
     userId: string,
@@ -437,9 +386,7 @@ export class BattleshipMatchService {
     });
   }
 
-  /** Personalized snapshot: own fleet + both shot logs; opponent ships only as sunk reveals. */
   async stateFor(roomId: string, userId: string): Promise<BattleshipRoomState> {
-    // Read-only snapshot — no lock needed.
     const match = await this.require(roomId);
     this.assertParticipant(match, userId);
     const opponentId = this.opponentOf(match, userId);
@@ -455,8 +402,6 @@ export class BattleshipMatchService {
       roomId,
       phase: match.phase,
       myFleet: match.fleets[userId] ?? null,
-      // Only still-armed mines: a triggered mine is spent, and its cell is
-      // already covered by the blast markers.
       myMines: match.fleets[userId]
         ? match.mines[userId]!
             .filter(m => !m.triggered)
@@ -487,8 +432,6 @@ export class BattleshipMatchService {
     );
   }
 
-  // --- cache plumbing ----------------------------------------------------------
-
   private locked<T>(roomId: string, fn: () => Promise<T>): Promise<T> {
     return this.cacheService.withLock(
       CacheKeys.battleshipLock(roomId),
@@ -502,8 +445,7 @@ export class BattleshipMatchService {
       CacheKeys.battleshipMatch(roomId),
     );
     if (match) {
-      // Backfill fields for matches cached by an older build, so an in-flight
-      // match survives a deploy instead of crashing on the next mutation.
+      // Backfill fields for matches cached by an older build so they survive a deploy.
       match.mines ??= Object.fromEntries(match.players.map(p => [p, []]));
       match.powerupsUsed ??= Object.fromEntries(
         match.players.map(p => [p, { torpedo: 0, bomb: 0 }]),
@@ -516,7 +458,6 @@ export class BattleshipMatchService {
   }
 
   private persist(match: MatchState): Promise<void> {
-    // TTL refreshed on every write — finished/abandoned matches expire away.
     return this.cacheService.setJson(
       CacheKeys.battleshipMatch(match.roomId),
       match,
@@ -524,7 +465,6 @@ export class BattleshipMatchService {
     );
   }
 
-  /** New turn (or clock restart) — bump the seq so older deadlines go stale. */
   private restartTurnClock(match: MatchState): void {
     match.turnStartedAt = Date.now();
     match.turnSeq += 1;
@@ -536,8 +476,6 @@ export class BattleshipMatchService {
       this.deadline(match),
     );
   }
-
-  // --- match logic helpers -------------------------------------------------------
 
   private deadline(match: MatchState): number {
     return (match.turnStartedAt ?? Date.now()) + TURN_SECONDS * 1000;

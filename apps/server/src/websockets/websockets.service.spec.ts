@@ -5,12 +5,6 @@ import { WebsocketsService } from './websockets.service';
 
 const USER = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 
-/**
- * Presence is what the abandoned-room cleanup trusts before it deletes
- * anything, so the two things that matter are: the kick-and-replace of a
- * reconnecting account is not a disconnect, and "offline" is only reported
- * when the adapter actually said so.
- */
 describe('WebsocketsService presence', () => {
   let service: WebsocketsService;
   let gone: string[];

@@ -1,19 +1,15 @@
 import type { LudoCell, LudoColor, LudoProgress } from './ludo.types';
 
-/** The board is BOARD x BOARD cells. */
 export const BOARD = 15;
 
-/** Cells in the shared loop. */
 export const TRACK_LENGTH = 52;
 
-/** Track progress value of the last shared-track cell (the home-column
- *  entrance); 51..55 are the home column, HOME_PROGRESS is home. */
+/** 51..55 are the home column; HOME_PROGRESS is home. */
 export const TRACK_END: LudoProgress = 50;
 export const HOME_PROGRESS: LudoProgress = 56;
 
 export const TOKENS_PER_PLAYER = 4;
 
-/** Where each color's start cell sits on the shared track. */
 export const START_OFFSET: Record<LudoColor, number> = {
   red: 0,
   green: 13,
@@ -21,16 +17,10 @@ export const START_OFFSET: Record<LudoColor, number> = {
   blue: 39,
 };
 
-/**
- * Absolute track indices where tokens cannot be captured: the four start
- * cells and the four neutral star cells (as starred in the design).
- */
 export const SAFE_TRACK_INDICES: ReadonlySet<number> = new Set([
   0, 8, 13, 21, 26, 34, 39, 47,
 ]);
 
-/** The four safe cells that belong to nobody - the start cells are safe too,
- *  but they are a color's own doorstep, not a neutral star. */
 export const NEUTRAL_STAR_INDICES: ReadonlySet<number> = new Set(
   [...SAFE_TRACK_INDICES].filter(
     index => !Object.values(START_OFFSET).includes(index),
@@ -55,12 +45,7 @@ const span = (
   }
 };
 
-/**
- * The 52 shared-track cells in travel order, index 0 = red's start (6,1).
- * Walked counter-clockwise around the cross: along the top of each arm,
- * around its tip, back along its bottom. Start offsets land exactly on the
- * design's colored start cells and stars.
- */
+/** Index 0 is red's start (6,1); walked counter-clockwise around the cross. */
 export const TRACK_CELLS: readonly LudoCell[] = [
   ...span([6, 1], [6, 5]),
   ...span([5, 6], [0, 6]),
@@ -80,8 +65,6 @@ export const TRACK_CELLS: readonly LudoCell[] = [
   { row: 6, col: 0 },
 ];
 
-/** Each color's 5 home-column cells in travel order (last one borders the
- *  center). */
 export const HOME_COLUMN_CELLS: Record<LudoColor, readonly LudoCell[]> = {
   red: span([7, 1], [7, 5]),
   green: span([1, 7], [5, 7]),
@@ -89,11 +72,8 @@ export const HOME_COLUMN_CELLS: Record<LudoColor, readonly LudoCell[]> = {
   blue: span([13, 7], [9, 7]),
 };
 
-/** The center home square (rendered as the four-triangle finish). */
 export const CENTER_CELL: LudoCell = { row: 7, col: 7 };
 
-/** The 6x6 base corner per color: [rowStart, colStart] (matches the design:
- *  red top-left, green top-right, blue bottom-left, yellow bottom-right). */
 export const BASE_CORNER: Record<LudoColor, [number, number]> = {
   red: [0, 0],
   green: [0, 9],
@@ -101,7 +81,6 @@ export const BASE_CORNER: Record<LudoColor, [number, number]> = {
   yellow: [9, 9],
 };
 
-/** Absolute track index for a color's on-track progress (0..TRACK_END). */
 export function absoluteTrackIndex(
   color: LudoColor,
   progress: LudoProgress,
@@ -109,10 +88,6 @@ export function absoluteTrackIndex(
   return (START_OFFSET[color] + progress) % TRACK_LENGTH;
 }
 
-/**
- * The board cell a token occupies, or null while it is in base or home
- * (both are rendered from their own geometry, not a track cell).
- */
 export function cellForProgress(
   color: LudoColor,
   progress: LudoProgress,

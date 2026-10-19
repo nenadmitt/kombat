@@ -7,7 +7,6 @@ import {
 import type { PlacedShip } from './battleship-engine';
 import { SHIP_COLORS } from './battleship-theme';
 
-/** Turn a fleet (all, or a filtered subset) into coloured ships for rendering. */
 export function toPlacedShips(
   placements: FleetPlacements,
   onlyIds?: Set<string>,
@@ -22,7 +21,6 @@ export function toPlacedShips(
   }));
 }
 
-/** Turn server-revealed (sunk) ships into coloured ships. */
 export function revealedToPlaced(ships: RevealedShip[]): PlacedShip[] {
   return ships.map(ship => ({
     id: ship.id,

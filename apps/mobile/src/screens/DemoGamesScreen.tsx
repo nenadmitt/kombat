@@ -15,7 +15,6 @@ import { display, mono, type } from '../theme/typography';
 type GameCard = {
   name: string;
   tag: string;
-  /** Rough match length, omitted where it varies too much to quote. */
   length?: string;
   gameType: GameType;
   isNew?: boolean;
@@ -38,7 +37,6 @@ const ROWS: GameCard[] = [
   { name: 'Chroma Clash', tag: 'Cards', length: '~4 min', gameType: GameType.ChromaClash },
 ];
 
-/** Every card carries the hero's tint, a step quieter. */
 const CARD_GRADIENT = [colors.accent900, colors.surfaceMuted] as const;
 const CARD_START = { x: 1, y: 0 };
 const CARD_END = { x: 0, y: 1 };

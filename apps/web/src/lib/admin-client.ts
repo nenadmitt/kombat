@@ -11,10 +11,7 @@ export type AdminFetchResult<T> =
   | { status: "denied" }
   | { status: "error"; message: string };
 
-/**
- * A token handed over in the URL is stored on the spot: reading it also strips
- * it, so a second caller in the same tick would otherwise find nothing.
- */
+// Stored on the spot: reading the URL token also strips it, so a second caller would find nothing.
 export function resolveAdminToken(): string | null {
   const fromUrl = readAdminTokenFromUrl();
   if (fromUrl) {

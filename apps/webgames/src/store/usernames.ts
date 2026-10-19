@@ -27,16 +27,12 @@ async function ensure(ids: string[]): Promise<void> {
       },
     }));
   } catch {
-    // Callers fall back to a placeholder; the next render retries.
   } finally {
     missing.forEach(id => inFlight.delete(id));
   }
 }
 
-/**
- * Resolve user ids to usernames in one batched request. Usernames effectively
- * never change, so anything already resolved is reused for the session.
- */
+// Usernames effectively never change, so resolved ones are reused for the session.
 export function useUsernames(ids: string[]): Record<string, string | null> {
   const profiles = useStore(s => s.profiles);
   const key = ids.filter(Boolean).sort().join(',');

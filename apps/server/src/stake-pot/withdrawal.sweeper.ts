@@ -15,25 +15,12 @@ import { StakePotService } from './stake-pot.service';
 const SWEEP_INTERVAL_MS = 5_000;
 const SWEEP_BATCH_LIMIT = 10;
 
-/** Give up (and refund) after this many attempts. */
 const MAX_ATTEMPTS = 3;
 
-/**
- * A Sent row untouched this long is re-examined. Must stay above the operator
- * lock's TTL (OPERATOR_LOCK_TTL_MS = 120s): while a real send is still
- * in flight it holds that lock, and a shorter window would only make the
- * sweeper fight a healthy job.
- */
+// Must stay above the operator lock's TTL (120s), or the sweeper fights a healthy in-flight send.
 const SENT_STALE_MS = 130_000;
 
-/**
- * Drains the withdrawal queue.
- *
- * Chain-state-first: every row starts by asking the
- * contract whether this id already paid. That one question covers every crash
- * window, because `processedWithdrawals` is written atomically by the payout
- * itself. Safe on every instance - the operator lock serialises the sends.
- */
+// Chain-state-first: every row starts by asking the contract whether this id already paid.
 @Injectable()
 export class WithdrawalSweeper implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(WithdrawalSweeper.name);
@@ -60,7 +47,6 @@ export class WithdrawalSweeper implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /** One pass. Public so tests can drive it deterministically. */
   async sweep(): Promise<void> {
     if (this.sweeping) {
       return;
@@ -80,15 +66,13 @@ export class WithdrawalSweeper implements OnModuleInit, OnModuleDestroy {
           }
         } catch (error) {
           if (error instanceof ConflictException) {
-            // The operator lock is held by another job - not a failure. Leave
-            // the row for the next sweep rather than burning an attempt.
+            // Lock held by another job: not a failure, so don't burn an attempt.
             this.logger.debug(
               `Operator busy, deferring withdrawal ${withdrawal.id}`,
             );
             continue;
           }
           if (this.chainService.isAlreadyProcessedError(error)) {
-            // Our own earlier attempt landed after all.
             this.logger.warn(
               `Withdrawal ${withdrawal.id} was already paid on-chain - confirming`,
             );
@@ -112,8 +96,6 @@ export class WithdrawalSweeper implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /** The pre-flight check is what makes this safe after a crash: if an earlier
-   *  attempt landed but its DB write didn't, confirm instead of paying twice. */
   private async execute(withdrawal: StakePotWithdrawalEntity): Promise<void> {
     if (await this.chainService.isWithdrawalProcessed(withdrawal.id)) {
       this.logger.warn(
@@ -129,9 +111,7 @@ export class WithdrawalSweeper implements OnModuleInit, OnModuleDestroy {
       asset: withdrawal.asset,
       amount: BigInt(withdrawal.amount),
     });
-    // withdrawTo only returns after a successful receipt, so there is no
-    // meaningful window between Sent and Confirmed on the happy path - the
-    // Sent write exists so a crash right here is recoverable.
+    // The Sent write exists so a crash right here is recoverable.
     await this.stakePotService.markWithdrawalSent(withdrawal.id, hash);
     await this.stakePotService.markWithdrawalConfirmed(withdrawal.id, hash);
     this.logger.log(
@@ -139,9 +119,7 @@ export class WithdrawalSweeper implements OnModuleInit, OnModuleDestroy {
     );
   }
 
-  /** Sent long enough to be presumed lost. The contract's record beats the
-   *  receipt: a receipt can go missing when a tx is replaced, but
-   *  `processedWithdrawals` is only set by a payout that happened. */
+  // The contract's record beats the receipt: a receipt can go missing when a tx is replaced.
   private async reviewSent(withdrawal: StakePotWithdrawalEntity): Promise<void> {
     if (await this.chainService.isWithdrawalProcessed(withdrawal.id)) {
       await this.stakePotService.markWithdrawalConfirmed(withdrawal.id);
@@ -152,8 +130,7 @@ export class WithdrawalSweeper implements OnModuleInit, OnModuleDestroy {
         withdrawal.txHash as Hex,
       );
       if (status === 'success') {
-        // Mined successfully but the contract has no record: impossible unless
-        // the hash belongs to something else. Loud, and left alone.
+        // Mined but unrecorded by the contract: only possible if the hash belongs to something else.
         this.logger.error(
           `Withdrawal ${withdrawal.id} has a successful tx ${withdrawal.txHash} but is not processed on-chain`,
         );

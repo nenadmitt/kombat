@@ -3,12 +3,6 @@ import { GameType } from '@gaming-platform/core';
 
 import { colors } from '../theme/colors';
 
-/**
- * The one per-game icon, shared by every surface that shows a game (lobby
- * rows, history, demo cards, create-room picker). From the "Game Icons"
- * design, recolored to the app palette: accent lime for the hero stroke,
- * gold as the second suit color, textPrimary for linework.
- */
 type Props = {
   type: GameType;
   size?: number;
@@ -106,7 +100,6 @@ const RENDERERS: Record<GameType, () => React.ReactNode> = {
         strokeWidth={2.2}
         transform="rotate(-2 30 33)"
       />
-      {/* Top card: opaque body first, then the accent tint + stroke over it. */}
       <Rect
         x={26}
         y={14}

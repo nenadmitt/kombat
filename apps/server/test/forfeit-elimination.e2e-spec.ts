@@ -13,7 +13,6 @@ describe('forfeit eliminates for good (e2e)', () => {
     return created;
   };
 
-  /** A live 3-player Ludo match; the state read primes the match cache. */
   const startedLudo = async (
     host: Actor,
     joiners: Actor[],
@@ -54,11 +53,9 @@ describe('forfeit eliminates for good (e2e)', () => {
     const { status } = await a.post(`/games/rooms/${roomId}/forfeit`);
     expect(status).toBe(201);
 
-    // The lose screen was right; the lobby must not offer a rejoin.
     const { body: active } = await a.get('/games/rooms/mine');
     expect(active).toBeNull();
 
-    // The others are still playing the same room.
     const { body: hostActive } = await host.get('/games/rooms/mine');
     expect(hostActive).toMatchObject({
       id: roomId,

@@ -31,13 +31,6 @@ const CREATOR = testUserId('creator');
 const JOINER = testUserId('joiner');
 const ROOM = '33333333-3333-4333-8333-333333333333';
 
-/**
- * Pot-mode funding is synchronous, so `beginFunding` resolves before the join
- * request that triggered it has answered. The joiner therefore cannot rely on
- * `stake:funded` - it fires before they could subscribe. These tests pin the two
- * properties the client depends on instead: on success the hold is already in
- * place when the call returns, and on failure the call throws.
- */
 describe('StakesService (pot mode)', () => {
   let dataSource: DataSource;
   let stakePotService: StakePotService;
@@ -104,9 +97,7 @@ describe('StakesService (pot mode)', () => {
         const row = settlementRows.get(roomId);
         return row ? { roomId, ...row } : null;
       },
-      // Models the conditional UPDATE, not a stub that always succeeds - the
-      // "only one caller may settle a room" guarantee is exactly what these
-      // tests are here to hold onto.
+      // Models the conditional UPDATE: the single-settler guarantee is what these tests protect.
       claimMatchSettlement: async (roomId: string, next: SettlementStatus) => {
         const current = settlementRows.get(roomId);
         if (
@@ -164,7 +155,6 @@ describe('StakesService (pot mode)', () => {
 
     await service.beginFunding(room());
 
-    // Nothing is left in flight: the joiner's HTTP response can be trusted.
     expect(await stakePotService.availableBalance(CREATOR, ASSET)).toBe(0n);
     expect(await stakePotService.availableBalance(JOINER, ASSET)).toBe(0n);
     expect(settlementRows.get(ROOM)?.status).toBe(SettlementStatus.Funded);
@@ -208,12 +198,6 @@ describe('StakesService (pot mode)', () => {
     });
   });
 
-  /**
-   * The pot-drain regression. `completeMatch` holds no lock and can be reached
-   * concurrently - a forfeit is replayable for the whole match TTL, and a
-   * timeout enforcer can race one. Settling twice would credit the winner two
-   * full pots out of other players' pooled funds.
-   */
   it('pays exactly one pot when settlement is driven concurrently', async () => {
     await fund(CREATOR, STAKE);
     await fund(JOINER, STAKE);
@@ -234,7 +218,6 @@ describe('StakesService (pot mode)', () => {
     expect(settlementRows.get(ROOM)?.status).toBe(SettlementStatus.Settled);
   });
 
-  /** A settle racing a void must not pay the winner AND refund the stakes. */
   it('never both settles and releases the same room', async () => {
     await fund(CREATOR, STAKE);
     await fund(JOINER, STAKE);
@@ -251,7 +234,6 @@ describe('StakesService (pot mode)', () => {
     const joiner = await stakePotService.availableBalance(JOINER, ASSET);
     const settled = settlementRows.get(ROOM)?.status === SettlementStatus.Settled;
 
-    // Exactly one outcome happened, and the pot is conserved either way.
     if (settled) {
       expect(creator).toBe(pot - fee);
       expect(joiner).toBe(0n);

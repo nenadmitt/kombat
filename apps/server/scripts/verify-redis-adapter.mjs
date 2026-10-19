@@ -1,23 +1,4 @@
-/**
- * Proves the socket.io Redis adapter relays broadcasts across server
- * instances.
- *
- * Setup (three terminals from apps/server, same Postgres + REDIS_URL):
- *   npm run build
- *   PORT=3000 node dist/main.js
- *   PORT=3001 node dist/main.js
- *   node scripts/verify-redis-adapter.mjs
- *
- * User A connects to instance A and joins a game channel; user B connects to
- * instance B and sends a `game:message` into the same channel. The message
- * only reaches A through Redis pub/sub - with the adapter off (REDIS_URL
- * unset) this script fails, which doubles as the negative control.
- *
- * Auth: sockets require a JWT on the handshake. The script signs its own
- * tokens with JWT_SECRET (read from env or apps/server/.env), so the two
- * users don't need DB rows - channel join and the chat relay never touch the
- * users table.
- */
+// Run two instances (PORT=3000, PORT=3001) on one Postgres + REDIS_URL first; fails without the Redis adapter.
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -45,7 +26,7 @@ function loadJwtSecret() {
       return line.slice('JWT_SECRET='.length).trim().replace(/^["']|["']$/g, '');
     }
   } catch {
-    // fall through to the error below
+    // Fall through to the error below.
   }
   console.error('JWT_SECRET not found (env or apps/server/.env)');
   process.exit(1);
@@ -93,7 +74,6 @@ async function main() {
   });
 
   a.emit('channel:join', { channel });
-  // Give the join a beat to register before B publishes.
   await new Promise(r => setTimeout(r, 300));
   b.emit('game:message', { roomId, text: 'ping across instances' });
 

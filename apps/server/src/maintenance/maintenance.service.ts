@@ -33,11 +33,6 @@ export type AppVersionSetting = {
   updateUrls: { ios: string | null; android: string | null };
 };
 
-/**
- * Runtime-togglable maintenance mode. The DB row is the truth (survives
- * restarts); the cache is a read-through layer so the flag check on every
- * room create/join/start doesn't hit Postgres each time.
- */
 @Injectable()
 export class MaintenanceService {
   private readonly logger = new Logger(MaintenanceService.name);
@@ -99,20 +94,14 @@ export class MaintenanceService {
     return this.publishStatus();
   }
 
-  /** Recompose from the DB, refresh the cache, and push to every client. */
   private async publishStatus(): Promise<PlatformStatus> {
     await this.cacheService.del(CacheKeys.platformStatus());
     const status = await this.getStatus();
-    // Live flip: every connected client reacts without polling.
     this.websocketsService.broadcast(PLATFORM_EVENTS.maintenance, status);
     return status;
   }
 
-  /**
-   * Multiplayer gate: rejects room create/join/start while maintenance is
-   * on. Deliberately NOT called from match gameplay paths — in-flight
-   * matches keep running so live games drain naturally.
-   */
+  // Not called from gameplay paths, so in-flight matches drain naturally.
   async assertNotInMaintenance(): Promise<void> {
     const status = await this.getStatus();
     if (status.maintenance) {
@@ -125,13 +114,7 @@ export class MaintenanceService {
     }
   }
 
-  /**
-   * Version gate for routes that must not accept outdated builds (room
-   * create/join/start, pot deposit/withdraw). Like maintenance, gameplay
-   * paths are exempt so live matches drain instead of forfeiting on a
-   * ticking turn clock. No header counts as below the floor: every build
-   * that predates the header also predates any floor we would set.
-   */
+  // No header counts as below the floor: every build predating the header predates any floor.
   async assertSupportedVersion(
     clientVersion: string | undefined,
   ): Promise<void> {
@@ -145,7 +128,7 @@ export class MaintenanceService {
           message: 'This version of the app is no longer supported. Update to keep playing.',
           code: ErrorCode.UpdateRequired,
         },
-        426, // Upgrade Required - predates HttpStatus's enum.
+        426, // Upgrade Required: predates HttpStatus's enum.
       );
     }
   }

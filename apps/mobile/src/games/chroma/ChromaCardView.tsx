@@ -10,21 +10,12 @@ const WILD_BG = '#1B1D2B';
 
 type Props = {
   card: ChromaCard;
-  /** Card width; height is the design's 3:2 ratio. */
   width: number;
-  /** Outlined as currently legal to play. */
   playable?: boolean;
-  /** Selected in the hand: accent ring + lifted by the parent. */
   selected?: boolean;
   dimmed?: boolean;
 };
 
-/**
- * One Chroma card, straight from the design: suit-colored face (wilds get
- * the four-quadrant back), the white oval rotated across the middle, the
- * face glyph in the suit color, and small white corner glyphs (bottom one
- * upside down).
- */
 export default function ChromaCardView({
   card,
   width,
@@ -73,7 +64,6 @@ export default function ChromaCardView({
         </View>
       )}
 
-      {/* The design's rotated white oval behind the face glyph. */}
       <View
         style={[
           styles.oval,
@@ -104,7 +94,6 @@ export default function ChromaCardView({
   );
 }
 
-/** The face-down back used for the draw pile and opponents' mini cards. */
 export function ChromaCardBack({ width }: { width: number }) {
   const height = Math.round(width * 1.5);
   return (

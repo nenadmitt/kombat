@@ -20,7 +20,6 @@ import type { RpsEngine, RpsPlayProps, RpsStage } from './rps-engine';
 
 type RevealInfo = NonNullable<RpsPlayProps['reveal']>;
 
-/** What a reveal leaves pending until the player taps Next Round. */
 type PendingNext = {
   round: number;
   deadline: number | null;
@@ -29,12 +28,6 @@ type PendingNext = {
   endReason: RpsEndReason | null;
 };
 
-/**
- * Multiplayer Triple Cut engine: the server owns the dice-less-but-secret
- * lock-in and reveals only once both are in. The client renders pushes and
- * replaces state wholesale from the REST snapshot on mount and reconnect. My
- * seat is resolved by my own userId (there are exactly two players).
- */
 export function useMultiplayerRps(roomId: string): RpsEngine {
   const joinChannel = useWebsocketStore(s => s.joinChannel);
   const leaveChannel = useWebsocketStore(s => s.leaveChannel);
@@ -57,8 +50,7 @@ export function useMultiplayerRps(roomId: string): RpsEngine {
   const [loaded, setLoaded] = useState(false);
   const [waitingError, setWaitingError] = useState<string | null>(null);
 
-  // A reveal advances the server immediately; the client holds it until Next
-  // Round, so the next round's info waits here.
+  // The server advances on reveal; the client holds the next round's info here until Next Round.
   const pendingRef = useRef<PendingNext | null>(null);
 
   const myUserIdRef = useRef(myUserId);
@@ -93,16 +85,12 @@ export function useMultiplayerRps(roomId: string): RpsEngine {
       setOpponentOnline(s.online[s.opponentUserId] ?? false);
       setWinnerUserId(s.winnerUserId);
       setEndReason(s.endReason);
-      // A resync always lands on the live choosing state; any in-flight reveal
-      // is superseded by the authoritative snapshot.
       setStage('choosing');
       setReveal(null);
       pendingRef.current = null;
       setWaitingError(null);
       setLoaded(true);
     } catch (err) {
-      // Keep retrying (useMatchSyncRetry), but say WHY on the waiting screen
-      // - a silent catch here is how "stuck on a spinner" bugs stay unsolvable.
       const message =
         err instanceof ApiError ? err.message : 'Could not reach the server.';
       console.warn('[match-sync] snapshot fetch failed:', message);
@@ -149,9 +137,6 @@ export function useMultiplayerRps(roomId: string): RpsEngine {
         setOpponentOnline(p.online);
       }
     });
-    // Gateway failures (enter and every action) surface here; the
-    // client ignored them entirely before, which is how silent hangs
-    // happen.
     const offGatewayError = on(RPS_EVENTS.error, raw => {
       const message =
         (raw as { message?: string }).message ?? 'Something went wrong.';
@@ -161,7 +146,6 @@ export function useMultiplayerRps(roomId: string): RpsEngine {
 
     const offEnded = on(RPS_EVENTS.ended, payload => {
       const p = payload as { winnerUserId: string | null; reason: RpsEndReason };
-      // Forfeit/timeout end with no reveal to show - jump straight to result.
       setWinnerUserId(p.winnerUserId);
       setEndReason(p.reason);
       setStage('choosing');
@@ -178,8 +162,6 @@ export function useMultiplayerRps(roomId: string): RpsEngine {
     };
   }, [roomId, joinChannel, leaveChannel, on, emit, syncState]);
 
-  // A failed first fetch used to be permanent: nothing retried while the
-  // socket stayed healthy, leaving the player on the spinner all match.
   useMatchSyncRetry(syncState, loaded);
 
   const prevStatusRef = useRef(status);
@@ -233,7 +215,7 @@ export function useMultiplayerRps(roomId: string): RpsEngine {
     ? winnerUserId === myUserId
       ? 'win'
       : 'lose'
-    : // A voided match (both players timed out) still ends as a loss for both.
+    :
       endReason === 'timeout'
       ? 'lose'
       : null;

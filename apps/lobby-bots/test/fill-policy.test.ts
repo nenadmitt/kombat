@@ -203,8 +203,6 @@ test('an early-starting host stops filling once it has its target', async () => 
   await policy.tick();
   await policy.tick();
 
-  // Target is 2 or 3 and the room already has 3, so filling to a full table
-  // would race the start timer - which is how early starts got starved.
   assert.deepEqual(filler.joined, []);
 });
 

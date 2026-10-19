@@ -9,10 +9,7 @@ export type Session = {
   username: string | null;
 };
 
-/**
- * `web` keeps the client off the mobile platform pin and out of the store
- * version floor, so a bot never needs a release to keep working.
- */
+// `web` skips the mobile version pin, so a bot never needs a release to keep working.
 function clientFor(config: Config, tokenRef: { value: string | null }): ApiClient {
   return new ApiClient({
     baseUrl: config.serverUrl,
@@ -21,7 +18,6 @@ function clientFor(config: Config, tokenRef: { value: string | null }): ApiClien
   });
 }
 
-/** An unauthenticated client, for the login calls themselves. */
 export function anonymousClient(config: Config): ApiClient {
   return clientFor(config, { value: null });
 }
@@ -40,11 +36,6 @@ export async function sessionFrom(
   };
 }
 
-/**
- * Sign in as a seeded bot: a roster username plus the shared BOT_SECRET. The
- * route reaches is_bot accounts only, and exists in production - unlike the
- * test-token route this replaced.
- */
 export async function loginBot(
   config: Config,
   username: string,
@@ -62,8 +53,7 @@ export async function loginBot(
   );
   if (!response.ok) {
     const body = await response.text().catch(() => '');
-    // The server keeps a wrong secret and an unseeded name indistinguishable
-    // on purpose, so both are named here; its own log tells them apart.
+    // The server makes a wrong secret and an unseeded name indistinguishable on purpose.
     throw new Error(
       response.status === 401
         ? `Bot sign-in refused for ${username} (401 ${body}). Either BOTS_SECRET != server BOT_SECRET, or the roster is not seeded (POST /admin/bots/seed). The server log says which: "Bot sign-in is disabled" = server secret unset/short, "Invalid bot credentials" = mismatch or unseeded.`

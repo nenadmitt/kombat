@@ -12,16 +12,8 @@ import {
 import { colors, spacing } from '../../theme/colors';
 import { type } from '../../theme/typography';
 
-/** Fallback for inputs outside any BottomSheet, paired with a screen-level
- *  <KeyboardDoneBar />. */
 export const KEYBOARD_DONE_ID = 'keyboard-done-bar';
 
-/**
- * iOS resolves `inputAccessoryViewID` globally, so two mounted bars sharing
- * one id fight over it - and a sheet animating out can steal the binding from
- * the sheet being presented. BottomSheet therefore provides a per-instance id
- * through this context; inputs read it with `useKeyboardDoneId()`.
- */
 export const KeyboardDoneIdContext = createContext(KEYBOARD_DONE_ID);
 
 export function useKeyboardDoneId(): string {

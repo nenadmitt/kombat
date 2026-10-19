@@ -13,13 +13,10 @@ type Props = {
   step?: number;
   min?: number;
   max?: number;
-  /** Formats the numeric value for display (e.g. two decimals). */
   format?: (v: number) => string;
-  /** Let the user type into the value box (numeric keypad) as well as tap -/+. */
   editable?: boolean;
 };
 
-/** -/+ numeric stepper (Create Room entry fee). Value is mono, + is accent. */
 export default function Stepper({
   value,
   onChange,
@@ -31,19 +28,15 @@ export default function Stepper({
 }: Props) {
   const doneId = useKeyboardDoneId();
   const clamp = (n: number) => Math.min(max, Math.max(min, n));
-  // While the field is focused we hold the raw keystrokes so the user can type
-  // freely (partial values like "0." or an empty box); null means "not editing,
-  // show the formatted value".
+  // Raw keystrokes while focused, so partial values like "0." survive; null means show the formatted value.
   const [draft, setDraft] = useState<string | null>(null);
 
   const handleChangeText = (text: string) => {
-    // Keep digits, one dot - drop anything else the keypad might allow.
     const cleaned = text.replace(/[^0-9.]/g, '');
     setDraft(cleaned);
     const parsed = Number.parseFloat(cleaned);
     if (Number.isFinite(parsed)) {
-      // Cap the top while typing, but don't force the min yet (that would fight
-      // the user mid-keystroke); the min is applied on blur.
+      // Cap the top while typing, but apply the min only on blur so it doesn't fight the keystrokes.
       onChange(Math.min(max, parsed));
     }
   };

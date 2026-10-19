@@ -39,19 +39,10 @@ export type SalvoPlayScreenProps = SalvoPlayProps & {
   onQuit: () => void;
 };
 
-/** Terrain units visible across the screen at once. The world is 560 wide, so
- *  this frames roughly a third of the map and makes it something you scroll. */
 const VISIBLE_UNITS = 190;
-/** A tank counts as "in view" only this far inside the viewport edges. */
 const IN_VIEW_INSET = 48;
-/** Angle and power steps per tap. */
 const STEP = { angle: 1, power: 2 };
 
-/**
- * Salvo's match screen: the shared match chrome up top, a scrollable
- * battlefield wider than the screen, and the design's ANGLE / POWER dials over
- * the drive controls and FIRE. Fed by either engine; never resolves rules.
- */
 export default function SalvoPlayScreen({
   terrain,
   seats,
@@ -84,22 +75,17 @@ export default function SalvoPlayScreen({
 
   const scroller = useRef<ScrollView>(null);
   const scrollX = useRef(0);
-  /** Flight we already decided the camera's behaviour for. */
   const latchedShot = useRef<number | null>(null);
   const following = useRef(false);
-  /** Turn we already recentred on, and whether the map has ever been framed. */
   const centredTurn = useRef<number | null>(null);
   const framed = useRef(false);
 
   const mine = seats.find(s => s.side === me)!;
   const foe = seats.find(s => s.side !== me)!;
 
-  // One uniform scale: the world is as wide as the terrain demands, and the
-  // vertical framing follows from it so arcs are never stretched.
   const scale = viewport.width / VISIBLE_UNITS;
   const worldWidth = SALVO_FIELD_WIDTH * scale;
 
-  /** Put a terrain column in the middle of the viewport, clamped to the map. */
   const centreOn = useCallback(
     (terrainX: number, animated: boolean) => {
       if (viewport.width === 0) {
@@ -125,9 +111,7 @@ export default function SalvoPlayScreen({
     [scale, viewport.width],
   );
 
-  // A new turn of mine pulls the camera back to my tank. Skipped until the
-  // world has been measured and framed once, or the first turn would consume
-  // the latch while scrollTo was still a no-op.
+  // Skipped until the world is framed once, or the first turn would consume the latch while scrollTo is a no-op.
   useEffect(() => {
     if (myTurn && framed.current && centredTurn.current !== shotNumber) {
       centredTurn.current = shotNumber;
@@ -137,8 +121,6 @@ export default function SalvoPlayScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myTurn, shotNumber]);
 
-  // Decide once per shot whether the camera chases the shell: it does when the
-  // tank being shot at is off screen, so you can watch the shell reach them.
   useEffect(() => {
     if (!flight) {
       return;
@@ -239,8 +221,6 @@ export default function SalvoPlayScreen({
         />
       </View>
 
-      {/* Battlefield: a world wider than the screen, scrolled by hand or by
-          the camera while a shell is chasing an off-screen target. */}
       <View style={styles.fieldWrap} onLayout={onFieldLayout}>
         {viewport.width > 0 && (
           <ScrollView
@@ -251,8 +231,7 @@ export default function SalvoPlayScreen({
             onScroll={onScroll}
             contentContainerStyle={{ width: worldWidth }}
             onContentSizeChange={() => {
-              // First measure of the world: open the match framed on my tank.
-              // Centring any earlier just clamps scrollTo to 0.
+              // Centring before the first measure just clamps scrollTo to 0.
               if (!framed.current) {
                 framed.current = true;
                 centredTurn.current = shotNumber;
@@ -280,7 +259,6 @@ export default function SalvoPlayScreen({
           </ScrollView>
         )}
 
-        {/* Overlays are pinned to the viewport, not the scrolling world. */}
         <View
           style={[
             styles.statusPill,
@@ -313,7 +291,6 @@ export default function SalvoPlayScreen({
           />
         </View>
 
-        {/* Off-screen marker so you always know which way the enemy lies. */}
         {viewport.width > 0 && !isInView(foe.x) && (
           <View
             style={[
@@ -338,7 +315,6 @@ export default function SalvoPlayScreen({
         )}
       </View>
 
-      {/* Controls */}
       <View style={styles.controls}>
         <View style={[styles.dials, !armed && styles.dialsIdle]}>
           <View style={styles.dial}>
@@ -407,8 +383,6 @@ export default function SalvoPlayScreen({
 
         {myTurn ? (
           <View style={styles.actions}>
-            {/* One drive plus one shot per turn: a tap rolls the hull until
-                its allowance runs out, then the dials come back. */}
             <View style={styles.moveGroup}>
               <Pressable
                 style={styles.moveButton}

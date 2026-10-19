@@ -27,12 +27,6 @@ import { SeedBotsDto } from './dto/seed-bots.dto';
 import { BotSeedService, type BotSeedResult } from '../bots/bot-seed.service';
 import { SetMaintenanceDto } from './dto/set-maintenance.dto';
 
-/**
- * Operator-only surface. Every route requires the ADMIN_TOKEN in the
- * `x-admin-token` header (AdminTokenGuard); with no ADMIN_TOKEN configured the
- * whole controller is inert. Sits under the api/v1 prefix, so the paths are
- * `/api/v1/admin/*`.
- */
 @Controller('admin')
 @UseGuards(AdminTokenGuard)
 export class AdminController {
@@ -62,19 +56,16 @@ export class AdminController {
     return this.adminService.listUsers();
   }
 
-  /** Declared before nothing param-shaped, but kept above generic user routes. */
   @Get('users/active')
   listActiveUsers(): Promise<AdminUserView[]> {
     return this.adminService.listActiveUsers();
   }
 
-  /** Creates the lobby-bot roster from core: email, username, wallet, is_bot. */
   @Post('bots/seed')
   seedBots(@Body() dto: SeedBotsDto): Promise<BotSeedResult> {
     return this.botSeedService.seed(dto.count);
   }
 
-  /** Provisioning marks lobby-bot accounts here; nothing else may set it. */
   @Patch('users/:id/bot')
   setUserBot(
     @Param('id') id: string,
@@ -103,7 +94,6 @@ export class AdminController {
     return this.maintenanceService.setMaintenance(dto.enabled, dto.message);
   }
 
-  /** Set (or clear, by omitting minAppVersion) the client version floor. */
   @Post('app-version')
   setAppVersion(@Body() dto: SetAppVersionDto): Promise<PlatformStatus> {
     return this.maintenanceService.setAppVersionPolicy({

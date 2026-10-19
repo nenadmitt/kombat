@@ -23,14 +23,6 @@ import { useMatchSyncRetry } from '../use-match-sync-retry';
 import { LUDO_COLOR_NAMES } from './ludo-theme';
 import type { LudoEngine, LudoSeatView } from './ludo-engine';
 
-/**
- * Multiplayer Ludo engine: everything flows through the single app socket.
- * The server owns the dice and the whole state machine; the client renders
- * pushes and replaces its state wholesale from the REST snapshot on mount
- * and after every reconnect. Unlike Battleship there can be four players, so
- * "which seat is mine" comes from the profile's userId, not an
- * everyone-but-the-opponent trick.
- */
 export function useMultiplayerLudo(roomId: string): LudoEngine {
   const joinChannel = useWebsocketStore(s => s.joinChannel);
   const leaveChannel = useWebsocketStore(s => s.leaveChannel);
@@ -56,10 +48,8 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
   const [loaded, setLoaded] = useState(false);
   const [waitingError, setWaitingError] = useState<string | null>(null);
 
-  // Seat usernames resolve through the shared cache (usually already warm).
   const usernames = useUsernames(players.map(p => p.userId));
 
-  // Socket handlers read these without re-subscribing.
   const myUserIdRef = useRef(myUserId);
   myUserIdRef.current = myUserId;
   const playersRef = useRef(players);
@@ -85,7 +75,6 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
     };
   }, [roomId]);
 
-  /** Replace local state with the authoritative snapshot (mount + reconnect). */
   const syncState = useCallback(async () => {
     try {
       const state = await apiClient.getLudoRoomState(roomId);
@@ -109,8 +98,6 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
       setWaitingError(null);
       setLoaded(true);
     } catch (err) {
-      // Keep retrying (useMatchSyncRetry), but say WHY on the waiting screen
-      // - a silent catch here is how "stuck on a spinner" bugs stay unsolvable.
       const message =
         err instanceof ApiError ? err.message : 'Could not reach the server.';
       console.warn('[match-sync] snapshot fetch failed:', message);
@@ -200,9 +187,6 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
       const p = payload as LudoPresencePayload;
       setOnline(prev => ({ ...prev, [p.userId]: p.online }));
     });
-    // Gateway failures (enter and every action) surface here; the
-    // client ignored them entirely before, which is how silent hangs
-    // happen.
     const offGatewayError = on(LUDO_EVENTS.error, raw => {
       const message =
         (raw as { message?: string }).message ?? 'Something went wrong.';
@@ -228,10 +212,6 @@ export function useMultiplayerLudo(roomId: string): LudoEngine {
     };
   }, [roomId, joinChannel, leaveChannel, on, emit, syncState, nameOf]);
 
-  // Resync after a reconnect - pushes missed while offline are covered by
-  // the snapshot (same pattern as the battleship engine).
-  // A failed first fetch used to be permanent: nothing retried while the
-  // socket stayed healthy, leaving the player on the spinner all match.
   useMatchSyncRetry(syncState, loaded);
 
   const prevStatusRef = useRef(status);

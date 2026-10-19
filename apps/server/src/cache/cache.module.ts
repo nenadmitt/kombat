@@ -7,13 +7,7 @@ import { CacheService } from './cache.service';
 import { InMemoryCacheStore } from './stores/memory.store';
 import { RedisCacheStore } from './stores/redis.store';
 
-/**
- * Global — the cache is cross-cutting infrastructure (match state, room
- * lookups, chat), same reasoning as DbModule. The store is chosen once at
- * boot: Redis when REDIS_URL is set and reachable, in-memory otherwise. A
- * Redis connection failure falls back to memory with a warning instead of
- * crashing, so a misconfigured cache never takes the server down.
- */
+// A Redis connection failure falls back to memory with a warning rather than crashing.
 @Global()
 @Module({
   imports: [ConfigurationModule],

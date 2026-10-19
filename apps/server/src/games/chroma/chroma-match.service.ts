@@ -47,54 +47,42 @@ import { GameRoomStatus } from '../../db/types/game';
 
 export type ChromaMatchState = {
   roomId: string;
-  /** Seats in join order (creator first) - the base turn order. */
   players: ChromaSeat[];
   hands: Record<string, ChromaCard[]>;
   drawPile: ChromaCard[];
-  /** Top of the pile is the LAST element. */
+  // Top of the pile is the last element.
   discard: ChromaCard[];
   activeSuit: ChromaSuit;
   direction: ChromaDirection;
   stage: ChromaStage;
   pendingColorUserId: string | null;
-  /** Effects deferred until the wild's colour pick resolves. */
   pendingVictimDraws: number;
   pendingSkip: boolean;
   turnUserId: string;
-  /** Set after this turn's draw: only that hand index may be played. */
   drawnIndex: number | null;
   eliminated: string[];
   timeouts: Record<string, number>;
   online: Record<string, boolean>;
   phase: 'play' | 'over';
   turnStartedAt: number | null;
-  /** Bumped on every turn-clock restart; stale deadlines carry an old seq. */
   turnSeq: number;
   winnerUserId: string | null;
   endReason: ChromaEndReason | null;
 };
 
-/** Public payload + the full hands of every player whose hand changed (the
- *  gateway/sweeper pushes those privately - hands never ride broadcasts). */
+// Hands never ride broadcasts: the gateway/sweeper pushes changed hands privately.
 export type ChromaMutation<T> = {
   payload: T;
   changedHands: Record<string, ChromaCard[]>;
 };
 
-/** Crypto-backed uniform [0,1) for the shared shuffle. */
+// randomInt caps its range at 2^48 - 1.
 const cryptoRand = () => randomInt(0, 281474976710655) / 281474976710655;
 
-/**
- * Server-authoritative ChromaClash match state, cached and locked per room
- * like every other game. The server owns the deck: shuffles, deals, draws
- * and legality all resolve here; clients only ever see their own hand plus
- * everyone's counts.
- */
 @Injectable()
 export class ChromaMatchService {
   constructor(private readonly cacheService: CacheService) {}
 
-  /** Fetch (or lazily create) the match for a started room. */
   getOrCreate(room: GameRoomEntity): Promise<ChromaMatchState> {
     return this.locked(room.id, async () => {
       const existing = await this.load(room.id);
@@ -145,7 +133,6 @@ export class ChromaMatchService {
     });
   }
 
-  /** Play a card from the hand (optionally arming SOLO). */
   play(
     roomId: string,
     userId: string,
@@ -176,8 +163,6 @@ export class ChromaMatchService {
       match.drawnIndex = null;
       changedHands[userId] = [...hand];
 
-      // Deterministic SOLO: going down to one card without arming costs
-      // SOLO_PENALTY_DRAWS immediately.
       let soloPenaltyDraws = 0;
       if (hand.length === 1 && !solo) {
         soloPenaltyDraws = this.drawInto(match, userId, SOLO_PENALTY_DRAWS);
@@ -188,8 +173,7 @@ export class ChromaMatchService {
       let winnerUserId: string | null = null;
 
       if (hand.length === 0) {
-        // Winning play resolves immediately - no colour pick needed; forced
-        // draws still land on the victim (official behavior).
+        // Forced draws still land on the victim of a winning play (official behavior).
         if (effect.victimDraws > 0) {
           const victim = this.seatUserAt(match, this.stepFrom(match, userId, 1));
           this.drawInto(match, victim, effect.victimDraws);
@@ -234,7 +218,6 @@ export class ChromaMatchService {
     });
   }
 
-  /** Resolve a wild's colour pick and its deferred effects. */
   pickColor(
     roomId: string,
     userId: string,
@@ -256,7 +239,6 @@ export class ChromaMatchService {
     });
   }
 
-  /** Draw one card; drawer stays on turn only if the card is playable. */
   draw(
     roomId: string,
     userId: string,
@@ -293,7 +275,6 @@ export class ChromaMatchService {
     });
   }
 
-  /** Keep the drawn card and end the turn. */
   pass(
     roomId: string,
     userId: string,
@@ -314,12 +295,6 @@ export class ChromaMatchService {
     });
   }
 
-  /**
-   * The turn clock ran out. A pending colour pick auto-resolves to the
-   * picker's strongest colour; otherwise the idle player force-draws one
-   * card and the turn passes. MAX_TIMEOUTS eliminates the player (their
-   * cards shuffle under the draw pile); last seat standing wins.
-   */
   timeoutTurn(
     roomId: string,
     seq: number,
@@ -374,7 +349,6 @@ export class ChromaMatchService {
     });
   }
 
-  /** A player leaves mid-match: eliminated; last seat standing wins. */
   forfeit(
     roomId: string,
     userId: string,
@@ -400,7 +374,6 @@ export class ChromaMatchService {
     });
   }
 
-  /** Update a player's socket-connection state. Returns whether it's an active match. */
   setPresence(
     roomId: string,
     userId: string,
@@ -417,7 +390,6 @@ export class ChromaMatchService {
     });
   }
 
-  /** Personalized snapshot: own hand in full, everyone else as counts. */
   async stateFor(roomId: string, userId: string): Promise<ChromaRoomState> {
     const match = await this.require(roomId);
     this.assertParticipant(match, userId);
@@ -452,9 +424,6 @@ export class ChromaMatchService {
     await this.cacheService.del(CacheKeys.chromaMatch(roomId));
   }
 
-  // --- internals ---------------------------------------------------------------
-
-  /** Apply a colour pick: deferred victim draws/skip land, turn advances. */
   private resolveColorPick(
     match: ChromaMatchState,
     suit: ChromaSuit,
@@ -489,8 +458,6 @@ export class ChromaMatchService {
     };
   }
 
-  /** Draw up to `count` cards into a hand, reshuffling the discard (minus its
-   *  top) when the pile runs dry. Returns how many actually landed. */
   private drawInto(
     match: ChromaMatchState,
     userId: string,
@@ -500,7 +467,7 @@ export class ChromaMatchService {
     for (let i = 0; i < count; i++) {
       if (match.drawPile.length === 0) {
         if (match.discard.length <= 1) {
-          break; // Both piles exhausted - the draw silently fizzles.
+          break;
         }
         const top = match.discard.pop()!;
         match.drawPile = shuffle(match.discard, cryptoRand);
@@ -530,7 +497,6 @@ export class ChromaMatchService {
     );
   }
 
-  /** The seat index `steps` along from a user, honouring direction/eliminations. */
   private stepFrom(
     match: ChromaMatchState,
     fromUserId: string,
@@ -559,8 +525,6 @@ export class ChromaMatchService {
     this.restartTurnClock(match);
   }
 
-  /** Remove a player: cards shuffle under the draw pile; last standing wins;
-   *  a pending pick or held turn moves on. */
   private eliminate(
     match: ChromaMatchState,
     userId: string,
@@ -574,7 +538,6 @@ export class ChromaMatchService {
     match.drawPile = shuffle([...hand, ...match.drawPile], cryptoRand);
 
     if (ownedPick) {
-      // Their wild resolves to their strongest colour so play can continue.
       this.resolveColorPick(match, chooseBotColor(hand));
     }
 
@@ -621,8 +584,6 @@ export class ChromaMatchService {
       winnerUserId: match.winnerUserId,
     };
   }
-
-  // --- cache plumbing ----------------------------------------------------------
 
   private locked<T>(roomId: string, fn: () => Promise<T>): Promise<T> {
     return this.cacheService.withLock(

@@ -3,18 +3,9 @@ import { emptyPlayerStats, type PlayerStats } from '@gaming-platform/core';
 
 import { apiClient } from '../api/client';
 
-/**
- * How long a fetched aggregate stays fresh. Both screens that read it are
- * tab destinations, so without this every tab switch re-runs the whole
- * lifetime aggregate on the server.
- */
 const FRESH_MS = 60_000;
 
-/**
- * A server that predates a field sends it as absent, and interpolating that
- * straight into a Text renders the string "undefined". Every field falls back
- * to its empty-record default instead.
- */
+/** Older servers omit fields, and interpolating undefined renders the string "undefined". */
 function normalize(raw: Partial<PlayerStats> | null | undefined): PlayerStats {
   const base = emptyPlayerStats();
   if (!raw) {
@@ -37,7 +28,6 @@ function normalize(raw: Partial<PlayerStats> | null | undefined): PlayerStats {
 type PlayerStatsState = {
   stats: PlayerStats;
   fetchedAt: number | null;
-  /** Serves the cache when it is still fresh; `force` skips that check. */
   load: (options?: { force?: boolean }) => Promise<void>;
   clear: () => void;
 };
@@ -53,7 +43,6 @@ export const usePlayerStatsStore = create<PlayerStatsState>((set, get) => ({
     if (!force && fetchedAt !== null && Date.now() - fetchedAt < FRESH_MS) {
       return;
     }
-    // Both tabs can ask at once on a cold start; they share the one request.
     if (inFlight) {
       return inFlight;
     }
@@ -62,8 +51,6 @@ export const usePlayerStatsStore = create<PlayerStatsState>((set, get) => ({
       .then(stats => {
         set({ stats: normalize(stats), fetchedAt: Date.now() });
       })
-      // Callers render the last good aggregate (zeroes on a cold start)
-      // rather than blocking on a stat that decorates the screen.
       .catch(() => undefined)
       .finally(() => {
         inFlight = null;

@@ -1,8 +1,4 @@
-/**
- * One 'disconnect' listener per socket however many rooms it visits — a
- * listener per room piles up on lobby-hoppers until Node warns of a leak.
- * Re-registering a room replaces its hook, so enter stays idempotent.
- */
+// One 'disconnect' listener per socket, not per room, or lobby-hoppers pile up listeners.
 export function registerPresenceHook(
   client: {
     data: object;

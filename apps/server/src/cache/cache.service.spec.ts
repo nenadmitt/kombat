@@ -8,12 +8,6 @@ import {
 } from './stores/cache-store';
 import { InMemoryCacheStore } from './stores/memory.store';
 
-/**
- * Every gameplay mutation runs inside withLock over one of these stores, so
- * this is the concurrency contract the whole match layer stands on. Redis gets
- * the same guarantees from SET NX and a token-checked unlock; only the
- * in-process store is testable here.
- */
 describe('CacheService over InMemoryCacheStore', () => {
   let service: CacheService;
   let store: InMemoryCacheStore;
@@ -81,8 +75,7 @@ describe('CacheService over InMemoryCacheStore', () => {
     }, 15_000);
 
     it('a lock expiring mid-hold cannot be released onto a new holder', async () => {
-      // Holder A's lock expires; holder B takes it; A's release must not
-      // evict B - that is what the unlock token is for.
+      // A's release after its lock expired must not evict B: that is what the unlock token is for.
       const tokenA = await store.tryLock('room', 1);
       await new Promise(resolve => setTimeout(resolve, 10));
       const tokenB = await store.tryLock('room', 60_000);

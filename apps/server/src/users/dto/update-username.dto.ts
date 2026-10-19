@@ -7,11 +7,6 @@ export class UpdateUsernameDto {
   })
   username: string;
 
-  /**
-   * Optional referral code entered during onboarding. Normalised and
-   * validated in the service, which also enforces write-once attribution;
-   * this only bounds the input.
-   */
   @IsOptional()
   @IsString()
   @MaxLength(16)

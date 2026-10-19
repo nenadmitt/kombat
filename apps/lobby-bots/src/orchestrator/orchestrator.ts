@@ -48,7 +48,6 @@ export class Orchestrator {
 
     const ownIds = new Set(this.bots.map(bot => bot.userId));
     this.lobby = new LobbyModel(this.bots[0]!.api, ownIds);
-    // One socket carries the lobby feed; the rest stay quiet until they play.
     const feed = this.bots[0]!.socket;
     this.lobby.attach(feed);
     joinChannel(feed, LOBBY_CHANNEL);
@@ -80,7 +79,6 @@ export class Orchestrator {
     this.log.info(`${this.bots.length} bots running`);
   }
 
-  /** A bot's own room lifecycle: when its match starts, it plays. */
   private wireRoomEvents(bot: BotRuntime): void {
     const enter = async (roomId: string): Promise<void> => {
       if (bot.state === 'playing') return;
@@ -98,8 +96,7 @@ export class Orchestrator {
     bot.socket.on(ROOM_EVENTS.started, (p: { roomId: string }) =>
       void enter(p.roomId),
     );
-    // A seat filled in a room this bot is sitting in. The count drives the
-    // fill schedule, so it has to track the server's, not our own sends.
+    // Track the server's seat count, not our own sends: it drives the fill schedule.
     bot.socket.on(
       ROOM_EVENTS.playerJoined,
       (p: { roomId: string; joinedCount: number }) => {

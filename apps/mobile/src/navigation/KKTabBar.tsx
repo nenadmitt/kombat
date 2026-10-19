@@ -11,7 +11,6 @@ const INACTIVE = colors.textMuted;
 
 type TabConfig = { label: string; icon: IconName; center?: boolean };
 
-/** Keyed by route name; `center` marks the raised LOBBY action. */
 const CONFIG: Record<string, TabConfig> = {
   Profile: { label: 'PROFILE', icon: 'user' },
   Wallet: { label: 'WALLET', icon: 'wallet' },
@@ -20,12 +19,6 @@ const CONFIG: Record<string, TabConfig> = {
   DemoGames: { label: 'DEMO', icon: 'games' },
 };
 
-/**
- * Bottom navigation matching the KKNavBold design: a flat, near-opaque glass
- * bar with a top active-indicator on each side tab and a raised circular
- * LOBBY action in the centre. IBM Plex Mono uppercase labels; the active tab
- * is tinted with the accent.
- */
 export default function KKTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
 
@@ -91,8 +84,7 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    // Near-opaque glass over the Nocturne ground (RN has no backdrop-blur
-    // without a native module).
+    // Near-opaque: RN has no backdrop-blur without a native module.
     backgroundColor: 'rgba(22,24,38,0.97)',
     borderTopWidth: 1,
     borderTopColor: colors.cardBorder,
@@ -125,7 +117,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    // Accent bloom under the raised LOBBY action (0 10px 26px accent).
     shadowColor: colors.accent,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.5,

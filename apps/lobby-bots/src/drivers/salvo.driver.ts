@@ -21,10 +21,9 @@ import { jitter, pauseFor, sleep } from '../bot/pacing';
 import { gameChannel, once, type DriverContext, type DriverResult } from './driver';
 import { joinChannel } from '../net/socket';
 
-/** How far off the true solution the bot deliberately aims, in degrees/power. */
 const AIM_WOBBLE = { angle: 4, power: 6 };
 
-/** Chance an unhurt bot repositions anyway - so movement is not itself a tell. */
+// Unhurt bots sometimes move too, so moving after a hit is not a tell.
 const IDLE_MOVE_CHANCE = 0.2;
 
 type Local = {
@@ -32,7 +31,6 @@ type Local = {
   me: SalvoTank | null;
   them: SalvoTank | null;
   wind: number;
-  /** Set when the opponent's last shot took HP off us. */
   hitLastRound: boolean;
   turnUserId: string | null;
   turnDeadline: number | null;
@@ -40,12 +38,6 @@ type Local = {
   over: boolean;
 };
 
-/**
- * Where to drive after taking a hit. The opponent has our range dialled in,
- * so the whole point is to be somewhere else: the full move budget, away
- * from where the shell landed when that is legal, otherwise the other way.
- * A tank that never moves is the easiest tell there is.
- */
 export function chooseMove(
   me: SalvoTank,
   them: SalvoTank,
@@ -55,20 +47,12 @@ export function chooseMove(
     lastImpactX === null ? (Math.random() < 0.5 ? 1 : -1) : me.x >= lastImpactX ? 1 : -1;
   const wanted = SALVO_MOVE_RANGE * awayFromImpact;
   let target = clampTankX(me.x, wanted, me.side, them.x);
-  // Pinned against an edge or the separation line: go the other way instead.
   if (Math.abs(target - me.x) < SALVO_MOVE_RANGE / 2) {
     target = clampTankX(me.x, -wanted, me.side, them.x);
   }
   return Math.abs(target - me.x) < 4 ? null : Math.round(target);
 }
 
-/**
- * Pick an aim by simulating candidates with the same fireShot the server
- * uses, and keeping whichever lands closest to the target. A coarse grid is
- * enough - ~150 flights, well under a millisecond each - and the result is
- * then smudged so the bot bracket-shoots like a person instead of landing
- * every shell on the hull.
- */
 export function chooseAim(
   terrain: SalvoTerrain,
   me: SalvoTank,
@@ -144,12 +128,10 @@ export async function playSalvo(ctx: DriverContext): Promise<DriverResult> {
   socket.on(SALVO_EVENTS.shot, (payload: SalvoShotPayload) => {
     if (payload.byUserId !== myUserId) {
       lastImpactX = payload.impact.x;
-      // Only their shot can hurt us; a self-hit is not something to run from.
       local.hitLastRound = payload.damage > 0;
     }
     if (payload.crater) {
-      // The server sends the crater point, not the new heightmap; a resync
-      // is the honest way to see the ground as it now is.
+      // The server sends the crater point, not the new heightmap.
       resyncWanted = true;
     }
     for (const [userId, hp] of Object.entries(payload.hp)) {
@@ -214,16 +196,13 @@ export async function playSalvo(ctx: DriverContext): Promise<DriverResult> {
       applyState(await api.getSalvoRoomState(roomId));
       continue;
     }
-    // Took a hit: relocate before shooting, so the opponent has to find us
-    // again. Sometimes move unhurt too, so moving is not itself a signal.
     const shouldMove =
       local.hitLastRound || Math.random() < IDLE_MOVE_CHANCE;
     if (shouldMove) {
       const toX = chooseMove(local.me, local.them, lastImpactX);
       if (toX !== null) {
         socket.emit(SALVO_EVENTS.move, { roomId, toX });
-        // The moved listener updates local.me.x, so the aim below is taken
-        // from where we actually ended up, not where we asked to go.
+        // Wait for our own move so the aim uses where we actually ended up.
         await Promise.race([
           once(socket, SALVO_EVENTS.moved, signal, 4_000),
           once(socket, SALVO_EVENTS.error, signal, 4_000),

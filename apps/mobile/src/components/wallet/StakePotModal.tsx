@@ -31,23 +31,15 @@ import { BottomSheet, Button, Card, useKeyboardDoneId } from '../ui';
 
 export type StakePotMode = 'add' | 'withdraw';
 
-/** Top up from a browser instead of an on-device wallet balance. */
 const STAKE_WEB_URL = 'https://playkombat.xyz/stake';
 
 type Props = {
-  /**
-   * Null keeps the single sheet closed. One Modal with two visual states,
-   * never two Modals - see apps/mobile/CLAUDE.md rule 5.
-   */
   mode: StakePotMode | null;
   onClose: () => void;
   chainId: BalanceChainId;
-  /** On-chain wallet balances, the ceiling when adding. */
   walletBalances: Partial<Record<TokenSymbol, TokenBalance>>;
   pot: StakePotBalances;
-  /** Fired after a deposit is broadcast, so the parent can track the tx. */
   onDeposited: (tx: { hash: Hex; symbol: TokenSymbol; amount: string }) => void;
-  /** Fired after a withdrawal is queued server-side. */
   onWithdrawRequested: () => void;
 };
 
@@ -81,12 +73,9 @@ export default function StakePotModal({
       setError(null);
       return;
     }
-    // The sheet is reused across openings, so reset the picker rather than
-    // reopening on whatever was chosen last time.
     setAsset(POT_ASSETS[0].asset);
   }, [mode]);
 
-  /** The ceiling in base units: wallet balance when adding, pot when taking out. */
   const maxRaw = (() => {
     if (!adding) {
       return BigInt(pot.available[asset]);
@@ -146,8 +135,6 @@ export default function StakePotModal({
           setError(`${asset} isn't available on this network`);
           return;
         }
-        // The pot address comes from the server so the app doesn't keep a
-        // second copy of the deployment config.
         const target = await apiClient.getStakePotDepositTarget();
         const pin = env.stakePotAddressPin;
         if (pin && pin.toLowerCase() !== target.contract.toLowerCase()) {

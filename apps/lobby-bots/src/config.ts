@@ -6,22 +6,15 @@ import { GameType, StakeAsset } from '@gaming-platform/core';
 export type Config = {
   serverUrl: string;
   botCount: number;
-  /** Shared with the server's BOT_SECRET; the only credential the runner holds. */
   secret: string | null;
   joinDelayMs: Range;
   minOpenRooms: number;
   maxHostedRooms: number;
-  /** Open rooms of any one game type, so the lobby never looks single-game. */
   maxRoomsPerGame: number;
-  /** How long a bot-hosted multi-seat room waits before a bot takes a seat. */
   seatFillFirstMs: Range;
-  /** And between each seat after that. */
   seatFillNextMs: Range;
-  /** Chance a host that *may* start early decides to, rather than wait for a full room. */
   earlyStartChance: number;
-  /** How long such a host sits on a startable room before starting it. */
   earlyStartMs: Range;
-  /** Before conceding a match that turned out to be bots only. */
   concedeDelayMs: Range;
   hostedRoomTtlMs: Range;
   gameMix: { gameType: GameType; weight: number }[];
@@ -40,7 +33,6 @@ export type Config = {
 
 export type Range = { min: number; max: number };
 
-/** Games the runner has a driver for; anything else is ignored in the lobby. */
 export const DRIVEABLE_GAMES: GameType[] = [
   GameType.NavalBattle,
   GameType.Ludo,
@@ -75,7 +67,7 @@ function bool(key: string, fallback: boolean): boolean {
   return raw.trim().toLowerCase() === 'true';
 }
 
-/** `NavalBattle:0.6,Ludo:0.4` - weights need not sum to 1. */
+// e.g. `NavalBattle:0.6,Ludo:0.4`; weights need not sum to 1.
 export function parseGameMix(raw: string): { gameType: GameType; weight: number }[] {
   const mix = raw
     .split(',')

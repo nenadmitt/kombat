@@ -42,11 +42,6 @@ type SettlementRow = {
   feeByAsset?: Record<string, string> | null;
 };
 
-/**
- * A room staked in one stablecoin that another player joined with a different
- * one: every leg is held, captured and paid in its own token and its own
- * decimals, and nothing is ever converted between them.
- */
 describe('StakesService (cross-stable rooms)', () => {
   let dataSource: DataSource;
   let stakePotService: StakePotService;
@@ -209,8 +204,7 @@ describe('StakesService (cross-stable rooms)', () => {
       await stakePotService.availableBalance(PLATFORM_ACCOUNT_ID, StakeAsset.Dai),
     ).toBe(daiFee);
 
-    // No scalar can carry both sets of decimals, so they are explicitly
-    // cleared rather than left for a reader to interpret.
+    // No scalar can carry both sets of decimals, so they are explicitly cleared.
     expect(settlementRows.get(ROOM)).toEqual({
       status: SettlementStatus.Settled,
       error: null,
@@ -352,12 +346,7 @@ describe('StakesService (cross-stable rooms)', () => {
     });
   });
 
-  /**
-   * The room a settler holds can be a 60s-old cache read naming the wrong
-   * asset for a seat. The holds are what was actually taken, so they are what
-   * gets captured - otherwise two settlers write Captures in different assets
-   * and the ledger's unique index sees two distinct rows.
-   */
+  // The room may be a stale cache read; captures must follow the holds or two settlers write distinct rows.
   it('captures per the holds even when the room says another token', async () => {
     await fundBoth();
     await service.beginFunding(roomEntity);

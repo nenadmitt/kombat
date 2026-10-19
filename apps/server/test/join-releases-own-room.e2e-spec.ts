@@ -48,7 +48,6 @@ describe('joining releases your own room (e2e)', () => {
     const { status } = await me.post(`/games/rooms/${theirs.id}/join`);
     expect(status).toBe(201);
 
-    // Only the room I joined is left, and it is the one I can resume.
     const { body: active } = await me.get('/games/rooms/mine');
     expect(active).toMatchObject({ id: theirs.id });
 
@@ -151,7 +150,6 @@ describe('joining releases your own room (e2e)', () => {
     const { body: mine } = await createRoom(me);
     await opponent.post(`/games/rooms/${mine.id}/join`);
 
-    // My room is InProgress now; the refused join must not delete it either.
     const { body: theirs } = await createRoom(third, GameType.Ludo);
     await me.post(`/games/rooms/${theirs.id}/join`);
 

@@ -6,7 +6,6 @@ import type {
   ChromaSuit,
 } from '@gaming-platform/core';
 
-/** One seat as the play screen renders it (me included, join order). */
 export type ChromaSeatView = {
   userId: string;
   name: string;
@@ -21,7 +20,6 @@ export type ChromaSeatView = {
 export type ChromaPlayProps = {
   seats: ChromaSeatView[];
   myHand: ChromaCard[];
-  /** Hand indexes that match the pile right now. */
   playable: number[];
   myTurn: boolean;
   stage: ChromaStage;
@@ -29,11 +27,8 @@ export type ChromaPlayProps = {
   discardTop: ChromaCard;
   drawPileCount: number;
   direction: ChromaDirection;
-  /** After I draw a playable card: only this index may be played (or pass). */
   myDrawnIndex: number | null;
-  /** I played a wild and owe the colour pick (opens the Prism sheet). */
   pickingColor: boolean;
-  /** One-line last-event banner ("Kraken played Jade +2 - you draw 2"). */
   notice: string | null;
   turnDeadline: number | null;
   result: 'win' | 'lose' | null;
@@ -47,15 +42,8 @@ export type ChromaPlayProps = {
   onTimerExpire?: () => void;
 };
 
-/**
- * A Chroma engine drives the match and exposes it as play-screen props. The
- * local bot demo and the multiplayer socket implement the same shape.
- */
 export type ChromaEngine = {
-  /** 'waiting' while the multiplayer snapshot loads; the demo starts in play. */
   phase: 'waiting' | 'play';
-  /** Why the snapshot has not landed yet - shown under the waiting
-   *  spinner so a stuck load is never a mute hang. */
   waitingError?: string | null;
   forfeit: () => void;
   playProps: ChromaPlayProps;

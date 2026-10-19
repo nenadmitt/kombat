@@ -9,10 +9,6 @@ import {
 import { BaseEntity } from './base.entity';
 import { UserEntity } from './user.entity';
 
-/**
- * A single-use, short-lived login token emailed to a user. Exchanged for a
- * JWT via POST /authentication/exchange-token, then deleted.
- */
 @Entity('email_login_tokens')
 export class EmailLoginTokenEntity extends BaseEntity {
   @Column({ name: 'user_id', type: 'uuid' })

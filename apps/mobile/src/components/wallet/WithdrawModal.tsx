@@ -31,7 +31,6 @@ type Props = {
   chain: Chain & { id: BalanceChainId };
   balances: Partial<Record<TokenSymbol, TokenBalance>>;
   ethUsdPrice: bigint | null;
-  /** Fired once the tx is broadcast; parent tracks it and opens the tx sheet. */
   onSubmitted: (tx: SubmittedTx) => void;
 };
 
@@ -89,8 +88,7 @@ export default function WithdrawModal({
       return null;
     }
   })();
-  // A failed balanceOf and a real zero both arrive as null. Signing against an
-  // unknown balance is what reverts on-chain, so unknown blocks too.
+  // A failed balanceOf and a real zero both arrive as null; signing against an unknown balance reverts, so unknown blocks too.
   const balanceUnknown = maxRaw == null;
   const exceedsBalance = amountWei != null && maxRaw != null && amountWei > maxRaw;
   const cannotSend = exceedsBalance || balanceUnknown;

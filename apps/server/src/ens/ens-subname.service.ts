@@ -13,14 +13,9 @@ import {
 import { ConfigurationService } from '../configuration/configuration.service';
 import { DbService } from '../db';
 
-/** Suffix attempts before giving up on a contested label. */
 const MAX_LABEL_ATTEMPTS = 5;
 
-/**
- * The name resolves to the same address on every EVM chain we might settle
- * on, not just mainnet: a wallet that only answers for `eth` looks unfunded
- * to a wallet app pointed anywhere else.
- */
+// Same address on every EVM chain: a name that only answers for eth looks unfunded elsewhere.
 const EVM_CHAINS = [
   ChainName.Ethereum,
   ChainName.Base,
@@ -32,13 +27,7 @@ const EVM_CHAINS = [
 const evmAddressRecords = (address: string) =>
   EVM_CHAINS.map(chain => ({ chain, value: address }));
 
-/**
- * Mints <username>.playkombat.xyz off-chain and points it at the user's
- * custodial wallet.
- *
- * Minted once, from the first username, and never renamed: people share a
- * name, and one that moves underneath them resolves to the wrong player.
- */
+// Never renamed: people share the name, and one that moves resolves to the wrong player.
 @Injectable()
 export class EnsSubnameService {
   private readonly logger = new Logger(EnsSubnameService.name);
@@ -63,10 +52,7 @@ export class EnsSubnameService {
     return this.client !== undefined;
   }
 
-  /**
-   * Claim a subname for a user who does not have one. Never throws: a missing
-   * ENS name must not cost someone their username.
-   */
+  // Never throws: a missing ENS name must not cost someone their username.
   async mintForUsername(
     userId: string,
     username: string,
@@ -90,9 +76,7 @@ export class EnsSubnameService {
         if (!isAvailable) {
           continue;
         }
-        // Claim the row before the API call: the partial unique index is what
-        // stops two concurrent onboardings from both taking this label, and a
-        // name minted against a row we then fail to write is unattributable.
+        // Claim the row before the API call: the partial unique index stops two onboardings taking this label.
         if (!(await this.dbService.claimEnsName(userId, fullName))) {
           continue;
         }
@@ -112,7 +96,6 @@ export class EnsSubnameService {
       return null;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      // Release the claim so a later attempt can retry the same label.
       await this.dbService.clearEnsName(userId).catch(() => undefined);
       this.logger.error(`Subname mint failed for ${userId}: ${message}`);
       return null;

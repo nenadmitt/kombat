@@ -11,15 +11,11 @@ import { MINE_COLOR } from './ship-placement.constants';
 const ICON_SIZE = 26;
 
 type Props = {
-  /** Mines armed so far (0..MINES_PER_PLAYER). */
   placedCount: number;
   selected: boolean;
   onSelect: () => void;
 };
 
-/** The "Mines 2×" card - last in the tray grid, styled exactly like a
- *  ShipCard. Tap it to arm mine placement; tap an armed mine on the grid to
- *  remove it. The dots fill amber as mines are armed. */
 export default function MineCard({ placedCount, selected, onSelect }: Props) {
   const allPlaced = placedCount >= MINES_PER_PLAYER;
   return (
@@ -66,7 +62,6 @@ export default function MineCard({ placedCount, selected, onSelect }: Props) {
   );
 }
 
-// Mirrors ShipCard's styles so the tray grid reads as one set of cards.
 const styles = StyleSheet.create({
   card: {
     flexGrow: 1,

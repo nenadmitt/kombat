@@ -3,7 +3,6 @@ import { FLEET, type FleetPlacements, type RevealedShip } from '@gaming-platform
 import type { PlacedShip } from '../BattleshipGrid';
 import { SHIP_COLORS } from '../setup/ship-placement.constants';
 
-/** Turn a fleet (all, or a filtered subset) into colored PlacedShips for rendering. */
 export function toPlacedShips(
   placements: FleetPlacements,
   onlyIds?: Set<string>,
@@ -18,7 +17,6 @@ export function toPlacedShips(
   }));
 }
 
-/** Turn server-revealed (sunk) ships into colored PlacedShips. */
 export function revealedToPlaced(ships: RevealedShip[]): PlacedShip[] {
   return ships.map(s => ({
     id: s.id,

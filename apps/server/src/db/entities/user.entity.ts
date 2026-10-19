@@ -3,7 +3,6 @@ import { Column, CreateDateColumn, Entity, Index } from 'typeorm';
 import { BaseEntity } from './base.entity';
 
 @Entity('users')
-// Partial: a code is only assigned once a user picks a username.
 @Index('UQ_users_referral_code', ['referralCode'], {
   unique: true,
   where: '"referral_code" IS NOT NULL',
@@ -13,30 +12,26 @@ import { BaseEntity } from './base.entity';
   where: '"ens_name" IS NOT NULL',
 })
 export class UserEntity extends BaseEntity {
-  /** Null for wallet-only (SIWE) accounts, which never see an email OTP. */
   @Column({ name: 'email', type: 'varchar', unique: true, nullable: true })
   email: string | null;
 
   @Column({ name: 'username', type: 'varchar', unique: true, nullable: true })
   username: string | null;
 
-  /** This user's own shareable code. Assigned when they pick a username. */
   @Column({ name: 'referral_code', type: 'varchar', length: 8, nullable: true })
   referralCode: string | null;
 
-  /** Minted once from the first username; never renamed after that. */
+  // Minted once from the first username; never renamed.
   @Column({ name: 'ens_name', type: 'varchar', nullable: true })
   ensName: string | null;
 
-  /** The app this account was created in; it may only sign in there. */
+  // An account may only sign in from the app it was created in.
   @Column({ name: 'platform', type: 'smallint', default: UserPlatform.Mobile })
   platform: UserPlatform;
 
-  /** Lobby-filler account: kept out of rankings and player-facing presence. */
   @Column({ name: 'is_bot', type: 'boolean', default: false })
   isBot: boolean;
 
-  /** Who referred them, recorded once at sign-up and never reassigned. */
   @Column({ name: 'referred_by_user_id', type: 'uuid', nullable: true })
   referredByUserId: string | null;
 

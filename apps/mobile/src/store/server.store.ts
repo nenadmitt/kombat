@@ -11,16 +11,8 @@ import { useCurrentUserStore } from './currentUser.store';
 
 export type ServerStatus = 'online' | 'offline' | 'maintenance';
 
-/** How often to re-probe /status while the server is unreachable. */
 const RECOVERY_POLL_MS = 20_000;
 
-/**
- * Single source of truth for "can we talk to the game server, and is
- * multiplayer open". Fed by bootstrap/API network failures (reportOffline),
- * the /status probe (refresh) and the maintenance socket broadcast
- * (applyPlatformStatus). While offline it polls /status until the server
- * answers again, then triggers a profile/wallet re-sync.
- */
 export type UpdateInfo = {
   latestVersion: string | null;
   message: string | null;
@@ -31,17 +23,12 @@ export type UpdateInfo = {
 
 type ServerState = {
   status: ServerStatus;
-  /** Operator-provided maintenance copy for the banner, when any. */
   message: string | null;
-  /** True when this build is below the server's version floor. */
   updateRequired: boolean;
   update: UpdateInfo | null;
 
-  /** Any API call that never reached the server calls this. */
   reportOffline: () => void;
-  /** A /status payload arrived (probe or socket push) - the server is up. */
   applyPlatformStatus: (platform: PlatformStatus) => void;
-  /** One /status probe; flips state either way. Safe to call repeatedly. */
   refresh: () => Promise<void>;
 };
 
@@ -92,8 +79,7 @@ export const useServerStore = create<ServerState>((set, get) => ({
         : null,
     });
     if (wasOffline) {
-      // The server came back: refresh whatever we booted from cache. The
-      // socket reconnects on its own (socket.io retries forever).
+      // The socket reconnects on its own (socket.io retries forever).
       void useCurrentUserStore.getState().resyncAfterOffline();
     }
   },
@@ -106,8 +92,7 @@ export const useServerStore = create<ServerState>((set, get) => ({
       if (err instanceof ApiError && err.isNetworkError) {
         get().reportOffline();
       }
-      // A non-network error still proves the server answered; leave the
-      // current state alone rather than guessing.
+      // A non-network error still proves the server answered; leave the state alone.
     }
   },
 }));

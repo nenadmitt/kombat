@@ -1,6 +1,5 @@
 import type { ChromaSuit, ChromaValue } from '@gaming-platform/core';
 
-/** Suit colour as a CSS token reference, for anything the browser paints. */
 export const CHROMA_SUIT_VAR: Record<ChromaSuit, string> = {
   crimson: 'var(--chroma-crimson)',
   amber: 'var(--chroma-amber)',
@@ -23,7 +22,6 @@ export const SUIT_LABELS: Record<ChromaSuit, string> = {
   azure: 'Azure',
 };
 
-/** Action faces render as the design's glyphs; numbers render as themselves. */
 const VALUE_GLYPHS: Partial<Record<ChromaValue, string>> = {
   freeze: '⊘',
   flip: '⇄',
@@ -40,7 +38,6 @@ export function isActionValue(value: ChromaValue): boolean {
   return VALUE_GLYPHS[value] !== undefined;
 }
 
-/** Spoken names for notices ("Kraken played Jade +2"). */
 export function describeCard(card: {
   suit: ChromaSuit | 'wild';
   value: ChromaValue;

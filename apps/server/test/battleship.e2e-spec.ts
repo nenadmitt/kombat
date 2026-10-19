@@ -45,7 +45,6 @@ describe('battleship match (e2e)', () => {
     return created;
   };
 
-  /** Room created, filled, both fleets down, host on turn. */
   const startMatch = async (): Promise<void> => {
     const { body: room } = await host.post('/games/rooms', {
       gameType: GameType.NavalBattle,
@@ -76,7 +75,6 @@ describe('battleship match (e2e)', () => {
       mines: FAR_MINES,
     });
 
-    // The creator is players[0], so the host always opens.
     expect(await started).toMatchObject({ firstTurnUserId: host.userId });
   };
 
@@ -194,9 +192,7 @@ describe('battleship match (e2e)', () => {
         BATTLESHIP_EVENTS.error,
       );
 
-      // Both misses, emitted in the same tick. The room lock serializes them,
-      // and the first one passes the turn - so the second has to be refused
-      // rather than applied.
+      // The room lock serializes them and the first passes the turn, so the second must be refused.
       host.socket.emit(BATTLESHIP_EVENTS.fire, {
         roomId,
         kind: 'single',
@@ -260,7 +256,6 @@ describe('battleship match (e2e)', () => {
 
         const isLast = index === SHIP_CELLS.length - 1;
         if (!isLast) {
-          // Every shot lands, so the turn never leaves the host.
           expect(shot.nextTurnUserId).toBe(host.userId);
           expect(shot.winnerUserId).toBeNull();
         }
@@ -269,8 +264,7 @@ describe('battleship match (e2e)', () => {
 
       expect(SHIP_CELLS).toHaveLength(17);
       expect(sunk).toHaveLength(FLEET.length);
-      // A win by play is carried on the shot itself; `ended` is reserved for
-      // forfeits and timeouts, which have no shot to attach it to.
+      // A win by play is carried on the shot; `ended` is only for forfeits and timeouts.
       expect(final.winnerUserId).toBe(host.userId);
       expect(final.nextTurnUserId).toBe(host.userId);
     });

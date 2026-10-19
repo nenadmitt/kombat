@@ -8,7 +8,6 @@ import { RpsIcon } from './RpsIcon';
 import type { RpsPlayProps } from './rps-engine';
 import type { ResultExtras } from '../use-result-data';
 
-/** Result copy per outcome and end reason. */
 const RESULT_COPY = {
   win: {
     complete: {
@@ -288,7 +287,6 @@ function HandSlot({
   );
 }
 
-/** Whole seconds remaining, firing `onExpire` once when it hits zero. */
 function useCountdown(
   deadline: number | null,
   onExpire?: () => void,

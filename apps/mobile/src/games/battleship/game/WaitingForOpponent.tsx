@@ -30,31 +30,23 @@ import TurnTimer from './TurnTimer';
 
 type Props = {
   opponent: { initial: string; name: string };
-  /** Epoch ms when fleet setup auto-forfeits (null hides the countdown). */
   deadline: number | null;
-  /** Last sync/gateway failure - shown so a stuck wait is never mute. */
   error?: string | null;
-  /** Confirmed cancel - forfeits the match. */
   onCancel: () => void;
 };
 
-// Accent tints derived from colors.accent (#8ee05a) - same precedent as the
-// play screen's glow.
 const BRAND_TINT_BG = 'rgba(142, 224, 90, 0.10)';
 const BRAND_TINT_BORDER = 'rgba(142, 224, 90, 0.35)';
 const BRAND_RING_BORDER = 'rgba(142, 224, 90, 0.55)';
 const BRAND_SWEEP = colors.accentLight;
-// Green tints derived from colors.success (#3ee08f).
 const SUCCESS_TINT_BG = 'rgba(62, 224, 143, 0.08)';
 const SUCCESS_TINT_BORDER = 'rgba(62, 224, 143, 0.28)';
-// Red tints derived from colors.danger (#ff5a6e).
 const DANGER_TINT_BG = 'rgba(255, 90, 110, 0.09)';
 const DANGER_TINT_BORDER = 'rgba(255, 90, 110, 0.4)';
 
 const RING_MS = 2600;
 const SWEEP_MS = 2400;
 
-/** One expanding sonar ring (scale up + fade out, looped). */
 function SonarRing({ delay }: { delay: number }) {
   const t = useSharedValue(0);
   useEffect(() => {
@@ -73,7 +65,6 @@ function SonarRing({ delay }: { delay: number }) {
   return <Animated.View style={[styles.sonarRing, style]} />;
 }
 
-/** The radar dial: pulsing rings + rotating sweep arm + crosshair. */
 function Radar() {
   const rotation = useSharedValue(0);
   useEffect(() => {
@@ -115,12 +106,6 @@ function Radar() {
   );
 }
 
-/**
- * Shown after a player submits their fleet, until the opponent is ready: a
- * modal-style card with a sonar radar, the shared auto-forfeit countdown
- * (server-enforced - see SETUP_SECONDS) and a cancel-with-confirm that
- * forfeits the match.
- */
 export default function WaitingForOpponent({ opponent, deadline, error, onCancel }: Props) {
   const confirm = useConfirm();
   const confirmCancel = async () => {
@@ -152,8 +137,7 @@ export default function WaitingForOpponent({ opponent, deadline, error, onCancel
             the moment they're ready.
           </Text>
 
-          {/* Auto-forfeit countdown (server enforces the deadline). Loose
-              check so an absent value (older server) hides it entirely. */}
+          {/* Loose check: an older server omits the deadline. */}
           {deadline != null && (
             <View style={styles.timerPill}>
               <Icon type="timer" color={BRAND_SWEEP} size={18} />
@@ -162,7 +146,6 @@ export default function WaitingForOpponent({ opponent, deadline, error, onCancel
             </View>
           )}
 
-          {/* Ready status rows */}
           <View style={[styles.playerRow, styles.playerRowReady]}>
             <View style={[styles.avatar, styles.avatarYou]}>
               <Text style={styles.avatarTextDark}>Y</Text>
@@ -195,10 +178,8 @@ export default function WaitingForOpponent({ opponent, deadline, error, onCancel
             </View>
           </View>
 
-          {/* A stuck wait must say why - a mute screen is undebuggable. */}
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-          {/* Cancel (forfeits the match) */}
           <Pressable style={styles.cancelButton} onPress={() => void confirmCancel()}>
             <Icon type="flag" color={colors.defeatRed} size={17} />
             <Text style={styles.cancelText}>CANCEL MATCH</Text>

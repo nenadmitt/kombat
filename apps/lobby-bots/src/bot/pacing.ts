@@ -1,16 +1,11 @@
 import type { Range } from '../config';
 
-/** Never think so long that the turn clock runs out while we do. */
 export const DEADLINE_MARGIN_MS = 8_000;
 
 export function jitter(range: Range): number {
   return range.min + Math.random() * (range.max - range.min);
 }
 
-/**
- * A human-looking pause, clamped to leave DEADLINE_MARGIN_MS before the turn
- * expires. Returns 0 when the deadline is already that close.
- */
 export function pauseFor(
   range: Range,
   deadline: number | null,

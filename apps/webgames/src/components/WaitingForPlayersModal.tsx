@@ -14,18 +14,11 @@ type Props = {
   cancelling: boolean;
   onMinimize: () => void;
   onCancel: () => void;
-  /** Host-only, multi-seat rooms: start before every seat is taken. */
   onStartNow?: () => void;
   starting?: boolean;
-  /** A guest sees the table fill; they can leave, not cancel or start it. */
   isGuest?: boolean;
 };
 
-/**
- * The creator's "waiting for players" surface, mirroring the mobile popup.
- * Minimizing leaves the room open and falls back to the lobby's own room
- * card, which is this modal's minimized form.
- */
 export function WaitingForPlayersModal({
   room,
   cancelling,

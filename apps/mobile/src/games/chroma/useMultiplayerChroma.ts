@@ -28,12 +28,6 @@ import { useMatchSyncRetry } from '../use-match-sync-retry';
 import { describeCard } from './chroma-theme';
 import type { ChromaEngine, ChromaPlayProps, ChromaSeatView } from './chroma-engine';
 
-/**
- * Multiplayer engine: the server owns the deck and every rule; the client
- * renders pushes and replaces state wholesale from the REST snapshot on
- * mount and reconnect. Hands are hidden - broadcasts carry counts, my real
- * cards arrive only on the caller-only `chroma:hand` push.
- */
 export function useMultiplayerChroma(roomId: string): ChromaEngine {
   const joinChannel = useWebsocketStore(s => s.joinChannel);
   const leaveChannel = useWebsocketStore(s => s.leaveChannel);
@@ -74,7 +68,6 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
     return usernameCache.usernameOf(userId) ?? 'Player';
   }, []);
 
-  /** Every broadcast refreshes the shared table state the same way. */
   const applyTable = useCallback((t: ChromaTableState) => {
     setHandCounts(t.handCounts);
     setDiscardTop(t.discardTop);
@@ -89,8 +82,7 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
       setWinnerUserId(t.winnerUserId);
       setEndReason('complete');
     }
-    // Any table change invalidates a stale drawn-card restriction unless the
-    // caller re-establishes it (the drew handler does, right after).
+    // Any table change clears the drawn-card restriction; the drew handler re-establishes it right after.
     setMyDrawnIndex(null);
   }, []);
 
@@ -128,8 +120,6 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
       setWaitingError(null);
       setLoaded(true);
     } catch (err) {
-      // Keep retrying (useMatchSyncRetry), but say WHY on the waiting screen
-      // - a silent catch here is how "stuck on a spinner" bugs stay unsolvable.
       const message =
         err instanceof ApiError ? err.message : 'Could not reach the server.';
       console.warn('[match-sync] snapshot fetch failed:', message);
@@ -206,9 +196,6 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
       const p = payload as ChromaPresencePayload;
       setOnline(prev => ({ ...prev, [p.userId]: p.online }));
     });
-    // Gateway failures (enter and every action) surface here; the
-    // client ignored them entirely before, which is how silent hangs
-    // happen.
     const offGatewayError = on(CHROMA_EVENTS.error, raw => {
       const message =
         (raw as { message?: string }).message ?? 'Something went wrong.';
@@ -237,8 +224,6 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
     };
   }, [roomId, joinChannel, leaveChannel, on, emit, syncState, applyTable, nameOf]);
 
-  // Timeout-eliminations also land in the snapshot's eliminatedUserIds; the
-  // turnTimeout push covers the live case.
   useEffect(() => {
     const offTimeout = on(CHROMA_EVENTS.turnTimeout, payload => {
       const p = payload as ChromaTurnTimeoutPayload;
@@ -253,8 +238,6 @@ export function useMultiplayerChroma(roomId: string): ChromaEngine {
     return offTimeout;
   }, [on]);
 
-  // A failed first fetch used to be permanent: nothing retried while the
-  // socket stayed healthy, leaving the player on the spinner all match.
   useMatchSyncRetry(syncState, loaded && discardTop !== null);
 
   const prevStatusRef = useRef(status);

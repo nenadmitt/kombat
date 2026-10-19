@@ -3,11 +3,6 @@ import { GameType } from '../db/types/game';
 import { getPlayerCountForGameType, isMultiSeatGame } from './game-type.util';
 import { participantsOf } from './room.util';
 
-/**
- * Which roster column holds the joiners depends on the game type, decided far
- * from the code that reads it - Salvo shipped reading the wrong one and every
- * match hung on a spinner. participantsOf is the one sanctioned reader.
- */
 describe('participantsOf', () => {
   const room = (over: Partial<GameRoomEntity>): GameRoomEntity =>
     ({

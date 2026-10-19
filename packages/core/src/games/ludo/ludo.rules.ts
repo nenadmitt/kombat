@@ -15,23 +15,18 @@ import type {
 } from './ludo.types';
 import { LUDO_COLORS } from './ludo.types';
 
-/** Room sizing: up to four seats; the creator may start with two or three. */
 export const LUDO_MIN_PLAYERS = 2;
 export const LUDO_MAX_PLAYERS = 4;
 
 export const DIE_SIDES = 6;
 
-/** Rolling a 6 grants another roll; the third consecutive 6 forfeits the
- *  whole turn instead (classic rule). */
+/** The third consecutive 6 forfeits the whole turn. */
 export const MAX_CONSECUTIVE_SIXES = 3;
 
-/** Colors are seated in join order. */
 export function colorForSeat(seat: number): LudoColor {
   return LUDO_COLORS[seat]!;
 }
 
-/** A fresh token set: every color opens with one pawn already on its start
- *  cell, the rest in base. The placement is not a move, so it pays nothing. */
 export function initialTokens(colors: LudoColor[]): LudoTokens {
   const tokens: LudoTokens = {};
   for (const color of colors) {
@@ -42,16 +37,7 @@ export function initialTokens(colors: LudoColor[]): LudoTokens {
   return tokens;
 }
 
-/**
- * Token indices `color` may legally move with `die`: a 6 releases a token
- * from base onto the start cell; a token on the path moves forward only if
- * it would not overshoot home (exact roll finishes). A destination already
- * holding one of the player's OWN tokens is illegal - no stacking (home
- * itself excepted; different colors may still share safe cells). Same color
- * + same progress is always the same cell, so occupancy is a progress
- * comparison. `jumped` names the token indices carrying Extra Jump, whose
- * shared-track steps count double.
- */
+/** No self-stacking: a player's own tokens never share a cell, home excepted. */
 export function legalMoves(
   tokens: LudoTokens,
   color: LudoColor,
@@ -85,17 +71,10 @@ export type LudoMoveResult = {
   fromProgress: LudoProgress;
   toProgress: LudoProgress;
   captures: LudoCapture[];
-  /** The moved token reached home. */
   finished: boolean;
 };
 
-/**
- * Apply a legal move and resolve captures: landing on a non-safe shared-track
- * cell sends every other color's token on that cell back to its base. A
- * shielded token reads like a safe cell - both pawns coexist and nothing is
- * captured. Pure - returns a new token map. The caller is responsible for
- * only passing moves that `legalMoves` allows.
- */
+/** A shielded token reads like a safe cell: nothing is captured. */
 export function applyMove(
   tokens: LudoTokens,
   color: LudoColor,
@@ -143,7 +122,6 @@ export function applyMove(
   };
 }
 
-/** Whether every one of a color's tokens is home. */
 export function allTokensHome(tokens: LudoTokens, color: LudoColor): boolean {
   const own = tokens[color];
   return (
@@ -153,7 +131,6 @@ export function allTokensHome(tokens: LudoTokens, color: LudoColor): boolean {
   );
 }
 
-/** Send a color's tokens back to base (elimination by forfeit/timeouts). */
 export function resetTokensToBase(
   tokens: LudoTokens,
   color: LudoColor,
@@ -164,7 +141,6 @@ export function resetTokensToBase(
   };
 }
 
-/** The next color still in play, walking turn order from `current`. */
 export function nextColorInPlay(
   seatedColors: LudoColor[],
   current: LudoColor,

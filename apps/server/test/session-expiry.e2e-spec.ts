@@ -11,7 +11,6 @@ import {
   SHIP_CELLS,
 } from './harness/fixtures/battleship';
 
-/** What happens to a live match when the access token behind it expires. */
 describe('session expiry (e2e)', () => {
   let testApp: TestApp;
   let actors: Actor[];
@@ -62,9 +61,7 @@ describe('session expiry (e2e)', () => {
         forceNew: true,
         reconnection: false,
       });
-      // Resolve before disconnecting: socket.disconnect() fires the local
-      // 'disconnect' listener synchronously, which would otherwise re-enter
-      // and settle the promise as a failure first.
+      // Resolve before disconnecting: disconnect() fires the local listener synchronously.
       let settled = false;
       const settle = (connected: boolean, reason: string) => {
         if (settled) {
@@ -102,9 +99,7 @@ describe('session expiry (e2e)', () => {
 
   it('keeps an established socket playable after its token expires', async () => {
     const issuedAt = Date.now();
-    // The host's own token is the one that lapses, so nothing but time is
-    // needed to prove the point. Probing with a second connection would not
-    // work: an account gets one socket, so it would kick the match socket.
+    // An account gets one socket, so probing with a second connection would kick the match socket.
     host = await actor('short-session-host', { expiresIn: '5s' });
     await startMatch();
 
@@ -112,8 +107,7 @@ describe('session expiry (e2e)', () => {
       setTimeout(resolve, Math.max(0, 5_500 - (Date.now() - issuedAt))),
     );
 
-    // The gateway authenticates once, in handleConnection, and never revisits
-    // it - so the already-open socket is unaffected by the lapse.
+    // The gateway authenticates once, in handleConnection, so the open socket survives the lapse.
     const shot = waitFor<{ cells: { result: string }[] }>(
       host.socket,
       BATTLESHIP_EVENTS.shot,
@@ -125,8 +119,7 @@ describe('session expiry (e2e)', () => {
     });
     expect((await shot).cells[0]!.result).toBe('hit');
 
-    // Same token, new connection: refused. Kicks the match socket, so it has
-    // to come after the shot above.
+    // Kicks the match socket, so it has to come after the shot above.
     expect(await connectWith(host.token)).toMatchObject({
       connected: false,
       reason: 'disconnect: io server disconnect',

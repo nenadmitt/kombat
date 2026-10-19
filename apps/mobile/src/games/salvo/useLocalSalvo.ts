@@ -34,23 +34,14 @@ import type {
 } from './salvo-engine';
 
 const BOT_NAME = 'Kraken';
-/** One tap drives for this long, stepped at this cadence. */
 const DRIVE_MS = 1500;
 const DRIVE_FRAME_MS = 33;
-/** Beat between the bot settling its aim and the shell leaving the barrel. */
 const BOT_AIM_MS = 1100;
-/** One shell step per frame; a sampled path is ~60 points, so ~1s of flight. */
 const SHELL_FRAME_MS = 16;
-/** How long the impact ring lingers before the next turn begins. */
 const IMPACT_HOLD_MS = 900;
-/** A destroyed hull burns this long before the result screen takes over. */
 const DESTRUCTION_MS = 3500;
 
-/**
- * The bot walks its shots in: a wide spread early, tightening each round the
- * way an artillery crew ranges onto a target. The floor is deliberately loose
- * - tightening it much further makes the bot near-unbeatable past round 4.
- */
+/** The floor is deliberately loose: tightening it much further makes the bot near-unbeatable past round 4. */
 const botSpread = (round: number) => Math.max(8, 18 - round * 2);
 
 type Aim = { angle: number; power: number };
@@ -63,22 +54,15 @@ type LocalState = {
   power: Record<SalvoSide, number>;
   stats: Record<SalvoSide, SalvoPlayerStats>;
   turn: SalvoSide;
-  /** Terrain units of driving the player on turn has left. */
   movesLeft: number;
   wind: number;
-  /** 1-based index of the shot about to be taken. */
   shotNumber: number;
   flight: SalvoFlight | null;
   trail: SalvoTrail | null;
-  /** Damage from the last resolved shot, for the floating HP popup. */
   damage: SalvoDamageEvent | null;
-  /** A tank is mid-drive: dials and FIRE stay locked until it stops. */
   driving: boolean;
-  /** Hull destroyed this match, shown burning before the result resolves. */
   destroyed: SalvoSide | null;
-  /** Flips once the wreck has burned long enough to show the result screen. */
   resultRevealed: boolean;
-  /** True once the bot has finished repositioning and is visibly aiming. */
   botAiming: boolean;
   notice: string | null;
   turnStartedAt: number;
@@ -123,7 +107,6 @@ const tankOf = (s: LocalState, side: SalvoSide, aim?: Aim): SalvoTank => ({
   power: aim?.power ?? s.power[side],
 });
 
-/** Read the shot as a one-line banner, from the shooter's point of view. */
 const describeShot = (
   s: LocalState,
   shooter: SalvoSide,
@@ -148,16 +131,9 @@ const describeShot = (
   return `${who} clipped it - ${shot.damage} damage`;
 };
 
-/**
- * Single-player Salvo: me on the left, a bot on the right, full local duel.
- * Each turn is one drive plus one shot. The engine owns the shell animation -
- * the screen only renders whatever `flight` currently holds.
- */
 export function useLocalSalvo(): SalvoEngine {
   const [state, setState] = useState<LocalState>(freshState);
 
-  // Callbacks fire from timers and gesture handlers, so they read the live
-  // state through a ref rather than closing over a stale render.
   const stateRef = useRef(state);
   stateRef.current = state;
 
@@ -185,7 +161,6 @@ export function useLocalSalvo(): SalvoEngine {
     timers.current.push(setTimeout(fn, ms));
   }, []);
 
-  /** Commit an already-flown shot: damage, crater, stats, win check. */
   const commit = useCallback((shooter: SalvoSide, shot: SalvoShot) => {
     setState(prev => {
       if (prev.winner !== null) {
@@ -196,8 +171,7 @@ export function useLocalSalvo(): SalvoEngine {
         ...prev.terrain,
         heights: [...prev.terrain.heights],
       };
-      // A shell that finds a hull detonates on armour, so only ground hits
-      // leave a crater.
+      // A shell that finds a hull detonates on armour, so only ground hits leave a crater.
       if (shot.kind === 'terrain') {
         carveCrater(terrain, shot.impact);
       }
@@ -220,7 +194,6 @@ export function useLocalSalvo(): SalvoEngine {
       hp[target] = Math.max(0, hp[target] - shot.damage);
       hp[shooter] = Math.max(0, hp[shooter] - shot.selfDamage);
 
-      // One popup per hull that actually lost HP.
       const hits = [
         ...(shot.damage > 0
           ? [{ side: target, amount: shot.damage, kind: shot.damageKind }]
@@ -251,7 +224,6 @@ export function useLocalSalvo(): SalvoEngine {
     });
   }, []);
 
-  /** Hand the turn over, re-rolling the wind whenever a new round opens. */
   const nextTurn = useCallback(() => {
     setState(prev => {
       if (prev.winner !== null) {
@@ -272,10 +244,7 @@ export function useLocalSalvo(): SalvoEngine {
     });
   }, []);
 
-  /**
-   * Resolve the shot up front, then walk the shell down its own path so the
-   * animation can never disagree with the outcome that was already decided.
-   */
+  /** Resolve the shot up front so the animation can never disagree with the outcome. */
   const launch = useCallback(
     (shooter: SalvoSide, aim?: Aim) => {
       const s = stateRef.current;
@@ -327,19 +296,13 @@ export function useLocalSalvo(): SalvoEngine {
           shellTimer.current = null;
         }
         commit(shooter, shot);
-        // nextTurn no-ops once a winner exists, so a kill simply leaves the
-        // battlefield up while the wreck burns.
+        // nextTurn no-ops once a winner exists, so a kill leaves the battlefield up while the wreck burns.
         later(nextTurn, IMPACT_HOLD_MS);
       }, SHELL_FRAME_MS);
     },
     [commit, later, nextTurn],
   );
 
-  /**
-   * One tap drives the tank until its budget runs out, rolling over the
-   * contour across DRIVE_MS rather than teleporting. The turn's whole move
-   * allowance goes into this single drive: one move, then one shot.
-   */
   const driveTank = useCallback(
     (side: SalvoSide, direction: -1 | 1, units?: number) => {
       const s = stateRef.current;
@@ -382,8 +345,6 @@ export function useLocalSalvo(): SalvoEngine {
             movesLeft: Math.max(0, prev.movesLeft - travelled),
           };
         });
-        // Stop on the frame budget, or early once the tank is wedged against
-        // an edge or the other hull.
         if (done >= frames || stateRef.current.movesLeft <= 0) {
           stop();
         }
@@ -392,13 +353,10 @@ export function useLocalSalvo(): SalvoEngine {
     [],
   );
 
-  // The bot's turn: reposition, then range in visibly, then fire that aim.
   useEffect(() => {
     if (state.winner !== null || state.turn !== BOT || state.flight !== null) {
       return;
     }
-    // The bot repositions first when it feels like it, then spends its aiming
-    // beat on the shot it will actually take.
     const reposition = Math.random() < 0.55;
     const driveMs = reposition ? DRIVE_MS : 0;
     if (reposition) {
@@ -445,8 +403,6 @@ export function useLocalSalvo(): SalvoEngine {
     };
   }, [state.winner, state.turn, state.flight, launch, driveTank]);
 
-  // A kill freezes the match on the burning wreck; the result screen only
-  // takes over once it has had its moment.
   useEffect(() => {
     if (state.winner === null || state.resultRevealed) {
       return;
@@ -531,9 +487,7 @@ export function useLocalSalvo(): SalvoEngine {
     },
   ];
 
-  // The match is decided the moment a hull dies, but the result is withheld
-  // until the wreck has burned - so everything gates on `winner`, not
-  // `result`, or the player could keep firing at a corpse.
+  // Gate on `winner`, not `result`: the result waits for the wreck to burn, or the player could keep firing at a corpse.
   const over = state.winner !== null;
   const result: 'win' | 'lose' | null = !state.resultRevealed
     ? null
@@ -541,7 +495,6 @@ export function useLocalSalvo(): SalvoEngine {
       ? 'win'
       : 'lose';
   const myTurn = !over && state.turn === ME && state.flight === null;
-  // Dials and FIRE stay locked while a hull is still rolling.
   const armed = myTurn && !state.driving;
 
   const playProps: SalvoPlayProps = {
@@ -560,7 +513,6 @@ export function useLocalSalvo(): SalvoEngine {
     aiming: armed ? ME : state.botAiming && !over ? BOT : null,
     destroyed: state.destroyed,
     notice: state.notice,
-    // Both turns run a visible clock, per the design; only mine can time out.
     turnDeadline: over ? null : state.turnStartedAt + SALVO_TURN_SECONDS * 1000,
     result,
     resultReason: result ? state.endReason : null,
@@ -568,7 +520,6 @@ export function useLocalSalvo(): SalvoEngine {
     onAim,
     onMove,
     onFire,
-    // The clock running out just fires whatever is dialled in.
     onTimerExpire: onFire,
   };
 

@@ -9,7 +9,6 @@ import { apiClient } from '../lib/api';
 
 type PotState = {
   balances: StakePotBalances;
-  /** False when the server has staking switched off (no chain configured). */
   enabled: boolean;
   loaded: boolean;
   refresh: () => Promise<void>;

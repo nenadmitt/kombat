@@ -49,7 +49,6 @@ export class StakePotController {
     private readonly faucetService: FaucetService,
   ) {}
 
-  /** The caller's pooled stake balance: spendable, in play, and withdrawing. */
   @Get('balances')
   @UseGuards(JwtTokenGuard)
   async getBalances(
@@ -72,11 +71,6 @@ export class StakePotController {
     );
   }
 
-  /**
-   * Queue a payout to the caller's own wallet. Returns as soon as the ledger
-   * debit is durable - the on-chain transaction is the WithdrawalSweeper's job,
-   * and its progress arrives over the balance socket event.
-   */
   @Post('withdraw')
   @UseGuards(SupportedVersionGuard)
   @UseGuards(JwtTokenGuard)
@@ -109,10 +103,6 @@ export class StakePotController {
     return { withdrawalId: withdrawal.id, status: withdrawal.status };
   }
 
-  /**
-   * Ledger-vs-chain drift per asset. Returns the last scheduled snapshot;
-   * `?fresh=true` forces a new check (an RPC read per asset).
-   */
   @Get('admin/reconciliation')
   @UseGuards(AdminTokenGuard)
   async getReconciliation(
@@ -127,11 +117,6 @@ export class StakePotController {
     );
   }
 
-  /**
-   * Platform fees: taken, swept out, and still claimable. The owner sweeps with
-   * `ownerWithdrawTo` from the cold key; the watcher records it, so `swept`
-   * reflects what has actually left the pot.
-   */
   @Get('admin/fees')
   @UseGuards(AdminTokenGuard)
   async getFees(): Promise<StakePotFeeSummary[]> {
@@ -139,11 +124,7 @@ export class StakePotController {
     return this.stakePotService.getFeeSummary();
   }
 
-  /**
-   * Whether the caller can still take the welcome bonus, and for how much.
-   * Deliberately does not 503 when staking is off - "not available" is the
-   * answer a client needs either way.
-   */
+  // Doesn't 503 when staking is off: "not available" is the answer a client needs either way.
   @Get('welcome-bonus')
   @UseGuards(JwtTokenGuard)
   async welcomeBonus(
@@ -160,7 +141,6 @@ export class StakePotController {
     };
   }
 
-  /** One-time welcome bonus into the caller's pot. Returns the grant tx. */
   @Post('claim')
   @UseGuards(SupportedVersionGuard)
   @UseGuards(JwtTokenGuard)
@@ -185,7 +165,6 @@ export class StakePotController {
     };
   }
 
-  /** Where deposits should be sent, and in which assets. */
   @Get('deposit-target')
   @UseGuards(SupportedVersionGuard)
   @UseGuards(JwtTokenGuard)
@@ -198,8 +177,6 @@ export class StakePotController {
     return {
       contract: this.chainService.address,
       chainId: this.configurationService.CHAIN_ID,
-      // Only what can actually be staked AND exists on this chain - ETH
-      // deposits are pointless now that only stablecoins/KOMBAT play.
       tokens: this.stakePotService.assets
         .filter(
           asset => isStakeableAsset(asset) && this.chainService.hasToken(asset),

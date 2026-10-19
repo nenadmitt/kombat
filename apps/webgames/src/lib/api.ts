@@ -7,7 +7,6 @@ type SessionListener = (session: AuthSession | null) => void;
 
 const listeners = new Set<SessionListener>();
 
-/** Notified when the client rotates or drops the session behind everyone's back. */
 export function onSessionChange(listener: SessionListener): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);

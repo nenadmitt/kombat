@@ -19,9 +19,6 @@ import { StakePotCursorEntity } from '../stake-pot/entities/stake-pot-cursor.ent
 import { StakePotGrantEntity } from '../stake-pot/entities/stake-pot-grant.entity';
 import { StakePotWithdrawalEntity } from '../stake-pot/entities/stake-pot-withdrawal.entity';
 
-// Global — DbService is the sole way other modules touch the database, so
-// every module needs it available without importing DbModule individually
-// (mirrors how ConfigurationModule is global for the same reason).
 @Global()
 @Module({
   imports: [
@@ -34,8 +31,7 @@ import { StakePotWithdrawalEntity } from '../stake-pot/entities/stake-pot-withdr
         username: configService.POSTGRES_USER,
         password: configService.POSTGRES_PASSWORD,
         database: configService.POSTGRES_DB,
-        // sslmode=require semantics: encrypted link, no CA verification
-        // (managed providers like DO use a private CA).
+        // sslmode=require semantics: managed providers use a private CA.
         ssl: configService.POSTGRES_SSL
           ? { rejectUnauthorized: false }
           : false,
@@ -47,9 +43,7 @@ import { StakePotWithdrawalEntity } from '../stake-pot/entities/stake-pot-withdr
           GameRoomEntity,
           MatchSettlementEntity,
           AppSettingEntity,
-          // Owned by StakePotModule (which registers their repositories
-          // itself, so it can be lifted out into its own service), but the
-          // connection still has to know their metadata.
+          // Owned by StakePotModule, but the connection still needs their metadata.
           StakedBalanceEntity,
           StakeLedgerEntryEntity,
           StakePotWithdrawalEntity,
@@ -57,8 +51,7 @@ import { StakePotWithdrawalEntity } from '../stake-pot/entities/stake-pot-withdr
           StakePotGrantEntity,
         ],
         synchronize: false,
-        // Migrations are applied explicitly by MigrationService on boot, not
-        // by TypeORM's own connection setup — see the comment there.
+        // Applied by MigrationService on boot.
         migrationsRun: false,
         migrations: [join(__dirname, 'migrations', '*.{ts,js}')],
         migrationsTableName: 'migrations_typeorm',

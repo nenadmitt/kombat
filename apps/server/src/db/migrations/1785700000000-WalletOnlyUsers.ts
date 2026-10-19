@@ -1,10 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * SIWE accounts are identified by their wallet, not an inbox. The unique
- * constraint stays: Postgres treats NULLs as distinct, so any number of
- * wallet-only users can coexist.
- */
+// The unique constraint stays: Postgres treats NULLs as distinct.
 export class WalletOnlyUsers1785700000000 implements MigrationInterface {
   name = 'WalletOnlyUsers1785700000000';
 

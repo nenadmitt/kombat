@@ -20,12 +20,6 @@ import { RpsEnterDto, RpsForfeitDto, RpsLockDto } from './rps.dto';
 
 type SocketWithUser = Socket & { data: { userId?: string } };
 
-/**
- * Triple Cut realtime handlers. Same shape as the other game gateways: shares
- * the one socket.io server (WebsocketsGateway owns auth), holds no gameplay
- * state - matches live in the cache via RpsMatchService and round timeouts
- * are enforced by the shared GameDeadlineSweeper.
- */
 @WebSocketGateway({ cors: true })
 export class RpsGateway {
   constructor(
@@ -73,7 +67,7 @@ export class RpsGateway {
         dto.move,
       );
       const channel = gameChannel(dto.roomId);
-      // Broadcast only the FACT of the lock (never the move) until reveal.
+      // Broadcast only that a move was locked, never the move, until the reveal.
       this.websocketsService.sendToChannel(channel, RPS_EVENTS.locked, {
         userId,
         bothLocked,
@@ -124,8 +118,6 @@ export class RpsGateway {
     }
   }
 
-  // --- presence --------------------------------------------------------------
-
   private async markOnline(
     client: SocketWithUser,
     roomId: string,
@@ -143,7 +135,7 @@ export class RpsGateway {
           }
         })
         .catch(() => {
-          // Best effort — presence flags self-correct on the next enter.
+          // Best effort: presence flags self-correct on the next enter.
         });
     });
   }
@@ -160,12 +152,7 @@ export class RpsGateway {
     );
   }
 
-  /**
-   * `fresh` bypasses the room cache. Only the enter path needs it: it decides
-   * whether the match may start, and a stale Pending copy (possible on a
-   * second instance when running without Redis) strands the whole room on a
-   * loading spinner. Per-action calls stay on the cache.
-   */
+  // `fresh` bypasses the room cache; only enter needs it, since it decides whether the match may start.
   private async loadParticipantRoom(
     roomId: string,
     userId: string,
@@ -177,9 +164,7 @@ export class RpsGateway {
     if (!room) {
       throw new Error('Game room not found.');
     }
-    // participantsOf covers both seatings: a two-player joiner sits in
-    // `opponent_id`, a multi-seat joiner in `opponent_ids`. Reading either
-    // column directly is how Salvo rejected its own joiner.
+    // Never a seat column directly: two-player and multi-seat joiners sit in different columns.
     if (!participantsOf(room).includes(userId)) {
       throw new Error('You are not part of this room.');
     }

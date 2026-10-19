@@ -1,8 +1,6 @@
 import type { RecipientLookup } from "@gaming-platform/core";
 
-/** The NestJS platform API - a different service than this app's own /api. */
-// Inlined by `next build`, so an unset var ships in the bundle: the default has
-// to be the one that works in a browser, not the one that works on a dev box.
+// Inlined by `next build`, so the default must be the one that works in a browser.
 const API_URL =
   process.env.NEXT_PUBLIC_PLATFORM_API_URL ?? "https://api.playkombat.xyz/api/v1";
 

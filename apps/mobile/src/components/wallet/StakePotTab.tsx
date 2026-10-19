@@ -21,27 +21,17 @@ import Icon from '../Icon';
 import { Button } from '../ui';
 import CoinJar from './CoinJar';
 
-/** Token mark in a pot row - one size, matching the wallet tab's rows. */
 const ICON_TILE = 40;
 
 type Props = {
   chainId: BalanceChainId;
   pot: StakePotBalances;
-  /** Chainlink ETH/USD answer, used to price the pot's native balance. */
   ethUsdPrice: bigint | null;
   error: string | null;
   onAdd: () => void;
   onWithdraw: () => void;
 };
 
-/**
- * The stake pot tab: what the player can stake right now, what is tied up in
- * live matches, and what is on its way back out.
- *
- * This is a different balance from the wallet tab's on-chain one - pot funds
- * sit in the StakePot contract, not in the user's wallet - so the two live on
- * separate tabs and the pot carries gold rather than the app accent.
- */
 export default function StakePotTab({
   chainId,
   pot,
@@ -52,9 +42,6 @@ export default function StakePotTab({
 }: Props) {
   const network = CHAINS.find(c => c.id === chainId)?.network ?? chainId;
 
-  // Only pot currencies get a row - ETH is wallet/gas only and never shows
-  // here. A pot currency missing on this network stays visible and says why,
-  // rather than silently going missing.
   const rows = POT_ASSETS.flatMap(({ asset, symbol }) => {
     const token = CHAIN_TOKENS[chainId].find(t => t.symbol === symbol);
     if (!token) {
@@ -195,7 +182,6 @@ export default function StakePotTab({
   );
 }
 
-/** The hero's one-line explainer, in a player's words rather than the chain's. */
 function potNote(funded: number, lockedUsd: number): string {
   if (lockedUsd > 0) {
     return `$${lockedUsd.toFixed(2)} of your pot is in play right now.`;
@@ -206,7 +192,7 @@ function potNote(funded: number, lockedUsd: number): string {
   return 'Your pot is funded. Jump into any staked game.';
 }
 
-/** USD for a pot balance. KOMBAT has no price feed, so it counts as zero. */
+/** KOMBAT has no price feed, so it counts as zero. */
 function usdValue(
   asset: StakeAsset,
   raw: bigint,
@@ -226,7 +212,6 @@ function usdValue(
   return 0;
 }
 
-/** Per-row USD, or the bare symbol when that token has no price feed. */
 function usdLabel(
   asset: StakeAsset,
   raw: bigint,

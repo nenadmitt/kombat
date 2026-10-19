@@ -10,17 +10,12 @@ import { truncateAddress } from '../../wallet/format-address';
 import BrandIcon from '../BrandIcon';
 import Icon from '../Icon';
 
-/** Matches the create-room sheet: one gap, a touch tighter than the app. */
 const GAP = spacing.sm;
 
 type Props = {
   evmAddress: string;
   selected: ChainId;
   onSelect: (chainId: ChainId) => void;
-  /**
-   * `pill` is the compact header trigger; `row` is the full-width card that
-   * heads the wallet tab. Both open the same sheet.
-   */
   variant?: 'pill' | 'row';
 };
 
@@ -218,7 +213,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: spacing.lg,
-    // One uniform vertical rhythm between every block in the sheet.
     gap: GAP,
   },
   dragHandle: {

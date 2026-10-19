@@ -20,10 +20,6 @@ type TestClient = {
   disconnect: jest.Mock;
 };
 
-/**
- * The socket trust boundary: who gets a connection, and which client-supplied
- * channel names an authenticated socket may subscribe to.
- */
 describe('WebsocketsGateway', () => {
   let gateway: WebsocketsGateway;
   let sequence: [string, string][];
@@ -132,8 +128,7 @@ describe('WebsocketsGateway', () => {
       await gateway.handleConnection(client as never);
 
       expect(disconnectedRooms).toEqual([userRoom(USER)]);
-      // Call order is not the guarantee - the Redis adapter applies the kick
-      // asynchronously, after the join. Excluding the new socket is.
+      // Excluding the new socket is the guarantee, not call order: the Redis adapter kicks asynchronously.
       expect(kickExcluded).toEqual([client.id]);
       expect(sequence).toContainEqual(['join', userRoom(USER)]);
     });

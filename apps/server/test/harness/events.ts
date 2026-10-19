@@ -2,16 +2,7 @@ import type { Socket } from 'socket.io-client';
 
 const DEFAULT_TIMEOUT_MS = 4_000;
 
-/**
- * Attaches the listener synchronously and returns the promise, so the call
- * must be made *before* the action that triggers the event:
- *
- *   const joined = waitFor(creator.socket, ROOM_EVENTS.opponentJoined);
- *   await joiner.post(`/games/rooms/${roomId}/join`);
- *   expect(await joined).toMatchObject({ roomId });
- *
- * Awaiting the action first is a race that passes locally and fails in CI.
- */
+// Attaches the listener synchronously: call it before the action that triggers the event.
 export function waitFor<T = unknown>(
   socket: Socket,
   event: string,
@@ -31,17 +22,7 @@ export function waitFor<T = unknown>(
   });
 }
 
-/**
- * Resolves on `event`, rejects if `errorEvent` lands first. A gateway that
- * refuses an action answers on its error channel and nothing else, so without
- * this a refusal surfaces as a timeout that names neither the action nor the
- * reason.
- *
- * `where` skips events this caller is not waiting for. A broadcast reaches
- * every seat's socket at its own pace, so one seat's socket can still be
- * holding another seat's event when the next action goes out - taking that as
- * the answer makes the test run one action ahead of the server.
- */
+// `where` skips other seats' events, which can still be in flight when the next action goes out.
 export function waitForOrError<T = unknown>(
   socket: Socket,
   event: string,
@@ -80,8 +61,6 @@ export function waitForOrError<T = unknown>(
   });
 }
 
-/** Fails if the event arrives within the window. Use sparingly — it always
- *  costs its full duration. */
 export function expectNoEvent(
   socket: Socket,
   event: string,
@@ -105,12 +84,7 @@ export function expectNoEvent(
   });
 }
 
-/**
- * `channel:join` is fire-and-forget - the server neither acks it nor reports a
- * refusal, so there is nothing to await (see SERVER.BAI.md 2026-08-01). The
- * fixed settle window is the workaround; when that handler learns to ack, this
- * is the one place that changes.
- */
+// `channel:join` is fire-and-forget with no ack, so a fixed settle window is the only option.
 export async function subscribe(
   socket: Socket,
   channel: string,
@@ -120,11 +94,7 @@ export async function subscribe(
   await new Promise(resolve => setTimeout(resolve, settleMs));
 }
 
-/**
- * Polls until `check` returns truthy. The gateway broadcasts the winning shot
- * before it persists the completed room, so anything asserting on the database
- * has to wait for that tail rather than read straight after the event.
- */
+// The gateway broadcasts the winning shot before persisting the room, so DB assertions must wait.
 export async function waitUntil<T>(
   check: () => Promise<T | null | undefined | false>,
   timeoutMs = 4_000,
@@ -143,7 +113,6 @@ export async function waitUntil<T>(
   }
 }
 
-/** Buffers every occurrence from the moment it is called. */
 export function collect<T = unknown>(
   socket: Socket,
   event: string,

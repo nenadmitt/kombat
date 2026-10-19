@@ -15,7 +15,6 @@ import { EMPTY_FILTERS } from '../store/lobby.store';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono, type } from '../theme/typography';
 
-/** One sheet gap, a touch tighter than the app rhythm (matches create-room). */
 const GAP = 13;
 
 const STAKE_OPTIONS: { key: LobbyStakeFilter; label: string }[] = [
@@ -38,8 +37,6 @@ type Props = {
   onClose: () => void;
 };
 
-/** Bottom-sheet for the lobby's stake + token filters (games are the inline
- *  chip row). Overlay inside the host, not a nested Modal. */
 export default function LobbyFilterSheet({
   visible,
   filters,
@@ -49,7 +46,6 @@ export default function LobbyFilterSheet({
   const [stake, setStake] = useState<LobbyStakeFilter>(filters.stake ?? 'all');
   const [tokens, setTokens] = useState<StakeAsset[]>(filters.stakeTokens ?? []);
 
-  // Re-seed the draft each time the sheet opens.
   useEffect(() => {
     if (visible) {
       setStake(filters.stake ?? 'all');
@@ -65,7 +61,6 @@ export default function LobbyFilterSheet({
     );
 
   const apply = () => {
-    // Tokens only make sense for staked rooms.
     const staked = stake !== 'free';
     onApply({
       ...filters,
@@ -88,7 +83,6 @@ export default function LobbyFilterSheet({
           <View style={styles.dragHandle} />
           <Text style={styles.title}>Filters</Text>
 
-          {/* Stake */}
           <View style={styles.field}>
             <Text style={[type.label, styles.label]}>Stake</Text>
             <View style={styles.segment}>
@@ -109,7 +103,6 @@ export default function LobbyFilterSheet({
             </View>
           </View>
 
-          {/* Tokens */}
           <View style={[styles.field, tokensDisabled && styles.dimmed]}>
             <Text style={[type.label, styles.label]}>Token</Text>
             <View style={styles.tokenRow}>

@@ -31,7 +31,6 @@ import { supportsBalances } from '../wallet/tokens';
 
 const REFRESH_INTERVAL_MS = 60_000;
 
-/** Stable empty reference so the tx selector doesn't churn renders. */
 const EMPTY_TXS: WalletTx[] = [];
 
 type TabKey = 'pot' | 'wallet';
@@ -51,12 +50,6 @@ const TX_STATUS_BADGE: Record<
   timeout: { label: 'UNKNOWN', tint: colors.gold, soft: colors.goldSoft },
 };
 
-/**
- * Wallet is two peer views behind one tab: the stake pot (funds in the
- * StakePot contract, gold) and the wallet proper (funds on chain, lime).
- * Both halves' overlays are owned here, and only here, so no two can ever be
- * presented at once - see apps/mobile/CLAUDE.md rule 5.
- */
 export default function WalletScreen() {
   const wallet = useCurrentUserStore(state => state.wallet);
   const ensName = useCurrentUserStore(state => state.ensName);
@@ -64,8 +57,7 @@ export default function WalletScreen() {
   const [chainId, setChainId] = useState<ChainId>(DEFAULT_CHAIN_ID);
   const [coolingDown, setCoolingDown] = useState(false);
   const [openModal, setOpenModal] = useState<WalletAction | null>(null);
-  // Separate from openModal so the two can never both be presented; only one
-  // of the two is ever non-null (see the guards on each handler).
+  // Separate from openModal so the two can never both be presented.
   const [potMode, setPotMode] = useState<StakePotMode | null>(null);
   const [activeTxHash, setActiveTxHash] = useState<Hex | null>(null);
   const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -127,7 +119,6 @@ export default function WalletScreen() {
     );
   };
 
-  /** Opening a pot sheet is gated on no wallet sheet being up, and vice versa. */
   const openPot = (mode: StakePotMode) => {
     if (openModal !== null) {
       return;
@@ -137,8 +128,6 @@ export default function WalletScreen() {
 
   const activeTx = txs.find(t => t.hash === activeTxHash) ?? null;
 
-  // A server without pooled staking has no pot to show, so the switcher goes
-  // with it and the wallet is the only view.
   const activeTab = potUnavailable ? 'wallet' : tab;
 
   return (
@@ -148,8 +137,6 @@ export default function WalletScreen() {
         {potUnavailable ? null : (
           <SegmentedTabs tabs={TABS} value={activeTab} onChange={setTab} />
         )}
-        {/* Balances - wallet and pot alike - are per network, so the selector
-            heads both tabs rather than living inside one of them. */}
         {wallet ? (
           <ChainSelector
             variant="row"
@@ -182,8 +169,7 @@ export default function WalletScreen() {
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          // iOS adds the top safe-area inset to a ScrollView's content by
-          // default, which showed up as a ~53pt void above the first card.
+          // iOS adds the top safe-area inset to a ScrollView's content by default.
           contentInsetAdjustmentBehavior="never"
           automaticallyAdjustContentInsets={false}
           style={styles.scroll}
@@ -278,8 +264,7 @@ export default function WalletScreen() {
             visible={openModal === 'deposit'}
             onClose={() => setOpenModal(null)}
             onShowQr={() => {
-              // Hand off to the Receive sheet; let this one dismiss first so
-              // the two transparent Modals don't overlap (wedges iOS touches).
+              // Let this one dismiss first: overlapping transparent Modals wedge iOS touches.
               setOpenModal(null);
               setTimeout(() => setOpenModal('receive'), 350);
             }}
@@ -324,8 +309,6 @@ export default function WalletScreen() {
                   to: wallet.address as Address,
                   toLabel: 'Stake pot',
                 });
-                // Funds left the wallet now; the pot credit follows once the
-                // server's watcher has enough confirmations and pushes it.
                 refresh(balanceChainId, address);
               }}
               onWithdrawRequested={() => {
@@ -353,8 +336,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   potBody: {
-    // StakePotTab scrolls its own body and pins its CTAs, so this is just the
-    // frame. The tab bar's raised LOBBY action overhangs content by 42px.
+    // The tab bar's raised LOBBY action overhangs content by 42px.
     flex: 1,
     paddingBottom: spacing.xxl,
   },
@@ -364,13 +346,11 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flex: 1,
-    // The ScrollView owns the screen's horizontal padding so its scrollbar and
-    // any pressed row highlight run to the real edge.
+    // The ScrollView owns the horizontal padding so its scrollbar and row highlights run to the real edge.
     marginHorizontal: -spacing.lg,
   },
   walletBody: {
-    // No paddingTop: Screen already puts one spacing.md between every block,
-    // and adding to it made the gap under the network card wider than the rest.
+    // No paddingTop: Screen already puts one spacing.md between every block.
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xxl,

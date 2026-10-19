@@ -20,8 +20,7 @@ export const wagmiConfig = createConfig(
     appName: "Kombat",
     chains: [chain],
     transports: { [chain.id]: http() },
-    // Without a project id the WalletConnect option is dead but injected
-    // wallets still work - fine for the closed test.
+    // Without a project id WalletConnect is dead but injected wallets still work.
     walletConnectProjectId:
       process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "",
     ssr: true,

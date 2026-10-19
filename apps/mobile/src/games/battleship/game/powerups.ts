@@ -1,4 +1,3 @@
-// Power-up economy + resolution now live in @gaming-platform/core.
 export {
   bombCells,
   CHARGE_BAR_MAX,

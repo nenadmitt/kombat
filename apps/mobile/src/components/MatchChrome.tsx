@@ -5,14 +5,7 @@ import TurnTimer from '../games/battleship/game/TurnTimer';
 import { colors, radius, spacing } from '../theme/colors';
 import { display, mono } from '../theme/typography';
 
-/**
- * The chrome every match screen wears: the back / title header and the
- * "you vs them" bar with the shared turn clock between them. Lifted verbatim
- * from the Battleship screen so a new game never invents its own.
- */
-
 type HeaderProps = {
-  /** Small uppercase kicker, e.g. "RANKED MATCH". */
   label: string;
   title: string;
   onBack: () => void;
@@ -39,7 +32,6 @@ export function MatchHeader({ label, title, onBack, onMenu }: HeaderProps) {
 export type MatchPlayer = {
   initial: string;
   name: string;
-  /** Second line under the name - whatever the game counts. */
   sub: string;
   online?: boolean;
 };
@@ -48,7 +40,6 @@ type PlayerBarProps = {
   me: MatchPlayer;
   opponent: MatchPlayer;
   myTurn: boolean;
-  /** Epoch ms the current turn ends (null outside an active turn). */
   turnDeadline: number | null;
   onTimerExpire?: () => void;
 };

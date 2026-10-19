@@ -23,17 +23,10 @@ import {
 } from './harness/events';
 import { expireCurrentTurn, expireDeadline, readMatch } from './harness/clock';
 
-/** A pawn here has no legal five and a pawn in base needs a six, so a seat
- *  parked on it can roll without moving anything. */
+// No legal five here and a base pawn needs a six, so a parked seat rolls without moving.
 const PARKED_PROGRESS = 55;
 const PARK_ROLLS = PARKED_PROGRESS / 5;
 
-/**
- * Same trick as the battleship timeout suite: rewrite the scheduled deadline
- * into the past and let the real GameDeadlineSweeper pick it up on its next
- * tick, so what runs is the production enforcement path rather than a
- * shortened TURN_SECONDS.
- */
 describe('ludo timeouts (e2e)', () => {
   let testApp: TestApp;
   let actors: Actor[];
@@ -75,8 +68,7 @@ describe('ludo timeouts (e2e)', () => {
     expect(await matchState(host)).toMatchObject({ turnUserId: host.userId });
   };
 
-  /** Every broadcast names its author, which is what keeps a seat from
-   *  mistaking another seat's pending event for its own answer. */
+  // Every broadcast names its author, so a seat can't mistake another seat's event for its answer.
   const byActor =
     (who: Actor) =>
     (payload: { byUserId: string }): boolean =>
@@ -118,8 +110,7 @@ describe('ludo timeouts (e2e)', () => {
     return done;
   };
 
-  /** Hand the turn on with a five: it walks a pawn that is still on the
-   *  track, and does nothing at all once the seat is parked. */
+  // A five walks a pawn still on the track and does nothing once the seat is parked.
   const pass = async (who: Actor): Promise<void> => {
     const rolled = await roll(who, 5);
     if (rolled.movableTokens.length > 0) {
@@ -127,9 +118,7 @@ describe('ludo timeouts (e2e)', () => {
     }
   };
 
-  /** Every seat walks its opening pawn to the last home-column square in
-   *  lockstep - from there a five moves nothing, so the board holds still and
-   *  every further roll is pure charge. */
+  // From the last home-column square a five moves nothing, so every further roll is pure charge.
   const parkOpeningPawns = async (seats: Actor[]): Promise<void> => {
     for (let step = 0; step < PARK_ROLLS; step++) {
       for (const seat of seats) {
@@ -147,8 +136,6 @@ describe('ludo timeouts (e2e)', () => {
     }
   };
 
-  /** Walks the host's opening pawn up to `goal`; the joiner walks alongside
-   *  on fives until it parks. */
   const walkTo = async (goal: number): Promise<void> => {
     let at = 0;
     while (at < goal) {
@@ -161,7 +148,6 @@ describe('ludo timeouts (e2e)', () => {
     }
   };
 
-  /** Expire the turn on the clock and wait for the sweeper to enforce it. */
   const timeOutTurn = async (
     watcher: Actor,
   ): Promise<LudoTurnTimeoutPayload> => {

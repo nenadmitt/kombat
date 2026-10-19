@@ -13,7 +13,6 @@ import { alchemyRpcUrl, getPublicClient, VIEM_CHAIN } from './rpc';
 import type { BalanceChainId, Token } from './tokens';
 import { getWalletSecret } from './wallet-keychain';
 
-/** Only the deposit surface of StakePot.sol - the server owns withdrawals. */
 const STAKE_POT_ABI = [
   {
     type: 'function',
@@ -59,24 +58,13 @@ const STAKE_POT_ABI = [
 const PERMIT_TTL_SECONDS = 30 * 60;
 
 type DepositParams = {
-  /** Whose key signs this - the secret is stored per account. */
   userId: string;
   chainId: BalanceChainId;
-  /** The StakePot contract, from GET /stake-pot/deposit-target. */
   pot: Address;
   token: Token;
-  /** Human-readable amount, e.g. "12.5". */
   amount: string;
 };
 
-/**
- * Sign and broadcast a deposit from the device's own key.
- *
- * ERC-20s use `stakeWithPermit`, signed locally, so the deposit is one
- * transaction with no separate approve; falls back to approve + `stake` for a
- * token without EIP-2612. The returned hash is only the deposit - the pot
- * credit follows once the server's watcher sees enough confirmations.
- */
 export async function depositToStakePot({
   userId,
   chainId,
@@ -128,8 +116,6 @@ export async function depositToStakePot({
     });
   }
 
-  // No permit support: approve first, then deposit. Two transactions, so the
-  // wallet needs gas for both.
   const approval = await client.writeContract({
     address: tokenAddress,
     abi: erc20Abi,
@@ -148,7 +134,6 @@ export async function depositToStakePot({
 
 type PermitSig = { deadline: bigint; v: number; r: Hex; s: Hex };
 
-/** An EIP-2612 permit, or null when the token doesn't support one. */
 async function signPermit({
   chainId,
   account,

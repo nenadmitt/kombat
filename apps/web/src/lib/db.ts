@@ -16,8 +16,7 @@ function connectionConfig() {
   };
 }
 
-// Cached on globalThis: dev hot-reload re-evaluates this module on every edit
-// and would otherwise leak a pool per reload until Postgres refuses connections.
+// Cached on globalThis: dev hot-reload would otherwise leak a pool per reload.
 const globalForPool = globalThis as typeof globalThis & { kombatPool?: Pool };
 
 export function getPool(): Pool {
@@ -33,11 +32,9 @@ export type TesterSignup = {
   email: string;
   country: string | null;
   createdAt: string;
-  /** Null while the request is still waiting on an invite. */
   invitedAt: string | null;
 };
 
-/** Postgres error code for a unique-constraint violation. */
 const UNIQUE_VIOLATION = "23505";
 
 export class DuplicateEmailError extends Error {}

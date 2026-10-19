@@ -1,10 +1,3 @@
-/**
- * Gaming Platform — app root.
- * Wraps the navigation container; screens live in src/.
- *
- * @format
- */
-
 import React, { useState } from 'react';
 import { StatusBar, useColorScheme } from 'react-native';
 import {

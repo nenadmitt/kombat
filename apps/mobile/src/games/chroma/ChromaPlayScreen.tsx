@@ -38,12 +38,6 @@ const GLOW_COLOR = 'rgba(142, 224, 90, 0.28)';
 const GLOW_TRANSPARENT = 'rgba(142, 224, 90, 0)';
 const GLOW_HEIGHT = 380;
 
-/**
- * Pure-UI Chroma Clash screen per the design, in the app's own style:
- * opponent rows, the table (draw pile, discard, active colour), the fanned
- * hand, SOLO + PLAY actions and the in-screen Prism colour sheet. Fed by
- * either engine; never resolves rules itself.
- */
 export default function ChromaPlayScreen({
   seats,
   myHand,
@@ -75,7 +69,6 @@ export default function ChromaPlayScreen({
   const [soloArmed, setSoloArmed] = useState(false);
   const [prismSuit, setPrismSuit] = useState<ChromaSuit>('crimson');
 
-  // Selection/SOLO reset whenever the turn context changes under us.
   useEffect(() => {
     setSelected(null);
     setSoloArmed(false);
@@ -153,7 +146,6 @@ export default function ChromaPlayScreen({
     playableSet.has(index) &&
     (myDrawnIndex === null || index === myDrawnIndex);
   const playDisabled = selected === null || !selectable(selected);
-  // Arming SOLO matters exactly when this play would leave one card.
   const soloRelevant = myHand.length === 2;
 
   const handleCardTap = (index: number) => {
@@ -172,8 +164,6 @@ export default function ChromaPlayScreen({
     setSoloArmed(false);
   };
 
-  // Fan geometry: rotate/lift like the design up to 8 cards, then fall back
-  // to a flat scrollable row (hands can grow well past the dealt seven).
   const fanned = myHand.length <= 8;
   const cardW = myHand.length > 6 ? 48 : 54;
 
@@ -206,7 +196,6 @@ export default function ChromaPlayScreen({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Opponents */}
         {opponents.map(seat => (
           <View
             key={seat.userId}
@@ -249,7 +238,6 @@ export default function ChromaPlayScreen({
           </View>
         ))}
 
-        {/* Table */}
         <View style={styles.table}>
           <Pressable
             style={[styles.pile, !drawEnabled && styles.pileDisabled]}
@@ -288,7 +276,6 @@ export default function ChromaPlayScreen({
           </View>
         </View>
 
-        {/* Turn banner + timer */}
         <View style={styles.turnRow}>
           <View
             style={[
@@ -308,7 +295,6 @@ export default function ChromaPlayScreen({
 
         {notice && <Text style={styles.notice}>{notice}</Text>}
 
-        {/* Hand */}
         <View style={styles.handHeader}>
           <Text style={styles.handLabel}>
             YOUR HAND · {myHand.length} CARDS
@@ -356,7 +342,6 @@ export default function ChromaPlayScreen({
         </ScrollView>
       </ScrollView>
 
-      {/* Actions */}
       <View style={styles.actions}>
         {myDrawnIndex !== null ? (
           <Pressable style={styles.soloButton} onPress={onPass}>
@@ -392,7 +377,7 @@ export default function ChromaPlayScreen({
         </Pressable>
       </View>
 
-      {/* Prism colour sheet (in-screen overlay - never a second native Modal) */}
+      {/* In-screen overlay, never a second native Modal. */}
       {pickingColor && (
         <View style={styles.prismOverlay}>
           <View style={styles.prismSheet}>

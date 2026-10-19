@@ -37,16 +37,6 @@ const MATCH_KEY_BY_GAME: Record<GameType, (roomId: string) => string> = {
   [GameType.Salvo]: CacheKeys.salvoMatch,
 };
 
-/**
- * Stake lifecycle: validates stakes, holds every player's stake from the pot
- * when a room fills, and settles it when the match ends. Free rooms
- * (stakeToken null) never touch any of this.
- *
- * Every step is a database transaction, so a staked match starts as fast as a
- * free one and costs nothing on-chain. The `match_settlements` row is still written
- * because `assertRoomPlayable`, the match history and the net-stake reporting
- * all read it.
- */
 @Injectable()
 export class StakesService {
   private readonly logger = new Logger(StakesService.name);
@@ -60,13 +50,10 @@ export class StakesService {
     private readonly stakePotChainService: StakePotChainService,
   ) {}
 
-  // ---- validation ----------------------------------------------------------
-
   get enabled(): boolean {
     return this.stakePotChainService.enabled;
   }
 
-  /** Stakes are stablecoins/KOMBAT only, at fixed preset sizes. */
   validateStake(asset: StakeAsset, amount: string): void {
     if (!this.enabled) {
       throw new BadRequestException('Staked games are not available right now.');
@@ -90,11 +77,7 @@ export class StakesService {
     }
   }
 
-  /**
-   * Reject a player who can't cover the stake before they take a seat. Only an
-   * early courtesy: the hold in `beginFunding` is the authoritative check, so
-   * there is no gap for the balance to move through.
-   */
+  // Early courtesy only: the hold in beginFunding is the authoritative check.
   async assertSufficientBalance(
     userId: string,
     asset: StakeAsset,
@@ -108,7 +91,6 @@ export class StakesService {
     }
   }
 
-  /** Match-start gate: a staked room is playable only once its stakes are held. */
   async assertRoomPlayable(room: GameRoomEntity): Promise<void> {
     if (room.stakeToken === null) {
       return;
@@ -126,16 +108,7 @@ export class StakesService {
     }
   }
 
-  // ---- funding -------------------------------------------------------------
-
-  /**
-   * The room just filled: hold every player's stake.
-   *
-   * Resolves before the caller's HTTP response is sent, so `stake:funded` also
-   * fires before a joiner could subscribe to it. Callers must treat a normal
-   * return as "stakes are held" and a throw as "the match is off" rather than
-   * waiting on the event.
-   */
+  // Resolves before the HTTP response, so stake:funded fires before a joiner can subscribe: trust the return, not the event.
   async beginFunding(room: GameRoomEntity): Promise<void> {
     await this.dbService.createMatchSettlement({
       roomId: room.id,
@@ -150,11 +123,6 @@ export class StakesService {
     }
   }
 
-  /**
-   * Recovery for a room orphaned in Funding by a crash between the settlement
-   * row and the hold. Idempotent per (room, player), so re-running only fills in
-   * what is missing.
-   */
   async recoverFunding(roomId: string): Promise<void> {
     const settlement = await this.dbService.findMatchSettlementByRoomId(roomId);
     if (!settlement || settlement.status !== SettlementStatus.Funding) {
@@ -168,13 +136,7 @@ export class StakesService {
     await this.holdFromPot(room);
   }
 
-  /**
-   * A Funded settlement whose match never materialized: the first deadline is
-   * only armed on `enter`, so a room nobody entered has nothing else to end it.
-   * With no match in the cache, void and refund. A Completed room with a Funded
-   * settlement is the sibling crash window (died between the room write and the
-   * settlement claim) - finish it with the recorded result.
-   */
+  // The first deadline is only armed on enter, so a room nobody entered has nothing else to end it.
   async recoverStrandedFunded(roomId: string): Promise<void> {
     const room = await this.dbService.findGameRoomByIdFresh(roomId);
     if (!room) {
@@ -190,13 +152,12 @@ export class StakesService {
     }
     const matchKey = MATCH_KEY_BY_GAME[room.gameType];
     if (await this.cacheService.get(matchKey(roomId))) {
-      return; // Someone entered - the turn clock owns it.
+      return;
     }
     this.logger.warn(`Voiding never-entered staked room ${roomId}`);
     await this.completeMatch(roomId, null, 'never-started');
   }
 
-  /** Moves every participant's stake available -> locked, all of it or none. */
   private async holdFromPot(room: GameRoomEntity): Promise<boolean> {
     try {
       await this.stakePotService.holdForMatch(room.id, stakeLegsOf(room));
@@ -226,14 +187,7 @@ export class StakesService {
     return true;
   }
 
-  /**
-   * Emits `stake:funded` and then the one lifecycle event that moves waiting
-   * apps into the match - the creator's opponent-joined for 2-player rooms, the
-   * started broadcast for multi-seat (Ludo/Chroma) rooms.
-   *
-   * Exactly one such event per transition, never two in a tick: the client has
-   * to serialize its modal dismissal against the navigation push.
-   */
+  // Exactly one lifecycle event per transition: the client serializes modal dismissal against the navigation push.
   private emitFundedAndStart(room: GameRoomEntity): void {
     const roomId = room.id;
     this.notifyPlayers(room, STAKE_EVENTS.funded, { roomId });
@@ -252,12 +206,6 @@ export class StakesService {
     }
   }
 
-  // ---- settlement ----------------------------------------------------------
-
-  /**
-   * A match reached its end state: persist the result and move the money. The
-   * single funnel for every way a match can end.
-   */
   async completeMatch(
     roomId: string,
     winnerUserId: string | null,
@@ -267,45 +215,34 @@ export class StakesService {
 
     const settlement = await this.dbService.findMatchSettlementByRoomId(roomId);
     if (!settlement) {
-      return; // Free game.
+      return;
     }
     if (
       settlement.status !== SettlementStatus.Funding &&
       settlement.status !== SettlementStatus.Funded
     ) {
-      return; // Already terminal.
+      return;
     }
 
-    // Read-through cache is fine: the roster and stake of a room that has just
-    // ended cannot change any more.
+    // Cached read is fine: an ended room's roster and stake can no longer change.
     const room = await this.dbService.findGameRoomById(roomId);
     if (!room || room.stakeToken === null) {
       return;
     }
 
-    // Claim BEFORE touching the ledger. This runs outside any room
-    // lock and can be reached concurrently (a forfeit racing its own retry, a
-    // timeout enforcer racing a forfeit), and the status check above is a plain
-    // read - so the conditional UPDATE is what actually decides who settles.
-    // Without it two callers both credit the winner a full pot.
+    // Runs outside any room lock, so this conditional UPDATE, not the status read above, decides who settles.
     const claimed = await this.dbService.claimMatchSettlement(
       roomId,
       winnerUserId ? SettlementStatus.SettlePending : SettlementStatus.VoidPending,
     );
     if (!claimed) {
-      return; // Another completion owns this room.
+      return;
     }
 
     await this.applySettlement(room, winnerUserId, settlement.status);
   }
 
-  /**
-   * Move the money for a claimed settlement and carry it to its terminal status.
-   *
-   * The caller must already hold the claim. On failure the claim is handed back
-   * so a retry can finish the job - a stake left locked under a *Pending status
-   * is money stranded with no owner.
-   */
+  // On failure the claim is handed back so a retry can finish; a stake locked under *Pending is stranded.
   private async applySettlement(
     room: GameRoomEntity,
     winnerUserId: string | null,
@@ -328,8 +265,6 @@ export class StakesService {
       );
       await this.dbService.updateMatchSettlement(room.id, {
         status: SettlementStatus.Settled,
-        // Null when the room was already settled (a replayed completion); leave
-        // the recorded figures alone in that case.
         ...(settlement ? settledFigures(settlement) : {}),
         error: null,
       });
@@ -344,12 +279,6 @@ export class StakesService {
     }
   }
 
-  /**
-   * Finish a settlement whose owner died mid-flight, leaving the settlement claimed
-   * but not settled. Rare (the claim and the ledger write are milliseconds
-   * apart) and harmless to run against a healthy job: the ledger's per-room
-   * uniqueness means the loser of any race rolls back instead of double-paying.
-   */
   async recoverSettlement(roomId: string): Promise<void> {
     const settlement = await this.dbService.findMatchSettlementByRoomId(roomId);
     if (
@@ -364,8 +293,6 @@ export class StakesService {
       return;
     }
     this.logger.warn(`Recovering stalled settlement for room ${roomId}`);
-    // VoidPending was claimed by a no-winner completion; for SettlePending the
-    // winner is whatever the room recorded when it was completed.
     await this.applySettlement(
       room,
       settlement.status === SettlementStatus.VoidPending ? null : room.winnerUserId,
@@ -378,20 +305,14 @@ export class StakesService {
     event: string,
     payload: unknown,
   ): void {
-    // User rooms, not the game channel - players haven't necessarily entered
-    // the match screen (and its channel) yet.
+    // User rooms, not the game channel: players may not have entered the match screen yet.
     for (const participant of participantsOf(room)) {
       this.websocketsService.sendToUser(participant, event, payload);
     }
   }
 }
 
-/**
- * A single-asset match records the scalar columns every existing reader
- * understands; a genuinely mixed one records the per-asset maps, since no
- * scalar can carry two sets of decimals. Exactly one representation is ever
- * present - readers disagree about which to prefer, so both must never be.
- */
+// Exactly one representation is ever present: readers disagree about which to prefer.
 function settledFigures(settlement: StakeSettlementTotals): {
   payout: string | null;
   fee: string | null;

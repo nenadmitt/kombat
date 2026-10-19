@@ -28,25 +28,17 @@ import { GRID } from './setup/ship-placement.constants';
 import type { Orientation, Placement, Shot } from './setup/ship-placement.types';
 import { cellsFor } from './setup/ship-placement.utils';
 
-// Gap between grid cells and their corner rounding - matches the design's
-// spaced, rounded-square grid rather than a continuous ruled grid.
 const CELL_GAP = 4;
 const CELL_RADIUS = 6;
-/** Inset of a ship hull from its cells' outer edge. */
 const HULL_PAD = 3;
 
-// Empty cells are a translucent white overlay (like colors.cardBackground)
-// rather than an opaque fill, so the screen's background glow shows through -
-// matching the design instead of a flat grey grid.
 const EMPTY_CELL_GRADIENT = ['rgba(255, 255, 255, 0.07)', 'rgba(255, 255, 255, 0.03)'];
 const CELL_BORDER = colors.cardBorder;
-// Brighter border on empty cells while a ship is selected, inviting a tap.
 const ACTIVE_CELL_BORDER = 'rgba(142, 224, 90, 0.55)';
 const HIT_FILL = 'rgba(255, 84, 104, 0.9)';
 const HIT_GLOW = 'rgba(255, 84, 104, 0.55)';
 const MISS_DOT = 'rgba(148, 163, 184, 0.7)';
 
-/** Finger movement below this (px) still counts as a tap, not a drag. */
 const TAP_SLOP = 8;
 
 export type PlacedShip = {
@@ -56,10 +48,6 @@ export type PlacedShip = {
   placement: Placement;
 };
 
-/** The most recent shot batch, replayed as an entrance animation. `id` bumps
- *  every action so repeats still animate. Torpedo cells reveal left→right with
- *  a projectile; single/bomb cells pop in together; `mine` is a triggered
- *  mine's blast - its cells pop in under an expanding yellow explosion. */
 export type GridAction = {
   id: number;
   kind: 'single' | 'torpedo' | 'bomb' | 'mine';
@@ -67,7 +55,6 @@ export type GridAction = {
 };
 
 const ENTRY_MS = 300;
-/** A mine blast's expanding-circle explosion plays slower for drama. */
 const MINE_BLAST_MS = 900;
 const TORPEDO_PER_CELL_MS = 90;
 const SINK_PER_CELL_MS = 150;
@@ -80,36 +67,19 @@ type Projectile = { row: number; fromCol: number; toCol: number };
 type Props = {
   boardSize: number;
   cell: number;
-  /** Ships to draw as full hull silhouettes (own fleet, or revealed sunk ships). */
   placedShips?: PlacedShip[];
-  /** Armed sea mines to draw (setup + own-fleet views). */
   mines?: MinePlacement[];
-  /** Hit/miss/mine markers overlaid on cells (gameplay). */
   shots?: Shot[];
-  /** Highlighted target cell (attack mode). */
   selectedCell?: { row: number; col: number } | null;
-  /** Cells a queued power-up would strike, outlined as a preview. */
   previewCells?: { row: number; col: number }[];
-  /** Most recent shot batch to animate in (gameplay). */
   action?: GridAction | null;
-  /** Ship currently selected for placement - drawn hovering under the finger. */
   activeShip?: { size: number; color: string } | null;
-  /** Whether a mine is being placed - drawn hovering under the finger. */
   activeMine?: boolean;
   orientation?: Orientation;
-  /** Whether the active ship may be placed anchored at (row, col). */
   isValidPlacement?: (row: number, col: number) => boolean;
-  /** Fired on touch release. `isTap` is true for a stationary press (no drag),
-   *  letting the owner treat taps (remove) and drops (place) differently.
-   *  Omit to make the board read-only (e.g. the fleet view). */
   onCommit?: (row: number, col: number, isTap: boolean) => void;
 };
 
-/** The 10x10 board. Placed ships render as hull silhouettes across their
- *  cells. While a finger (or mouse hover) moves over the grid with a ship
- *  selected, that ship's silhouette follows - its own color when the spot is
- *  valid, red when not. Releasing commits; a stationary tap on a placed ship
- *  removes it. */
 function BattleshipGrid({
   boardSize,
   cell,
@@ -127,8 +97,7 @@ function BattleshipGrid({
 }: Props) {
   const [hover, setHover] = useState<Hover | null>(null);
 
-  // PanResponder is created once, so these keep its handlers reading the
-  // latest props/callbacks instead of the ones captured at first render.
+  // PanResponder is created once, so its handlers read the latest props through these refs.
   const activeShipRef = useRef(activeShip);
   activeShipRef.current = activeShip;
   const activeMineRef = useRef(activeMine);
@@ -150,8 +119,7 @@ function BattleshipGrid({
     }
     const { row, col } = toCell(locationX, locationY);
     const valid = isValidRef.current?.(row, col) ?? false;
-    // Bail out when the finger is still over the same cell - returning the
-    // previous state reference makes React skip the (expensive) grid re-render.
+    // Returning the previous state reference makes React skip the grid re-render.
     setHover(prev =>
       prev && prev.row === row && prev.col === col && prev.valid === valid
         ? prev
@@ -178,8 +146,7 @@ function BattleshipGrid({
         onCommitRef.current?.(row, col, !movedRef.current);
         setHover(null);
       },
-      // Keep the gesture when an enclosing ScrollView asks to take over -
-      // otherwise dragging a ship down the board scrolls the screen instead.
+      // Keep the gesture, or dragging a ship down the board scrolls the enclosing ScrollView.
       onPanResponderTerminationRequest: () => false,
       onPanResponderTerminate: () => setHover(null),
     }),
@@ -194,10 +161,7 @@ function BattleshipGrid({
     }
     return set;
   }, [placedShips]);
-  // Cells that belong to a *fully destroyed* ship (every cell hit). Only these
-  // render as the red X - a hit on a ship still afloat stays a glowing circle.
-  // (On the fleet view `placedShips` is the whole fleet, so keying "sunk" off
-  //  `occupied` would wrongly X-out every incoming hit.)
+  // Only fully destroyed ships render as X: on the fleet view `placedShips` is the whole fleet, so `occupied` would X every hit.
   const sunkCells = useMemo(() => {
     const hitKeys = new Set(
       shots.filter(s => s.result === 'hit').map(s => `${s.row},${s.col}`),
@@ -212,10 +176,8 @@ function BattleshipGrid({
     return set;
   }, [placedShips, shots]);
   const active = activeShip !== null || activeMine;
-  // Only wire up touch handlers when the board is interactive.
   const touchHandlers = onCommit ? responder.panHandlers : {};
 
-  // --- entrance / sink / torpedo animations --------------------------------
   const entry = useSharedValue(1);
   const sink = useSharedValue(1);
   const torpedo = useSharedValue(0);
@@ -224,8 +186,6 @@ function BattleshipGrid({
   const [sinkBatch, setSinkBatch] = useState<SinkBatch | null>(null);
   const [projectile, setProjectile] = useState<Projectile | null>(null);
 
-  // Play the entrance animation for the newest action (single/bomb pop in
-  // together; a torpedo reveals left→right behind a moving projectile).
   useEffect(() => {
     if (!action || action.cells.length === 0) {
       return;
@@ -257,7 +217,6 @@ function BattleshipGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [action?.id]);
 
-  // Animate ships as they sink: their cells form X squares left→right.
   const sunkIds = useMemo(
     () => placedShips.map(s => s.id).sort().join(','),
     [placedShips],
@@ -312,8 +271,6 @@ function BattleshipGrid({
     const length = size * cell - HULL_PAD * 2;
     const x = col * cell + HULL_PAD;
     const y = row * cell + HULL_PAD;
-    // Hulls are drawn horizontally at the origin; vertical ships are the same
-    // hull rotated -90° (bow pointing up) into the cells' bounding box.
     const transform =
       shipOrientation === 'h'
         ? [{ translateX: x }, { translateY: y }]
@@ -389,7 +346,6 @@ function BattleshipGrid({
           const cellY = shot.row * cell + CELL_GAP / 2;
           const size = cell - CELL_GAP;
           const isSunkCell = sunkCells.has(cellKey);
-          // A sinking ship's cells animate their X formation left→right.
           const sinkIdx = sinkBatch ? sinkBatch.keys.indexOf(cellKey) : -1;
           if (sinkIdx !== -1) {
             const n = sinkBatch!.keys.length;
@@ -408,7 +364,6 @@ function BattleshipGrid({
               />
             );
           }
-          // A freshly-fired cell plays its entrance animation.
           if (batch && batch.keys.has(cellKey)) {
             const markerKind: MarkerKind =
               shot.result === 'mine'
@@ -438,8 +393,6 @@ function BattleshipGrid({
               />
             );
           }
-          // Settled markers render statically. A mine in the shot log has
-          // gone off, so it renders blown open (dark hole in the core).
           if (shot.result === 'mine') {
             return (
               <MineMarker
@@ -454,8 +407,6 @@ function BattleshipGrid({
           if (shot.result === 'miss') {
             return <Circle key={key} cx={cx} cy={cy} r={cell * 0.12} color={MISS_DOT} />;
           }
-          // A hit on a fully-sunk ship becomes a red X; a hit on a ship still
-          // afloat shows a glowing red circle.
           if (!isSunkCell) {
             return (
               <Group key={key}>
@@ -466,7 +417,7 @@ function BattleshipGrid({
               </Group>
             );
           }
-          const m = size * 0.28; // X arm inset from the cell edge
+          const m = size * 0.28;
           return (
             <Group key={key}>
               <RoundedRect x={cellX} y={cellY} width={size} height={size} r={CELL_RADIUS} color={HIT_FILL} />
@@ -489,7 +440,6 @@ function BattleshipGrid({
 
         {batch?.kind === 'mine' && batch.cells.length > 0 && (
           <MineExplosion
-            // Center of the blast area (its cells' bounding box).
             cx={
               ((Math.min(...batch.cells.map(c => c.col)) +
                 Math.max(...batch.cells.map(c => c.col))) /

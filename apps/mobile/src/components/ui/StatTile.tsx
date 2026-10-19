@@ -6,18 +6,11 @@ import { mono, type as typePresets } from '../../theme/typography';
 type Props = {
   label: string;
   value: string;
-  /** Value color - defaults to primary text. */
   valueColor?: string;
-  /**
-   * Optional 0..1 progress bar under the value. Fill uses `valueColor` when
-   * set, otherwise the accent - the proportional bar in the redesign.
-   */
   progress?: number;
-  /** Accent-tinted tile (the highlighted stat in a grid). */
   accent?: boolean;
 };
 
-/** Small labelled metric tile (the Profile stat grid). */
 export default function StatTile({
   label,
   value,

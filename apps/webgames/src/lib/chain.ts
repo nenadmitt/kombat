@@ -4,8 +4,7 @@ import type { Address } from 'viem';
 
 export const CHAIN_ID = Number(import.meta.env.VITE_CHAIN_ID ?? '11155111');
 
-/** Only chains we can name honestly. An unknown id gets no testnet claim -
- *  calling mainnet a testnet is the one mistake that costs a user real money. */
+// Unknown ids get no testnet claim: calling mainnet a testnet costs users real money.
 const CHAINS: Record<number, { name: string; testnet: boolean }> = {
   1: { name: 'Ethereum', testnet: false },
   8453: { name: 'Base', testnet: false },

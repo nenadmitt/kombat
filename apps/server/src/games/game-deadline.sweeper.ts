@@ -27,18 +27,7 @@ import { StakesService } from './stakes/stakes.service';
 const SWEEP_INTERVAL_MS = 1_000;
 const SWEEP_BATCH_LIMIT = 50;
 
-/**
- * Polls the shared deadline schedule and enforces expired windows - the
- * member's kind routes it to the right enforcer (battleship setup/turn, ludo
- * turn, the abandoned-room grace; a new game adds a kind + a case here).
- * Enforcement survives restarts and works from any instance:
- *
- * - popDueDeadlines is atomic, so exactly one instance receives a given
- *   member even when every instance sweeps.
- * - Each match service re-validates under its room lock (phase, turnSeq)
- *   before acting, so stale members - e.g. a turn deadline for a turn that
- *   already advanced - are dropped silently instead of clearTimeout'd.
- */
+// Members pop atomically and each enforcer re-validates under its room lock, so stale ones are simply dropped.
 @Injectable()
 export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(GameDeadlineSweeper.name);
@@ -71,8 +60,7 @@ export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
   }
 
   private async sweep(): Promise<void> {
-    // A slow sweep (lock contention, Redis hiccup) must not stack a second
-    // one on top — skip the tick instead.
+    // Skip the tick rather than stack a second sweep on a slow one.
     if (this.sweeping) {
       return;
     }
@@ -126,15 +114,13 @@ export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  // --- battleship ------------------------------------------------------------
-
   private async enforceBattleshipTurnTimeout(
     roomId: string,
     seq: number,
   ): Promise<void> {
     const payload = await this.battleshipMatchService.timeoutTurn(roomId, seq);
     if (!payload) {
-      return; // Stale — the turn advanced or the match ended/expired.
+      return;
     }
     this.websocketsService.sendToChannel(
       gameChannel(roomId),
@@ -153,7 +139,7 @@ export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
   private async enforceBattleshipSetupTimeout(roomId: string): Promise<void> {
     const result = await this.battleshipMatchService.timeoutSetup(roomId);
     if (!result) {
-      return; // Stale — setup completed (or the match is gone).
+      return;
     }
     this.websocketsService.sendToChannel(
       gameChannel(roomId),
@@ -167,15 +153,13 @@ export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
     );
   }
 
-  // --- ludo ------------------------------------------------------------------
-
   private async enforceLudoTurnTimeout(
     roomId: string,
     seq: number,
   ): Promise<void> {
     const payload = await this.ludoMatchService.timeoutTurn(roomId, seq);
     if (!payload) {
-      return; // Stale — the turn advanced or the match ended/expired.
+      return;
     }
     if (payload.eliminatedColor !== null) {
       await this.dbService.recordEliminatedUser(roomId, payload.timedOutUserId);
@@ -199,15 +183,13 @@ export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  // --- triple cut (rps) ------------------------------------------------------
-
   private async enforceRpsRoundTimeout(
     roomId: string,
     seq: number,
   ): Promise<void> {
     const result = await this.rpsMatchService.timeoutRound(roomId, seq);
     if (!result) {
-      return; // Stale — the round advanced or the match ended/expired.
+      return;
     }
     const { reveal, over } = result;
     this.websocketsService.sendToChannel(
@@ -229,15 +211,13 @@ export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  // --- chroma clash ----------------------------------------------------------
-
   private async enforceChromaTurnTimeout(
     roomId: string,
     seq: number,
   ): Promise<void> {
     const mutation = await this.chromaMatchService.timeoutTurn(roomId, seq);
     if (!mutation) {
-      return; // Stale — the turn advanced or the match ended/expired.
+      return;
     }
     const { payload, changedHands } = mutation;
     if (payload.eliminatedUserId) {
@@ -251,7 +231,6 @@ export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
       CHROMA_EVENTS.turnTimeout,
       payload,
     );
-    // Forced draws changed hands - each owner gets their private hand push.
     for (const [userId, cards] of Object.entries(changedHands)) {
       this.websocketsService.sendToUser(userId, CHROMA_EVENTS.hand, { cards });
     }
@@ -269,15 +248,13 @@ export class GameDeadlineSweeper implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  // --- salvo -----------------------------------------------------------------
-
   private async enforceSalvoTurnTimeout(
     roomId: string,
     seq: number,
   ): Promise<void> {
     const payload = await this.salvoMatchService.timeoutTurn(roomId, seq);
     if (!payload) {
-      return; // Stale — the turn advanced or the match ended/expired.
+      return;
     }
     this.websocketsService.sendToChannel(
       gameChannel(roomId),

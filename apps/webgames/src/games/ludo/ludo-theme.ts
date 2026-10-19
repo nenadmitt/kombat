@@ -1,6 +1,5 @@
 import type { LudoAbilityKind, LudoColor } from '@gaming-platform/core';
 
-/** Seat colour as a CSS token reference, for anything the browser paints. */
 export const LUDO_COLOR_VAR: Record<LudoColor, string> = {
   red: 'var(--ludo-red)',
   green: 'var(--ludo-green)',

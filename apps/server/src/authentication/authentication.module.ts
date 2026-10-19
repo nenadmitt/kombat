@@ -14,8 +14,7 @@ const jwtModule = JwtModule.registerAsync({
   useFactory: (configService: ConfigurationService) => ({
     secret: configService.JWT_SECRET,
     signOptions: {
-      // JWT_EXPIRES_IN is a validated env string (e.g. "30d") at
-      // runtime; `ms`'s stricter literal type can't express that here.
+      // JWT_EXPIRES_IN is a validated env string; `ms`'s literal type can't express that.
       expiresIn: configService.JWT_EXPIRES_IN as JwtSignOptions['expiresIn'],
     },
   }),
@@ -26,9 +25,7 @@ const jwtModule = JwtModule.registerAsync({
   imports: [EmailModule, jwtModule],
   controllers: [AuthenticationController],
   providers: [AuthenticationService, JwtTokenGuard, SiweService],
-  // Re-export JwtModule too — JwtTokenGuard depends on JwtService, and other
-  // modules that import AuthenticationModule just to use the guard need that
-  // dependency resolvable in their own scope as well.
+  // JwtTokenGuard needs JwtService resolvable in every module that imports this one.
   exports: [JwtTokenGuard, jwtModule],
 })
 export class AuthenticationModule {}

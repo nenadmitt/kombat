@@ -19,17 +19,7 @@ type Tone = {
   actionLabel: string;
 };
 
-/**
- * Persistent card above the tabs while the server is unreachable or in
- * maintenance. Renders nothing when everything is fine. Sits above the tab
- * navigator in normal layout flow, so screens are pushed down rather than
- * covered (their SafeAreaViews adapt - insets are position-aware).
- *
- * The wrapper and the card fill are opaque on purpose. This is the one surface
- * that paints outside a `Screen`, so a translucent fill would composite against
- * the light root window rather than the app background and the text would stop
- * being readable. Tints inside the card are fine - they sit on that opaque fill.
- */
+// Opaque on purpose: this paints outside a Screen, so a translucent fill would composite against the light root window.
 export default function ServerStatusBanner() {
   const status = useServerStore(state => state.status);
   const message = useServerStore(state => state.message);
@@ -48,8 +38,6 @@ export default function ServerStatusBanner() {
     : (message ??
       'Matches are paused while we work. Your wallet and pot are untouched.');
 
-  // Offline retries by hand; maintenance sends the player to the status page,
-  // and with no URL configured there is nothing to send them to.
   const action = offline
     ? () => void refresh()
     : detailsUrl

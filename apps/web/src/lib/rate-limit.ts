@@ -6,8 +6,7 @@ export const MAX_SIGNUPS_PER_DAY = 5;
 
 type Window = { count: number; resetAt: number };
 
-// Per-instance and lost on redeploy - a speed bump, not a guarantee. The unique
-// index on email is what actually keeps the table clean.
+// Per-instance and lost on redeploy: a speed bump. The unique index on email is the real guard.
 const globalForHits = globalThis as typeof globalThis & {
   kombatRateHits?: Map<string, Window>;
 };
@@ -27,7 +26,6 @@ function sweep(now: number): Map<string, Window> {
   return map;
 }
 
-/** Burst guard: no more than five attempts a minute from one address. */
 export function tooManyRequests(key: string): boolean {
   const now = Date.now();
   const map = sweep(now);
@@ -40,17 +38,13 @@ export function tooManyRequests(key: string): boolean {
   return existing.count > MAX_PER_MINUTE;
 }
 
-/** How many signups this address has already created inside the current day. */
 export function signupsToday(key: string): number {
   const now = Date.now();
   const existing = sweep(now).get(`d:${key}`);
   return !existing || existing.resetAt <= now ? 0 : existing.count;
 }
 
-/**
- * Count one signup against the day's budget. Called only after a row is
- * actually written, so a duplicate or a typo never spends the allowance.
- */
+// Called only after a row is written, so a duplicate or typo never spends the allowance.
 export function recordSignup(key: string): void {
   const now = Date.now();
   const map = sweep(now);

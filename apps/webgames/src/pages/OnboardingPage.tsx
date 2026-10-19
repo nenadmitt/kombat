@@ -15,7 +15,6 @@ import { WalletSetupPage } from './WalletSetupPage';
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,20}$/;
 
-/** Local-only avatar tints, exactly as the mobile app treats them. */
 const AVATAR_COLORS = ['#8ee05a', '#f5b829', '#3ee08f', '#8aa0f5'];
 
 export function OnboardingPage() {
@@ -34,7 +33,6 @@ export function OnboardingPage() {
 
   // Stable across renders: the wallet step keys its one-time setup off these.
   const finishWallet = useCallback(() => {
-    // Custodial: the gate loads its key and connects on the next render.
     setHasWallet(true, true);
     navigate('/lobby', { replace: true });
   }, [setHasWallet, navigate]);
@@ -44,9 +42,6 @@ export function OnboardingPage() {
     navigate('/lobby', { replace: true });
   }, [dismissWalletPrompt, navigate]);
 
-  // A returning email user with no wallet re-enters at the wallet step: the
-  // username screen is done, and the account is meant to end up with exactly
-  // one custodial wallet attached.
   const resumeWalletStep =
     Boolean(user?.username) && Boolean(user?.email) && hasWallet === false;
 
@@ -73,14 +68,10 @@ export function OnboardingPage() {
       );
       sessionStorage.writeColor(color);
 
-      // A player who signed in with a wallet already has one; an email account
-      // needs the platform to mint it before they can stake or be paid out.
       const wallets = await apiClient.listWallets();
       const mustSetUpWallet = Boolean(updated.email) && wallets.length === 0;
 
-      // Order matters: setUser is what satisfies the "username done" redirect,
-      // so the wallet step has to be armed before it, or the render between
-      // the two sends the player to the lobby and the step never mounts.
+      // Order matters: setUser satisfies the username redirect, so the wallet step must be armed first.
       setHasWallet(
         wallets.length > 0,
         wallets.some(wallet => wallet.custodial),

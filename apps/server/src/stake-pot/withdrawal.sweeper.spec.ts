@@ -21,7 +21,6 @@ const ASSET = StakeAsset.Usdc;
 const AMOUNT = 5_000_000n;
 const WALLET = '0x00000000000000000000000000000000000a11ce';
 
-/** Contract stub whose `processedWithdrawals` set is the thing under test. */
 function makeChain() {
   const processed = new Set<string>();
   const sends: string[] = [];
@@ -62,7 +61,6 @@ function makeChain() {
     setReceipt: (next: typeof receiptStatus) => {
       receiptStatus = next;
     },
-    /** Pretend a payout landed on-chain without the server recording it. */
     markProcessedBehindOurBack: (id: string) => processed.add(id),
   };
 }
@@ -124,10 +122,6 @@ describe('WithdrawalSweeper', () => {
     expect(after.txHash).toBeTruthy();
   });
 
-  /**
-   * The crash window the whole design exists for: the transaction landed but
-   * the process died before recording it.
-   */
   it('confirms without resending when the payout already happened', async () => {
     await fund();
     const row = await request();
@@ -140,7 +134,6 @@ describe('WithdrawalSweeper', () => {
     expect((await statusOf(row.id)).status).toBe(
       StakeWithdrawalStatus.Confirmed,
     );
-    // Crucially: no refund, because the user was paid.
     expect(await availableOf()).toBe(AMOUNT * 3n);
   });
 
@@ -185,10 +178,8 @@ describe('WithdrawalSweeper', () => {
 
     await sweeper.sweep();
     expect((await statusOf(row.id)).status).toBe(StakeWithdrawalStatus.Failed);
-    // Terminal failure returns the money rather than leaving it in limbo.
     expect(await availableOf()).toBe(AMOUNT * 4n);
 
-    // A Failed row is terminal - later sweeps must not touch it again.
     await sweeper.sweep();
     expect(await availableOf()).toBe(AMOUNT * 4n);
     expect(

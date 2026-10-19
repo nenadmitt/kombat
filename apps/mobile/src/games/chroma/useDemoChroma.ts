@@ -33,7 +33,6 @@ type DemoState = {
   turnIdx: number;
   stage: 'play' | 'pick-color';
   pendingColorIdx: number | null;
-  /** My freshly drawn playable card (seat 0 only). */
   drawnIndex: number | null;
   notice: string | null;
   winnerIdx: number | null;
@@ -69,11 +68,6 @@ const freshState = (): DemoState => {
   };
 };
 
-/**
- * Single-player demo: me (seat 0) vs three bots, full local match with the
- * server's semantics - draw-then-play-or-pass, enforced SOLO for the human
- * (bots always call), reshuffle, 30s turns with 3 timeouts = my loss.
- */
 export function useDemoChroma(): ChromaEngine {
   const [state, setState] = useState<DemoState>(freshState);
   const botTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -87,7 +81,6 @@ export function useDemoChroma(): ChromaEngine {
     [],
   );
 
-  /** Draw n cards into a hand, reshuffling the discard when the pile runs dry. */
   const drawInto = (s: DemoState, seat: number, n: number): number => {
     let drew = 0;
     for (let i = 0; i < n; i++) {
@@ -106,7 +99,7 @@ export function useDemoChroma(): ChromaEngine {
     return drew;
   };
 
-  const eliminatedSet = () => new Set<number>(); // demo has no eliminations
+  const eliminatedSet = () => new Set<number>();
 
   const advance = (s: DemoState, steps: number) => {
     s.turnIdx = nextSeatIndex(4, s.turnIdx, s.direction, eliminatedSet(), steps);
@@ -115,7 +108,6 @@ export function useDemoChroma(): ChromaEngine {
     s.turnStartedAt = Date.now();
   };
 
-  /** Resolve a play by `seat` of hand index `idx` (wilds pick colour after). */
   const applyPlay = (
     s: DemoState,
     seat: number,
@@ -130,7 +122,6 @@ export function useDemoChroma(): ChromaEngine {
     const who = seat === 0 ? 'You' : BOT_NAMES[seat - 1]!;
     let notice = `${who} played ${describeCard(card)}`;
 
-    // Enforced SOLO for the human; bots always remember to call.
     if (hand.length === 1) {
       if (seat === 0 && !solo) {
         drawInto(s, 0, SOLO_PENALTY_DRAWS);
@@ -188,7 +179,6 @@ export function useDemoChroma(): ChromaEngine {
     advance(s, effect.skipsNext ? 2 : 1);
   };
 
-  /** One bot action per tick; re-armed while it's still a bot's turn. */
   const runBots = useCallback(() => {
     if (botTimer.current) {
       clearTimeout(botTimer.current);
@@ -239,7 +229,6 @@ export function useDemoChroma(): ChromaEngine {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Keep the bot loop running whenever it's not the human's move.
   useEffect(() => {
     const botsBusy =
       state.winnerIdx === null &&
@@ -335,7 +324,6 @@ export function useDemoChroma(): ChromaEngine {
     });
   }, []);
 
-  /** My 30s ran out: forced draw, turn passes; the third strike is a loss. */
   const onTimerExpire = useCallback(() => {
     setState(prev => {
       if (prev.winnerIdx !== null) {

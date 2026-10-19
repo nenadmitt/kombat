@@ -12,7 +12,6 @@ import { usePotStore } from '../store/pot.store';
 type Step = 'offer' | 'confirmClose' | 'sent';
 
 type Props = {
-  /** Base-unit grant, straight from the server. */
   amount: string;
   symbol: string;
   onClaimed: () => void;
@@ -32,8 +31,7 @@ export function WelcomeBonusModal({
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
 
-  // The watcher credits the pot when the grant's Staked event lands and the
-  // balance push updates this store; that is the confirmation signal.
+  // Confirmed by the balance push once the watcher credits the grant's Staked event.
   const potKombat = usePotStore(s => s.balances.available[StakeAsset.Kombat]);
   const confirmed = txHash !== null && BigInt(potKombat ?? '0') > 0n;
 
@@ -49,7 +47,6 @@ export function WelcomeBonusModal({
       setStep('sent');
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
-        // Nothing left to offer - never show this again.
         onClaimed();
         onClose();
         return;
@@ -63,7 +60,6 @@ export function WelcomeBonusModal({
   }
 
   function requestClose() {
-    // An error already cost them the offer's promise; do not nag.
     if (error) {
       onDismissed();
       onClose();
@@ -198,7 +194,6 @@ export function WelcomeBonusModal({
   );
 }
 
-/** The pot illustration from the wallet screen, reused at modal scale. */
 function CoinPile() {
   return (
     <svg

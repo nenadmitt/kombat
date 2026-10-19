@@ -32,9 +32,7 @@ export function hasDriver(gameType: GameType): boolean {
 
 export class BotRuntime {
   state: BotState = 'idle';
-  /** The room this bot hosts or sits in while it is not yet playing. */
   room: GameRoomSummary | null = null;
-  /** When the hosted room should be closed if nobody joins. */
   hostedUntil = 0;
 
   readonly log: Logger;
@@ -52,9 +50,7 @@ export class BotRuntime {
 
   async start(): Promise<void> {
     const session = await loginBot(this.config, this.account.username);
-    // Signing in creates the account if it is missing, so a roster that was
-    // never seeded would quietly fill the lobby with nameless, unflagged
-    // users. The username is the one thing seeding sets that login cannot.
+    // Login creates missing accounts, so a username mismatch means the roster was never seeded.
     if (session.username !== this.account.username) {
       throw new Error(
         `${this.account.username} is not seeded (signed in as ${session.username ?? 'a nameless account'}). Run POST /admin/bots/seed first.`,
@@ -73,11 +69,7 @@ export class BotRuntime {
     await this.recover();
   }
 
-  /**
-   * A restart can land mid-anything, and the server is the only witness. A
-   * room that is already InProgress needs its driver attached or the match
-   * hangs until the turn clock kills it.
-   */
+  // An InProgress room needs its driver reattached after a restart, or the match hangs until the turn clock ends it.
   private async recover(): Promise<void> {
     const active = await this.api.getMyActiveGameRoom();
     if (!active) return;
@@ -153,8 +145,6 @@ export class BotRuntime {
       } else if (this.state === 'joining' && this.room) {
         await this.api.leaveGameRoom(this.room.id).catch(() => undefined);
       } else if (this.state === 'playing' && this.room) {
-        // Reads to the opponent as a player walking away, which is the
-        // honest thing for a bot being switched off mid-match.
         await this.api.forfeitGameRoom(this.room.id).catch(() => undefined);
       }
     } finally {

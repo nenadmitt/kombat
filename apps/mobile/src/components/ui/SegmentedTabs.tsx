@@ -8,7 +8,6 @@ export type SegmentedTab<T extends string> = {
   value: T;
   label: string;
   icon?: IconName;
-  /** Fill for this tab when selected. Defaults to the accent. */
   tint?: string;
 };
 
@@ -18,11 +17,6 @@ type Props<T extends string> = {
   onChange: (next: T) => void;
 };
 
-/**
- * Inset pill switcher for two or three peer views of one screen. The selected
- * tab paints its own tint, so a screen whose halves have different accents
- * (the lime wallet vs the gold stake pot) reads the accent before the label.
- */
 export default function SegmentedTabs<T extends string>({
   tabs,
   value,

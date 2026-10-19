@@ -36,7 +36,6 @@ export function AppShell() {
   const intercept = useLeaveGuardStore(s => s.intercept);
   const navigate = useNavigate();
 
-  // A live board owns the exit: leaving forfeits, so it asks first.
   const guardedNav = (to: string) => (event: { preventDefault: () => void }) => {
     if (!intercept) return;
     event.preventDefault();
@@ -73,7 +72,6 @@ export function AppShell() {
 
       <div className="main">
         <header className="topbar">
-          {/* Only shown on mobile, where the rail's own brand is hidden. */}
           <div className="topbar-brand">
             <BrandLockup size={24} />
           </div>

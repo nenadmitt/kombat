@@ -14,12 +14,6 @@ import type { ChromaEngine } from './chroma-engine';
 import { useDemoChroma } from './useDemoChroma';
 import { useMultiplayerChroma } from './useMultiplayerChroma';
 
-/**
- * Chroma Clash container - same pattern as the other games: the `ChromaClash`
- * route carries a roomId (socket multiplayer), the demo `ChromaClashSetup`
- * route has none (local bots). No setup phase; both engines start on the
- * match screen.
- */
 export default function ChromaGame() {
   const route = useRoute();
   const params = route.params as
@@ -79,8 +73,6 @@ function ChromaGameFlow({
   const confirm = useConfirm();
   const exitConfirmed = useRef(false);
 
-  // Leaving an unfinished multiplayer match eliminates you; the demo exits
-  // freely.
   const guardExit = isMultiplayer && engine.playProps.result === null;
 
   usePreventRemove(guardExit, ({ data }) => {
@@ -108,12 +100,7 @@ function ChromaGameFlow({
     return (
       <MatchLoading
         error={engine.waitingError}
-        // Always tell the server, and let it decide. forfeit() is rejected
-        // server-side when the match does not exist, has not started, or the
-        // caller is not in it - so a genuinely stuck player is not penalised,
-        // while anyone who did reach a live match still forfeits it. Only the
-        // confirmation dialog is skipped: it is UX, not enforcement, and a
-        // client can always just close the app instead.
+        // Always forfeit: the server rejects it unless the caller is in a live match. Only the dialog is skipped.
         onLeave={() => {
           exitConfirmed.current = true;
           engine.forfeit();

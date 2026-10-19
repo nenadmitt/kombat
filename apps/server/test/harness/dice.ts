@@ -5,12 +5,7 @@ export type ScriptedDice = LudoDieRoller & {
   reset(): void;
 };
 
-/**
- * The Ludo die, scripted. There is no fallback to real randomness: a roll the
- * test did not script is the test being wrong about how many rolls its case
- * takes, and a random value there would only surface as a puzzling assertion
- * failure somewhere further down.
- */
+// No fallback to real randomness: an unscripted roll means the test miscounted its rolls.
 export function scriptedDice(): ScriptedDice {
   let pending: number[] = [];
   return {

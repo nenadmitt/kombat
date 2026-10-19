@@ -7,16 +7,10 @@ import type { Logger } from '../logger';
 import { canAffordRoom, joinTokenFor } from '../stakes/staking';
 import type { LobbyModel } from './lobby-model';
 
-/**
- * Joins human-hosted rooms that have sat unanswered. One delay is sampled per
- * room and kept, so a room does not become joinable earlier just because the
- * tick re-rolled a shorter delay.
- */
+// One delay per room is kept, so a re-rolled shorter delay cannot make a room joinable early.
 export class JoinPolicy {
   private delays = new Map<string, number>();
-  /** Rooms currently being joined - stops two bots piling onto one room. */
   private claimed = new Set<string>();
-  /** Rooms that refused us; never worth retrying. */
   private blacklisted = new Set<string>();
 
   constructor(
@@ -40,10 +34,7 @@ export class JoinPolicy {
     const candidates = this.lobby
       .humanRooms()
       .filter(({ room }) => !this.claimed.has(room.id))
-      // One seat per room from this policy. A multi-seat room stays Pending
-      // after a join, so without this every tick sent another bot in and a
-      // 4-seat table filled in seconds. Further seats are the fill policy's,
-      // on its slow schedule.
+      // One seat per room here; further seats belong to the fill policy's slow schedule.
       .filter(({ room }) => !this.bots.some(bot => bot.room?.id === room.id))
       .filter(({ room }) => !this.blacklisted.has(room.id))
       .filter(({ room }) => hasDriver(room.gameType))
@@ -70,7 +61,6 @@ export class JoinPolicy {
       if (joined.status === GameRoomStatus.InProgress) {
         void bot.play(joined);
       } else {
-        // A multi-seat room still filling: hold the seat until it starts.
         bot.room = joined;
       }
     } catch (error) {

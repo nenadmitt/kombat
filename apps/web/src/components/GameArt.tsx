@@ -26,8 +26,7 @@ export function GameArt({
       className={[styles.card, className ?? ""].join(" ")}
       style={
         {
-          // The default width, not the width: an inline `--art-w` would outrank
-          // the media queries that shrink the card.
+          // The default width only: an inline `--art-w` would outrank the media queries that shrink the card.
           "--art-w-base": `${width}px`,
           "--art-ratio": `${width} / ${height}`,
         } as React.CSSProperties
@@ -36,8 +35,7 @@ export function GameArt({
       {video ? (
         <GameArtVideo src={video} poster={src} />
       ) : src ? (
-        // 1.5x the slot and a high quality: a dense game UI at the default 75
-        // is visibly mushy on a retina screen.
+        // 1.5x the slot at high quality: a dense game UI at the default 75 is mushy on retina.
         <Image
           src={src}
           alt={alt}

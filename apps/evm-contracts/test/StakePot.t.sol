@@ -8,10 +8,6 @@ import { MockUSDC } from "../src/MockUSDC.sol";
 import { StakePot } from "../src/StakePot.sol";
 import { MockUSDT } from "./mocks/MockUSDT.sol";
 
-/**
- * @dev A malicious *operator* - the only account that could reenter
- *      `withdrawTo` at all - which re-enters on receiving its own payout.
- */
 contract ReentrantOperator {
     StakePot internal pot;
     bytes32 internal replayId;
@@ -36,7 +32,6 @@ contract ReentrantOperator {
     }
 }
 
-/// @dev Refuses ETH, so payouts to it fail.
 contract RejectingReceiver {
     receive() external payable {
         revert("no thanks");
@@ -58,8 +53,7 @@ contract StakePotTest is Test {
     address internal bob;
     uint256 internal bobPk;
 
-    /** @dev Cached: reading `pot.NATIVE()` inline would consume the
-     *  single-use vm.prank/expectRevert set up for the call under test. */
+    /// @dev Cached: calling `pot.NATIVE()` inline would consume a pending vm.prank/expectRevert.
     address internal native;
 
     uint256 internal constant DEPOSIT = 10 ether;
@@ -94,10 +88,7 @@ contract StakePotTest is Test {
         vm.deal(bob, 100 ether);
     }
 
-    // ------------------------------------------------------------- helpers
-
-    /** @dev Build a permit for `pot`. Kept out of vm.prank/expectRevert call
-     *  sites - its staticcalls would consume single-use cheatcodes. */
+    /// @dev Call before vm.prank/expectRevert: its staticcalls would consume them.
     function _permit(address token, uint256 pk, address depositor, uint256 value)
         internal
         view
@@ -131,8 +122,6 @@ contract StakePotTest is Test {
         vm.stopPrank();
     }
 
-    // ------------------------------------------------------ deposits: ERC20
-
     function test_stake_pullsTokensAndEmits() public {
         vm.prank(alice);
         kc.approve(address(pot), DEPOSIT);
@@ -148,7 +137,6 @@ contract StakePotTest is Test {
         assertEq(pot.holdings(address(kc)), DEPOSIT);
     }
 
-    /// @dev The "top up from an exchange / a friend's wallet" path.
     function test_stake_forAnotherBeneficiary() public {
         vm.startPrank(bob);
         kc.approve(address(pot), DEPOSIT);
@@ -161,7 +149,6 @@ contract StakePotTest is Test {
         assertEq(pot.holdings(address(kc)), DEPOSIT);
     }
 
-    /// @dev USDT-style no-return-value ERC20 goes through SafeERC20.
     function test_stake_nonStandardErc20() public {
         vm.startPrank(alice);
         usdt.approve(address(pot), 25e6);
@@ -218,8 +205,6 @@ contract StakePotTest is Test {
         vm.stopPrank();
     }
 
-    // ----------------------------------------------------- deposits: permit
-
     function test_stakeWithPermit_singleTx() public {
         StakePot.PermitSig memory sig = _permit(address(usdc), alicePk, alice, 50e6);
 
@@ -230,8 +215,6 @@ contract StakePotTest is Test {
         assertEq(usdc.balanceOf(alice), 50e6);
     }
 
-    /// @dev A front-runner may consume the permit first; the transferFrom
-    ///      still succeeds off the allowance it left behind.
     function test_stakeWithPermit_toleratesFrontRunConsumption() public {
         StakePot.PermitSig memory sig = _permit(address(usdc), alicePk, alice, 50e6);
 
@@ -254,8 +237,6 @@ contract StakePotTest is Test {
         vm.expectRevert();
         pot.stakeWithPermit(alice, address(usdc), 50e6, sig);
     }
-
-    // ----------------------------------------------------- deposits: native
 
     function test_stakeNative_credits() public {
         vm.expectEmit(true, true, false, true, address(pot));
@@ -283,8 +264,6 @@ contract StakePotTest is Test {
         pot.stakeNative{ value: 1 ether }(alice);
     }
 
-    // ------------------------------------------------------------ withdrawals
-
     function test_withdrawTo_erc20() public {
         _depositKc(alice, alice, DEPOSIT);
 
@@ -311,7 +290,6 @@ contract StakePotTest is Test {
         assertEq(address(pot).balance, 3 ether);
     }
 
-    /// @dev Fee sweeps are the same operation as a player withdrawal.
     function test_withdrawTo_feeSweepToTreasury() public {
         _depositKc(alice, alice, DEPOSIT);
 
@@ -367,9 +345,6 @@ contract StakePotTest is Test {
         pot.withdrawTo(W1, alice, address(kc), DEPOSIT + 1);
     }
 
-    // ---------------------------------------------------------- idempotency
-
-    /// @dev The property the server's crash-retry loop depends on.
     function test_withdrawTo_sameIdRevertsSecondTime() public {
         _depositKc(alice, alice, DEPOSIT);
 
@@ -383,7 +358,6 @@ contract StakePotTest is Test {
         assertEq(pot.holdings(address(kc)), DEPOSIT - 1 ether);
     }
 
-    /// @dev Replaying an id with *different* arguments must not slip through.
     function test_withdrawTo_sameIdDifferentArgsStillReverts() public {
         _depositKc(alice, alice, DEPOSIT);
 
@@ -406,8 +380,6 @@ contract StakePotTest is Test {
         assertEq(pot.holdings(address(kc)), DEPOSIT - 3 ether);
         assertEq(kc.balanceOf(bob), 100 ether + 2 ether);
     }
-
-    // ----------------------------------------------------------- rate limit
 
     function test_dailyLimit_accumulatesWithinWindow() public {
         _depositKc(alice, alice, DEPOSIT);
@@ -458,7 +430,6 @@ contract StakePotTest is Test {
 
         vm.startPrank(operator);
         pot.withdrawTo(W1, alice, address(kc), 1 ether);
-        // KC is exhausted, ETH untouched.
         pot.withdrawTo(W2, alice, native, 5 ether);
         vm.stopPrank();
     }
@@ -472,8 +443,6 @@ contract StakePotTest is Test {
         assertEq(pot.holdings(address(kc)), 0);
     }
 
-    /// @dev Lowering the limit below current usage blocks further payouts
-    ///      without underflowing the "remaining" figure.
     function test_dailyLimit_loweredBelowUsageBlocksUntilRollover() public {
         _depositKc(alice, alice, DEPOSIT);
         vm.prank(owner);
@@ -493,8 +462,6 @@ contract StakePotTest is Test {
         pot.withdrawTo(W2, alice, address(kc), 1 ether);
     }
 
-    /// @dev Usage is tracked while unlimited, so switching a limit on does
-    ///      not hand out a fresh allowance mid-window.
     function test_dailyLimit_tracksUsageWhileUnlimited() public {
         _depositKc(alice, alice, DEPOSIT);
 
@@ -506,14 +473,6 @@ contract StakePotTest is Test {
         assertEq(pot.remainingDailyAllowance(address(kc)), 1 ether);
     }
 
-    // ---------------------------------------------------------- reentrancy
-
-    /**
-     * @dev Only the operator can call `withdrawTo`, so the only reentrancy
-     *      that is even reachable is a malicious operator. It gets one payout
-     *      and the nested attempt is refused, so the pot loses exactly the
-     *      authorized amount.
-     */
     function test_withdrawTo_reentrancyBlocked() public {
         ReentrantOperator attacker = new ReentrantOperator(pot);
 
@@ -547,8 +506,6 @@ contract StakePotTest is Test {
         assertFalse(pot.processedWithdrawals(W1));
     }
 
-    // ------------------------------------------------- owner escape hatch
-
     function test_ownerWithdrawTo_paysOut() public {
         _depositKc(alice, alice, DEPOSIT);
 
@@ -574,7 +531,6 @@ contract StakePotTest is Test {
         pot.ownerWithdrawTo(W1, treasury, address(kc), 1 ether);
     }
 
-    /// @dev The whole point: pausing must not lock the rescuer out.
     function test_ownerWithdrawTo_worksWhilePaused() public {
         _depositKc(alice, alice, DEPOSIT);
         vm.prank(owner);
@@ -598,11 +554,9 @@ contract StakePotTest is Test {
         pot.ownerWithdrawTo(W1, treasury, address(kc), DEPOSIT);
 
         assertEq(kc.balanceOf(treasury), DEPOSIT);
-        // The operator's allowance is untouched by the rescue.
         assertEq(pot.remainingDailyAllowance(address(kc)), 1 ether);
     }
 
-    /// @dev Ids are shared with the operator path, so neither route can replay.
     function test_ownerWithdrawTo_sharesIdSpaceWithOperator() public {
         _depositKc(alice, alice, DEPOSIT);
 
@@ -643,8 +597,6 @@ contract StakePotTest is Test {
         );
         pot.ownerWithdrawTo(W1, treasury, address(kc), DEPOSIT + 1);
     }
-
-    // --------------------------------------------------------------- admin
 
     function test_admin_onlyOwner() public {
         vm.startPrank(alice);
@@ -694,10 +646,6 @@ contract StakePotTest is Test {
         assertEq(pot.holdings(address(kc)), DEPOSIT);
     }
 
-    // ---------------------------------------------------------------- fuzz
-
-    /// @dev Holdings must always equal deposits − payouts, and a payout can
-    ///      never exceed holdings, for any sequence of amounts.
     function testFuzz_holdingsTrackDepositsMinusWithdrawals(
         uint96 depositA,
         uint96 depositB,
@@ -727,7 +675,6 @@ contract StakePotTest is Test {
         }
     }
 
-    /// @dev No id ever pays twice, whatever the amounts.
     function testFuzz_withdrawalIdNeverPaysTwice(bytes32 id, uint96 first, uint96 second) public {
         _depositKc(alice, alice, 50 ether);
         first = uint96(bound(first, 1, 25 ether));

@@ -70,8 +70,6 @@ test('the search is cheap enough to run every turn', () => {
   assert.ok(perAim < 50, `${perAim.toFixed(1)}ms per aim`);
 });
 
-// --- movement ---------------------------------------------------------------
-
 import {
   SALVO_EDGE_MARGIN,
   SALVO_MIN_SEPARATION,
@@ -81,7 +79,6 @@ import {
 import { chooseMove } from '../src/drivers/salvo.driver';
 
 test('after a hit the bot moves away from where the shell landed', () => {
-  // Shell landed just left of us: go right, the full budget.
   const to = chooseMove(left, right, left.x - 10);
   assert.ok(to !== null);
   assert.ok(to > left.x, `moved to ${to}, expected rightwards of ${left.x}`);
@@ -89,8 +86,7 @@ test('after a hit the bot moves away from where the shell landed', () => {
 });
 
 test('a move never crosses the separation line', () => {
-  // Left tank parked right up against the minimum separation: "away from a
-  // shell on our left" would push into the opponent, so it must go the other way.
+  // Pinned against the separation line, so it must go the other way.
   const pinnedLeft: SalvoTank = { ...left, x: right.x - SALVO_MIN_SEPARATION };
   const to = chooseMove(pinnedLeft, right, pinnedLeft.x - 10);
   assert.ok(to !== null);

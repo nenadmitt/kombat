@@ -2,11 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { useLeaveGuardStore } from '../store/leave-guard.store';
 
-/**
- * Holds every exit from a live board until the player confirms, because
- * leaving forfeits the match. The board renders its own confirmation and
- * resolves it here; `pending` is what that modal hangs off.
- */
+// Leaving a live board forfeits, so every exit waits on the board's confirmation.
 export function useLeaveGuard(active: boolean) {
   const arm = useLeaveGuardStore(s => s.arm);
   const disarm = useLeaveGuardStore(s => s.disarm);
@@ -39,7 +35,6 @@ export function useLeaveGuard(active: boolean) {
   }, [pending]);
 
   return {
-    /** Non-null while an exit waits on the confirmation. */
     pending,
     request,
     resolve,

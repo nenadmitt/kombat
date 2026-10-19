@@ -60,8 +60,6 @@ describeWithToken('bot seeding (e2e)', () => {
     }
   });
 
-  // The whole reason seeding writes the rows itself: the username paths in
-  // UsersService/WalletsService would mint twenty subnames.
   it('does not mint an ENS name for a bot', async () => {
     await seed({ count: 3 });
 

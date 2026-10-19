@@ -21,9 +21,7 @@ import { LUDO_COLOR_HEX } from './ludo-theme';
 import type { LudoPlayProps } from './ludo-engine';
 
 export type LudoPlayScreenProps = LudoPlayProps & {
-  /** Room code chip in the header (null in the demo). */
   roomCode: string | null;
-  /** Per-player stake (staked matches) - shown on the result screen. */
   stake?: { token: StakeAsset; amount: string } | null;
   onExit: () => void;
   onQuit: () => void;
@@ -32,18 +30,12 @@ export type LudoPlayScreenProps = LudoPlayProps & {
 const GLOW_COLOR = 'rgba(142, 224, 90, 0.25)';
 const GLOW_TRANSPARENT = 'rgba(142, 224, 90, 0)';
 const GLOW_HEIGHT = 420;
-/** The design's board panel + ROLL button styling. */
 const BOARD_PANEL_BG = colors.canvas;
 const ROLL_GRADIENT = {
   colors: [colors.accent400, colors.accent600],
   positions: [0, 1],
 } as const;
 
-/**
- * Pure-UI Ludo screen: renders entirely from engine props and reports
- * intents (roll / pick a token) via callbacks - the demo bot engine and the
- * multiplayer socket engine both feed it.
- */
 export default function LudoPlayScreen({
   seats,
   tokens,
@@ -72,8 +64,6 @@ export default function LudoPlayScreen({
   const { width } = useWindowDimensions();
   const boardSize = Math.min(width - spacing.md * 2 - 18, 356);
 
-  // Every roll (anyone's) shakes the die and shuffles its face briefly
-  // before it settles on the real value.
   const [rolling, setRolling] = useState(false);
   const prevRollId = useRef(rollId);
   useEffect(() => {
@@ -96,8 +86,6 @@ export default function LudoPlayScreen({
     if (stake) {
       const symbol = STAKE_ASSET_SYMBOLS[stake.token];
       const amount = formatStakeAmount(stake.amount, stake.token);
-      // Pot (stake x seats) rather than net winnings - the fee lands on-chain
-      // at settlement, so the exact net shows in History once settled.
       const pot = formatStakeAmount(
         (BigInt(stake.amount) * BigInt(seats.length)).toString(),
         stake.token,
@@ -189,7 +177,6 @@ export default function LudoPlayScreen({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Player HUD */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -243,7 +230,6 @@ export default function LudoPlayScreen({
           })}
         </ScrollView>
 
-        {/* Board */}
         <View style={[styles.boardPanel, { width: boardSize + 18 }]}>
           <LudoBoard
             boardSize={boardSize}
@@ -260,7 +246,6 @@ export default function LudoPlayScreen({
           />
         </View>
 
-        {/* Turn card + die */}
         <View style={styles.turnRow}>
           <View
             style={[
@@ -291,7 +276,6 @@ export default function LudoPlayScreen({
         </View>
       </ScrollView>
 
-      {/* Roll */}
       <View style={styles.rollBar}>
         <Pressable disabled={!myTurn || stage !== 'roll'} onPress={onRoll}>
           <GradientView

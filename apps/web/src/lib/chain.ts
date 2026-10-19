@@ -7,8 +7,7 @@ export const CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? "11155111");
 
 export const CHAIN_ID_HEX = `0x${CHAIN_ID.toString(16)}` as const;
 
-/** Only chains we can name honestly. An unknown id gets no testnet claim -
- *  calling mainnet a testnet is the one mistake that costs a user real money. */
+// Unknown ids get no testnet claim: calling mainnet a testnet costs users real money.
 const CHAINS: Record<number, { name: string; testnet: boolean }> = {
   1: { name: "Ethereum", testnet: false },
   8453: { name: "Base", testnet: false },

@@ -18,12 +18,7 @@ type Local = {
   over: boolean;
 };
 
-/**
- * Triple Cut is simultaneous, so there is no turn to wait for: lock a move
- * each round, then wait for the reveal. A uniformly random pick is the
- * unexploitable strategy, and it also keeps the bot exactly as beatable as a
- * coin flip.
- */
+// Uniformly random is unexploitable and keeps the bot exactly as beatable as a coin flip.
 export async function playRps(ctx: DriverContext): Promise<DriverResult> {
   const { api, socket, roomId, config, log, signal, onReconnect } = ctx;
 

@@ -1,10 +1,5 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Custodial key storage for web accounts. The CHECK is the point: key
- * material exists for embedded wallets (type 2) and for nothing else, so the
- * two custody models cannot blur into each other by accident.
- */
 export class EmbeddedWalletKeys1785900000000 implements MigrationInterface {
   name = 'EmbeddedWalletKeys1785900000000';
 

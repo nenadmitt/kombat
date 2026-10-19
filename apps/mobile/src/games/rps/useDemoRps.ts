@@ -21,12 +21,6 @@ type RevealInfo = {
   headline: string;
 };
 
-/**
- * Single-player demo engine: full local best-of-5 vs a bot that plays a
- * uniformly random move (core randomMove). The player picks a move; the bot
- * picks concurrently and the round reveals. 30s per round; three timeouts and
- * the player loses - mirroring the multiplayer rules.
- */
 export function useDemoRps(): RpsEngine {
   const [round, setRound] = useState(1);
   const [myScore, setMyScore] = useState(0);
@@ -39,7 +33,6 @@ export function useDemoRps(): RpsEngine {
   const [ended, setEnded] = useState<'win' | 'lose' | null>(null);
   const [endReason, setEndReason] = useState<RpsEndReason | null>(null);
 
-  /** Resolve a round given the player's move (or null for a timeout). */
   const resolve = useCallback(
     (mine: RpsMove | null, timedOut: boolean) => {
       const theirs = randomMove();
@@ -67,7 +60,6 @@ export function useDemoRps(): RpsEngine {
       setReveal({ myMove: mine, opponentMove: theirs, result, headline });
       setStage('revealing');
 
-      // Decide match end after this reveal (applied on Next Round).
       if (nextTimeouts >= MAX_TIMEOUTS) {
         setEnded('lose');
         setEndReason('timeout');
@@ -102,7 +94,7 @@ export function useDemoRps(): RpsEngine {
 
   const onNextRound = useCallback(() => {
     if (ended) {
-      return; // result screen takes over via `result`
+      return;
     }
     const wasDecisive = reveal?.result !== 'tie';
     setStage('choosing');

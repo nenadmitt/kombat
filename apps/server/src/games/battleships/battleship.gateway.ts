@@ -25,16 +25,6 @@ import {
 
 type SocketWithUser = Socket & { data: { userId?: string } };
 
-/**
- * Battleship realtime handlers. This is a second gateway class only for
- * handler organization — it shares the same socket.io server and connections
- * as WebsocketsGateway (which owns connection/auth and populates
- * `client.data.userId`). It never implements handleConnection.
- *
- * Holds no gameplay state: matches live in the cache (via
- * BattleshipMatchService) and setup/turn timeouts are enforced by the shared
- * GameDeadlineSweeper off the shared deadline schedule.
- */
 @WebSocketGateway({ cors: true })
 export class BattleshipGateway {
   constructor(
@@ -56,15 +46,11 @@ export class BattleshipGateway {
     }
     try {
       const room = await this.loadParticipantRoom(dto.roomId, userId, true);
-      // Staked rooms are playable only once the stakes are held (Funded).
       await this.stakesService.assertRoomPlayable(room);
-      // The match may not exist yet if this is the first player in; create it
-      // so presence can be recorded before either side has submitted a fleet.
-      // Creation also schedules the setup deadline.
+      // Created on enter so presence can be recorded before either fleet is submitted.
       const match = await this.matchService.getOrCreate(room);
       if (match.phase === 'setup') {
-        // Push the countdown to this player directly — the REST snapshot may
-        // have been fetched before the match (and its deadline) existed.
+        // The REST snapshot may predate the match and its deadline.
         client.emit(BATTLESHIP_EVENTS.setupState, {
           setupDeadline: match.setupDeadline,
         });
@@ -98,8 +84,6 @@ export class BattleshipGateway {
       await this.markOnline(client, dto.roomId, userId);
       const channel = gameChannel(dto.roomId);
       if (result.bothReady) {
-        // Setup is complete — the play turn deadline (scheduled by setFleet)
-        // takes over.
         this.websocketsService.sendToChannel(channel, BATTLESHIP_EVENTS.start, {
           firstTurnUserId: result.firstTurnUserId,
           turnDeadline: result.turnDeadline,
@@ -175,12 +159,6 @@ export class BattleshipGateway {
     }
   }
 
-  /**
-   * Mark the room done (with its persisted result) and queue any stake
-   * settlement. The finished match stays in the cache so both players can
-   * fetch the "over" state; its TTL handles cleanup. Any still-scheduled
-   * deadline goes stale (phase is 'over') and the sweeper drops it.
-   */
   private async endMatch(
     roomId: string,
     winnerUserId: string | null,
@@ -188,8 +166,6 @@ export class BattleshipGateway {
   ): Promise<void> {
     await this.stakesService.completeMatch(roomId, winnerUserId, endReason);
   }
-
-  // --- presence --------------------------------------------------------------
 
   private async markOnline(
     client: SocketWithUser,
@@ -208,7 +184,7 @@ export class BattleshipGateway {
           }
         })
         .catch(() => {
-          // Best effort — presence flags self-correct on the next enter.
+          // Best effort: presence flags self-correct on the next enter.
         });
     });
   }
@@ -225,12 +201,7 @@ export class BattleshipGateway {
     );
   }
 
-  /**
-   * `fresh` bypasses the room cache. Only the enter path needs it: it decides
-   * whether the match may start, and a stale Pending copy (possible on a
-   * second instance when running without Redis) strands the whole room on a
-   * loading spinner. Per-action calls stay on the cache.
-   */
+  // `fresh` bypasses the room cache; only enter needs it, since it decides whether the match may start.
   private async loadParticipantRoom(
     roomId: string,
     userId: string,
@@ -242,9 +213,7 @@ export class BattleshipGateway {
     if (!room) {
       throw new Error('Game room not found.');
     }
-    // participantsOf covers both seatings: a two-player joiner sits in
-    // `opponent_id`, a multi-seat joiner in `opponent_ids`. Reading either
-    // column directly is how Salvo rejected its own joiner.
+    // Never a seat column directly: two-player and multi-seat joiners sit in different columns.
     if (!participantsOf(room).includes(userId)) {
       throw new Error('You are not part of this room.');
     }

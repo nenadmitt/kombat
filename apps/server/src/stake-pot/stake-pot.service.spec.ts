@@ -102,8 +102,6 @@ describe('StakePotService (ledger)', () => {
   const entriesFor = (userId: string) =>
     ledger.find({ where: { userId }, order: { createdAt: 'ASC', id: 'ASC' } });
 
-  // ---- deposits ------------------------------------------------------------
-
   it('credits a deposit and records it in the journal', async () => {
     await deposit(ALICE, 25_000_000n, '0xabc');
 
@@ -149,8 +147,6 @@ describe('StakePotService (ledger)', () => {
     });
   });
 
-  // ---- holds ---------------------------------------------------------------
-
   it('moves every participant from available to locked', async () => {
     await deposit(ALICE, STAKE * 2n);
     await deposit(BOB, STAKE * 2n);
@@ -180,7 +176,6 @@ describe('StakePotService (ledger)', () => {
       service.holdForMatch(ROOM, legs([ALICE, BOB], STAKE)),
     ).rejects.toBeInstanceOf(ConflictException);
 
-    // Nobody is charged for a match that could not be funded.
     expect(await balanceOf(ALICE)).toEqual({ available: STAKE, locked: 0n });
     expect(await balanceOf(BOB)).toEqual({
       available: STAKE - 1n,
@@ -213,8 +208,6 @@ describe('StakePotService (ledger)', () => {
     expect(await balanceOf(BOB)).toEqual({ available: 0n, locked: STAKE });
   });
 
-  // ---- concurrency ---------------------------------------------------------
-
   it('lets only one of two concurrent holds win when the balance covers one', async () => {
     await deposit(ALICE, STAKE);
     await deposit(BOB, STAKE * 2n);
@@ -227,7 +220,6 @@ describe('StakePotService (ledger)', () => {
 
     const fulfilled = results.filter(r => r.status === 'fulfilled');
     expect(fulfilled).toHaveLength(1);
-    // Alice's stake was taken exactly once, never twice and never lost.
     expect(await balanceOf(ALICE)).toEqual({ available: 0n, locked: STAKE });
   });
 
@@ -241,8 +233,6 @@ describe('StakePotService (ledger)', () => {
     ]);
 
     expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
-    // Whichever won, the stake is accounted for exactly once - either locked by
-    // the match or debited into the pending withdrawal, never both, never lost.
     const snapshot = await service.getBalances(ALICE);
     const owned =
       BigInt(snapshot.available[ASSET]) +
@@ -250,8 +240,6 @@ describe('StakePotService (ledger)', () => {
       BigInt(snapshot.pendingWithdrawals[ASSET]);
     expect(owned).toBe(STAKE);
   });
-
-  // ---- settlement ----------------------------------------------------------
 
   it('pays the winner pot minus fee and credits the fee to the platform', async () => {
     await deposit(ALICE, STAKE);
@@ -296,7 +284,7 @@ describe('StakePotService (ledger)', () => {
   });
 
   it('keeps integer-division dust with the winner rather than losing it', async () => {
-    // 3 wei pot at 5% → fee floors to 0, so the winner must receive all 3.
+    // 3 wei pot at 5%: the fee floors to 0, so the winner must receive all 3.
     const tiny = 1n;
     service = makeService(FEE_BPS);
     for (const user of [ALICE, BOB, CAROL]) {
@@ -342,8 +330,6 @@ describe('StakePotService (ledger)', () => {
       await balances.findOneBy({ userId: PLATFORM_ACCOUNT_ID, asset: ASSET }),
     ).toBeNull();
   });
-
-  // ---- release -------------------------------------------------------------
 
   it('returns every hold on a void', async () => {
     await deposit(ALICE, STAKE);
@@ -400,8 +386,6 @@ describe('StakePotService (ledger)', () => {
     await expect(service.releaseMatch(ROOM)).resolves.toBeUndefined();
   });
 
-  // ---- withdrawals ---------------------------------------------------------
-
   it('debits available and queues the payout', async () => {
     await deposit(ALICE, STAKE);
 
@@ -456,7 +440,6 @@ describe('StakePotService (ledger)', () => {
     const confirmed = await withdrawals.findOneBy({ id: row.id });
     expect(confirmed!.status).toBe(StakeWithdrawalStatus.Confirmed);
     expect(confirmed!.txHash).toBe('0xsent');
-    // Confirmed funds are gone from the pot entirely.
     const snapshot = await service.getBalances(ALICE);
     expect(snapshot.available[ASSET]).toBe('0');
     expect(snapshot.pendingWithdrawals[ASSET]).toBe('0');
@@ -477,7 +460,6 @@ describe('StakePotService (ledger)', () => {
     );
     expect((await balanceOf(ALICE)).available).toBe(STAKE);
 
-    // A late duplicate failure must not refund a second time.
     await service.recordWithdrawalFailure(row.id, new Error('late'), 3);
     expect((await balanceOf(ALICE)).available).toBe(STAKE);
     expect(
@@ -498,8 +480,6 @@ describe('StakePotService (ledger)', () => {
     );
   });
 
-  // ---- reporting -----------------------------------------------------------
-
   it('totals the ledger the way reconciliation expects', async () => {
     await deposit(ALICE, STAKE * 2n);
     await deposit(BOB, STAKE);
@@ -508,8 +488,6 @@ describe('StakePotService (ledger)', () => {
 
     const totals = await service.getLedgerTotals();
 
-    // Everything deposited is still accounted for: available + locked +
-    // in-flight withdrawal.
     expect(totals[ASSET]).toBe(STAKE * 3n);
   });
 
@@ -548,8 +526,6 @@ describe('StakePotService (ledger)', () => {
     expect(await service.availableBalance(ALICE, StakeAsset.Native)).toBe(0n);
   });
 
-  // ---- fee sweeps ----------------------------------------------------------
-
   it('debits the platform account when the owner sweeps fees', async () => {
     await deposit(ALICE, STAKE);
     await deposit(BOB, STAKE);
@@ -581,11 +557,6 @@ describe('StakePotService (ledger)', () => {
     expect(await ledger.countBy({ kind: StakeLedgerKind.FeeSweep })).toBe(1);
   });
 
-  /**
-   * An owner withdrawal bigger than the accrued fees is a rescue of player
-   * funds, not a sweep. Forcing it onto the platform account would hide a real
-   * shortfall behind a plausible-looking entry.
-   */
   it('refuses to book a withdrawal larger than the accrued fees', async () => {
     await deposit(ALICE, STAKE);
 
@@ -632,7 +603,6 @@ describe('StakePotService (ledger)', () => {
     });
     const after = (await service.getLedgerTotals())[ASSET];
 
-    // The expected on-chain holdings drop by exactly what left the contract.
     expect(before - after).toBe(feeOf(settlement));
   });
 

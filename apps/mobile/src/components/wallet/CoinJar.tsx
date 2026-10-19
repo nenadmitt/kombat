@@ -4,13 +4,11 @@ import { colors } from '../../theme/colors';
 
 type Coin = { cx: number; cy: number; r: number; opacity?: number };
 
-/** Coins loose on the shelf; drawn before the jar so they tuck behind it. */
 const SHELF_COINS: Coin[] = [
   { cx: 24, cy: 108, r: 7, opacity: 0.9 },
   { cx: 112, cy: 110, r: 6, opacity: 0.85 },
 ];
 
-/** Coins heaped in the mouth of the jar, drawn over the glass. */
 const JAR_COINS: Coin[] = [
   { cx: 46, cy: 52, r: 8 },
   { cx: 64, cy: 54, r: 8.5 },
@@ -22,7 +20,6 @@ const JAR_COINS: Coin[] = [
   { cx: 36, cy: 45, r: 6, opacity: 0.88 },
 ];
 
-/** Highlight on a coin's face - lighter gold, offset a pixel up. */
 const COIN_SHINE = '#ffd977';
 
 const JAR = 'M18,56 C18,50 120,50 120,56 L110,98 C107,110 31,110 28,98 Z';
@@ -54,10 +51,6 @@ function Coins({ coins }: { coins: Coin[] }) {
   );
 }
 
-/**
- * The stake pot's mark: a glass jar of KOMBAT gold. Drawn rather than shipped
- * as an asset so it recolours with the gold token.
- */
 export default function CoinJar({ width = 138 }: { width?: number }) {
   return (
     <Svg

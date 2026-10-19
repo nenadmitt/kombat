@@ -2,15 +2,9 @@ import { Text, TextInput } from 'react-native';
 
 import { fonts } from './typography';
 
-/**
- * Makes Sora the default font app-wide by patching the default `style` for
- * `Text`/`TextInput`, instead of touching every screen's stylesheet. Any
- * screen-level `fontFamily` still wins - this only fills in the default.
- * Must be imported once, before any component renders (see index.js).
- */
+// Must be imported once, before any component renders.
 export function applyDefaultFont(): void {
-  // react-native's own type defs don't declare defaultProps on these
-  // components even though the runtime supports it.
+  // RN's type defs don't declare defaultProps on these components, though the runtime supports it.
   const AnyText = Text as unknown as { defaultProps?: { style?: unknown } };
   const AnyTextInput = TextInput as unknown as {
     defaultProps?: { style?: unknown };

@@ -1,6 +1,5 @@
 const STEPS = ['Username', 'Wallet'];
 
-/** Where the player is in the two-step account setup. */
 export function OnboardingSteps({ step }: { step: 1 | 2 }) {
   return (
     <ol className="auth-steps onboarding-steps">

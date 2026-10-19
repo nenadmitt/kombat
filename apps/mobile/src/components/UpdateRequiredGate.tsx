@@ -2,8 +2,7 @@ import UpdateRequiredScreen from '../screens/UpdateRequiredScreen';
 import { useServerStore } from '../store/server.store';
 import type { RootStackParamList } from '../navigation/types';
 
-/** Game routes are exempt: blocking mid-match would run out the turn clock
- *  and forfeit a live stake. The wall lands the moment the match is left. */
+/** Game routes are exempt: blocking mid-match would run out the turn clock and forfeit a live stake. */
 const GAME_ROUTES = new Set<keyof RootStackParamList>([
   'Battleship',
   'BattleshipSetup',
